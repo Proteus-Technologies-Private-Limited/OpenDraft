@@ -1,0 +1,41 @@
+{
+  "saveError": {
+    "heading": {
+      "autoSave": "Error en el guardado automático",
+      "saveFailed": "Error al guardar",
+      "beforeClose": "No se pudo guardar antes de cerrar"
+    },
+    "body": "OpenDraft no pudo guardar tus cambios. Tu trabajo sigue en el editor: copia lo importante antes de cerrar la aplicación o recargar la ventana.",
+    "failureAt": "Error a las {{time}}:",
+    "acknowledge": "Entendido"
+  },
+  "storageFallback": {
+    "fileHeading": "Se cambió al almacenamiento en archivos",
+    "dbHeading": "Base de datos local no disponible",
+    "fileExplanation": "OpenDraft no pudo abrir su base de datos local, así que tus proyectos se guardan ahora como archivos individuales en la carpeta de datos de la aplicación. Puedes seguir trabajando: guardar y cargar funcionan con normalidad, pero el historial de versiones está desactivado hasta que la base de datos vuelva a estar disponible.",
+    "dbExplanation": "OpenDraft no pudo abrir su base de datos local y la alternativa de archivos también falló. Tus cambios se guardarán solo en el navegador y podrían perderse si se borra el almacenamiento.",
+    "underlyingError": "Error de origen:"
+  },
+  "quota": {
+    "title": "Se alcanzó el límite del plan gratuito",
+    "usage": "Tienes <strong>{{current}}</strong> de <strong>{{limit}}</strong> archivos en el plan <strong>{{plan}}</strong>.",
+    "upgrade": "Mejorar plan"
+  },
+  "oneDrive": {
+    "title": "Se detectó interferencia de OneDrive",
+    "intro": "La carpeta de datos de OpenDraft está dentro de una ubicación sincronizada con OneDrive. Es una causa conocida de <strong>fallos de guardado silenciosos</strong>: OneDrive puede tomar el archivo de registro de escritura anticipada de SQLite en mitad de un guardado, dañar la base de datos y hacerte perder tus últimos cambios.",
+    "affectedFolder": "Carpeta afectada:",
+    "howToFix": "Cómo solucionarlo:",
+    "step1": "Abre la configuración de OneDrive → Sincronización y copia de seguridad → Administrar copia de seguridad.",
+    "step2": "Desactiva la copia de seguridad de la carpeta que contiene la ruta anterior (normalmente Documentos o Escritorio) o excluye explícitamente la carpeta de datos de OpenDraft.",
+    "step3": "Reinicia OpenDraft.",
+    "dontShowAgain": "No volver a mostrar"
+  },
+  "bookmark": {
+    "addTitle": "Añadir marcador",
+    "renameTitle": "Renombrar marcador",
+    "nameLabel": "Nombre del marcador",
+    "nameClash": "Ya existe otro marcador llamado «{{name}}».",
+    "placeCursor": "Coloca el cursor en un elemento del guion para ponerle un marcador."
+  }
+}

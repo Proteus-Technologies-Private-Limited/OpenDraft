@@ -33,6 +33,7 @@ interface TipTapNode {
  * on every save of a `.fountain` opened in place.
  */
 const TITLE_PAGE_KEYS: Record<string, string> = {
+  // i18n-ignore import-format data key, not UI text
   title: 'tpTitle',
   // `Credit:` is the label above the author — "Written by", "Screenplay by".
   // It was mapped to "based on", which put it on the line *below* the author

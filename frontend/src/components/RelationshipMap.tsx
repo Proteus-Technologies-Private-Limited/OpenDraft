@@ -15,6 +15,8 @@
  */
 
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { useEditorStore, type CharacterProfile, type CharacterRelationship } from '../stores/editorStore';
 import Select from './Select';
 
@@ -196,6 +198,52 @@ function runForceLayout(
 const REL_TYPES = ['allies', 'rivals', 'family', 'romantic', 'mentor', 'antagonist', 'employer', 'friends'];
 const REL_DYNAMICS = ['Stable', 'Evolving', 'Tense', 'One-sided', 'Supportive', 'Adversarial', 'Complex'];
 
+/*
+ * Display labels for the stored values. A relationship's type and dynamic and a
+ * character's role are saved with the project as these English words, so the
+ * stored value never changes; only what is shown is looked up. Anything not in
+ * the list (an older or custom value) is shown as it was written.
+ */
+type StoryT = TFunction<['story', 'common']>;
+
+export function relTypeLabel(t: StoryT, type: string): string {
+  switch (type) {
+    case 'allies': return t('relType.allies');
+    case 'rivals': return t('relType.rivals');
+    case 'family': return t('relType.family');
+    case 'romantic': return t('relType.romantic');
+    case 'mentor': return t('relType.mentor');
+    case 'antagonist': return t('relType.antagonist');
+    case 'employer': return t('relType.employer');
+    case 'friends': return t('relType.friends');
+    default: return type;
+  }
+}
+
+export function relDynamicLabel(t: StoryT, dynamic: string): string {
+  switch (dynamic) {
+    case 'Stable': return t('relDynamic.stable');
+    case 'Evolving': return t('relDynamic.evolving');
+    case 'Tense': return t('relDynamic.tense');
+    case 'One-sided': return t('relDynamic.oneSided');
+    case 'Supportive': return t('relDynamic.supportive');
+    case 'Adversarial': return t('relDynamic.adversarial');
+    case 'Complex': return t('relDynamic.complex');
+    default: return dynamic;
+  }
+}
+
+export function characterRoleLabel(t: StoryT, role: string): string {
+  switch (role) {
+    case 'Lead': return t('role.lead');
+    case 'Supporting': return t('role.supporting');
+    case 'Featured': return t('role.featured');
+    case 'Background': return t('role.background');
+    case 'Day Player': return t('role.dayPlayer');
+    default: return role;
+  }
+}
+
 interface RelFormProps {
   characterName: string;
   allCharacters: string[];
@@ -207,6 +255,7 @@ interface RelFormProps {
 }
 
 const RelForm: React.FC<RelFormProps> = ({ characterName, allCharacters, selectBoth, existing, onSave, onCancel }) => {
+  const { t } = useTranslation(['story', 'common']);
   const [charA, setCharA] = useState(
     existing?.characterA || (selectBoth ? '' : characterName)
   );
@@ -237,40 +286,40 @@ const RelForm: React.FC<RelFormProps> = ({ characterName, allCharacters, selectB
     <div className="rel-map-form">
       {selectBoth && (
         <div className="rel-map-form-row">
-          <label>Character A</label>
+          <label>{t('relMap.characterA')}</label>
           <Select value={charA} onChange={(e) => { setCharA(e.target.value); setOtherChar(''); }}>
-            <option value="">Select...</option>
+            <option value="">{t('relMap.select')}</option>
             {allCharacters.map((c) => <option key={c} value={c}>{c}</option>)}
           </Select>
         </div>
       )}
       <div className="rel-map-form-row">
-        <label>{selectBoth ? 'Character B' : 'Character'}</label>
+        <label>{selectBoth ? t('relMap.characterB') : t('relMap.character')}</label>
         <Select value={otherChar} onChange={(e) => setOtherChar(e.target.value)}>
-          <option value="">Select...</option>
+          <option value="">{t('relMap.select')}</option>
           {othersForB.map((c) => <option key={c} value={c}>{c}</option>)}
         </Select>
       </div>
       <div className="rel-map-form-row">
-        <label>Type</label>
+        <label>{t('relMap.type')}</label>
         <Select value={relType} onChange={(e) => setRelType(e.target.value)}>
-          {REL_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+          {REL_TYPES.map((rt) => <option key={rt} value={rt}>{relTypeLabel(t, rt)}</option>)}
         </Select>
       </div>
       <div className="rel-map-form-row">
-        <label>Dynamic</label>
+        <label>{t('relMap.dynamic')}</label>
         <Select value={dynamic} onChange={(e) => setDynamic(e.target.value)}>
-          {REL_DYNAMICS.map((d) => <option key={d} value={d}>{d}</option>)}
+          {REL_DYNAMICS.map((d) => <option key={d} value={d}>{relDynamicLabel(t, d)}</option>)}
         </Select>
       </div>
       <div className="rel-map-form-row">
-        <label>Description</label>
-        <textarea value={desc} onChange={(e) => setDesc(e.target.value)} rows={2} placeholder="Describe the relationship..." />
+        <label>{t('relMap.description')}</label>
+        <textarea value={desc} onChange={(e) => setDesc(e.target.value)} rows={2} placeholder={t('relMap.descriptionPlaceholder')} />
       </div>
       <div className="rel-map-form-actions">
-        <button className="rel-map-btn" onClick={onCancel}>Cancel</button>
+        <button className="rel-map-btn" onClick={onCancel}>{t('common:cancel')}</button>
         <button className="rel-map-btn rel-map-btn-primary" onClick={handleSubmit} disabled={!effectiveA || !otherChar}>
-          {existing ? 'Update' : 'Add'}
+          {existing ? t('relMap.update') : t('common:add')}
         </button>
       </div>
     </div>
@@ -282,6 +331,7 @@ const RelForm: React.FC<RelFormProps> = ({ characterName, allCharacters, selectB
    ════════════════════════════════════════════════════════════════════ */
 
 export const RelationshipMap: React.FC<Props> = ({ scriptId, onSelectCharacter }) => {
+  const { t } = useTranslation(['story', 'common']);
   const characters = useEditorStore((s) => s.characters);
   const characterProfiles = useEditorStore((s) => s.characterProfiles);
   const characterRelationships = useEditorStore((s) => s.characterRelationships);
@@ -548,9 +598,9 @@ export const RelationshipMap: React.FC<Props> = ({ scriptId, onSelectCharacter }
   if (nodes.length === 0) {
     return (
       <div className="rel-map-empty">
-        <p>No characters in the screenplay yet.</p>
+        <p>{t('relMap.emptyTitle')}</p>
         <p style={{ fontSize: 11, color: 'var(--fd-text-muted)' }}>
-          Add character elements to your screenplay to see them here.
+          {t('relMap.emptyHint')}
         </p>
       </div>
     );
@@ -568,17 +618,17 @@ export const RelationshipMap: React.FC<Props> = ({ scriptId, onSelectCharacter }
         {/* Edges */}
         {edges.map((edge) => {
           const s = nodeMap.get(edge.source);
-          const t = nodeMap.get(edge.target);
-          if (!s || !t) return null;
+          const tn = nodeMap.get(edge.target);
+          if (!s || !tn) return null;
           const relColor = REL_COLORS[edge.rel.type] || '#666';
-          const midX = (s.x + t.x) / 2;
-          const midY = (s.y + t.y) / 2;
+          const midX = (s.x + tn.x) / 2;
+          const midY = (s.y + tn.y) / 2;
           const isSelected = selectedNode === edge.source || selectedNode === edge.target;
 
           return (
             <g key={edge.id}>
               <line
-                x1={s.x} y1={s.y} x2={t.x} y2={t.y}
+                x1={s.x} y1={s.y} x2={tn.x} y2={tn.y}
                 stroke={relColor}
                 strokeWidth={isSelected ? 2.5 : 1.5}
                 strokeOpacity={isSelected ? 1 : 0.5}
@@ -593,7 +643,7 @@ export const RelationshipMap: React.FC<Props> = ({ scriptId, onSelectCharacter }
                 fontWeight={600}
                 style={{ pointerEvents: 'none', userSelect: 'none' }}
               >
-                {edge.rel.type}
+                {relTypeLabel(t, edge.rel.type)}
               </text>
               {edge.rel.dynamic && (
                 <text
@@ -604,7 +654,7 @@ export const RelationshipMap: React.FC<Props> = ({ scriptId, onSelectCharacter }
                   fontStyle="italic"
                   style={{ pointerEvents: 'none', userSelect: 'none' }}
                 >
-                  {edge.rel.dynamic}
+                  {relDynamicLabel(t, edge.rel.dynamic)}
                 </text>
               )}
             </g>
@@ -671,7 +721,7 @@ export const RelationshipMap: React.FC<Props> = ({ scriptId, onSelectCharacter }
                   fill="var(--fd-text-muted, #888)"
                   style={{ pointerEvents: 'none', userSelect: 'none' }}
                 >
-                  {roleLabel}
+                  {characterRoleLabel(t, roleLabel)}
                 </text>
               )}
             </g>
@@ -688,26 +738,26 @@ export const RelationshipMap: React.FC<Props> = ({ scriptId, onSelectCharacter }
               className="rel-map-btn rel-map-btn-primary"
               onClick={() => setAddingFrom(selectedNode)}
             >
-              + Add Relationship
+              {t('relMap.addRelationship')}
             </button>
             {onSelectCharacter && (
               <button
                 className="rel-map-btn"
                 onClick={() => onSelectCharacter(selectedNode)}
               >
-                View Profile
+                {t('relMap.viewProfile')}
               </button>
             )}
           </>
         ) : (
           <>
-            <span className="rel-map-toolbar-hint">Scroll to zoom. Drag background to pan.</span>
+            <span className="rel-map-toolbar-hint">{t('relMap.zoomHint')}</span>
             {nodes.length >= 2 && (
               <button
                 className="rel-map-btn rel-map-btn-primary"
                 onClick={() => setAddingFrom('__BOTH__')}
               >
-                + Add Relationship
+                {t('relMap.addRelationship')}
               </button>
             )}
           </>
@@ -728,9 +778,9 @@ export const RelationshipMap: React.FC<Props> = ({ scriptId, onSelectCharacter }
             const pad = 60;
             setViewBox({ x: minX - pad, y: minY - pad, w: maxX - minX + pad * 2, h: maxY - minY + pad * 2 });
           }}
-          title="Fit all characters to screen"
+          title={t('relMap.fitTitle')}
         >
-          Fit
+          {t('relMap.fit')}
         </button>
       </div>
 
@@ -752,7 +802,7 @@ export const RelationshipMap: React.FC<Props> = ({ scriptId, onSelectCharacter }
                 style={{ marginTop: 8, width: '100%' }}
                 onClick={() => { deleteCharacterRelationship(editingRel.id); setEditingRel(null); }}
               >
-                Delete Relationship
+                {t('relMap.deleteRelationship')}
               </button>
             )}
           </div>

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Editor } from '@tiptap/react';
 import Select from './Select';
 
@@ -8,8 +9,9 @@ interface LanguageOption {
   dir: 'ltr' | 'rtl';
 }
 
+// i18n-ignore-start: dialogue-line language names are shown in their own script (autonyms) on purpose, so a writer finds their language whatever the interface language is
 const LANGUAGES: LanguageOption[] = [
-  { code: null, label: 'Default', dir: 'ltr' },
+  { code: null, label: 'Default', dir: 'ltr' }, // shown as common:default
   { code: 'en', label: 'English', dir: 'ltr' },
   { code: 'hi', label: 'Hindi (\u0939\u093F\u0928\u094D\u0926\u0940)', dir: 'ltr' },
   { code: 'bn', label: 'Bengali (\u09AC\u09BE\u0982\u09B2\u09BE)', dir: 'ltr' },
@@ -31,6 +33,7 @@ const LANGUAGES: LanguageOption[] = [
   { code: 'de', label: 'German', dir: 'ltr' },
   { code: 'ru', label: 'Russian', dir: 'ltr' },
 ];
+// i18n-ignore-end
 
 interface LanguageSelectorProps {
   editor: Editor | null;
@@ -40,6 +43,7 @@ interface LanguageSelectorProps {
 const DIALOGUE_ELEMENTS = ['dialogue', 'parenthetical', 'character'];
 
 const LanguageSelector: React.FC<LanguageSelectorProps> = ({ editor, activeElement }) => {
+  const { t } = useTranslation(['toolbar', 'common']);
   // Only show for dialogue-related elements
   if (!DIALOGUE_ELEMENTS.includes(activeElement)) return null;
   if (!editor) return null;
@@ -68,11 +72,11 @@ const LanguageSelector: React.FC<LanguageSelectorProps> = ({ editor, activeEleme
       className="language-selector"
       value={currentLang || ''}
       onChange={handleChange}
-      title="Dialogue Language"
+      title={t('languageSelector.title')}
     >
       {LANGUAGES.map(lang => (
         <option key={lang.code || 'default'} value={lang.code || ''}>
-          {lang.label}
+          {lang.code === null ? t('common:default') : lang.label}
         </option>
       ))}
     </Select>

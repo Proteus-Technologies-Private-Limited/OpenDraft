@@ -5,6 +5,7 @@ import { useProjectStore } from '../stores/projectStore';
 import { putScratchAsset } from '../services/scratchAssets';
 import { showToast } from '../components/Toast';
 import { isAvCellPos, AV_IMAGE_SOURCE_FIELDS } from '../editor/extensions/AvBlock';
+import { t } from '../i18n';
 
 /**
  * An image landing inside an AV row becomes that row's storyboard frame.
@@ -143,7 +144,7 @@ export async function buildImageAttrs(
 export function warnIfImageDegraded(attrs: BuiltImageAttrs): void {
   if (!attrs.degraded) return;
   showToast(
-    'This image had to be stored inside the document. Save to your library to keep it out of the way.',
+    t('messages:image.degraded'),
     'info',
   );
 }

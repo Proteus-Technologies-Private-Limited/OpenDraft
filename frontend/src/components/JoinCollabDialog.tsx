@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../services/api';
 import type { CollabSession } from '../services/api';
 import { getCollabWsUrl } from '../config';
@@ -43,6 +44,7 @@ function extractTokenAndServer(input: string): { token: string; collabServerUrl:
 }
 
 const JoinCollabDialog: React.FC<JoinCollabDialogProps> = ({ onJoin, onClose }) => {
+  const { t } = useTranslation(['collab', 'common']);
   const [linkInput, setLinkInput] = useState('');
   const [joining, setJoining] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -55,7 +57,7 @@ const JoinCollabDialog: React.FC<JoinCollabDialogProps> = ({ onJoin, onClose }) 
     const { token, collabServerUrl } = extractTokenAndServer(linkInput);
     console.log('[JoinCollab] Extracted:', { token: token?.slice(0, 8) + '...', collabServerUrl });
     if (!token) {
-      showToast('Please paste a collaboration link or token', 'error');
+      showToast(t('join.pasteRequired'), 'error');
       return;
     }
 
@@ -98,7 +100,7 @@ const JoinCollabDialog: React.FC<JoinCollabDialogProps> = ({ onJoin, onClose }) 
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[JoinCollab] All attempts failed:', msg);
-      showToast(`Failed to join: ${msg}`, 'error');
+      showToast(t('join.failed', { message: msg }), 'error');
     } finally {
       setJoining(false);
     }
@@ -121,23 +123,23 @@ const JoinCollabDialog: React.FC<JoinCollabDialogProps> = ({ onJoin, onClose }) 
         onKeyDown={handleKeyDown}
       >
         <div className="dialog-header">
-          Join Collaboration Session
+          {t('join.title')}
         </div>
 
         <div className="dialog-body">
           <p style={{ margin: '0 0 16px', fontSize: 14, color: 'var(--fd-text-muted)' }}>
-            Paste the collaboration link or token you received from the session host.
+            {t('join.intro')}
           </p>
 
           <div className="settings-field">
-            <label>Collaboration Link or Token</label>
+            <label>{t('join.label')}</label>
             <input
               ref={inputRef}
               className="dialog-input"
               style={{ fontSize: 14, height: 40, padding: '0 12px' }}
               value={linkInput}
               onChange={(e) => setLinkInput(e.target.value)}
-              placeholder="https://example.com/collab/... or paste token"
+              placeholder={t('join.placeholder')}
               disabled={joining}
             />
           </div>
@@ -145,14 +147,14 @@ const JoinCollabDialog: React.FC<JoinCollabDialogProps> = ({ onJoin, onClose }) 
 
         <div className="dialog-footer">
           <div style={{ flex: 1 }} />
-          <button className="dialog-btn" onClick={onClose}>Cancel</button>
+          <button className="dialog-btn" onClick={onClose}>{t('common:cancel')}</button>
           <button
             className="dialog-btn dialog-btn-primary"
             style={{ background: 'var(--fd-accent)', color: '#fff', border: 'none', fontWeight: 600 }}
             onClick={handleJoin}
             disabled={!linkInput.trim() || joining}
           >
-            {joining ? 'Joining...' : 'Join Session'}
+            {joining ? t('join.joining') : t('join.joinSession')}
           </button>
         </div>
       </div>

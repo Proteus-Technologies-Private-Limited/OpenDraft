@@ -7,6 +7,7 @@
  * carries on with what they asked for.
  */
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { pickBackupFolder } from '../services/backupService';
 import { isDesktopTauri } from '../services/platform';
 import { useSettingsStore } from '../stores/settingsStore';
@@ -22,6 +23,7 @@ interface Props {
 }
 
 const BackupFolderPrompt: React.FC<Props> = ({ then, onClose, onFolderChosen }) => {
+  const { t } = useTranslation(['backup', 'common']);
   const [busy, setBusy] = useState(false);
   const desktop = isDesktopTauri();
 
@@ -40,7 +42,7 @@ const BackupFolderPrompt: React.FC<Props> = ({ then, onClose, onFolderChosen }) 
       if (picked) apply(picked.handle, picked.label);
     } catch (err) {
       console.error('[backup] folder picker failed:', err);
-      showToast(`Could not open the folder picker: ${err instanceof Error ? err.message : String(err)}`, 'error');
+      showToast(t('folderPrompt.pickerFailed', { error: err instanceof Error ? err.message : String(err) }), 'error');
     } finally {
       setBusy(false);
     }
@@ -56,7 +58,7 @@ const BackupFolderPrompt: React.FC<Props> = ({ then, onClose, onFolderChosen }) 
       apply(dir, dir);
     } catch (err) {
       console.error('[backup] could not resolve the Documents folder:', err);
-      showToast(`Could not find your Documents folder: ${err instanceof Error ? err.message : String(err)}`, 'error');
+      showToast(t('folderPrompt.documentsFailed', { error: err instanceof Error ? err.message : String(err) }), 'error');
     } finally {
       setBusy(false);
     }
@@ -65,29 +67,25 @@ const BackupFolderPrompt: React.FC<Props> = ({ then, onClose, onFolderChosen }) 
   return (
     <div className="dialog-overlay" onClick={() => { if (!busy) onClose(); }}>
       <div className="dialog-box" role="dialog" aria-modal="true" style={{ maxWidth: 480 }} onClick={(e) => e.stopPropagation()}>
-        <div className="dialog-header">Choose a Backup Folder</div>
+        <div className="dialog-header">{t('folderPrompt.title')}</div>
         <div className="dialog-body">
           <p style={{ margin: '0 0 10px', fontSize: 14 }}>
-            Backups are dated copies of your script, kept in a folder outside
-            OpenDraft — so they survive whatever happens to the app. Choose where
-            they go{then === 'backup' ? ' and this script is backed up straight away' : ''}.
-            You can change the folder later in Settings ▸ Backups.
+            {then === 'backup' ? t('folderPrompt.introBackup') : t('folderPrompt.introOpen')}
           </p>
           <p style={{ margin: 0, fontSize: 12, color: 'var(--fd-text-muted)' }}>
-            To have OpenDraft also back up on its own while you write, turn on
-            automatic backups in Settings ▸ Backups.
+            {t('folderPrompt.autoHint')}
           </p>
-          {busy && <p style={{ margin: '10px 0 0', fontSize: 13 }}>Waiting for a folder…</p>}
+          {busy && <p style={{ margin: '10px 0 0', fontSize: 13 }}>{t('folderPrompt.waiting')}</p>}
         </div>
         <div className="dialog-actions">
-          <button disabled={busy} onClick={onClose}>Cancel</button>
+          <button disabled={busy} onClick={onClose}>{t('common:cancel')}</button>
           {desktop && (
-            <button disabled={busy} onClick={() => void chooseDocumentsFolder()} title="Documents/OpenDraft Backups">
-              Use Documents Folder
+            <button disabled={busy} onClick={() => void chooseDocumentsFolder()} title="Documents/OpenDraft Backups" /* i18n-ignore folder path on disk */>
+              {t('folderPrompt.useDocuments')}
             </button>
           )}
           <button className="dialog-primary" disabled={busy} onClick={() => void choose()}>
-            Choose Folder…
+            {t('folderPrompt.chooseFolder')}
           </button>
         </div>
       </div>

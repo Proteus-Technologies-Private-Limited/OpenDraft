@@ -1,0 +1,168 @@
+{
+  "dictation": {
+    "plugin": {
+      "name": "Dictation",
+      "menu": "Dictation…",
+      "description": "Dictate a short phrase, review the transcript, then insert it into your screenplay. Optional English voice commands start new elements.",
+      "privacy": "Local Whisper keeps audio on this device. First use downloads model assets from huggingface.co, which sees your IP address. Browser speech recognition may send recorded voice to Google, Apple or Microsoft. Device recognition may send recorded voice to Apple or the Android speech provider (usually Google). On-device recognition is requested where supported; Android’s offline preference is not a guarantee. Choose the engine below before turning dictation on. Preferences stay on this device and can be deleted when the add-on is turned off."
+    },
+    "engine": {
+      "local": "Local Whisper",
+      "browser": "Browser speech service",
+      "device": "Device speech service"
+    },
+    "privacy": {
+      "local": "Audio stays on this device. First use downloads model assets from huggingface.co, which sees your IP address.",
+      "browser": "Your recorded voice may be sent to the browser vendor’s speech servers (Google, Apple or Microsoft).",
+      "device": "Your recorded voice may be sent to Apple or your Android speech provider (usually Google). On-device recognition is requested where supported; an offline preference is not a guarantee."
+    },
+    "problem": {
+      "linux": "This Linux desktop build does not expose supported WebKit microphone capture. Use OpenDraft in a microphone-capable browser for Local Whisper.",
+      "noMicrophone": "Microphone recording is unavailable in this browser. Use HTTPS or localhost and enable microphone access."
+    },
+    "permission": {
+      "macos": "Microphone access is blocked. Allow OpenDraft in System Settings → Privacy & Security → Microphone, then try again.",
+      "windows": "Microphone access is blocked. Allow microphone access for OpenDraft in Windows Settings → Privacy & security → Microphone, then try again.",
+      "browser": "Microphone or speech recognition access is blocked. Allow microphone access for this site in your browser settings, then try again."
+    },
+    "error": {
+      "recordingFailed": "Microphone recording failed.",
+      "workerFailed": "The local speech worker failed.",
+      "localTimeout": "Local recognition timed out. Try a shorter recording or check the model download connection.",
+      "deviceNotFinished": "Device recognition did not finish. Please try again.",
+      "deviceFailed": "Device recognition failed.",
+      "deviceTimeout": "Device recognition timed out. Please try again.",
+      "browserUnavailable": "Speech recognition is unavailable in this browser. Choose Local Whisper.",
+      "recognition": "Speech recognition: {{error}}.",
+      "engineUnavailable": "This recognition engine is unavailable here. Choose an available engine in Settings → Add-ons → Dictation.",
+      "commandNotHere": "This voice command cannot be inserted here. Choose a compatible element or move the script cursor.",
+      "placeCursor": "Place the cursor in a screenplay text element before inserting."
+    },
+    "status": {
+      "preparing": "Preparing audio and loading the local model…",
+      "downloading": "Downloading model assets: {{percent}}%",
+      "hidden": "Recording stopped because the app was hidden.",
+      "listening": "Listening…",
+      "review": "Review the transcript before inserting.",
+      "stopped": "Recording stopped. Review the transcript before inserting.",
+      "finishing": "Finishing recognition…",
+      "cancelled": "Cancelled.",
+      "inserted": "Inserted."
+    },
+    "openEditable": "Open an editable screenplay to use dictation.",
+    "title": "Dictation",
+    "intro": "Speak a short phrase, review it, then insert it at the script cursor.",
+    "localNote": "First use downloads 39 MiB of q8 model weights, plus tokenizer and runtime assets. Recordings stop after 30 seconds; first recognition may take a few minutes.",
+    "androidNote": "Use the system speech dialog to finish or cancel recording.",
+    "changeSettings": "Change engine, language or voice commands in Settings → Add-ons → Dictation.",
+    "commandsHelp": "Say a complete command: “new scene”, “character Sarah”, “action”, “dialogue”, “parenthetical”, “transition”, or “new paragraph”. Prefix “literal” to dictate those words instead.",
+    "start": "Start recording",
+    "stop": "Stop",
+    "cancel": "Cancel recording",
+    "transcript": "Transcript",
+    "command": "Command: start {{type}}.",
+    "commandWithText": "Command: start {{type}}: {{text}}.",
+    "insert": "Insert into script",
+    "settings": {
+      "engine": "Recognition engine",
+      "engineMayLeave": "{{name}} (voice may leave device)",
+      "language": "Language",
+      "commands": "Interpret English voice commands",
+      "commandsHint": "Commands are optional. Review every transcript before inserting it. Settings stay on this device.",
+      "noEngine": "No supported recognition engine is available on this platform.",
+      "noEngineBrowser": "No supported speech engine is available in this browser.",
+      "saveFailed": "Could not save dictation settings: {{error}}"
+    },
+    "languages": {
+      "en": "English",
+      "pl": "Polish",
+      "fr": "French",
+      "de": "German",
+      "es": "Spanish",
+      "it": "Italian",
+      "pt": "Portuguese",
+      "ja": "Japanese"
+    }
+  },
+  "assistant": {
+    "plugin": {
+      "name": "AI Assistant",
+      "menu": "AI Assistant…",
+      "panel": "Assistant",
+      "description": "Ask an AI model about your script and insert its suggestions after you review them. Works with a local server such as Ollama, LM Studio or Unsloth Studio.",
+      "privacy": "Sends your question, the script context it needs to answer, and the text you select to the AI server you choose. With a local server such as Ollama, LM Studio or Unsloth Studio on your own computer, nothing leaves your device. The server address, model name and any API key are stored on this device only, never in scripts; the key is kept in the app storage unencrypted, so use a key made for this purpose."
+    },
+    "examples": {
+      "line": "Write a line for Ben: \"Hello, everyone.\"",
+      "scene": "Add a scene: INT. LAUNDRY - NIGHT, with an opening action.",
+      "say": "Have MARGO say \"You shouldn't have come back\" (whispering)."
+    },
+    "preview": {
+      "element": "Element → {{label}}",
+      "replaceWith": "Replace with: "
+    },
+    "couldNot": "Could not: {{message}}",
+    "done": "Done.",
+    "discarded": "Proposal discarded.",
+    "proposalReady": "Proposal ready - review and confirm.",
+    "warning": "⚠️ {{message}}",
+    "title": "AI Assistant",
+    "newConversation": "New conversation",
+    "empty": "Ask the assistant to write into the script. It uses the app's commands, so the text arrives already formatted.",
+    "hint": "The server and model are set in Settings → Add-ons.",
+    "you": "You",
+    "assistant": "Assistant",
+    "writing": "Writing…",
+    "proposal": "Proposal",
+    "blockCount_one": "{{count}} block",
+    "blockCount_other": "{{count}} blocks",
+    "insert": "Insert",
+    "discard": "Discard",
+    "placeholder": "e.g. Write a line for Ben: \"Hello, everyone.\"",
+    "send": "Send (Enter)",
+    "openScreenplay": "Open a screenplay to use the assistant.",
+    "error": {
+      "scriptChanged": "The script changed while the proposal was waiting, so it was discarded. Ask again.",
+      "tooManyActions": "The proposal is too large (max 60 actions). Try a more specific request.",
+      "tooManyBlocks": "The proposal is too large (max 40 blocks). Try a more specific request.",
+      "notAllowed": "The assistant is not allowed to run {{name}}.",
+      "nothingToInsert": "The proposal had nothing to insert.",
+      "readOnly": "This document is read-only, so the assistant cannot insert into it.",
+      "replaceGone": "The text the proposal was going to replace is no longer there. Ask again.",
+      "notApplied": "Some actions were not applied: {{details}}",
+      "prepareDialogue": "I could not prepare the dialogue.",
+      "prepareScene": "I could not prepare the scene.",
+      "notConfigured": "Set the AI server and model in Settings → Add-ons first.",
+      "noValidActionsNamed": "No valid actions: {{names}}",
+      "noValidActions": "No valid actions.",
+      "noValidAction": "The model did not produce a valid action. Try rephrasing the request.",
+      "noJsonAction": "The model did not return a JSON action. Try rephrasing or use a larger model.",
+      "noActionReceived": "No action received.",
+      "stepLimit": "Reached the step limit without a final answer.",
+      "unreachableDesktop": "Could not reach {{base}}. The desktop app only allows plain-http connections to localhost or 127.0.0.1, so a server on your local network is blocked by its security policy. Run the server on this computer, or use OpenDraft in the browser.",
+      "unreachable": "Could not reach {{base}}. Check that the server is running and that the app's origin is allowed (for Ollama: OLLAMA_ORIGINS=*; for Unsloth Studio: the server must be listening on {{base}}).",
+      "model": "Model error: {{message}}",
+      "apiKeyRequired": "The server requires an API key. Copy it from Unsloth Studio (or your server) and paste it into the \"API key\" field in the assistant settings."
+    },
+    "settings": {
+      "addressMissing": "Enter the server address, e.g. http://localhost:11434",
+      "addressProtocol": "The address must start with http:// or https://",
+      "modelMissing": "Enter the name of the model to use.",
+      "reached": "Reached the server. Models: {{models}}",
+      "noModels": "Reached the server, but it reported no models. Load one first.",
+      "serverType": "Server type",
+      "ollama": "Ollama (its own API)",
+      "openai": "OpenAI-compatible (Unsloth Studio, LM Studio, llama.cpp…)",
+      "addressExamples": "Ollama: http://localhost:11434 · Unsloth Studio: http://localhost:8080/v1 · LM Studio: http://localhost:1234/v1",
+      "serverAddress": "Server address",
+      "desktopNote": "In the desktop app the server must run on this computer (localhost or 127.0.0.1); a server on your local network is blocked by the app’s security policy.",
+      "model": "Model",
+      "modelHint": "For reliable results use an instruct model of 7B or more; small models often misattribute a line or drop actions.",
+      "apiKey": "API key (only if your server needs one)",
+      "optional": "optional",
+      "testing": "Testing…",
+      "test": "Test connection",
+      "saveFailed": "Could not save the settings on this device: {{message}}"
+    }
+  }
+}

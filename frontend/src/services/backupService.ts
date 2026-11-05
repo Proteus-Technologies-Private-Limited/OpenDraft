@@ -31,6 +31,7 @@ import {
 import { collectAssetRefs, packAssets, packScratchAssets } from './snapshotAssets';
 import { collectScratchIds } from '../utils/scratchRefs';
 import type { ScriptMeta } from './api';
+import { t } from '../i18n';
 
 /** A slow or disconnected network share must not leave a promise pending forever. */
 const WRITE_TIMEOUT_MS = 10_000;
@@ -210,7 +211,7 @@ async function writeBackupFile(
         'Writing the backup',
       );
     default:
-      throw new Error('Backups are not available in the browser.');
+      throw new Error(t('messages:backup.notInBrowser'));
   }
 }
 
@@ -252,8 +253,8 @@ export interface WriteSnapshotResult {
  */
 export async function writeSnapshot(opts: WriteSnapshotOptions): Promise<WriteSnapshotResult> {
   const { backupFolder, backupIncludeImages, backupRetentionCount } = useSettingsStore.getState();
-  if (!backupsSupported()) throw new Error('Backups are only available in the OpenDraft app.');
-  if (!backupFolder) throw new Error('No backup folder is configured.');
+  if (!backupsSupported()) throw new Error(t('messages:backup.onlyInApp'));
+  if (!backupFolder) throw new Error(t('messages:backup.noFolder'));
 
   // One folder per project inside the chosen folder, so a writer with a dozen
   // projects can find the right script in Finder without reading filenames.
@@ -424,7 +425,7 @@ export async function deleteSnapshot(path: string): Promise<void> {
 
 export async function revealSnapshot(path: string): Promise<void> {
   if (!supportsRevealBackup()) {
-    throw new Error('Showing a backup in a file manager is only available on the desktop.');
+    throw new Error(t('messages:backup.revealDesktopOnly'));
   }
   await invoke('reveal_path', { path });
 }
@@ -501,7 +502,7 @@ export async function pickBackupFolder(current?: string): Promise<PickedBackupFo
     }
 
     default:
-      throw new Error('Choosing a backup folder is not available in the browser.');
+      throw new Error(t('messages:backup.chooseFolderBrowser'));
   }
 }
 

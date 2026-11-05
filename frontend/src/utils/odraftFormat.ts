@@ -191,6 +191,7 @@ export function parseOdraftLoose(jsonText: string): ParsedOdraft {
   if (data?.type === 'doc') {
     return {
       version: 0,
+      // i18n-ignore stored document title default (data)
       meta: { title: 'Untitled', author: '', color: '', page_count: 0, project_id: null, script_id: null },
       content: restoreReviewContent(data),
       assets: [],

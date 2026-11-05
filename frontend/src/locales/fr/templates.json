@@ -1,0 +1,207 @@
+{
+  "system": {
+    "industryStandard": {
+      "name": "Scénario de long métrage",
+      "description": "Mise en forme standard de l’industrie pour un scénario de long métrage (compatible Final Draft)."
+    },
+    "oneHourDrama": {
+      "name": "Série dramatique d’une heure",
+      "description": "Scénario de télévision en caméra unique pour séries dramatiques d’une heure. Même aspect qu’un scénario de long métrage, avec la structure en actes de la télévision (teaser, actes I–V).",
+      "tagline": "Drame d’une heure en caméra unique (Breaking Bad, Stranger Things)"
+    },
+    "multicamSitcom": {
+      "name": "Sitcom multicaméra",
+      "description": "Scénario de télévision multicaméra (sitcoms avec public en direct) : dialogues en double interligne, indications scéniques en majuscules soulignées, liste des personnages de la scène, une scène par page.",
+      "tagline": "Sitcom avec public en direct (Big Bang Theory, Mom)"
+    },
+    "stagePlay": {
+      "name": "Pièce de théâtre",
+      "description": "Texte de théâtre : noms de personnages centrés, didascalies en italique entre parenthèses, structure ACTE/SCÈNE.",
+      "tagline": "Texte de théâtre (actes, scènes, personnages centrés)"
+    },
+    "radioPlay": {
+      "name": "Pièce radiophonique",
+      "description": "Fiction audio : scènes numérotées, repères SON/MUSIQUE, narrateur. Sans éléments de caméra ni visuels.",
+      "tagline": "Fiction radiophonique / pièce audio (BBC, fiction de podcast)"
+    },
+    "podcast": {
+      "name": "Podcast",
+      "description": "Podcast scénarisé et fiction audio : chaque réplique est numérotée pour la séance d’enregistrement, les effets sonores et les repères musicaux sont numérotés à part.",
+      "tagline": "Podcast scénarisé / fiction audio, répliques numérotées pour l’enregistrement"
+    },
+    "comic": {
+      "name": "Bande dessinée",
+      "description": "Scénario complet de bande dessinée et de roman graphique : pages et cases numérotées automatiquement, cartouches et bulles numérotés 1, 2, 3 sur chaque page.",
+      "tagline": "Scénario complet de BD / roman graphique, pages et cases numérotées"
+    },
+    "avScript": {
+      "name": "Scénario AV (deux colonnes)",
+      "description": "Scénario audio | image en deux colonnes : publicités, vidéo d’entreprise, documentaire. Chaque ligne associe un plan vidéo à son son.",
+      "tagline": "Scénario en deux colonnes pour publicité / entreprise / documentaire"
+    }
+  },
+  "group": {
+    "tv": "TV",
+    "stage": "Théâtre",
+    "audio": "Audio",
+    "comics": "BD",
+    "av": "AV"
+  },
+  "picker": {
+    "title": "Choisir un format de scénario",
+    "empty": "Aucun format activé. Ouvrez Format → Préférences de format du scénario pour en choisir au moins un."
+  },
+  "format": {
+    "defaultBadge": "par défaut",
+    "makeDefault": "Définir par défaut",
+    "isDefault": "Par défaut ✓",
+    "defaultTooltipClear": "Le sélecteur de nouveau scénario s’ouvre sur ce format. Cliquez pour annuler.",
+    "defaultTooltipSet": "Ouvrir le sélecteur de nouveau scénario sur ce format"
+  },
+  "conflict": {
+    "title": "Conflits de modèle",
+    "intro": "L’application de <strong>{{name}}</strong> nécessite de résoudre les conflits suivants dans votre document.",
+    "disabled": {
+      "title": "Types d’éléments désactivés",
+      "desc": "Ces types d’éléments sont désactivés dans le modèle mais présents dans votre document. Choisissez un remplaçant pour chacun."
+    },
+    "elementCount_one": "Élément {{label}}",
+    "elementCount_many": "Éléments {{label}}",
+    "elementCount_other": "Éléments {{label}}",
+    "replaceWith": "Remplacer par :",
+    "formatting": {
+      "title": "Conflits de mise en forme",
+      "desc": "Ces éléments ont une mise en forme en ligne qui entre en conflit avec les règles verrouillées du modèle. Cochez pour supprimer les marques en conflit.",
+      "detail_one": "{{count}} élément avec {{marks}}",
+      "detail_many": "{{count}} d’éléments avec {{marks}}",
+      "detail_other": "{{count}} éléments avec {{marks}}"
+    },
+    "applyWithout": "Appliquer sans résoudre",
+    "resolveApply": "Résoudre et appliquer"
+  },
+  "prefs": {
+    "title": "Préférences de format du scénario",
+    "titleFirstRun": "Bienvenue – choisissez vos formats de scénario",
+    "hintFirstRun": "Choisissez les formats dans lesquels vous écrivez habituellement. Lorsque vous créerez un scénario, OpenDraft ne proposera que ceux-là. Vous pourrez changer cela plus tard depuis le menu Format.",
+    "hint": "Choisissez les formats qui apparaissent dans le sélecteur de nouveau scénario. Définissez-en un par défaut et le sélecteur s’ouvre dessus, prêt à valider ; les autres restent à un clic. Ne sélectionnez qu’un seul format et les nouveaux scénarios l’utilisent sans rien demander.",
+    "yourTemplates": "Vos modèles",
+    "noneYet": "Aucun pour l’instant. Format ▸ Modèle de mise en forme… sert à en créer un ; il apparaîtra ici.",
+    "saveContinue": "Enregistrer et continuer"
+  },
+  "editor": {
+    "title": "Modifier le modèle",
+    "namePlaceholder": "Nom du modèle",
+    "description": "Description",
+    "descriptionPlaceholder": "Description facultative",
+    "mode": "Mode",
+    "modeEnforce": "Imposé",
+    "modeOverride": "Modifiable",
+    "modeEnforceHint": "La mise en forme est verrouillée : les utilisateurs ne peuvent pas modifier le style au niveau des éléments.",
+    "modeOverrideHint": "La mise en forme définit des valeurs par défaut : les utilisateurs peuvent les modifier au cas par cas.",
+    "elements": "Éléments",
+    "addElementTitle": "Ajouter un élément personnalisé (p. ex. effet sonore, chanson, insert)",
+    "addElement": "Nouveau",
+    "customBadge": "perso",
+    "removeElement": "Supprimer l’élément",
+    "av": {
+      "inserts": "Insère un corps audio/vidéo en deux colonnes : image à gauche, son à droite, une ligne par plan.",
+      "noFormatting": "Il n’a pas de mise en forme propre. Mettez en forme les éléments qui vont dans ses colonnes, et utilisez <em>Dans les colonnes AV</em> sur chacun pour indiquer quelle colonne le propose.",
+      "untick": "Décochez-le dans la liste pour l’exclure du menu des éléments ; les commandes AV du menu Format ne sont pas affectées.",
+      "inColumns": "Dans les colonnes AV",
+      "baseTitle": "Les quatre types de paragraphe AV sont proposés dans les deux colonnes de chaque document ; seule leur mise en forme relève du modèle.",
+      "columnTitle": "Quelle colonne d’un corps AV à deux colonnes propose cet élément.",
+      "notOffered": "Non proposé",
+      "video": "Colonne image",
+      "audio": "Colonne son",
+      "both": "Les deux colonnes"
+    },
+    "label": "Libellé",
+    "labelPlaceholder": "Nom de l’élément",
+    "fontFamily": "Police",
+    "fontSize": "Taille de police",
+    "textStyle": "Style du texte",
+    "bold": "Gras",
+    "italic": "Italique",
+    "underline": "Souligné",
+    "strikethrough": "Barré",
+    "textTransform": "Casse du texte",
+    "uppercase": "Majuscules",
+    "lowercase": "Minuscules",
+    "alignment": "Alignement",
+    "textColor": "Couleur du texte",
+    "inherit": "hérité",
+    "backgroundColor": "Couleur d’arrière-plan",
+    "transparent": "transparent",
+    "spaceBefore": "Espace avant (lignes)",
+    "leftIndent": "Retrait gauche (po)",
+    "rightIndent": "Retrait droit (po)",
+    "nextOnEnter": "Suivant avec Entrée",
+    "nextOnTab": "Suivant avec Tab",
+    "placeholderText": "Texte indicatif",
+    "placeholderHint": "Affiché quand l’élément est vide",
+    "newPage": "Commence sur une nouvelle page",
+    "newPageOn": "Chaque « {{label}} » commence en haut d’une nouvelle page, à l’écran et dans les exports PDF/Word.",
+    "newPageOff": "Cet élément suit le flux du reste de la page.",
+    "numbering": {
+      "enable": "Numéroter cet élément",
+      "prefix": "Préfixe",
+      "startAt": "Commencer à",
+      "style": "Style",
+      "stylePlain": "Simple (3)",
+      "styleScene": "Avec numéro de scène (12.3)",
+      "styleWords": "En toutes lettres (TROIS)",
+      "show": "Afficher le numéro",
+      "inMargin": "Dans la marge",
+      "inline": "Au début de la ligne",
+      "countWith": "Compter avec",
+      "ownCount": "Son propre compteur",
+      "restartAt": "Redémarrer la numérotation à",
+      "hintOff": "Numérote chaque « {{label}} » dans la marge, à l’écran et dans les exports PDF, Word et Final Draft.",
+      "orJoiner": " ou ",
+      "summaryWhole": "{{sample}} … en comptant sur tout le scénario.",
+      "summaryWholeShared": "{{sample}} … en comptant sur tout le scénario, dans un même compteur avec chaque « {{owner}} ».",
+      "summaryReset": "{{sample}} … en recommençant à chaque {{resets}}.",
+      "summaryResetShared": "{{sample}} … en recommençant à chaque {{resets}}, dans un même compteur avec chaque « {{owner}} ».",
+      "summaryScene": "Numéros simples quand il n’y a pas de numéro de scène à afficher.",
+      "summaryInline": "Affiché au début de la ligne, avant même que quoi que ce soit y soit saisi."
+    },
+    "allowOverride": "Autoriser la modification de la mise en forme",
+    "overrideOn": "Les utilisateurs peuvent modifier la mise en forme de ce type d’élément.",
+    "overrideOff": "Toute la mise en forme est verrouillée : les utilisateurs ne peuvent changer aucun style de cet élément.",
+    "preview": "Aperçu",
+    "sampleText": "Texte d’exemple…",
+    "selectElement": "Sélectionnez un élément dans la liste pour modifier sa mise en forme."
+  },
+  "select": {
+    "title": "Format de scénario / modèle",
+    "hint": "Choisissez un format de scénario (long métrage, sitcom, série dramatique, théâtre, radio) ou un modèle de mise en forme personnalisé. Le modèle régit les règles de mise en forme au niveau des éléments ; pour un document vide, choisir un type de scénario ajoute aussi un contenu de départ.",
+    "unreadable": "Le format enregistré ne peut pas être lu par cette version. Ses données d’origine sont conservées à l’enregistrement. Mettez OpenDraft à jour pour l’utiliser ; choisir un autre format remplace la définition enregistrée.",
+    "thisDocument": "Ce document",
+    "currentBadge": "actuel",
+    "modeEnforce": "imposé",
+    "modeOverride": "modifiable",
+    "duplicate": "Dupliquer",
+    "duplicated": "Modèle dupliqué",
+    "confirmDelete": "Supprimer le modèle « {{name}} » ?",
+    "deleted": "Modèle supprimé",
+    "libraryNewer": "La version de la bibliothèque est plus récente. La version locale de la bibliothèque est actuellement utilisée. Modifier le format actuel part de cette version ; appliquer cette copie enregistrée crée un format de document distinct.",
+    "savedNewer": "La copie enregistrée est plus récente. La version locale de la bibliothèque est actuellement utilisée. Modifier le format actuel part de cette version ; appliquer cette copie enregistrée crée un format de document distinct.",
+    "libraryInUse": "La version locale de la bibliothèque est actuellement utilisée. Modifier le format actuel part de cette version ; appliquer cette copie enregistrée crée un format de document distinct.",
+    "savedWithScript": "Enregistré avec ce scénario. Modifier ce format crée un format de document distinct et laisse vos autres modèles inchangés.",
+    "editCurrent": "Modifier le format actuel",
+    "editDocument": "Modifier le format du document",
+    "copied": "Format copié dans vos modèles",
+    "copyFailed": "Impossible d’enregistrer le format dans vos modèles.",
+    "saveToMine": "Enregistrer dans Mes modèles",
+    "scriptFormats": "Formats de scénario",
+    "userDefined": "Définis par l’utilisateur",
+    "noCustom": "Aucun modèle personnalisé pour l’instant.",
+    "create": "+ Créer un modèle",
+    "invalidSettings": "Réglages de modèle invalides. Le modèle n’a pas été enregistré.",
+    "invalidDocumentSaved": "Format de document invalide. Le modèle n’a pas été enregistré.",
+    "invalidDocumentApplied": "Format de document invalide. Le format n’a pas été appliqué.",
+    "saved": "Modèle enregistré",
+    "noLongerDefault": "N’est plus le format par défaut des nouveaux scénarios",
+    "nowDefault": "Les nouveaux scénarios commenceront avec « {{name}} »"
+  }
+}

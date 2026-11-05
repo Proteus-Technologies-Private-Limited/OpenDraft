@@ -146,6 +146,7 @@ class SpellChecker {
   }
 
   private async _doInit(): Promise<void> {
+    // i18n-ignore persisted language name captured at install time
     const ok = await this.loadLanguage(BUILTIN_LANGUAGE, { label: 'English (US)' });
     if (!ok) {
       console.error('SpellChecker: failed to load built-in language', BUILTIN_LANGUAGE);

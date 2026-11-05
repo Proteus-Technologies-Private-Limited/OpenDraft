@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { useTranslation, Trans } from 'react-i18next';
+import { t as tGlobal } from '../i18n';
 import {
   installFontFiles, listCustomFonts, removeCustomFont, MAX_FONT_BYTES,
   type CustomFont, type FontSource,
@@ -12,15 +14,17 @@ interface Props {
   onClose: () => void;
 }
 
+// i18n-ignore-start: MB / KB are unit symbols
 function describeSize(bytes: number): string {
   if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
   return `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
+// i18n-ignore-end
 
 function describeStyle(font: CustomFont): string {
   const weight = font.weight === 400 ? '' : String(font.weight);
-  const slant = font.italic ? 'Italic' : '';
-  return [font.subfamily || 'Regular', weight, slant].filter(Boolean).join(' · ');
+  const slant = font.italic ? tGlobal('format:fonts.italic') : '';
+  return [font.subfamily || tGlobal('format:fonts.regular'), weight, slant].filter(Boolean).join(' · ');
 }
 
 /**
@@ -32,6 +36,7 @@ function describeStyle(font: CustomFont): string {
  * are already in the picker.
  */
 const FontsDialog: React.FC<Props> = ({ onClose }) => {
+  const { t } = useTranslation(['format', 'common']);
   const [fonts, setFonts] = useState<CustomFont[]>(() => listCustomFonts());
   const [errors, setErrors] = useState<{ fileName: string; message: string }[]>([]);
   const [status, setStatus] = useState('');
@@ -60,16 +65,16 @@ const FontsDialog: React.FC<Props> = ({ onClose }) => {
       setErrors(result.errors);
       if (result.installed.length > 0) {
         const families = [...new Set(result.installed.map((f) => f.family))];
-        setStatus(`Added ${result.installed.length} font file${result.installed.length === 1 ? '' : 's'} — ${families.join(', ')}.`);
+        setStatus(t('fonts.added', { count: result.installed.length, families: families.join(', ') }));
       } else if (result.errors.length === 0) {
-        setStatus('Nothing to add.');
+        setStatus(t('fonts.nothingToAdd'));
       }
     } catch (err) {
-      setErrors([{ fileName: '', message: (err as Error)?.message || 'Could not add those fonts.' }]);
+      setErrors([{ fileName: '', message: (err as Error)?.message || t('fonts.addFailed') }]);
     } finally {
       setBusy(false);
     }
-  }, []);
+  }, [t]);
 
   /** Read dropped `File` objects — the web and Tauri-desktop drop paths. */
   const addDroppedFiles = useCallback(async (files: FileList | File[] | null) => {
@@ -80,12 +85,12 @@ const FontsDialog: React.FC<Props> = ({ onClose }) => {
       try {
         sources.push({ name: file.name, bytes: await file.arrayBuffer() });
       } catch (err) {
-        failures.push({ fileName: file.name, message: `Could not read that file: ${(err as Error)?.message || String(err)}` });
+        failures.push({ fileName: file.name, message: t('fonts.readFailed', { error: (err as Error)?.message || String(err) }) });
       }
     }
     await addFiles(sources);
     if (failures.length > 0) setErrors((prev) => [...prev, ...failures]);
-  }, [addFiles]);
+  }, [addFiles, t]);
 
   /**
    * Open the platform's own picker.
@@ -103,9 +108,9 @@ const FontsDialog: React.FC<Props> = ({ onClose }) => {
       await addFiles(picked);
     } catch (err) {
       setBusy(false);
-      setErrors([{ fileName: '', message: `Could not open the font picker: ${(err as Error)?.message || String(err)}` }]);
+      setErrors([{ fileName: '', message: t('fonts.pickerFailed', { error: (err as Error)?.message || String(err) }) }]);
     }
-  }, [addFiles]);
+  }, [addFiles, t]);
 
   // On desktop Tauri the webview swallows OS file drops, so the browser's drop
   // event carries no files — only paths, forwarded from the editor's native
@@ -126,11 +131,11 @@ const FontsDialog: React.FC<Props> = ({ onClose }) => {
             const data = await invoke<number[]>('read_binary_file', { path });
             files.push({ name: fileName, bytes: new Uint8Array(data).buffer });
           } catch (err) {
-            failures.push({ fileName, message: `Could not read that file: ${(err as Error)?.message || String(err)}` });
+            failures.push({ fileName, message: t('fonts.readFailed', { error: (err as Error)?.message || String(err) }) });
           }
         }
       } catch (err) {
-        failures.push({ fileName: '', message: `Could not read the dropped files: ${(err as Error)?.message || String(err)}` });
+        failures.push({ fileName: '', message: t('fonts.dropReadFailed', { error: (err as Error)?.message || String(err) }) });
       } finally {
         setBusy(false);
       }
@@ -141,34 +146,34 @@ const FontsDialog: React.FC<Props> = ({ onClose }) => {
     };
     window.addEventListener('tauri-font-drop', handler);
     return () => window.removeEventListener('tauri-font-drop', handler);
-  }, [addFiles]);
+  }, [addFiles, t]);
 
   const handleRemove = useCallback(async (font: CustomFont) => {
     setBusy(true);
     try {
       await removeCustomFont(font.id);
-      setStatus(`Removed ${font.family}.`);
+      setStatus(t('fonts.removed', { name: font.family }));
       setErrors([]);
     } catch (err) {
-      setErrors([{ fileName: font.fileName, message: (err as Error)?.message || 'Could not remove that font.' }]);
+      setErrors([{ fileName: font.fileName, message: (err as Error)?.message || t('fonts.removeFailed') }]);
     } finally {
       setFonts(listCustomFonts());
       setBusy(false);
     }
-  }, []);
+  }, [t]);
 
   const handleScanDevice = useCallback(async () => {
     setBusy(true);
     setErrors([]);
     try {
       const added = await requestLocalFonts();
-      setStatus(`Found ${added} font${added === 1 ? '' : 's'} installed on this device. They are now in the font list.`);
+      setStatus(t('fonts.found', { count: added }));
     } catch (err) {
-      setErrors([{ fileName: '', message: (err as Error)?.message || 'Could not read installed fonts.' }]);
+      setErrors([{ fileName: '', message: (err as Error)?.message || t('fonts.scanFailed') }]);
     } finally {
       setBusy(false);
     }
-  }, []);
+  }, [t]);
 
   /**
    * Add a font this device has but nothing could enumerate.
@@ -182,15 +187,15 @@ const FontsDialog: React.FC<Props> = ({ onClose }) => {
     if (!name) return;
     setErrors([]);
     if (addNamedFont(name)) {
-      setStatus(`“${name}” is available on this device and has been added to the font list.`);
+      setStatus(t('fonts.namedAdded', { name }));
       setNamedFont('');
     } else {
       setErrors([{
         fileName: '',
-        message: `This device cannot render a font called “${name}”. Check the spelling against the name the font itself uses, or add its file above.`,
+        message: t('fonts.namedFailed', { name }),
       }]);
     }
-  }, [namedFont]);
+  }, [namedFont, t]);
 
   const handleProbeDevice = useCallback(() => {
     // Detection normally runs at startup, so this usually just reports what it
@@ -198,20 +203,18 @@ const FontsDialog: React.FC<Props> = ({ onClose }) => {
     detectDeviceFonts();
     const count = getAllFonts().filter((f) => f.source === 'device').length;
     setStatus(count > 0
-      ? `${count} font${count === 1 ? '' : 's'} on this device are available in the picker.`
-      : 'No fonts beyond the built-in library were found on this device.');
-  }, []);
+      ? t('fonts.probeFound', { count })
+      : t('fonts.probeNone'));
+  }, [t]);
 
   return (
     <div className="dialog-overlay" onClick={onClose}>
       <div className="tp-editor-dialog" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 620 }}>
-        <div className="dialog-header">Fonts</div>
+        <div className="dialog-header">{t('fonts.title')}</div>
         <div className="tp-editor-body" style={{ display: 'block', padding: 20 }}>
 
           <p className="fonts-dialog-intro">
-            OpenDraft comes with a full library of screenplay, serif, sans-serif, monospaced and
-            display fonts. Add your own TrueType (<code>.ttf</code>) or OpenType (<code>.otf</code>)
-            files here to use them anywhere in a script, and in exported PDFs.
+            <Trans ns="format" i18nKey="fonts.intro" components={{ code: <code /> }} />
           </p>
 
           <div
@@ -224,19 +227,20 @@ const FontsDialog: React.FC<Props> = ({ onClose }) => {
               void addDroppedFiles(e.dataTransfer?.files ?? null);
             }}
           >
-            {canDrop && <p>Drop font files here</p>}
+            {canDrop && <p>{t('fonts.dropHere')}</p>}
             <button
               type="button"
               className="dialog-primary"
               disabled={busy}
               onClick={() => void choose()}
             >
-              Choose Font Files…
+              {t('fonts.chooseFiles')}
             </button>
             <p className="fonts-dropzone-hint">
-              {FONT_FILE_EXTENSIONS.map((e) => e.toUpperCase()).join(', ')}, up to
-              {' '}{Math.round(MAX_FONT_BYTES / 1024 / 1024)} MB each.
-              Add each weight as its own file to get real bold and italic.
+              {t('fonts.fileHint', {
+                extensions: FONT_FILE_EXTENSIONS.map((e) => e.toUpperCase()).join(', '),
+                size: Math.round(MAX_FONT_BYTES / 1024 / 1024),
+              })}
             </p>
           </div>
 
@@ -251,9 +255,9 @@ const FontsDialog: React.FC<Props> = ({ onClose }) => {
             </ul>
           )}
 
-          <h4 className="fonts-dialog-heading">Your fonts</h4>
+          <h4 className="fonts-dialog-heading">{t('fonts.yourFonts')}</h4>
           {fonts.length === 0 ? (
-            <p className="fonts-dialog-empty">No custom fonts installed yet.</p>
+            <p className="fonts-dialog-empty">{t('fonts.noCustom')}</p>
           ) : (
             <ul className="fonts-list">
               {fonts.map((font) => (
@@ -269,65 +273,59 @@ const FontsDialog: React.FC<Props> = ({ onClose }) => {
                     className="fonts-list-remove"
                     disabled={busy}
                     onClick={() => void handleRemove(font)}
-                    title={`Remove ${font.family}`}
+                    title={t('fonts.removeTitle', { name: font.family })}
                   >
-                    Remove
+                    {t('common:remove')}
                   </button>
                 </li>
               ))}
             </ul>
           )}
 
-          <h4 className="fonts-dialog-heading">Fonts on this device</h4>
+          <h4 className="fonts-dialog-heading">{t('fonts.onDevice')}</h4>
           <p className="fonts-dialog-empty">
             {deviceCount > 0
-              ? `${deviceCount} font${deviceCount === 1 ? '' : 's'} installed on this device are available in the picker.`
-              : 'Fonts installed on this device can be used as well as the built-in library.'}
+              ? t('fonts.deviceCount', { count: deviceCount })
+              : t('fonts.deviceHint')}
           </p>
           {canQueryLocalFonts() ? (
             <button type="button" disabled={busy} onClick={() => void handleScanDevice()}>
-              List All Installed Fonts…
+              {t('fonts.listAll')}
             </button>
           ) : (
             <button type="button" disabled={busy} onClick={handleProbeDevice}>
-              Look for Installed Fonts
+              {t('fonts.lookFor')}
             </button>
           )}
 
           {!canQueryLocalFonts() && (
             <div className="fonts-named-row">
               <p className="fonts-dialog-empty">
-                This platform will not list its fonts, so OpenDraft looks for the ones it knows
-                about. If you have another font installed — through a font app or a profile —
-                type its name and it will be added if this device can render it.
+                {t('fonts.namedHelp')}
               </p>
               <div className="fonts-named-input-row">
                 <input
                   className="props-input"
                   type="text"
-                  placeholder="e.g. Avenir Next Condensed"
+                  placeholder={t('fonts.namedPlaceholder')}
                   value={namedFont}
                   onChange={(e) => setNamedFont(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddNamed(); } }}
-                  aria-label="Font name"
+                  aria-label={t('fonts.namedLabel')}
                 />
                 <button type="button" disabled={busy || !namedFont.trim()} onClick={handleAddNamed}>
-                  Add by Name
+                  {t('fonts.addByName')}
                 </button>
               </div>
             </div>
           )}
 
           <p className="fonts-dialog-note">
-            A script records the name of the font it was written in, so it keeps that choice
-            when you open it on another device. Where the font isn&apos;t installed there,
-            OpenDraft substitutes the closest match of the same kind — a typewriter face for a
-            typewriter face, a serif for a serif — and the original name is restored as soon as
-            the script is opened somewhere the font exists.
+            {t('fonts.note')}
           </p>
         </div>
         <div className="dialog-actions">
-          <button className="dialog-primary" onClick={onClose}>Done</button>
+          <button className="dialog-primary" onClick={onClose}>{t('common:done')}</button>
         </div>
       </div>
     </div>

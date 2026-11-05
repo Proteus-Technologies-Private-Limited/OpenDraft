@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Editor } from '@tiptap/react';
 import type { Node as PMNode } from '@tiptap/pm/model';
 import type { TitlePageAttrs } from '../editor/extensions/TitlePage';
@@ -176,6 +177,7 @@ function replaceTitleRegion(editor: Editor, built: PMNode[]): void {
 }
 
 const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
+  const { t } = useTranslation(['format', 'common']);
   const [data, setData] = useState<Omit<TitlePageAttrs, 'field'>>({ ...EMPTY_ATTRS });
 
   // Whether the title page goes out with print, PDF and Word. Unlike every
@@ -203,9 +205,9 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
       replaceTitleRegion(editor, built);
       onClose();
     } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Failed to update title page', 'error');
+      showToast(err instanceof Error ? err.message : t('titlePage.updateFailed'), 'error');
     }
-  }, [editor, data, onClose]);
+  }, [editor, data, onClose, t]);
 
   // --- Title-page image: upload and insert a screenplayImage node at the chosen
   // position within the title page (free-flow: exporters render it in order). ---
@@ -217,7 +219,7 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
-    if (!file.type.startsWith('image/')) { showToast('Please choose an image file', 'error'); return; }
+    if (!file.type.startsWith('image/')) { showToast(t('titlePage.chooseImage'), 'error'); return; }
     const placement = imagePosition;
     try {
       // Shared with the body-image paths: a project asset when there is a
@@ -229,11 +231,11 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
       (placement === 'above' ? g.imagesAbove : g.imagesBelow).push(attrs);
       const built = buildTitlePageBlocks(editor, data, g.imagesAbove, g.imagesBelow, currentLinesPerPage());
       replaceTitleRegion(editor, built);
-      showToast('Image added to title page', 'success');
+      showToast(t('titlePage.imageAdded'), 'success');
     } catch (err) {
-      showToast(`Failed to add image: ${err instanceof Error ? err.message : String(err)}`, 'error');
+      showToast(t('titlePage.imageFailed', { error: err instanceof Error ? err.message : String(err) }), 'error');
     }
-  }, [editor, imagePosition, data]);
+  }, [editor, imagePosition, data, t]);
 
   const handleSyncFromProject = useCallback(() => {
     const { documentTitle } = useEditorStore.getState();
@@ -241,8 +243,8 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
       ...prev,
       tpTitle: documentTitle || prev.tpTitle,
     }));
-    showToast('Synced title from project', 'success');
-  }, []);
+    showToast(t('titlePage.synced'), 'success');
+  }, [t]);
 
   // The active script-format template can restrict which title-page fields appear
   // (e.g. stage plays don't have WGA Registration). Unset = show all default fields.
@@ -292,44 +294,44 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
   });
 
   const handleDeleteTitlePage = useCallback(() => {
-    if (!window.confirm('Delete the entire title page (title, credits, and images)?')) return;
+    if (!window.confirm(t('titlePage.deleteConfirm'))) return;
     if (titlePageRegionEnd(editor) > 0) replaceTitleRegion(editor, []);
     onClose();
-  }, [editor, onClose]);
+  }, [editor, onClose, t]);
 
   return (
     <div className="dialog-overlay" onClick={onClose}>
       <div className="tp-editor-dialog" onClick={(e) => e.stopPropagation()}>
-        <div className="dialog-header">Title Page</div>
+        <div className="dialog-header">{t('titlePage.title')}</div>
         <div className="tp-editor-body">
           <div className="tp-editor-form">
             {showField('tpTitle') && (
             <div className="props-field props-field-wide">
-              <label className="props-label">Title</label>
+              <label className="props-label">{t('titlePage.titleField')}</label>
               <input
                 className="props-input"
                 value={data.tpTitle}
                 onChange={(e) => setField('tpTitle', e.target.value)}
-                placeholder="SCREENPLAY TITLE"
+                placeholder={t('titlePage.titlePlaceholder')}
                 autoFocus
               />
             </div>
             )}
             {showField('tpTitle') && (
             <div className="props-field">
-              <label className="props-label">Title Size</label>
+              <label className="props-label">{t('titlePage.titleSize')}</label>
               <Select
                 className="props-input"
                 value={data.tpTitleFontSize}
                 onChange={(e) => setData((prev) => ({ ...prev, tpTitleFontSize: Number(e.target.value) }))}
               >
-                {TITLE_FONT_SIZES.map((s) => <option key={s} value={s}>{s} pt</option>)}
+                {TITLE_FONT_SIZES.map((s) => <option key={s} value={s}>{t('titlePage.points', { size: s })}</option>)}
               </Select>
             </div>
             )}
             {showField('tpCredit') && (
             <div className="props-field">
-              <label className="props-label">Credit</label>
+              <label className="props-label">{t('titlePage.credit')}</label>
               <input
                 className="props-input"
                 value={data.tpCredit}
@@ -340,40 +342,40 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
             )}
             {showField('tpWrittenBy') && (
             <div className="props-field">
-              <label className="props-label">Written By</label>
+              <label className="props-label">{t('titlePage.writtenBy')}</label>
               <input
                 className="props-input"
                 value={data.tpWrittenBy}
                 onChange={(e) => setField('tpWrittenBy', e.target.value)}
-                placeholder="Author Name"
+                placeholder={t('titlePage.authorPlaceholder')}
               />
             </div>
             )}
             {showField('tpBasedOn') && (
             <div className="props-field">
-              <label className="props-label">Based On</label>
+              <label className="props-label">{t('titlePage.basedOn')}</label>
               <input
                 className="props-input"
                 value={data.tpBasedOn}
                 onChange={(e) => setField('tpBasedOn', e.target.value)}
-                placeholder="the novel by..."
+                placeholder={t('titlePage.basedOnPlaceholder')}
               />
             </div>
             )}
             {showField('tpDraft') && (
             <div className="props-field">
-              <label className="props-label">Draft</label>
+              <label className="props-label">{t('titlePage.draft')}</label>
               <input
                 className="props-input"
                 value={data.tpDraft}
                 onChange={(e) => setField('tpDraft', e.target.value)}
-                placeholder="e.g. Second Draft"
+                placeholder={t('titlePage.draftPlaceholder')}
               />
             </div>
             )}
             {showField('tpDraftDate') && (
             <div className="props-field">
-              <label className="props-label">Draft Date</label>
+              <label className="props-label">{t('titlePage.draftDate')}</label>
               {/* Free text, not a date picker. A title page dates a draft the way
                   a writer would write it — "26 August 2026", "Winter 2026" — and
                   that is what Fountain's `Draft date:` carries either way. A
@@ -384,52 +386,52 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
                 className="props-input"
                 value={data.tpDraftDate}
                 onChange={(e) => setField('tpDraftDate', e.target.value)}
-                placeholder="e.g. 26 August 2026"
+                placeholder={t('titlePage.draftDatePlaceholder')}
               />
             </div>
             )}
             {showField('tpContact') && (
             <div className="props-field props-field-wide">
-              <label className="props-label">Contact</label>
+              <label className="props-label">{t('titlePage.contact')}</label>
               <textarea
                 className="props-textarea"
                 value={data.tpContact}
                 onChange={(e) => setField('tpContact', e.target.value)}
-                placeholder="Name\nAgency\nemail@example.com\n(310) 555-0100"
+                placeholder={t('titlePage.contactPlaceholder')}
                 rows={3}
               />
             </div>
             )}
             {showField('tpCopyright') && (
             <div className="props-field">
-              <label className="props-label">Copyright</label>
+              <label className="props-label">{t('titlePage.copyright')}</label>
               <input
                 className="props-input"
                 value={data.tpCopyright}
                 onChange={(e) => setField('tpCopyright', e.target.value)}
-                placeholder="Copyright 2026 Author Name"
+                placeholder={t('titlePage.copyrightPlaceholder')}
               />
             </div>
             )}
             {showField('tpWgaRegistration') && (
             <div className="props-field">
-              <label className="props-label">WGA Registration #</label>
+              <label className="props-label">{t('titlePage.wga')}</label>
               <input
                 className="props-input"
                 value={data.tpWgaRegistration}
                 onChange={(e) => setField('tpWgaRegistration', e.target.value)}
-                placeholder="WGAw #123456"
+                placeholder="WGAw #123456" // i18n-ignore: WGA registration number format
               />
             </div>
             )}
             {showField('tpNotes') && (
             <div className="props-field props-field-wide">
-              <label className="props-label">Notes</label>
+              <label className="props-label">{t('titlePage.notes')}</label>
               <input
                 className="props-input"
                 value={data.tpNotes}
                 onChange={(e) => setField('tpNotes', e.target.value)}
-                placeholder="e.g. CONFIDENTIAL"
+                placeholder={t('titlePage.notesPlaceholder')}
               />
             </div>
             )}
@@ -438,22 +440,22 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
               onClick={handleSyncFromProject}
               type="button"
             >
-              Sync Title from Project
+              {t('titlePage.syncTitle')}
             </button>
             <div className="props-field props-field-wide" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <label className="props-label" style={{ marginTop: 0 }}>Place image</label>
+              <label className="props-label" style={{ marginTop: 0 }}>{t('titlePage.placeImage')}</label>
               <Select
                 className="props-input"
                 value={imagePosition}
                 onChange={(e) => setImagePosition(e.target.value as 'above' | 'below')}
                 style={{ flex: 1 }}
-                title="Where the next image goes"
+                title={t('titlePage.placeImageTitle')}
               >
-                <option value="above">Top of page (above title)</option>
-                <option value="below">Bottom of page (below all)</option>
+                <option value="above">{t('titlePage.placeTop')}</option>
+                <option value="below">{t('titlePage.placeBottom')}</option>
               </Select>
               <button className="tp-sync-btn" onClick={handleAddImage} type="button" style={{ marginTop: 0 }}>
-                Add Image…
+                {t('titlePage.addImage')}
               </button>
             </div>
             <input
@@ -466,7 +468,7 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
 
             {(imagesAbove.length + imagesBelow.length) > 0 && (
               <div className="props-field props-field-wide">
-                <label className="props-label">Title Page Images ({imagesAbove.length + imagesBelow.length})</label>
+                <label className="props-label">{t('titlePage.images', { count: imagesAbove.length + imagesBelow.length })}</label>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {[
                     ...imagesAbove.map((attrs, idx) => ({ attrs, above: true, idx })),
@@ -479,21 +481,21 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
                         value={row.above ? 'above' : 'below'}
                         onChange={(e) => moveImg(row.above, row.idx, e.target.value as 'above' | 'below')}
                         style={{ flex: 1 }}
-                        title="Image placement"
+                        title={t('titlePage.imagePlacement')}
                       >
-                        <option value="above">Top</option>
-                        <option value="below">Bottom</option>
+                        <option value="above">{t('titlePage.top')}</option>
+                        <option value="below">{t('titlePage.bottom')}</option>
                       </Select>
                       <Select
                         className="props-input"
                         value={(row.attrs.align as string) || 'center'}
                         onChange={(e) => alignImg(row.above, row.idx, e.target.value)}
                         style={{ flex: 1 }}
-                        title="Image alignment"
+                        title={t('titlePage.imageAlignment')}
                       >
-                        <option value="left">Left</option>
-                        <option value="center">Center</option>
-                        <option value="right">Right</option>
+                        <option value="left">{t('titlePage.alignLeft')}</option>
+                        <option value="center">{t('titlePage.alignCenter')}</option>
+                        <option value="right">{t('titlePage.alignRight')}</option>
                       </Select>
                       <button type="button" className="tp-sync-btn" style={{ marginTop: 0 }} onClick={() => removeImg(row.above, row.idx)}>
                         ✕
@@ -511,7 +513,7 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
             <div className="tp-preview-page" style={{ display: 'flex', flexDirection: 'column', padding: '7% 9%' }}>
               {imagesAbove.map((a, i) => <TpImageThumb key={`a${i}`} attrs={a} align />)}
               <div style={{ marginTop: '20%', textAlign: 'center' }}>
-                <div style={{ fontWeight: 700, textTransform: 'uppercase', fontSize: titlePx }}>{data.tpTitle || 'UNTITLED'}</div>
+                <div style={{ fontWeight: 700, textTransform: 'uppercase', fontSize: titlePx }}>{data.tpTitle || t('titlePage.untitledPreview')}</div>
                 {byLine && <div style={{ marginTop: 8, whiteSpace: 'pre-wrap' }}>{byLine}</div>}
               </div>
               <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', fontSize: 9, gap: 8 }}>
@@ -529,20 +531,19 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
               checked={includeTitlePageInOutput}
               onChange={toggleIncludeTitlePageInOutput}
             />
-            <span>Include title page when printing or exporting to PDF or Word</span>
+            <span>{t('titlePage.includeInOutput')}</span>
           </label>
           <p className="tp-output-help">
-            Takes effect straight away and is remembered on this device. Final Draft,
-            Fountain and Fade In files always carry the title page.
+            {t('titlePage.includeInOutputHelp')}
           </p>
         </div>
         <div className="dialog-actions">
           <button onClick={handleDeleteTitlePage} style={{ marginRight: 'auto', color: '#c0392b' }}>
-            Delete Title Page
+            {t('titlePage.delete')}
           </button>
-          <button onClick={onClose}>Cancel</button>
+          <button onClick={onClose}>{t('common:cancel')}</button>
           <button className="dialog-primary" onClick={handleApply}>
-            Apply
+            {t('common:apply')}
           </button>
         </div>
       </div>

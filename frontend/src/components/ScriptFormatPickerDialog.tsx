@@ -9,6 +9,8 @@
  */
 
 import React from 'react';
+import { useTranslation } from 'react-i18next';
+import { templateGroup, templateName, templateTagline } from '../utils/templateLabels';
 import { findTemplate } from '../stores/formattingTemplateStore';
 import type { FormattingTemplate } from '../stores/formattingTypes';
 
@@ -21,11 +23,12 @@ interface Props {
 }
 
 const ScriptFormatPickerDialog: React.FC<Props> = ({ enabledIds, defaultId, onPick, onCancel }) => {
+  const { t } = useTranslation(['templates', 'common']);
   // Resolve to template objects, dropping anything stale — a system template
   // that has been removed, or a custom one deleted on another device.
   const options: FormattingTemplate[] = enabledIds
     .map((id) => findTemplate(id))
-    .filter((t): t is FormattingTemplate => Boolean(t));
+    .filter((tpl): tpl is FormattingTemplate => Boolean(tpl));
 
   // The default leads the list. Keeping several formats enabled means the next
   // script could be any of them, so the question is still asked — the default
@@ -39,11 +42,11 @@ const ScriptFormatPickerDialog: React.FC<Props> = ({ enabledIds, defaultId, onPi
   return (
     <div className="dialog-overlay" onClick={onCancel}>
       <div className="fmt-dialog fmt-dialog-narrow" onClick={(e) => e.stopPropagation()}>
-        <div className="dialog-header">Choose script format</div>
+        <div className="dialog-header">{t('picker.title')}</div>
         <div className="fmt-dialog-body">
           {options.length === 0 ? (
             <div className="fmt-empty">
-              No formats enabled. Open Format → Script Format Preferences to choose at least one.
+              {t('picker.empty')}
             </div>
           ) : (
             <div className="fmt-card-list">
@@ -57,16 +60,16 @@ const ScriptFormatPickerDialog: React.FC<Props> = ({ enabledIds, defaultId, onPi
                 >
                   <div className="fmt-card-info">
                     <div className="fmt-card-name">
-                      <span>{tpl.name}</span>
+                      <span>{templateName(tpl)}</span>
                       {tpl.id === defaultId && (
-                        <span className="fmt-card-default">default</span>
+                        <span className="fmt-card-default">{t('format.defaultBadge')}</span>
                       )}
                       {tpl.scriptTypeGroup && (
-                        <span className="fmt-card-group">{tpl.scriptTypeGroup}</span>
+                        <span className="fmt-card-group">{templateGroup(tpl)}</span>
                       )}
                     </div>
                     <div className="fmt-card-tagline">
-                      {tpl.scriptTypeTagline || tpl.description}
+                      {templateTagline(tpl)}
                     </div>
                   </div>
                 </button>
@@ -75,7 +78,7 @@ const ScriptFormatPickerDialog: React.FC<Props> = ({ enabledIds, defaultId, onPi
           )}
         </div>
         <div className="dialog-actions">
-          <button className="dialog-btn" onClick={onCancel}>Cancel</button>
+          <button className="dialog-btn" onClick={onCancel}>{t('common:cancel')}</button>
         </div>
       </div>
     </div>

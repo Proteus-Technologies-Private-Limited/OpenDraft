@@ -7,6 +7,7 @@
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import type { Editor } from '@tiptap/react';
+import { useTranslation } from 'react-i18next';
 import { useEditorStore } from '../stores/editorStore';
 import { pluginRegistry, type ReportTable } from '../plugins/registry';
 import { BUILT_IN_REPORTS, reportToCsv, reportToPdf } from '../utils/scriptReports';
@@ -30,6 +31,7 @@ interface ReportChoice {
 const PREVIEW_ROWS = 300;
 
 const ReportsDialog: React.FC<Props> = ({ editor, onClose }) => {
+  const { t } = useTranslation(['tools', 'common']);
   const documentTitle = useEditorStore((s) => s.documentTitle);
   const [selected, setSelected] = useState('builtin:scenes');
   const [table, setTable] = useState<ReportTable | null>(null);
@@ -71,17 +73,18 @@ const ReportsDialog: React.FC<Props> = ({ editor, onClose }) => {
     setError(null);
     Promise.resolve()
       .then(() => choice.build())
-      .then((t) => { if (!cancelled) setTable(t); })
+      .then((result) => { if (!cancelled) setTable(result); })
       .catch((err) => {
         console.error('[reports] could not build the report', err);
         if (!cancelled) {
           setTable(null);
-          setError(`Could not build this report: ${err instanceof Error ? err.message : String(err)}`);
+          setError(t('reports.buildFailed', { message: err instanceof Error ? err.message : String(err) }));
         }
       });
     return () => { cancelled = true; };
-  }, [choices, selected]);
+  }, [choices, selected, t]);
 
+  // i18n-ignore: the file name is written to disk, so it stays as it always was
   const fileBase = `${sanitizeExportFilename(documentTitle || 'Untitled')} - ${table?.title ?? 'Report'}`;
 
   const exportAs = async (kind: 'csv' | 'pdf') => {
@@ -92,10 +95,10 @@ const ReportsDialog: React.FC<Props> = ({ editor, onClose }) => {
       const saved = kind === 'csv'
         ? await saveFile(reportToCsv(table), `${fileBase}.csv`, [{ name: 'CSV', extensions: ['csv'] }])
         : await saveFile(await reportToPdf(table, documentTitle), `${fileBase}.pdf`, [{ name: 'PDF', extensions: ['pdf'] }]);
-      if (saved) showToast(`${table.title} exported`, 'success');
+      if (saved) showToast(t('reports.exported', { title: table.title }), 'success');
     } catch (err) {
       console.error('[reports] export failed', err);
-      showToast(`Export failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
+      showToast(t('reports.exportFailed', { message: err instanceof Error ? err.message : String(err) }), 'error');
     } finally {
       setBusy(false);
     }
@@ -110,9 +113,9 @@ const ReportsDialog: React.FC<Props> = ({ editor, onClose }) => {
         aria-modal="true"
         aria-labelledby="reports-dialog-title"
       >
-        <div className="dialog-header" id="reports-dialog-title">Reports</div>
+        <div className="dialog-header" id="reports-dialog-title">{t('reports.title')}</div>
         <div className="dialog-body reports-body">
-          <ul className="reports-list" role="listbox" aria-label="Report">
+          <ul className="reports-list" role="listbox" aria-label={t('reports.listLabel')}>
             {choices.map((c) => (
               <li
                 key={c.key}
@@ -144,9 +147,9 @@ const ReportsDialog: React.FC<Props> = ({ editor, onClose }) => {
                       ))}
                     </tbody>
                   </table>
-                  {table.rows.length === 0 && <p className="reports-empty">Nothing to report yet.</p>}
+                  {table.rows.length === 0 && <p className="reports-empty">{t('reports.empty')}</p>}
                   {table.rows.length > PREVIEW_ROWS && (
-                    <p className="reports-empty">Showing {PREVIEW_ROWS} of {table.rows.length} rows — the export includes them all.</p>
+                    <p className="reports-empty">{t('reports.previewLimit', { shown: PREVIEW_ROWS, total: table.rows.length })}</p>
                   )}
                 </div>
               </>
@@ -154,9 +157,9 @@ const ReportsDialog: React.FC<Props> = ({ editor, onClose }) => {
           </div>
         </div>
         <div className="dialog-actions">
-          <button onClick={onClose}>Close</button>
-          <button onClick={() => { void exportAs('csv'); }} disabled={!table || busy}>Export CSV…</button>
-          <button className="dialog-primary" onClick={() => { void exportAs('pdf'); }} disabled={!table || busy}>Export PDF…</button>
+          <button onClick={onClose}>{t('common:close')}</button>
+          <button onClick={() => { void exportAs('csv'); }} disabled={!table || busy}>{t('reports.exportCsv')}</button>
+          <button className="dialog-primary" onClick={() => { void exportAs('pdf'); }} disabled={!table || busy}>{t('reports.exportPdf')}</button>
         </div>
       </div>
     </div>

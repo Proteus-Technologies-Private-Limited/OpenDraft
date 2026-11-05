@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Trans, useTranslation } from 'react-i18next';
+import { compareText, formatDate as formatDateLocale } from '../i18n/format';
 import {
   DndContext,
   closestCenter,
@@ -83,6 +85,7 @@ const SortableCard: React.FC<SortableCardProps> = ({
   onRename,
   formatDate,
 }) => {
+  const { t } = useTranslation(['projects', 'common']);
   const {
     attributes,
     listeners,
@@ -144,7 +147,7 @@ const SortableCard: React.FC<SortableCardProps> = ({
 
       {/* Drag handle */}
       {sortKey === 'custom' && (
-        <div className="drag-handle" {...attributes} {...listeners} title="Drag to reorder">
+        <div className="drag-handle" {...attributes} {...listeners} title={t('list.dragToReorder')}>
           &#x2630;
         </div>
       )}
@@ -168,34 +171,34 @@ const SortableCard: React.FC<SortableCardProps> = ({
           <div
             className="project-card-name"
             onDoubleClick={(e) => { e.stopPropagation(); setEditing(true); setEditName(project.name); }}
-            title="Double-click to rename"
+            title={t('list.doubleClickRename')}
           >
             {project.name}
           </div>
         )}
         <div className="project-card-meta">
           <span>
-            {project.script_count} screenplay{project.script_count !== 1 ? 's' : ''}
+            {t('list.screenplays', { count: project.script_count })}
           </span>
           <span className="project-card-dot">&middot;</span>
           {source === 'local' && folderOf(project) ? (
-            <span className="source-badge source-badge--local" title={`Saved to ${folderOf(project)}`}>
-              <FaFolder /> Folder
+            <span className="source-badge source-badge--local" title={t('list.savedTo', { folder: folderOf(project) })}>
+              <FaFolder /> {t('list.folderBadge')}
             </span>
           ) : (
             <span
               className={`source-badge source-badge--${source}`}
-              title={source === 'cloud' ? 'Stored on OpenDraft Cloud' : 'Stored on this device'}
+              title={source === 'cloud' ? t('list.storedCloud') : t('list.storedLocal')}
             >
               {source === 'cloud' ? <FaCloud /> : <FaDesktop />}
-              {source === 'cloud' ? 'Cloud' : 'Local'}
+              {source === 'cloud' ? t('list.cloudBadge') : t('list.localBadge')}
             </span>
           )}
         </div>
         <div className="project-card-meta">
-          <span>Created {formatDate(project.created_at)}</span>
+          <span>{t('list.created', { date: formatDate(project.created_at) })}</span>
           <span className="project-card-dot">&middot;</span>
-          <span>Modified {formatDate(project.updated_at)}</span>
+          <span>{t('list.modified', { date: formatDate(project.updated_at) })}</span>
         </div>
       </div>
 
@@ -204,14 +207,14 @@ const SortableCard: React.FC<SortableCardProps> = ({
         <button
           className={`card-action-btn pin-btn${project.pinned ? ' active' : ''}`}
           onClick={(e) => { e.stopPropagation(); onPin(project.id, !project.pinned); }}
-          title={project.pinned ? 'Unpin' : 'Pin to top'}
+          title={project.pinned ? t('list.unpin') : t('list.pin')}
         >
           &#x1F4CC;
         </button>
         <button
           className="card-action-btn color-btn"
           onClick={(e) => { e.stopPropagation(); setShowColorPicker(!showColorPicker); }}
-          title="Set color"
+          title={t('list.setColor')}
         >
           <span
             className="color-dot"
@@ -221,7 +224,7 @@ const SortableCard: React.FC<SortableCardProps> = ({
         <button
           className="card-action-btn more-btn"
           onClick={(e) => { e.stopPropagation(); setShowActions((v) => !v); }}
-          title="More actions"
+          title={t('list.moreActions')}
           aria-haspopup="menu"
           aria-expanded={showActions}
         >
@@ -239,7 +242,7 @@ const SortableCard: React.FC<SortableCardProps> = ({
             role="menuitem"
             onClick={() => { setShowActions(false); setEditing(true); setEditName(project.name); }}
           >
-            Rename
+            {t('common:rename')}
           </div>
           <div className="dropdown-separator" />
           <div
@@ -247,7 +250,7 @@ const SortableCard: React.FC<SortableCardProps> = ({
             role="menuitem"
             onClick={() => { setShowActions(false); onDelete(project.id); }}
           >
-            Delete
+            {t('common:delete')}
           </div>
         </div>
       )}
@@ -261,7 +264,7 @@ const SortableCard: React.FC<SortableCardProps> = ({
               className={`color-picker-swatch${project.color === c ? ' selected' : ''}`}
               style={{ backgroundColor: c || '#555' }}
               onClick={() => { onColor(project.id, c); setShowColorPicker(false); }}
-              title={c || 'No color'}
+              title={c || t('list.noColor')}
             >
               {!c && <span className="color-none-x">&#x2715;</span>}
             </button>
@@ -275,6 +278,7 @@ const SortableCard: React.FC<SortableCardProps> = ({
 // ── Main component ───────────────────────────────────────────────────────
 
 const ProjectList: React.FC = () => {
+  const { t } = useTranslation(['projects', 'common']);
   const navigate = useNavigate();
   const goBack = useGoBack();
   const [projects, setProjects] = useState<ProjectWithCount[]>([]);
@@ -353,7 +357,7 @@ const ProjectList: React.FC = () => {
       setProjects(withCounts);
     } catch (err) {
       setProjects([]);
-      setErrorMsg(err instanceof Error ? err.message : 'Could not load projects');
+      setErrorMsg(err instanceof Error ? err.message : t('list.loadFailed'));
     }
     setLoading(false);
   }, [source, signedIn, syncCloudProjects]);
@@ -374,7 +378,7 @@ const ProjectList: React.FC = () => {
     const compareFn = (a: ProjectWithCount, b: ProjectWithCount): number => {
       switch (sortKey) {
         case 'name':
-          return a.name.localeCompare(b.name);
+          return compareText(a.name, b.name);
         case 'created':
           return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
         case 'updated':
@@ -414,13 +418,13 @@ const ProjectList: React.FC = () => {
   const chooseNewProjectFolder = async () => {
     try {
       const lf = await import('../services/linkedFiles');
-      const picked = await lf.pickFolder('Folder for this project', newFolderPicked || defaultProjectFolder || undefined);
+      const picked = await lf.pickFolder(t('list.folderForProject'), newFolderPicked || defaultProjectFolder || undefined);
       if (picked) {
         setNewFolderPicked(picked);
         setNewLocation('folder');
       }
     } catch (err) {
-      showToast(`Could not open the folder picker: ${err instanceof Error ? err.message : String(err)}`, 'error');
+      showToast(t('list.pickerFailed', { error: err instanceof Error ? err.message : String(err) }), 'error');
     }
   };
 
@@ -435,7 +439,7 @@ const ProjectList: React.FC = () => {
       const folder = newProjectFolderPath();
       if (source === 'local' && newLocation === 'folder') {
         if (!folder) {
-          showToast('Choose a folder for the project first.', 'error');
+          showToast(t('list.chooseFolderFirst'), 'error');
           setCreating(false);
           return;
         }
@@ -446,7 +450,7 @@ const ProjectList: React.FC = () => {
         setShowNewDialog(false);
         setNewProjectName('');
         if (scan.added > 0) {
-          showToast(`Created ${project.name} — ${scan.added} script${scan.added === 1 ? '' : 's'} already in the folder were added.`, 'success');
+          showToast(t('list.createdWithScripts', { name: project.name, count: scan.added }), 'success');
         }
         await fetchProjects();
         setCreating(false);
@@ -458,7 +462,7 @@ const ProjectList: React.FC = () => {
       setNewProjectName('');
       await fetchProjects();
     } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Failed to create project', 'error');
+      showToast(err instanceof Error ? err.message : t('list.createFailed'), 'error');
     }
     setCreating(false);
   };
@@ -522,11 +526,11 @@ const ProjectList: React.FC = () => {
     try {
       await client.deleteProject(pendingDeleteId);
       if (source === 'cloud') unmarkCloudProject(pendingDeleteId);
-      showToast('Project deleted', 'success');
+      showToast(t('list.deleted'), 'success');
       await fetchProjects();
     } catch (err) {
       showToast(
-        `Delete failed: ${err instanceof Error ? err.message : String(err)}`,
+        t('list.deleteFailed', { error: err instanceof Error ? err.message : String(err) }),
         'error',
       );
     }
@@ -566,12 +570,11 @@ const ProjectList: React.FC = () => {
 
   const formatDate = (iso: string): string => {
     try {
-      const d = new Date(iso);
-      return d.toLocaleDateString(undefined, {
+      return formatDateLocale(iso, {
         year: 'numeric',
         month: 'short',
         day: 'numeric',
-      });
+      }) || iso;
     } catch {
       return iso;
     }
@@ -588,7 +591,7 @@ const ProjectList: React.FC = () => {
             className={`project-source-tab ${source === 'local' ? 'active' : ''}`}
             onClick={() => setSource('local')}
           >
-            <FaDesktop /> This device
+            <FaDesktop /> {t('list.thisDevice')}
           </button>
           <button
             type="button"
@@ -597,7 +600,7 @@ const ProjectList: React.FC = () => {
             className={`project-source-tab ${source === 'cloud' ? 'active' : ''}`}
             onClick={() => setSource('cloud')}
           >
-            <FaCloud /> OpenDraft Cloud
+            <FaCloud /> {/* i18n-ignore: product name */}OpenDraft Cloud
           </button>
         </div>
       )}
@@ -613,19 +616,19 @@ const ProjectList: React.FC = () => {
           type="button"
           className="screen-back-btn"
           onClick={goBack}
-          title="Back to the screenplay"
-          aria-label="Back to the screenplay"
+          title={t('list.backToScreenplay')}
+          aria-label={t('list.backToScreenplay')}
         >
           <FaArrowLeft />
         </button>
         <div className="project-list-title-area">
-          <h1 className="project-list-title">Projects</h1>
+          <h1 className="project-list-title">{t('list.title')}</h1>
           <span className="project-list-subtitle">
-            {source === 'cloud' ? 'OpenDraft Cloud' : 'On this device'}
+            {source === 'cloud' ? 'OpenDraft Cloud' /* i18n-ignore: product name */ : t('list.onThisDevice')}
             {source === 'cloud' && getApiBase() && (
               <>
                 {' · '}
-                <span title="Server this app is talking to">{getApiBase()}</span>
+                <span title={t('list.serverTitle')}>{getApiBase()}</span>
               </>
             )}
           </span>
@@ -636,11 +639,11 @@ const ProjectList: React.FC = () => {
             value={sortKey}
             onChange={(e) => setSortKey(e.target.value as SortKey)}
           >
-            <option value="custom">Custom Order</option>
-            <option value="name">Name</option>
-            <option value="created">Created</option>
-            <option value="updated">Last Modified</option>
-            <option value="color">Color</option>
+            <option value="custom">{t('list.sort.custom')}</option>
+            <option value="name">{t('common:name')}</option>
+            <option value="created">{t('list.sort.created')}</option>
+            <option value="updated">{t('list.sort.updated')}</option>
+            <option value="color">{t('list.sort.color')}</option>
           </Select>
           {source === 'local' && (
             <button
@@ -649,33 +652,33 @@ const ProjectList: React.FC = () => {
                 try {
                   const { openBinaryFile } = await import('../utils/fileOps');
                   const result = await openBinaryFile([
-                    { name: 'ZIP Archive', extensions: ['zip'] },
+                    { name: t('list.zipArchive'), extensions: ['zip'] },
                   ]);
                   if (!result) return;
                   const res = await importProjectFromZip(result.content, result.name);
                   await fetchProjects();
                   const problems: string[] = [];
                   if (res.failed.length > 0) {
-                    problems.push(`${res.failed.length} script${res.failed.length === 1 ? '' : 's'} could not be imported (${res.failed.join(', ')})`);
+                    problems.push(t('list.import.scriptsFailed', { count: res.failed.length, names: res.failed.join(', ') }));
                   }
-                  if (res.assetsOmitted) problems.push('images were not included in this archive');
-                  if (res.assetsFailed > 0) problems.push(`${res.assetsFailed} image${res.assetsFailed === 1 ? '' : 's'} could not be restored`);
-                  if (!res.propertiesRestored) problems.push('project properties could not be restored');
+                  if (res.assetsOmitted) problems.push(t('list.import.imagesOmitted'));
+                  if (res.assetsFailed > 0) problems.push(t('list.import.imagesFailed', { count: res.assetsFailed }));
+                  if (!res.propertiesRestored) problems.push(t('list.import.propertiesFailed'));
                   if (problems.length > 0) {
-                    showToast(`Project imported, but ${problems.join('; ')}`, 'info');
+                    showToast(t('list.import.withProblems', { problems: problems.join('; ') }), 'info');
                   } else {
-                    showToast('Project imported', 'success');
+                    showToast(t('list.import.done'), 'success');
                   }
                   openProject(res.projectId);
                 } catch (err) {
                   showToast(
-                    `Import failed: ${err instanceof Error ? err.message : String(err)}`,
+                    t('list.import.failed', { error: err instanceof Error ? err.message : String(err) }),
                     'error',
                   );
                 }
               }}
             >
-              Import Project
+              {t('list.importProject')}
             </button>
           )}
           <button
@@ -687,17 +690,17 @@ const ProjectList: React.FC = () => {
               setShowNewDialog(true);
             }}
           >
-            + New Project
+            {t('list.newProject')}
           </button>
         </div>
       </div>
 
       {loading ? (
-        <div className="project-list-loading">Loading projects...</div>
+        <div className="project-list-loading">{t('list.loading')}</div>
       ) : source === 'cloud' && !signedIn ? (
         <div className="project-list-empty">
           <div className="project-list-empty-icon">&#9729;</div>
-          <div>Sign in to access OpenDraft Cloud projects. Click the "Local only" indicator at the top to sign in.</div>
+          <div>{t('list.signInPrompt')}</div>
         </div>
       ) : errorMsg ? (
         <div className="project-list-empty">
@@ -710,9 +713,9 @@ const ProjectList: React.FC = () => {
           <div>
             {source === 'cloud'
               ? (WEB_ONLY_CLOUD
-                  ? 'No projects yet. Create your first project to get started.'
-                  : 'No cloud projects yet. Create one or upload via File › Save As… and pick OpenDraft Cloud.')
-              : 'No projects yet. Create your first project to get started.'}
+                  ? t('list.empty')
+                  : t('list.emptyCloud'))
+              : t('list.empty')}
           </div>
         </div>
       ) : (
@@ -723,7 +726,7 @@ const ProjectList: React.FC = () => {
         >
           {pinnedProjects.length > 0 && (
             <>
-              <div className="pinned-section-header">Pinned</div>
+              <div className="pinned-section-header">{t('list.pinned')}</div>
               <SortableContext
                 items={pinnedProjects.map((p) => p.id)}
                 strategy={rectSortingStrategy}
@@ -749,7 +752,7 @@ const ProjectList: React.FC = () => {
           )}
           {unpinnedProjects.length > 0 && (
             <>
-              <div className="section-header">All Projects</div>
+              <div className="section-header">{t('list.allProjects')}</div>
               <SortableContext
                 items={unpinnedProjects.map((p) => p.id)}
                 strategy={rectSortingStrategy}
@@ -780,13 +783,13 @@ const ProjectList: React.FC = () => {
       {showNewDialog && (
         <div className="dialog-overlay" onClick={() => setShowNewDialog(false)}>
           <div className="dialog-box" onClick={(e) => e.stopPropagation()}>
-            <div className="dialog-header">New Project</div>
+            <div className="dialog-header">{t('list.newDialog.title')}</div>
             <div className="dialog-body">
               <div className="dialog-row">
-                <label>Project Name:</label>
+                <label>{t('list.newDialog.name')}</label>
                 <input
                   type="text"
-                  placeholder="My Screenplay"
+                  placeholder={t('list.newDialog.namePlaceholder')}
                   value={newProjectName}
                   onChange={(e) => setNewProjectName(e.target.value)}
                   onKeyDown={(e) => {
@@ -799,7 +802,7 @@ const ProjectList: React.FC = () => {
               {canUseFolders && source === 'local' && (
                 <>
                   <div className="dialog-row" style={{ marginTop: 14 }}>
-                    <label>Save in:</label>
+                    <label>{t('list.newDialog.saveIn')}</label>
                     <Select
                       className="dialog-input"
                       value={newLocation}
@@ -809,14 +812,14 @@ const ProjectList: React.FC = () => {
                         if (next === 'folder' && !defaultProjectFolder && !newFolderPicked) void chooseNewProjectFolder();
                       }}
                     >
-                      <option value="library">The OpenDraft library</option>
-                      <option value="folder">A folder on disk</option>
+                      <option value="library">{t('list.newDialog.library')}</option>
+                      <option value="folder">{t('list.newDialog.folder')}</option>
                     </Select>
                   </div>
                   {newLocation === 'folder' && (
                     <>
                       <div className="dialog-row" style={{ marginTop: 14 }}>
-                        <label>Folder:</label>
+                        <label>{t('list.newDialog.folderLabel')}</label>
                         <div style={{ display: 'flex', gap: 6, flex: 1, minWidth: 0 }}>
                           <input
                             type="text"
@@ -825,28 +828,27 @@ const ProjectList: React.FC = () => {
                             // folder is the part worth seeing.
                             ref={(el) => { if (el) el.scrollLeft = el.scrollWidth; }}
                             value={newProjectFolderPath() ?? ''}
-                            placeholder={defaultProjectFolder ? 'Type a project name' : 'Choose a folder'}
+                            placeholder={defaultProjectFolder ? t('list.newDialog.typeName') : t('list.newDialog.chooseFolder')}
                             title={newProjectFolderPath() ?? ''}
                             style={{ flex: 1, minWidth: 0 }}
                           />
-                          <button type="button" onClick={() => void chooseNewProjectFolder()}>Change…</button>
+                          <button type="button" onClick={() => void chooseNewProjectFolder()}>{t('list.newDialog.change')}</button>
                         </div>
                       </div>
                       <div className="dialog-row" style={{ marginTop: 14 }}>
-                        <label>Save scripts as:</label>
+                        <label>{t('list.newDialog.saveScriptsAs')}</label>
                         <Select
                           className="dialog-input"
                           value={newFileFormat}
                           onChange={(e) => setNewFileFormat(e.target.value)}
                         >
                           {LINKED_FILE_FORMATS.map((f) => (
-                            <option key={f} value={f}>{LINKED_FORMAT_LABELS[f]}</option>
+                            <option key={f} value={f}>{f === 'odraft' ? t('list.newDialog.formatOdraft') : LINKED_FORMAT_LABELS[f]}</option>
                           ))}
                         </Select>
                       </div>
                       <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--fd-text-muted)' }}>
-                        Each script is saved there as its own file. Screenplay
-                        files already in the folder are added to the project.
+                        {t('list.newDialog.folderHint')}
                       </p>
                     </>
                   )}
@@ -854,13 +856,13 @@ const ProjectList: React.FC = () => {
               )}
             </div>
             <div className="dialog-actions">
-              <button onClick={() => setShowNewDialog(false)}>Cancel</button>
+              <button onClick={() => setShowNewDialog(false)}>{t('common:cancel')}</button>
               <button
                 className="dialog-primary"
                 onClick={handleCreateProject}
                 disabled={creating || !newProjectName.trim() || (source === 'local' && newLocation === 'folder' && !newProjectFolderPath())}
               >
-                {creating ? 'Creating...' : 'Create'}
+                {creating ? t('list.newDialog.creating') : t('common:create')}
               </button>
             </div>
           </div>
@@ -871,31 +873,34 @@ const ProjectList: React.FC = () => {
       {pendingDeleteId && (
         <div className="dialog-overlay" onClick={() => setPendingDeleteId(null)}>
           <div className="dialog-box" onClick={(e) => e.stopPropagation()}>
-            <div className="dialog-header">Delete Project</div>
+            <div className="dialog-header">{t('list.deleteDialog.title')}</div>
             <div className="dialog-body">
               <p>
-                Are you sure you want to delete this project? This cannot be
-                undone.
+                {t('list.deleteDialog.confirm')}
               </p>
               {(() => {
                 const p = projects.find((x) => x.id === pendingDeleteId);
                 const folder = p ? folderOf(p) : null;
                 return folder ? (
                   <p style={{ fontSize: 13 }}>
-                    The script files in <strong style={{ wordBreak: 'break-all' }}>{folder}</strong> are
-                    not deleted — they stay on disk.
+                    <Trans
+                      ns="projects"
+                      i18nKey="list.deleteDialog.filesStay"
+                      values={{ folder }}
+                      components={{ strong: <strong style={{ wordBreak: 'break-all' }} /> }}
+                    />
                   </p>
                 ) : null;
               })()}
             </div>
             <div className="dialog-actions">
-              <button onClick={() => setPendingDeleteId(null)}>Cancel</button>
+              <button onClick={() => setPendingDeleteId(null)}>{t('common:cancel')}</button>
               <button
                 className="dialog-primary"
                 style={{ background: '#c0392b' }}
                 onClick={confirmDelete}
               >
-                Delete
+                {t('common:delete')}
               </button>
             </div>
           </div>

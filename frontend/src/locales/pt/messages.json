@@ -1,0 +1,476 @@
+{
+  "avFrame": {
+    "notImage": "Escolha um arquivo de imagem",
+    "needRow": "Coloque primeiro o cursor em uma linha AV e depois adicione o quadro",
+    "failed": "Não foi possível adicionar o quadro: {{message}}"
+  },
+  "image": {
+    "degraded": "Esta imagem precisou ser armazenada dentro do documento. Salve na sua biblioteca para tirá-la do caminho.",
+    "couldNotAdd": "Não foi possível adicionar \"{{name}}\".",
+    "fileFallbackName": "imagem"
+  },
+  "template": {
+    "unreadable": "O formato salvo deste roteiro não pode ser lido por esta versão do OpenDraft. Um formato local é usado para exibição; os dados originais do formato serão mantidos quando você salvar. Atualize o OpenDraft para usar o formato salvo."
+  },
+  "pacing": {
+    "brisk": {
+      "label": "Acelerado",
+      "description": "Falas rápidas, cortes ágeis, diálogos sobrepostos — o tempo em tela é menor que o da página."
+    },
+    "standard": {
+      "label": "Padrão",
+      "description": "Uma página ≈ um minuto. Ideal para a maioria dos roteiros."
+    },
+    "measured": {
+      "label": "Contido",
+      "description": "Ritmo lento ou contemplativo — longos silêncios, imagens que se demoram, momentos sustentados que duram mais na tela do que na leitura."
+    }
+  },
+  "stats": {
+    "bucket": {
+      "under1": "< 1 página",
+      "p1to2": "1-2 páginas",
+      "p2to3": "2-3 páginas",
+      "p3to5": "3-5 páginas",
+      "p5plus": "5+ páginas"
+    }
+  },
+  "pdfFonts": {
+    "hebrew": "hebraico",
+    "arabic": "árabe",
+    "thai": "tailandês",
+    "cyrillic": "cirílico, grego, armênio e georgiano",
+    "chinese": "chinês",
+    "japanese": "japonês",
+    "korean": "coreano",
+    "chineseTraditional": "chinês (tradicional)",
+    "and": " e ",
+    "missing": "A fonte {{fonts}} não pôde ser carregada, então esse texto fica em branco no PDF.",
+    "unsupported": "Ainda não é possível gravar {{scripts}} em um PDF, então esse texto está ausente ou ilegível. O restante do roteiro foi exportado normalmente."
+  },
+  "grammar": {
+    "harper": {
+      "Agreement": {
+        "label": "Concordância sujeito–verbo",
+        "description": "A forma do verbo deve concordar com o sujeito (\"she walk\" → \"she walks\")."
+      },
+      "Grammar": {
+        "label": "Gramática",
+        "description": "Tempo verbal, palavras que se confundem (their/they're), caso dos pronomes e erros semelhantes."
+      },
+      "Capitalization": {
+        "label": "Maiúsculas",
+        "description": "Nomes próprios, início de frases, o pronome \"I\"."
+      },
+      "Repetition": {
+        "label": "Palavra repetida",
+        "description": "\"the the\" acidental."
+      },
+      "Punctuation": {
+        "label": "Pontuação",
+        "description": "Vírgulas faltando, espaços sobrando em volta da pontuação."
+      },
+      "WordChoice": {
+        "label": "Escolha de palavras",
+        "description": "Sugere uma palavra mais clara ou mais idiomática."
+      },
+      "Readability": {
+        "label": "Legibilidade",
+        "description": "Frases longas ou difíceis de analisar."
+      },
+      "Typo": {
+        "label": "Erro de digitação",
+        "description": "Prováveis erros de digitação detectados pelo contexto (ex.: \"teh\" → \"the\")."
+      },
+      "Spelling": {
+        "label": "Ortografia",
+        "description": "Palavras escritas incorretamente (coincide com o corretor ortográfico — desative um dos dois)."
+      },
+      "Style": {
+        "label": "Estilo",
+        "description": "Sugestões de estilo (prolixidade, formulações fracas)."
+      },
+      "Enhancement": {
+        "label": "Aprimoramento",
+        "description": "Reescritas opcionais que costumam melhorar a clareza."
+      },
+      "Formatting": {
+        "label": "Formatação",
+        "description": "Espaçamento, aspas, travessões."
+      },
+      "Regionalism": {
+        "label": "Regionalismo",
+        "description": "Uso de palavras incomum fora de uma região específica."
+      },
+      "Miscellaneous": {
+        "label": "Outros",
+        "description": "Outros problemas gramaticais que não se encaixam nas categorias acima."
+      }
+    },
+    "retext": {
+      "passive": {
+        "label": "Voz passiva",
+        "description": "Sinaliza construções na voz passiva (\"was kicked\")."
+      },
+      "repeated": {
+        "label": "Palavra repetida",
+        "description": "Pega \"the the\" acidental."
+      },
+      "indefiniteArticle": {
+        "label": "A / an",
+        "description": "Detecta \"a hour\" / \"an university\"."
+      },
+      "redundantAcronyms": {
+        "label": "Siglas redundantes",
+        "description": "ex.: \"ATM machine\"."
+      },
+      "intensify": {
+        "label": "Intensificador fraco",
+        "description": "Sugere alternativas mais fortes para \"very\", \"really\"."
+      },
+      "simplify": {
+        "label": "Expressão prolixa",
+        "description": "Enxuga \"in order to\" → \"to\"."
+      }
+    }
+  },
+  "reports": {
+    "count": {
+      "scene_one": "{{count}} cena",
+      "scene_many": "{{count}} de cenas",
+      "scene_other": "{{count}} cenas",
+      "speakingCharacter_one": "{{count}} personagem com fala",
+      "speakingCharacter_many": "{{count}} de personagens com fala",
+      "speakingCharacter_other": "{{count}} personagens com fala",
+      "location_one": "{{count}} locação",
+      "location_many": "{{count}} de locações",
+      "location_other": "{{count}} locações",
+      "castMember_one": "{{count}} membro do elenco",
+      "castMember_many": "{{count}} de membros do elenco",
+      "castMember_other": "{{count}} membros do elenco",
+      "taggedItem_one": "{{count}} item marcado",
+      "taggedItem_many": "{{count}} de itens marcados",
+      "taggedItem_other": "{{count}} itens marcados",
+      "category_one": "{{count}} categoria",
+      "category_many": "{{count}} de categorias",
+      "category_other": "{{count}} categorias",
+      "openNote_one": "{{count}} nota aberta",
+      "openNote_many": "{{count}} de notas abertas",
+      "openNote_other": "{{count}} notas abertas",
+      "note_one": "{{count}} nota",
+      "note_many": "{{count}} de notas",
+      "note_other": "{{count}} notas",
+      "reply_one": "{{count}} resposta",
+      "reply_many": "{{count}} de respostas",
+      "reply_other": "{{count}} respostas"
+    },
+    "scenes": {
+      "label": "Relatório de cenas",
+      "description": "Cada cena com sua locação, duração, tempo de tela e quem fala",
+      "summary": "{{scenes}} · {{length}} páginas",
+      "columns": {
+        "scene": "Cena",
+        "heading": "Cabeçalho",
+        "intExt": "Int/Ext",
+        "location": "Locação",
+        "time": "Hora",
+        "length": "Duração",
+        "estTime": "Tempo est.",
+        "speaking": "Personagens com fala",
+        "words": "Palavras"
+      }
+    },
+    "characters": {
+      "label": "Relatório de personagens",
+      "description": "Falas, palavras e cenas de cada personagem com fala",
+      "columns": {
+        "character": "Personagem",
+        "role": "Papel",
+        "gender": "Gênero",
+        "speeches": "Falas",
+        "words": "Palavras",
+        "share": "Parcela do diálogo",
+        "scenes": "Cenas",
+        "sceneNumbers": "Números das cenas"
+      }
+    },
+    "locations": {
+      "label": "Relatório de locações",
+      "description": "Cada locação, com que frequência é usada e por quantas páginas",
+      "columns": {
+        "location": "Locação",
+        "intExt": "Int/Ext",
+        "times": "Horas do dia",
+        "scenes": "Cenas",
+        "totalLength": "Duração total",
+        "sceneNumbers": "Números das cenas"
+      }
+    },
+    "cast": {
+      "label": "Relatório de elenco",
+      "description": "Fichas de personagens com papel, gênero, idade e cenas com fala",
+      "columns": {
+        "character": "Personagem",
+        "role": "Papel",
+        "gender": "Gênero",
+        "age": "Idade",
+        "speakingScenes": "Cenas com fala",
+        "description": "Descrição"
+      }
+    },
+    "breakdown": {
+      "label": "Relatório de decupagem",
+      "description": "Objetos de cena, figurinos, veículos e mais, marcados, com suas cenas",
+      "summary": "{{items}} em {{categories}}",
+      "columns": {
+        "category": "Categoria",
+        "item": "Item",
+        "scenes": "Cenas",
+        "sceneNumbers": "Números das cenas",
+        "notes": "Notas"
+      }
+    },
+    "notes": {
+      "label": "Relatório de notas",
+      "description": "Cada nota com suas respostas, quem a escreveu, a quem foi atribuída e se está resolvida",
+      "title": "Relatório de notas",
+      "summary": "{{notes}} · {{open}} abertas · {{resolved}} resolvidas · {{replies}}",
+      "columns": {
+        "number": "nº",
+        "scene": "Cena",
+        "on": "Em",
+        "from": "De",
+        "comment": "Comentário",
+        "status": "Situação",
+        "assignedTo": "Atribuída a",
+        "date": "Data"
+      },
+      "general": "Geral",
+      "open": "Aberta",
+      "resolved": "Resolvida",
+      "resolvedBy": "Resolvida por {{name}}",
+      "resolvedAt": "{{status}} {{date}}"
+    },
+    "openNotes": {
+      "label": "Notas abertas",
+      "description": "Somente as notas ainda não resolvidas, com suas respostas — o que ainda falta fazer",
+      "title": "Notas abertas",
+      "summary": "{{notes}} · {{replies}}"
+    },
+    "nothing": "Nada a relatar."
+  },
+  "backup": {
+    "error": {
+      "missingFolder": "A pasta de backup não existe mais.",
+      "noPermission": "O OpenDraft não tem permissão para gravar na pasta de backup.",
+      "diskFull": "O disco está cheio.",
+      "noResponse": "A pasta de backup não respondeu (uma unidade de rede foi desconectada?)."
+    },
+    "failed": "Falha no backup — {{reason}}",
+    "paused": "Backups automáticos pausados — {{reason}} Corrija a pasta em Configurações para retomar.",
+    "notInBrowser": "Os backups não estão disponíveis no navegador.",
+    "onlyInApp": "Os backups só estão disponíveis no app OpenDraft.",
+    "noFolder": "Nenhuma pasta de backup está configurada.",
+    "revealDesktopOnly": "Mostrar um backup no gerenciador de arquivos só está disponível no computador.",
+    "chooseFolderBrowser": "Escolher uma pasta de backup não está disponível no navegador."
+  },
+  "sprint": {
+    "finished_one": "Sprint concluído — {{count}} palavra escrita.",
+    "finished_many": "Sprint concluído — {{count}} de palavras escritas.",
+    "finished_other": "Sprint concluído — {{count}} palavras escritas."
+  },
+  "recovery": {
+    "tooLarge": "Este documento é grande demais para ser protegido contra falhas. Salve-o na sua biblioteca para que o salvamento automático assuma.",
+    "noRoom": "A proteção contra falhas não está disponível — não há espaço para guardar uma cópia de recuperação. Salve seu trabalho na sua biblioteca."
+  },
+  "fallbackImport": {
+    "project_one": "{{count}} projeto",
+    "project_many": "{{count}} de projetos",
+    "project_other": "{{count}} projetos",
+    "script_one": "{{count}} roteiro",
+    "script_many": "{{count}} de roteiros",
+    "script_other": "{{count}} roteiros",
+    "asset_one": "{{count}} recurso",
+    "asset_many": "{{count}} de recursos",
+    "asset_other": "{{count}} recursos",
+    "template_one": "{{count}} modelo",
+    "template_many": "{{count}} de modelos",
+    "template_other": "{{count}} modelos",
+    "imported": "Importado(s) {{counts}} do armazenamento alternativo baseado em arquivos",
+    "importedWithErrors": "Importado(s) {{counts}} do armazenamento alternativo. {{failed}} item(ns) falharam — veja o DevTools para detalhes.",
+    "nothing": "nada"
+  },
+  "dictionary": {
+    "unknownLanguage": "Idioma desconhecido: {{code}}",
+    "downloadFailed": "Não foi possível baixar \"{{label}}\" — a fonte pode estar temporariamente indisponível ou a rede está offline.",
+    "codeRequired": "O código do idioma é obrigatório.",
+    "urlsRequired": "As URLs do .aff e do .dic são obrigatórias.",
+    "parseFailed": "Falha ao baixar ou interpretar. Confira as URLs e se os arquivos são .aff/.dic válidos do Hunspell."
+  },
+  "auth": {
+    "renewFailed": "Não foi possível renovar seu login agora. Tente novamente em instantes."
+  },
+  "cloud": {
+    "notConfigured": "O OpenDraft Cloud não está configurado neste app. Abra Configurações → Configurações do sistema para definir a URL do servidor do OpenDraft.",
+    "cannotReachNamed": "Não foi possível acessar {{where}}. Verifique se o servidor está em execução e acessível.",
+    "cannotReach": "Não foi possível acessar o OpenDraft Cloud ({{detail}}).",
+    "invalidResponse": "O OpenDraft Cloud retornou uma resposta inválida. O servidor pode estar mal configurado.",
+    "renewUnavailable": "Não foi possível acessar o servidor do OpenDraft para renovar seu login. Tente novamente em instantes."
+  },
+  "fonts": {
+    "tooLarge": "Grande demais — as fontes devem ter menos de {{mb}} MB.",
+    "empty": "Esse arquivo está vazio.",
+    "tooSmall": "Esse arquivo é pequeno demais para ser uma fonte.",
+    "notFont": "Esse arquivo não é uma fonte TrueType ou OpenType.",
+    "installFailed": "Não foi possível instalar esta fonte: {{message}}",
+    "noStorage": "Este navegador não tem armazenamento local para fontes.",
+    "deleteFailed": "A fonte foi removida desta sessão, mas não pôde ser excluída do armazenamento."
+  },
+  "linkedFiles": {
+    "unsupportedExtension": "O OpenDraft pode manter roteiros em arquivos .odraft, .fountain, .fdx ou .osf, não .{{ext}}.",
+    "noExtension": "(nenhuma)",
+    "cannotWrite": "O OpenDraft não consegue gravar em {{folder}}",
+    "cannotWriteReason": "O OpenDraft não consegue gravar em {{folder}} — {{reason}}",
+    "notInFolder": "Este projeto não é salvo em uma pasta."
+  },
+  "elements": {
+    "sceneHeading": "Cabeçalho de cena",
+    "action": "Ação",
+    "character": "Personagem",
+    "parenthetical": "Parentético",
+    "dialogue": "Diálogo",
+    "transition": "Transição",
+    "shot": "Plano",
+    "general": "Geral",
+    "dualDialogue": "Diálogo simultâneo",
+    "lyrics": "Letra",
+    "newAct": "Novo ato",
+    "endOfAct": "Fim do ato"
+  },
+  "marks": {
+    "bold": "Negrito",
+    "italic": "Itálico",
+    "underline": "Sublinhado",
+    "strike": "Tachado",
+    "subscript": "Subscrito",
+    "superscript": "Sobrescrito",
+    "textStyle": "Fonte/Tamanho",
+    "color": "Cor do texto",
+    "highlight": "Destaque",
+    "formatOverride": "Substituição de formato"
+  },
+  "relativeTime": {
+    "justNow": "agora mesmo",
+    "minutes_one": "há {{count}} minuto",
+    "minutes_many": "há {{count}} de minutos",
+    "minutes_other": "há {{count}} minutos",
+    "hours_one": "há {{count}} hora",
+    "hours_many": "há {{count}} de horas",
+    "hours_other": "há {{count}} horas",
+    "days_one": "há {{count}} dia",
+    "days_many": "há {{count}} de dias",
+    "days_other": "há {{count}} dias"
+  },
+  "suggestions": {
+    "insertedBy": "Sugerido por {{name}}",
+    "insertedByAt": "Sugerido por {{name}} · {{when}}",
+    "someone": "alguém",
+    "someoneCap": "Alguém",
+    "deleteBy": "{{name}} sugeriu excluir isto",
+    "deleteByAt": "{{name}} sugeriu excluir isto · {{when}}",
+    "formatAdd": "{{name}} sugeriu adicionar {{format}}",
+    "formatRemove": "{{name}} sugeriu remover {{format}}",
+    "joinLabel": "⤒ juntar",
+    "joinTitle": "{{name}} sugeriu juntar esta linha à anterior",
+    "wasType": "era {{type}}",
+    "changeTitle": "{{name}} sugeriu mudar isto de {{from}} para {{to}}"
+  },
+  "clipboard": {
+    "pasteDeniedIos": "Não foi possível ler a área de transferência. O iOS pede permissão a cada colagem — toque em “Colar” quando aparecer, ou mantenha pressionado no roteiro e use Colar ali.",
+    "pasteDenied": "Não foi possível ler a área de transferência. Permita o acesso à área de transferência para o OpenDraft e tente novamente.",
+    "selectFirst": "Selecione primeiro algo para copiar.",
+    "copyFailed": "Não foi possível copiar para a área de transferência.",
+    "empty": "A área de transferência está vazia."
+  },
+  "import": {
+    "archiveNotOpenable": "Arquivos {{format}} são pacotes compactados e não podem ser abertos nesta plataforma. Exporte o roteiro de {{app}} como .fdx, .fountain ou .osf e importe esse arquivo.",
+    "expectedText": "Era esperado conteúdo de texto para um arquivo {{format}}.",
+    "invalidOdraft": "Arquivo .odraft inválido: {{message}}",
+    "archiveUnreadable": "Não foi possível ler o arquivo {{format}} — ele não é um pacote .{{ext}} válido. Pode estar danificado, incompleto ou salvo em outro formato; tente exportá-lo novamente de {{format}}.",
+    "zipInvalid": "Este arquivo não é um pacote zip válido",
+    "zipSingleScript": "Este zip contém um único roteiro, não um projeto. Importe-o de dentro de um projeto.",
+    "zipNoProject": "Pacote de projeto inválido: falta o project.json",
+    "zipNoneImported": "Nenhum dos {{count}} roteiros pôde ser importado",
+    "pdfPassword": "Este PDF está protegido por senha. Abra-o em um leitor de PDF, salve uma cópia sem a senha e importe essa cópia.",
+    "pdfUnreadable": "Este arquivo não é um PDF legível — pode estar danificado.",
+    "pdfNoText": "Este PDF não tem texto para ler — pode ser um documento digitalizado. Só é possível importar PDFs com texto selecionável.",
+    "pdfNothingRecognised": "Nenhum cabeçalho de cena ou diálogo foi reconhecido — o PDF pode não estar diagramado como um roteiro.",
+    "docxTable": "Foi encontrada uma tabela que não é um layout de diálogo simultâneo — as células foram convertidas em ação.",
+    "docxNoDocument": "Não é um arquivo .docx válido: falta word/document.xml",
+    "docxNoBody": "Não é um arquivo .docx válido: falta <w:body>",
+    "highlandNoFountain": "Não é um roteiro do Highland: o arquivo não tem text.fountain{{contents}}.",
+    "highlandNotFountain": "Este documento do Highland está armazenado como {{name}} em vez de Fountain, então foi lido como texto Fountain; confira os tipos de elemento após a importação.",
+    "highlandImages": "As imagens armazenadas no arquivo do Highland não foram importadas."
+  },
+  "export": {
+    "zipUnreadable_one": "Não foi possível ler o roteiro: {{names}}",
+    "zipUnreadable_many": "Não foi possível ler os roteiros: {{names}}",
+    "zipUnreadable_other": "Não foi possível ler os roteiros: {{names}}",
+    "twoUpPageSize": "O tamanho da página não é válido, então não é possível colocar duas páginas por folha.",
+    "twoUpStructure": "Não foi possível colocar duas páginas por folha: o PDF tinha uma estrutura inesperada.",
+    "twoUpPageStructure": "Não foi possível colocar duas páginas por folha: a página {{page}} tinha uma estrutura inesperada.",
+    "avEmpty": "Este documento não tem conteúdo AV para exportar.",
+    "cannotWrite": "O OpenDraft não consegue gravar arquivos .{{format}}."
+  },
+  "file": {
+    "chooseDifferent": "Escolha um destino diferente para Salvar uma cópia. O original não foi alterado.",
+    "openBrowser": "Abrir um arquivo diretamente não está disponível no navegador.",
+    "saveBrowser": "Salvar um arquivo diretamente não está disponível no navegador."
+  },
+  "macros": {
+    "notJson": "Este arquivo não é um JSON válido.",
+    "notMacros": "Este arquivo não contém macros do OpenDraft."
+  },
+  "avYaml": {
+    "notYaml": "Esse arquivo não é um YAML válido.",
+    "notYamlLine": "Esse arquivo não é um YAML válido (linha {{line}}).",
+    "notAvDoc": "Esse arquivo não é um documento AV do OpenDraft.",
+    "wrongFormat": "Esse arquivo não é um documento AV do OpenDraft (formato esperado: {{format}}).",
+    "noVersion": "Esse arquivo não informa qual versão do esquema AV ele usa.",
+    "tooNew": "Esse arquivo usa a versão {{version}} do esquema AV, mas esta versão do OpenDraft lê até a {{max}}. Atualize o OpenDraft para abri-lo.",
+    "noSection": "Esse arquivo AV não tem uma seção `av:` para importar.",
+    "noRows": "A seção AV {{n}} não tem linhas."
+  },
+  "sides": {
+    "emptyScenes": "As cenas escolhidas estão vazias.",
+    "noLines": "{{name}} não tem falas neste roteiro.",
+    "noSceneAt": "Nenhuma cena se passa em {{location}}.",
+    "notTagged": "Nada no roteiro está marcado com {{label}}."
+  },
+  "av": {
+    "durationLabel": "Duração do plano {{shot}}",
+    "durationInvalid": "Não é um tempo — use 0:05, 1:30 ou 1:02:03",
+    "durationTitle": "Duração do plano",
+    "resizeTitle": "Arraste para redimensionar · clique duas vezes para redefinir"
+  },
+  "tts": {
+    "unreadable": "O servidor de fala respondeu com algo ilegível.",
+    "noProvider": "Nenhum provedor de voz com IA está configurado.",
+    "needGeminiKey": "Adicione sua chave de API do Gemini em Configurações → Vozes da leitura de mesa.",
+    "needElevenLabsKey": "Adicione sua chave de API da ElevenLabs em Configurações → Vozes da leitura de mesa.",
+    "needAzureKey": "Adicione sua chave e região do Azure Speech em Configurações → Vozes da leitura de mesa.",
+    "noKokoroVoice": "Nenhuma voz do Kokoro está selecionada.",
+    "noGeminiVoice": "Nenhuma voz do Gemini está selecionada.",
+    "noAzureVoice": "Nenhuma voz do Azure está selecionada.",
+    "noElevenLabsVoice": "Nenhuma voz da ElevenLabs está selecionada.",
+    "noVoice": "Nenhuma voz está selecionada.",
+    "geminiNoAudio": "O Gemini não retornou áudio para esta linha.",
+    "azureNoAudio": "O Azure Speech não retornou áudio.",
+    "audioNoStart": "O áudio de {{provider}} não começou a tocar. Este navegador pode não ser compatível com o formato.",
+    "audioNoPlay": "Não foi possível reproduzir o áudio de {{provider}}.",
+    "audioNoDecode": "Não foi possível decodificar o áudio de {{provider}}: {{message}}",
+    "kokoroStopped": "O mecanismo de voz do Kokoro parou: {{message}}",
+    "kokoroUnknown": "erro desconhecido",
+    "systemStopped": "O mecanismo de fala do sistema parou de responder: {{message}}"
+  }
+}

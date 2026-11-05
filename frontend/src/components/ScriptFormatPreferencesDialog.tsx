@@ -15,6 +15,8 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import { templateGroup, templateName, templateTagline } from '../utils/templateLabels';
 import {
   SYSTEM_TEMPLATE_LIST,
   ensureTemplatesLoaded,
@@ -32,6 +34,7 @@ interface Props {
 }
 
 const ScriptFormatPreferencesDialog: React.FC<Props> = ({ firstRun = false, onConfirm, onCancel }) => {
+  const { t } = useTranslation(['templates', 'common']);
   const enabledScriptFormats = useSettingsStore((s) => s.enabledScriptFormats);
   const setEnabledScriptFormats = useSettingsStore((s) => s.setEnabledScriptFormats);
   const defaultScriptFormat = useSettingsStore((s) => s.defaultScriptFormat);
@@ -40,7 +43,7 @@ const ScriptFormatPreferencesDialog: React.FC<Props> = ({ firstRun = false, onCo
 
   // The writer's own templates, which live in storage rather than in the bundle.
   const userTemplates = useFormattingTemplateStore((s) => s.templates)
-    .filter((t) => t.category !== 'system');
+    .filter((tpl) => tpl.category !== 'system');
   useEffect(() => { ensureTemplatesLoaded(); }, []);
 
   // Default selection on first run: just Film Screenplay. Otherwise hydrate from saved.
@@ -78,7 +81,7 @@ const ScriptFormatPreferencesDialog: React.FC<Props> = ({ firstRun = false, onCo
   const handleConfirm = () => {
     // Built-in formats first, then the writer's own — the order the list is
     // shown in, so the picker matches the dialog that filled it.
-    const ordered = [...SYSTEM_TEMPLATE_LIST, ...userTemplates].map((t) => t.id);
+    const ordered = [...SYSTEM_TEMPLATE_LIST, ...userTemplates].map((tpl) => tpl.id);
     const ids = ordered.filter((id) => selected.has(id));
     // Guarantee at least one selection so New Screenplay can always proceed.
     const finalIds = ids.length > 0 ? ids : [INDUSTRY_STANDARD_ID];
@@ -106,13 +109,13 @@ const ScriptFormatPreferencesDialog: React.FC<Props> = ({ firstRun = false, onCo
         />
         <div className="fmt-card-info">
           <div className="fmt-card-name">
-            <span>{tpl.name}</span>
+            <span>{templateName(tpl)}</span>
             {tpl.scriptTypeGroup && (
-              <span className="fmt-card-group">{tpl.scriptTypeGroup}</span>
+              <span className="fmt-card-group">{templateGroup(tpl)}</span>
             )}
           </div>
           <div className="fmt-card-tagline">
-            {tpl.scriptTypeTagline || tpl.description}
+            {templateTagline(tpl)}
           </div>
         </div>
         {/* Inside a <label>, a click would otherwise tick the checkbox too:
@@ -122,15 +125,15 @@ const ScriptFormatPreferencesDialog: React.FC<Props> = ({ firstRun = false, onCo
           className={`fmt-card-default-btn${isDefault ? ' is-default' : ''}`}
           aria-pressed={isDefault}
           title={isDefault
-            ? 'The New Screenplay picker opens on this format. Click to clear.'
-            : 'Open the New Screenplay picker on this format'}
+            ? t('format.defaultTooltipClear')
+            : t('format.defaultTooltipSet')}
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
             toggleDefault(tpl.id);
           }}
         >
-          {isDefault ? 'Default ✓' : 'Make default'}
+          {isDefault ? t('format.isDefault') : t('format.makeDefault')}
         </button>
       </label>
     );
@@ -140,13 +143,13 @@ const ScriptFormatPreferencesDialog: React.FC<Props> = ({ firstRun = false, onCo
     <div className="dialog-overlay" onClick={firstRun ? undefined : onCancel}>
       <div className="fmt-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="dialog-header">
-          {firstRun ? 'Welcome — choose your script formats' : 'Script Format Preferences'}
+          {firstRun ? t('prefs.titleFirstRun') : t('prefs.title')}
         </div>
         <div className="fmt-dialog-body">
           <p className="fmt-dialog-hint">
             {firstRun
-              ? 'Pick the formats you commonly write in. When you create a new script, OpenDraft will offer just these options. You can change this later from the Format menu.'
-              : 'Choose which formats appear in the New Screenplay picker. Make one the default and the picker opens on it, ready to accept — the others are still one click away. Select just one format and new scripts use it without prompting at all.'}
+              ? t('prefs.hintFirstRun')
+              : t('prefs.hint')}
           </p>
           <div className="fmt-card-list">
             {SYSTEM_TEMPLATE_LIST.map(renderCard)}
@@ -158,10 +161,10 @@ const ScriptFormatPreferencesDialog: React.FC<Props> = ({ firstRun = false, onCo
               opened the app yet has no templates to be told about. */}
           {(userTemplates.length > 0 || !firstRun) && (
             <>
-              <div className="fmt-dialog-section">Your templates</div>
+              <div className="fmt-dialog-section">{t('prefs.yourTemplates')}</div>
               {userTemplates.length === 0 ? (
                 <p className="fmt-dialog-hint">
-                  None yet. Format ▸ Formatting Template… is where you create one; it will show up here.
+                  {t('prefs.noneYet')}
                 </p>
               ) : (
                 <div className="fmt-card-list">
@@ -173,10 +176,10 @@ const ScriptFormatPreferencesDialog: React.FC<Props> = ({ firstRun = false, onCo
         </div>
         <div className="dialog-actions">
           {!firstRun && (
-            <button className="dialog-btn" onClick={onCancel}>Cancel</button>
+            <button className="dialog-btn" onClick={onCancel}>{t('common:cancel')}</button>
           )}
           <button className="dialog-btn dialog-btn-primary" onClick={handleConfirm}>
-            {firstRun ? 'Save & Continue' : 'Save'}
+            {firstRun ? t('prefs.saveContinue') : t('common:save')}
           </button>
         </div>
       </div>

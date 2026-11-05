@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import { saveFile } from '../utils/fileOps';
 interface Entry {
@@ -7,6 +8,7 @@ interface Entry {
 }
 /** Raw source bytes, never an imported/reserialized document. */
 export default function SourceBackupRecovery({ onClose }: { onClose(): void }) {
+  const { t } = useTranslation(['backup', 'common']);
   const dialog = useRef<HTMLDialogElement>(null);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [error, setError] = useState('');
@@ -41,27 +43,23 @@ export default function SourceBackupRecovery({ onClose }: { onClose(): void }) {
         onClose();
       }}
     >
-      <h2 id="source-backup-title">Recover an original file</h2>
-      <p>
-        These are byte-for-byte copies made before overwriting external
-        documents. Export a copy to Files or your chosen provider. Recovery
-        keeps the current document and backup intact.
-      </p>
+      <h2 id="source-backup-title">{t('sourceRecovery.title')}</h2>
+      <p>{t('sourceRecovery.intro')}</p>
       {error && <p role="alert">{error}</p>}
       {!entries.length && (
-        <p>No originals have been backed up on this device.</p>
+        <p>{t('sourceRecovery.empty')}</p>
       )}
       <ul>
         {entries.map((entry) => (
           <li key={entry.name}>
             <button disabled={busy} onClick={() => void recover(entry)}>
-              {entry.name} ({entry.size} bytes)
+              {t('sourceRecovery.entry', { name: entry.name, size: entry.size })}
             </button>
           </li>
         ))}
       </ul>
       <button disabled={busy} onClick={onClose}>
-        Close
+        {t('common:close')}
       </button>
     </dialog>
   );

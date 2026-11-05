@@ -20,6 +20,7 @@ import { computeRowTimings, parseTimecode } from '../avTiming';
 import { cueFromDecorations, AV_DEFAULT_COLUMNS } from './AvBlock';
 import { AV_BOUNDARIES, type AvBoundary } from '../avColumnDrag';
 import { beginColumnDrag } from '../avColumnResize';
+import { t } from '../../i18n';
 
 /** Walk up from this row to its avBlock, and report the row's index within it.
  *  Returns null when the structure is not what we expect, so the view degrades
@@ -231,8 +232,8 @@ export const AvRowView: React.FC<NodeViewProps> = (props) => {
           readOnly={!editable}
           inputMode="numeric"
           placeholder="0:00"
-          aria-label={`Duration for shot ${timing?.shot ?? ''}`}
-          title={invalid ? 'Not a time — use 0:05, 1:30 or 1:02:03' : 'Shot duration'}
+          aria-label={t('messages:av.durationLabel', { shot: timing?.shot ?? '' })}
+          title={invalid ? t('messages:av.durationInvalid') : t('messages:av.durationTitle')}
         />
       </div>
       <NodeViewContent className="av-row-cells" />
@@ -268,7 +269,7 @@ export const AvRowView: React.FC<NodeViewProps> = (props) => {
           data-interactive={editable ? 'true' : 'false'}
           contentEditable={false}
           aria-hidden="true"
-          title={editable ? 'Drag to resize · double-click to reset' : undefined}
+          title={editable ? t('messages:av.resizeTitle') : undefined}
           ref={handleRefs[i]}
         />
       ))}

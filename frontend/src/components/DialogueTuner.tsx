@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { Editor } from '@tiptap/react';
+import { useTranslation } from 'react-i18next';
 import { useDelayedUnmount, useSwipeDismiss } from '../hooks/useTouch';
-import { useEditorStore, ELEMENT_LABELS } from '../stores/editorStore';
+import { useEditorStore } from '../stores/editorStore';
 import { useTableReadStore } from '../stores/tableReadStore';
 import { isAiProviderConfigured, useVoiceSettingsStore } from '../stores/voiceSettingsStore';
 import { activeEngineKind } from '../services/tts/engines';
@@ -11,6 +12,7 @@ import {
 } from '../utils/dialogueTuner';
 import Select from './Select';
 import { showToast } from './Toast';
+import { elementLabel } from '../editor/elementLabels';
 
 interface DialogueTunerProps {
   editor: Editor | null;
@@ -36,6 +38,7 @@ function goTo(editor: Editor, pos: number) {
  * script or by a collaborator appears straight away.
  */
 const TunerLineField: React.FC<{ editor: Editor; line: TunerLine }> = ({ editor, line }) => {
+  const { t } = useTranslation(['tools', 'common']);
   // What the line was, and where, when editing began: the edit is checked
   // against that, never against whatever line this box shows by the end.
   const [edit, setEdit] = useState<{ pos: number; base: string; draft: string } | null>(null);
@@ -51,7 +54,7 @@ const TunerLineField: React.FC<{ editor: Editor; line: TunerLine }> = ({ editor,
     if (edit.draft === edit.base) return;
     const tr = editLineTransaction(editor.state, edit.pos, edit.base, edit.draft);
     if (tr) editor.view.dispatch(tr);
-    else showToast('That line changed in the script while you were editing it — your edit was not applied.', 'error');
+    else showToast(t('dialogueTuner.lineChanged'), 'error');
   };
 
   return (
@@ -60,7 +63,7 @@ const TunerLineField: React.FC<{ editor: Editor; line: TunerLine }> = ({ editor,
       value={shown}
       rows={Math.max(1, shown.split('\n').length)}
       spellCheck
-      aria-label={ELEMENT_LABELS[line.type] ?? line.type}
+      aria-label={elementLabel(line.type)}
       onFocus={() => setEdit({ pos: line.pos, base: line.text, draft: line.text })}
       onChange={(e) => setDraft(e.target.value)}
       onBlur={commit}
@@ -74,6 +77,7 @@ const TunerLineField: React.FC<{ editor: Editor; line: TunerLine }> = ({ editor,
 };
 
 const DialogueTuner: React.FC<DialogueTunerProps> = ({ editor, style }) => {
+  const { t } = useTranslation(['tools', 'common']);
   const open = useEditorStore((s) => s.dialogueTunerOpen);
   const close = useEditorStore((s) => s.closeDialogueTuner);
   const chosen = useEditorStore((s) => s.dialogueTunerCharacter);
@@ -113,30 +117,30 @@ const DialogueTuner: React.FC<DialogueTunerProps> = ({ editor, style }) => {
   return (
     // `tags-panel` for the shared side-panel layout, including its phone and
     // tablet overlay rules; `dialogue-tuner` for everything of its own.
-    <div ref={panelRef} className={`tags-panel dialogue-tuner ${panelClass}`} style={style} aria-label="Dialogue Tuner">
+    <div ref={panelRef} className={`tags-panel dialogue-tuner ${panelClass}`} style={style} aria-label={t('dialogueTuner.title')}>
       <div className="tags-panel-header">
-        <span className="tags-panel-title">Dialogue Tuner</span>
-        <span className="tags-panel-count" title="Lines of dialogue">{lineCount}</span>
-        <button className="tags-panel-close" onClick={close} title="Close" aria-label="Close Dialogue Tuner">&times;</button>
+        <span className="tags-panel-title">{t('dialogueTuner.title')}</span>
+        <span className="tags-panel-count" title={t('dialogueTuner.linesOfDialogue')}>{lineCount}</span>
+        <button className="tags-panel-close" onClick={close} title={t('common:close')} aria-label={t('dialogueTuner.close')}>&times;</button>
       </div>
 
       {speakers.length > 0 && (
         <div className="dialogue-tuner-controls">
-          <Select value={character} onChange={(e) => setChosen(e.target.value)} aria-label="Character">
+          <Select value={character} onChange={(e) => setChosen(e.target.value)} aria-label={t('dialogueTuner.character')}>
             {speakers.map((s) => (
               <option key={s.name} value={s.name}>{s.name} ({s.speeches})</option>
             ))}
           </Select>
           <label className="dialogue-tuner-toggle">
             <input type="checkbox" checked={showBefore} onChange={(e) => setShowBefore(e.target.checked)} />
-            Show the line before
+            {t('dialogueTuner.showBefore')}
           </label>
         </div>
       )}
 
       <div className="tags-panel-list dialogue-tuner-list">
         {!editor || speakers.length === 0 ? (
-          <div className="tags-panel-empty">No dialogue yet. Character cues and their lines appear here.</div>
+          <div className="tags-panel-empty">{t('dialogueTuner.empty')}</div>
         ) : (
           speeches.map((s, i) => {
             const newScene = i === 0 || speeches[i - 1].sceneIndex !== s.sceneIndex;
@@ -144,25 +148,25 @@ const DialogueTuner: React.FC<DialogueTunerProps> = ({ editor, style }) => {
               <React.Fragment key={i}>
                 {newScene && (
                   <div className="dialogue-tuner-scene">
-                    {s.sceneIndex > 0 ? `${s.sceneIndex}. ${s.scene}` : 'Before the first scene'}
+                    {s.sceneIndex > 0 ? `${s.sceneIndex}. ${s.scene}` : t('dialogueTuner.beforeFirstScene')}
                   </div>
                 )}
                 <div className="dialogue-tuner-speech">
                   {showBefore && s.before && (
-                    <div className="dialogue-tuner-before" title={ELEMENT_LABELS[s.before.type] ?? s.before.type}>
+                    <div className="dialogue-tuner-before" title={elementLabel(s.before.type)}>
                       {s.before.speaker && <span className="dialogue-tuner-before-speaker">{s.before.speaker}: </span>}
                       {s.before.text}
                     </div>
                   )}
                   <div className="dialogue-tuner-cue-row">
-                    <button className="dialogue-tuner-cue" onClick={() => editor && goTo(editor, s.cuePos)} title="Go to this line in the script">
+                    <button className="dialogue-tuner-cue" onClick={() => editor && goTo(editor, s.cuePos)} title={t('dialogueTuner.goToLine')}>
                       {s.cue}
                     </button>
-                    <button className="dialogue-tuner-hear" onClick={() => hear(s.cuePos)} title="Hear it in Table Read" aria-label={`Hear ${s.cue}'s line in Table Read`}>
+                    <button className="dialogue-tuner-hear" onClick={() => hear(s.cuePos)} title={t('dialogueTuner.hear')} aria-label={t('dialogueTuner.hearLine', { cue: s.cue })}>
                       &#9654;
                     </button>
                   </div>
-                  {s.lines.length === 0 && <div className="dialogue-tuner-nolines">(no dialogue under this cue)</div>}
+                  {s.lines.length === 0 && <div className="dialogue-tuner-nolines">{t('dialogueTuner.noLines')}</div>}
                   {s.lines.map((l, j) => (
                     <TunerLineField key={`${i}:${j}`} editor={editor} line={l} />
                   ))}

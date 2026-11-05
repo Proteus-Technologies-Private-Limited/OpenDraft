@@ -1,0 +1,109 @@
+{
+  "status": {
+    "save": {
+      "unsaved": "Modifications non enregistrées",
+      "saving": "Enregistrement…",
+      "saved": "Enregistré",
+      "error": "Échec de l’enregistrement"
+    },
+    "linked": {
+      "notSaved": "non enregistré dans le fichier",
+      "missing": "fichier introuvable",
+      "conflict": "modifié en dehors d’OpenDraft",
+      "retryHint": "Cliquez pour réessayer.",
+      "everySave": "Chaque enregistrement écrit aussi {{path}}"
+    },
+    "acts_one": "{{count}} acte",
+    "acts_many": "{{count}} d’actes",
+    "acts_other": "{{count}} actes",
+    "saveWritesBack": "L’enregistrement met à jour {{name}}",
+    "actStructure": "Structure en actes",
+    "runtime": {
+      "title": "Durée estimée avec un rythme {{pacing}} – cliquez pour définir le genre et le rythme",
+      "est": "Durée est. {{runtime}}"
+    },
+    "wordsTitle": "Mots du scénario",
+    "words_one": "{{formatted}} mot",
+    "words_many": "{{formatted}} de mots",
+    "words_other": "{{formatted}} mots",
+    "revision": "Rév. : {{color}}",
+    "page": "Page {{label}}",
+    "pageOf": "Page {{current}} sur {{total}}",
+    "pagesLocked": "Les pages sont verrouillées",
+    "locked": "(verrouillé)",
+    "suggesting": {
+      "lockedTitle": "Vous avez rejoint le document pour faire des suggestions : l’auteur accepte ou refuse vos modifications",
+      "title": "Vos modifications sont des suggestions. Cliquez pour modifier à nouveau directement.",
+      "label": "Suggestion"
+    }
+  },
+  "resetToDefault": "Rétablir les valeurs par défaut",
+  "richText": {
+    "bold": "Gras",
+    "italic": "Italique",
+    "underline": "Souligné",
+    "bulletList": "Liste à puces"
+  },
+  "fontPicker": {
+    "fontFamily": "Police",
+    "search": "Rechercher des polices…",
+    "searchLabel": "Rechercher des polices",
+    "noMatch": "Aucune police ne correspond à « {{query}} ».",
+    "notInstalledTitle": "{{name}} n’est pas installée sur cet appareil – une police similaire est affichée à la place",
+    "notInstalled": "non installée",
+    "manage": "Ajouter ou gérer des polices…",
+    "group": {
+      "document": "Provenant de ce document",
+      "custom": "Polices personnalisées",
+      "screenplay": "Standard du scénario",
+      "typewriter": "Machine à écrire",
+      "serif": "Avec empattements",
+      "sansSerif": "Sans empattements",
+      "monospace": "Chasse fixe",
+      "display": "Titrage",
+      "handwriting": "Écriture manuscrite",
+      "latinExtended": "Latin étendu",
+      "indic": "Indien / indique",
+      "arabicHebrew": "Arabe et hébreu",
+      "cjk": "CJC",
+      "other": "Autres",
+      "device": "Sur cet appareil"
+    }
+  },
+  "languageSelector": {
+    "title": "Langue du dialogue"
+  },
+  "toolbar": {
+    "fontSize": "Taille de police",
+    "pt": "{{size}} pt",
+    "bold": "Gras ({{shortcut}})",
+    "italic": "Italique ({{shortcut}})",
+    "underline": "Souligné ({{shortcut}})",
+    "strikethrough": "Barré",
+    "subscript": "Indice",
+    "superscript": "Exposant",
+    "textColor": "Couleur du texte",
+    "highlightColor": "Couleur de surlignage",
+    "alignLeft": "Aligner à gauche",
+    "alignCenter": "Centrer",
+    "alignRight": "Aligner à droite",
+    "justify": "Justifier",
+    "findReplace": "Rechercher et remplacer ({{shortcut}})",
+    "goToPage": "Aller à la page ({{shortcut}})",
+    "scriptNotes": "Notes du scénario",
+    "productionTags": "Balises de production",
+    "zoomOut": "Zoom arrière",
+    "editZoom": "Cliquez pour modifier le zoom",
+    "zoomIn": "Zoom avant",
+    "undo": "Annuler ({{shortcut}})",
+    "redo": "Rétablir ({{shortcut}})",
+    "addAvRow": "Ajouter une ligne image/son dessous (Tab depuis la cellule audio, ou {{shortcut}})",
+    "row": "Ligne",
+    "deleteAvRow": "Supprimer cette ligne image/son",
+    "moreFormatting": "Autres options de mise en forme",
+    "zoom": "Zoom",
+    "elementType": "Type d’élément",
+    "elementTypeTitlePage": "Les éléments de la page de titre se règlent dans l’éditeur de page de titre ; leur mise en forme est définie dans le modèle",
+    "titlePage": "Page de titre"
+  }
+}

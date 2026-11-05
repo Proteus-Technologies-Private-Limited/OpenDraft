@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
+import { formatDateTime } from '../i18n/format';
 import { api } from '../services/api';
 import type { CollabSession } from '../services/api';
 import { useSettingsStore } from '../stores/settingsStore';
-import { collabAuthApi, ensureCollabAuthenticated, COLLAB_AUTH_UNAVAILABLE_MESSAGE } from '../services/collabAuth';
+import { collabAuthApi, ensureCollabAuthenticated, collabAuthUnavailableMessage } from '../services/collabAuth';
 import { showToast } from './Toast';
 import Select from './Select';
 
@@ -15,28 +18,37 @@ interface ShareDialogProps {
   onClose: () => void;
 }
 
-const EXPIRY_OPTIONS = [
-  { label: '30 min', hours: 0.5 },
-  { label: '1 hour', hours: 1 },
-  { label: '6 hours', hours: 6 },
-  { label: '12 hours', hours: 12 },
-  { label: '24 hours', hours: 24 },
-  { label: '48 hours', hours: 48 },
-  { label: '7 days', hours: 168 },
-  { label: '30 days', hours: 720 },
-];
+// Built lazily (never at module scope) so the labels follow the interface language.
+function expiryOptions(t: TFunction<'collab'>): Array<{ label: string; hours: number }> {
+  return [
+    { label: t('share.expiry.m30'), hours: 0.5 },
+    { label: t('share.expiry.h1'), hours: 1 },
+    { label: t('share.expiry.h6'), hours: 6 },
+    { label: t('share.expiry.h12'), hours: 12 },
+    { label: t('share.expiry.h24'), hours: 24 },
+    { label: t('share.expiry.h48'), hours: 48 },
+    { label: t('share.expiry.d7'), hours: 168 },
+    { label: t('share.expiry.d30'), hours: 720 },
+  ];
+}
 
-function formatExpiry(expiresAt: string): string {
+function formatExpiry(expiresAt: string, t: TFunction<'collab'>): string {
   if (!expiresAt) return '';
   const exp = new Date(expiresAt);
   const now = new Date();
   const diffMs = exp.getTime() - now.getTime();
-  if (diffMs <= 0) return 'Expired';
+  if (diffMs <= 0) return t('share.expired');
   const diffMin = Math.floor(diffMs / 60000);
-  if (diffMin < 60) return `${diffMin}m left`;
+  if (diffMin < 60) return t('share.minutesLeft', { count: diffMin });
   const diffHrs = Math.floor(diffMin / 60);
-  if (diffHrs < 24) return `${diffHrs}h left`;
-  return `${Math.floor(diffHrs / 24)}d left`;
+  if (diffHrs < 24) return t('share.hoursLeft', { count: diffHrs });
+  return t('share.daysLeft', { count: Math.floor(diffHrs / 24) });
+}
+
+function roleLabel(role: string | undefined, t: TFunction<'collab'>): string {
+  if (role === 'viewer') return t('share.role.viewer');
+  if (role === 'suggester') return t('share.role.suggester');
+  return t('share.role.editor');
 }
 
 const ShareDialog: React.FC<ShareDialogProps> = ({
@@ -47,6 +59,7 @@ const ShareDialog: React.FC<ShareDialogProps> = ({
   onStartCollab,
   onClose,
 }) => {
+  const { t } = useTranslation(['collab', 'common']);
   const [name, setName] = useState('');
   const [role, setRole] = useState<'editor' | 'suggester' | 'viewer'>('editor');
   const [expiryHours, setExpiryHours] = useState(
@@ -80,11 +93,11 @@ const ShareDialog: React.FC<ShareDialogProps> = ({
     const authStatus = await ensureCollabAuthenticated();
     if (authStatus === 'unavailable') {
       // Still signed in — keep the dialog open so they can simply retry.
-      showToast(COLLAB_AUTH_UNAVAILABLE_MESSAGE, 'error');
+      showToast(collabAuthUnavailableMessage(), 'error');
       return;
     }
     if (authStatus === 'signed-out') {
-      showToast('Session expired — please log in again (Settings → Collaboration)', 'error');
+      showToast(t('share.toast.sessionExpired'), 'error');
       onClose();
       return;
     }
@@ -94,7 +107,7 @@ const ShareDialog: React.FC<ShareDialogProps> = ({
       // Verify the collab server is reachable before creating an invite
       const serverOk = await collabAuthApi.testConnection();
       if (!serverOk) {
-        showToast('Cannot reach the collaboration server. Make sure it is running.', 'error');
+        showToast(t('share.toast.serverUnreachable'), 'error');
         setGenerating(false);
         return;
       }
@@ -105,14 +118,14 @@ const ShareDialog: React.FC<ShareDialogProps> = ({
       setSessions((prev) => [...prev, session]);
       setName('');
       inputRef.current?.focus();
-      showToast(`Invite created for ${trimmed}`, 'success');
+      showToast(t('share.toast.inviteCreated', { name: trimmed }), 'success');
 
       // When first invite is created, start collab for the owner too
       if (!isCollabActive) {
         onStartCollab(session);
       }
     } catch (err) {
-      showToast(`Failed to create invite: ${err instanceof Error ? err.message : String(err)}`, 'error');
+      showToast(t('share.toast.inviteFailed', { message: err instanceof Error ? err.message : String(err) }), 'error');
     } finally {
       setGenerating(false);
     }
@@ -123,7 +136,7 @@ const ShareDialog: React.FC<ShareDialogProps> = ({
       await api.revokeCollabSession(token);
       setSessions((prev) => prev.filter((s) => s.token !== token));
     } catch {
-      showToast('Failed to revoke invite', 'error');
+      showToast(t('share.toast.revokeFailed'), 'error');
     }
   };
 
@@ -132,7 +145,7 @@ const ShareDialog: React.FC<ShareDialogProps> = ({
       await api.revokeAllCollabSessions(projectId, scriptId);
       setSessions([]);
     } catch {
-      showToast('Failed to revoke invites', 'error');
+      showToast(t('share.toast.revokeAllFailed'), 'error');
     }
   };
 
@@ -160,7 +173,7 @@ const ShareDialog: React.FC<ShareDialogProps> = ({
       setCopiedToken(token);
       setTimeout(() => setCopiedToken(null), 2000);
     } catch {
-      showToast('Failed to copy link to clipboard', 'error');
+      showToast(t('share.toast.copyFailed'), 'error');
     }
   };
 
@@ -185,45 +198,45 @@ const ShareDialog: React.FC<ShareDialogProps> = ({
         onKeyDown={handleKeyDown}
       >
         <div className="dialog-header">
-          Collaborate — {scriptTitle}
+          {t('share.title', { title: scriptTitle })}
         </div>
 
         <div className="dialog-body">
           {isCollabActive && (
             <div className="collab-status-badge">
-              <span className="collab-dot" /> Live collaboration active
+              <span className="collab-dot" /> {t('share.liveActive')}
             </div>
           )}
 
           <p style={{ margin: '0 0 12px', fontSize: 14, color: 'var(--fd-text-muted)' }}>
-            Generate a link for each collaborator. They can open the link to join a live editing session.
+            {t('share.intro')}
           </p>
 
-          <label className="dialog-label" style={{ fontSize: 14 }}>Invite a collaborator</label>
+          <label className="dialog-label" style={{ fontSize: 14 }}>{t('share.inviteLabel')}</label>
           <div style={{ display: 'flex', gap: 8 }}>
             <input
               ref={inputRef}
               className="dialog-input"
               style={{ flex: 1 }}
-              placeholder="Person's name (e.g., John)"
+              placeholder={t('share.namePlaceholder')}
               value={name}
               onChange={(e) => setName(e.target.value)}
               disabled={generating}
-              aria-label="Collaborator name"
+              aria-label={t('share.nameAria')}
             />
             <button
               className="dialog-btn dialog-btn-primary"
               onClick={handleGenerate}
               disabled={!name.trim() || generating}
             >
-              {generating ? 'Creating...' : 'Invite'}
+              {generating ? t('share.creating') : t('share.invite')}
             </button>
           </div>
 
           {/* Role and expiry options */}
           <div className="collab-invite-options">
             <div className="collab-role-selector">
-              <label className="dialog-label" style={{ fontSize: 14, marginTop: 12 }}>Permission</label>
+              <label className="dialog-label" style={{ fontSize: 14, marginTop: 12 }}>{t('share.permission')}</label>
               <div className="collab-role-radios">
                 <label className="collab-radio-label">
                   <input
@@ -233,9 +246,9 @@ const ShareDialog: React.FC<ShareDialogProps> = ({
                     checked={role === 'editor'}
                     onChange={() => setRole('editor')}
                   />
-                  Co-Edit
+                  {t('share.role.editor')}
                 </label>
-                <label className="collab-radio-label" title="Their edits arrive as suggestions for you to accept or reject">
+                <label className="collab-radio-label" title={t('share.suggestTitle')}>
                   <input
                     type="radio"
                     name="role"
@@ -243,7 +256,7 @@ const ShareDialog: React.FC<ShareDialogProps> = ({
                     checked={role === 'suggester'}
                     onChange={() => setRole('suggester')}
                   />
-                  Suggest
+                  {t('share.role.suggester')}
                 </label>
                 <label className="collab-radio-label">
                   <input
@@ -253,20 +266,20 @@ const ShareDialog: React.FC<ShareDialogProps> = ({
                     checked={role === 'viewer'}
                     onChange={() => setRole('viewer')}
                   />
-                  Read Only
+                  {t('share.role.viewer')}
                 </label>
               </div>
             </div>
 
             <div className="collab-expiry-selector">
-              <label className="dialog-label" style={{ fontSize: 14, marginTop: 12 }}>Token Valid For</label>
+              <label className="dialog-label" style={{ fontSize: 14, marginTop: 12 }}>{t('share.validFor')}</label>
               <Select
                 className="dialog-input collab-expiry-select"
                 value={expiryHours}
                 onChange={(e) => setExpiryHours(Number(e.target.value))}
-                aria-label="Invite expiry duration"
+                aria-label={t('share.expiryAria')}
               >
-                {EXPIRY_OPTIONS.map((opt) => (
+                {expiryOptions(t).map((opt) => (
                   <option key={opt.hours} value={opt.hours}>
                     {opt.label}
                   </option>
@@ -278,7 +291,7 @@ const ShareDialog: React.FC<ShareDialogProps> = ({
           {sessions.length > 0 && (
             <div className="collab-sessions-list">
               <label className="dialog-label" style={{ fontSize: 14, marginTop: 16 }}>
-                Active invites ({sessions.length})
+                {t('share.activeInvites', { count: sessions.length })}
               </label>
               {sessions.map((s) => (
                 <div key={s.token} className="collab-session-item">
@@ -286,13 +299,13 @@ const ShareDialog: React.FC<ShareDialogProps> = ({
                     <span className="collab-session-name">
                       {s.collaborator_name}
                       <span className={`collab-role-badge collab-role-${s.role || 'editor'}`}>
-                        {s.role === 'viewer' ? 'Read Only' : s.role === 'suggester' ? 'Suggest' : 'Co-Edit'}
+                        {roleLabel(s.role, t)}
                       </span>
                     </span>
                     <span className="collab-session-date">
-                      {new Date(s.created_at).toLocaleString()}
+                      {formatDateTime(s.created_at, { year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit', second: '2-digit' })}
                       {s.expires_at && (
-                        <span className="collab-session-expiry"> · {formatExpiry(s.expires_at)}</span>
+                        <span className="collab-session-expiry"> · {formatExpiry(s.expires_at, t)}</span>
                       )}
                     </span>
                   </div>
@@ -300,22 +313,22 @@ const ShareDialog: React.FC<ShareDialogProps> = ({
                     <button
                       className="collab-copy-btn"
                       onClick={() => copyLink(s.token)}
-                      title="Copy invite link"
+                      title={t('share.copyLinkTitle')}
                       aria-label={
                         copiedToken === s.token
-                          ? `Copied invite link for ${s.collaborator_name}`
-                          : `Copy invite link for ${s.collaborator_name}`
+                          ? t('share.copiedAria', { name: s.collaborator_name })
+                          : t('share.copyAria', { name: s.collaborator_name })
                       }
                     >
-                      {copiedToken === s.token ? 'Copied!' : 'Copy Link'}
+                      {copiedToken === s.token ? t('share.copied') : t('share.copyLink')}
                     </button>
                     <button
                       className="collab-revoke-btn"
                       onClick={() => handleRevoke(s.token)}
-                      title="Revoke this invite"
-                      aria-label={`Revoke invite for ${s.collaborator_name}`}
+                      title={t('share.revokeTitle')}
+                      aria-label={t('share.revokeAria', { name: s.collaborator_name })}
                     >
-                      Revoke
+                      {t('share.revoke')}
                     </button>
                   </div>
                 </div>
@@ -331,12 +344,12 @@ const ShareDialog: React.FC<ShareDialogProps> = ({
               style={{ color: '#e06060' }}
               onClick={handleRevokeAll}
             >
-              Revoke All
+              {t('share.revokeAll')}
             </button>
           )}
           <div style={{ flex: 1 }} />
           <button className="dialog-btn" onClick={onClose}>
-            Close
+            {t('common:close')}
           </button>
         </div>
       </div>

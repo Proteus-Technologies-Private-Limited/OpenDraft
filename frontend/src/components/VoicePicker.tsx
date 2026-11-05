@@ -7,6 +7,7 @@
  * when the writer prefers it). "Automatic" leaves the choice to casting.
  */
 import React, { useCallback, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { FaPlay, FaStop } from 'react-icons/fa';
 import type { CharacterVoice } from '../stores/editorStore';
 import { useTableReadStore } from '../stores/tableReadStore';
@@ -17,8 +18,8 @@ import type { VoiceInfo } from '../services/tts/types';
 import { showToast } from './Toast';
 import Select from './Select';
 
-function languageName(tag: string): string {
-  if (!tag) return 'Other';
+function languageName(tag: string, other: string): string {
+  if (!tag) return other;
   try {
     const dn = new Intl.DisplayNames([navigator.language || 'en'], { type: 'language' });
     return dn.of(tag) || tag;
@@ -45,6 +46,7 @@ interface VoicePickerProps {
 }
 
 const VoicePicker: React.FC<VoicePickerProps> = ({ value, onChange, sample, automaticVoiceId, id, compact }) => {
+  const { t } = useTranslation(['settings', 'common']);
   const { kind, voices, loading, error, needsProvider } = useVoiceList();
   const [previewing, setPreviewing] = useState(false);
   const slot: keyof CharacterVoice = kind === 'ai' ? 'ai' : 'system';
@@ -63,9 +65,9 @@ const VoicePicker: React.FC<VoicePickerProps> = ({ value, onChange, sample, auto
       byLang.set(lang, list);
     }
     return [...byLang.entries()]
-      .sort(([a], [b]) => (a === want ? -1 : b === want ? 1 : languageName(a).localeCompare(languageName(b))))
-      .map(([lang, list]) => ({ lang, label: languageName(lang), list: [...list].sort((x, y) => Number(!!x.novelty) - Number(!!y.novelty) || x.name.localeCompare(y.name)) }));
-  }, [kind, voices]);
+      .sort(([a], [b]) => (a === want ? -1 : b === want ? 1 : languageName(a, t('voicePicker.otherLanguage')).localeCompare(languageName(b, t('voicePicker.otherLanguage')))))
+      .map(([lang, list]) => ({ lang, label: languageName(lang, t('voicePicker.otherLanguage')), list: [...list].sort((x, y) => Number(!!x.novelty) - Number(!!y.novelty) || x.name.localeCompare(y.name)) }));
+  }, [kind, voices, t]);
 
   const autoName = automaticVoiceId ? voices.find((v) => v.id === automaticVoiceId)?.name : undefined;
 
@@ -78,11 +80,11 @@ const VoicePicker: React.FC<VoicePickerProps> = ({ value, onChange, sample, auto
       await previewVoice(kind, chosen ?? automaticVoiceId ?? null, sample);
     } catch (err) {
       console.warn('[tableRead] voice preview failed:', err);
-      showToast(`Could not play the voice: ${err instanceof Error ? err.message : String(err)}`, 'error');
+      showToast(t('voicePicker.previewFailed', { error: err instanceof Error ? err.message : String(err) }), 'error');
     } finally {
       setPreviewing(false);
     }
-  }, [previewing, kind, chosen, automaticVoiceId, sample]);
+  }, [previewing, kind, chosen, automaticVoiceId, sample, t]);
 
   if (needsProvider) {
     return (
@@ -92,7 +94,7 @@ const VoicePicker: React.FC<VoicePickerProps> = ({ value, onChange, sample, auto
           className="voice-picker-setup"
           onClick={() => useTableReadStore.getState().setNeedsProvider(true)}
         >
-          Set up an AI voice provider…
+          {t('voicePicker.setUpProvider')}
         </button>
       </div>
     );
@@ -106,13 +108,13 @@ const VoicePicker: React.FC<VoicePickerProps> = ({ value, onChange, sample, auto
         value={chosen ?? ''}
         disabled={loading || !!error}
         onChange={(e) => onChange(slot, e.target.value || undefined)}
-        aria-label="Voice"
+        aria-label={t('voicePicker.voice')}
       >
         <option value="">
-          {loading ? 'Loading voices…' : autoName ? `Automatic (${autoName})` : 'Automatic'}
+          {loading ? t('voicePicker.loading') : autoName ? t('voicePicker.automaticNamed', { name: autoName }) : t('voicePicker.automatic')}
         </option>
         {chosenMissing && (
-          <option value={chosen}>Not on this device ({chosen.split(/[:.]/).pop()})</option>
+          <option value={chosen}>{t('voicePicker.notOnDevice', { id: chosen.split(/[:.]/).pop() })}</option>
         )}
         {groups
           ? groups.map((g) => (
@@ -127,15 +129,15 @@ const VoicePicker: React.FC<VoicePickerProps> = ({ value, onChange, sample, auto
         className="voice-picker-preview"
         onClick={handlePreview}
         disabled={loading || !!error || previewing}
-        title="Hear this voice"
-        aria-label="Hear this voice"
+        title={t('voicePicker.hear')}
+        aria-label={t('voicePicker.hear')}
       >
         {previewing ? <FaStop /> : <FaPlay />}
       </button>
       {error && <div className="voice-picker-error" role="alert">{error}</div>}
       {chosenMissing && (
         <div className="voice-picker-hint">
-          That voice is not installed here, so an automatic voice reads instead.
+          {t('voicePicker.missingHint')}
         </div>
       )}
     </div>

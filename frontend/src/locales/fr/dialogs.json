@@ -1,0 +1,41 @@
+{
+  "saveError": {
+    "heading": {
+      "autoSave": "Échec de l’enregistrement automatique",
+      "saveFailed": "Échec de l’enregistrement",
+      "beforeClose": "Impossible d’enregistrer avant la fermeture"
+    },
+    "body": "OpenDraft n’a pas pu enregistrer vos modifications. Votre travail est toujours dans l’éditeur – copiez tout ce qui est important avant de fermer l’application ou de recharger la fenêtre.",
+    "failureAt": "Échec à {{time}} :",
+    "acknowledge": "J’ai compris"
+  },
+  "storageFallback": {
+    "fileHeading": "Basculement vers le stockage par fichiers",
+    "dbHeading": "Base de données locale indisponible",
+    "fileExplanation": "OpenDraft n’a pas pu ouvrir sa base de données locale ; vos projets sont donc enregistrés sous forme de fichiers distincts dans le dossier de données de l’application. Vous pouvez continuer à travailler : l’enregistrement et le chargement fonctionnent normalement, mais l’historique des versions est désactivé tant que la base de données n’est pas de nouveau accessible.",
+    "dbExplanation": "OpenDraft n’a pas pu ouvrir sa base de données locale et la solution de secours par fichiers a également échoué. Vos modifications seront enregistrées uniquement dans le navigateur et pourraient être perdues si le stockage est vidé.",
+    "underlyingError": "Erreur sous-jacente :"
+  },
+  "quota": {
+    "title": "Limite de l’offre gratuite atteinte",
+    "usage": "Vous utilisez <strong>{{current}}</strong> fichiers sur <strong>{{limit}}</strong> avec l’offre <strong>{{plan}}</strong>.",
+    "upgrade": "Passer à l’offre supérieure"
+  },
+  "oneDrive": {
+    "title": "Interférence OneDrive détectée",
+    "intro": "Le dossier de données d’OpenDraft se trouve dans un emplacement synchronisé par OneDrive. C’est une cause connue d’<strong>échecs d’enregistrement silencieux</strong> : OneDrive peut saisir le fichier journal d’écriture SQLite en plein enregistrement, corrompant la base de données et faisant perdre vos dernières modifications.",
+    "affectedFolder": "Dossier concerné :",
+    "howToFix": "Comment corriger :",
+    "step1": "Ouvrez les paramètres OneDrive → Synchronisation et sauvegarde → Gérer la sauvegarde.",
+    "step2": "Désactivez la sauvegarde du dossier qui contient le chemin ci-dessus (généralement Documents ou Bureau), ou excluez explicitement le dossier de données d’OpenDraft.",
+    "step3": "Redémarrez OpenDraft.",
+    "dontShowAgain": "Ne plus afficher"
+  },
+  "bookmark": {
+    "addTitle": "Ajouter un signet",
+    "renameTitle": "Renommer le signet",
+    "nameLabel": "Nom du signet",
+    "nameClash": "Un autre signet s’appelle déjà « {{name}} ».",
+    "placeCursor": "Placez le curseur dans un élément du scénario pour y ajouter un signet."
+  }
+}

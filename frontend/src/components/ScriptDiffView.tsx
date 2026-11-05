@@ -1,4 +1,6 @@
 import React, { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import type { JSONContent } from '@tiptap/react';
 import { computeScriptDiff, type DiffBlock, type WordDiff } from '../utils/scriptDiff';
 
@@ -20,34 +22,40 @@ type ViewMode = 'side-by-side' | 'unified' | 'changes-only';
  * "New Act", and plain "General" rather than the picker's more explanatory
  * "General (Unformatted text)". The picker has room to teach; this does not.
  */
-const ELEMENT_LABEL: Record<string, string> = {
-  sceneHeading: 'Scene',
-  action: 'Action',
-  character: 'Character',
-  dialogue: 'Dialogue',
-  parenthetical: 'Parenthetical',
-  transition: 'Transition',
-  general: 'General',
-  shot: 'Shot',
-  newAct: 'Act Break',
-  endOfAct: 'End of Act',
+type CollabT = TFunction<'collab'>;
+
+// Looked up by element id (the name stored in the document); the unknown id is
+// shown as-is, exactly as before.
+const labelFor = (elementType: string, t: CollabT): string => {
+  switch (elementType) {
+    case 'sceneHeading': return t('diff.element.sceneHeading');
+    case 'action': return t('diff.element.action');
+    case 'character': return t('diff.element.character');
+    case 'dialogue': return t('diff.element.dialogue');
+    case 'parenthetical': return t('diff.element.parenthetical');
+    case 'transition': return t('diff.element.transition');
+    case 'general': return t('diff.element.general');
+    case 'shot': return t('diff.element.shot');
+    case 'newAct': return t('diff.element.newAct');
+    case 'endOfAct': return t('diff.element.endOfAct');
+    default: return elementType;
+  }
 };
 
-const elementLabel = (block: DiffBlock): string => {
-  const label = ELEMENT_LABEL[block.elementType] || block.elementType;
-  const oldLabel = block.oldElementType
-    ? (ELEMENT_LABEL[block.oldElementType] || block.oldElementType)
-    : null;
-  return oldLabel && oldLabel !== label ? `${oldLabel} → ${label}` : label;
+const elementLabel = (block: DiffBlock, t: CollabT): string => {
+  const label = labelFor(block.elementType, t);
+  const oldLabel = block.oldElementType ? labelFor(block.oldElementType, t) : null;
+  return oldLabel && oldLabel !== label ? t('diff.elementChange', { from: oldLabel, to: label }) : label;
 };
 
-const movedTitle = (block: DiffBlock): string | undefined => {
+const movedTitle = (block: DiffBlock, t: CollabT): string | undefined => {
   if (block.type !== 'moved') return undefined;
-  if (!block.oldSceneHeading || block.oldSceneHeading === block.sceneHeading) return 'Moved';
-  return `Moved from ${block.oldSceneHeading} to ${block.sceneHeading || 'the end'}`;
+  if (!block.oldSceneHeading || block.oldSceneHeading === block.sceneHeading) return t('diff.moved');
+  return t('diff.movedFromTo', { from: block.oldSceneHeading, to: block.sceneHeading || t('diff.theEnd') });
 };
 
 const ScriptDiffView: React.FC<Props> = ({ docA, docB, labelA, labelB, onClose }) => {
+  const { t } = useTranslation('collab');
   const [mode, setMode] = useState<ViewMode>('side-by-side');
   const [showSummary, setShowSummary] = useState(true);
 
@@ -76,21 +84,21 @@ const ScriptDiffView: React.FC<Props> = ({ docA, docB, labelA, labelB, onClose }
           <button
             className={`script-diff-mode-btn${mode === 'side-by-side' ? ' active' : ''}`}
             onClick={() => setMode('side-by-side')}
-          >Side-by-side</button>
+          >{t('diff.sideBySide')}</button>
           <button
             className={`script-diff-mode-btn${mode === 'unified' ? ' active' : ''}`}
             onClick={() => setMode('unified')}
-          >Unified</button>
+          >{t('diff.unified')}</button>
           <button
             className={`script-diff-mode-btn${mode === 'changes-only' ? ' active' : ''}`}
             onClick={() => setMode('changes-only')}
-          >Changes only</button>
+          >{t('diff.changesOnly')}</button>
           <button
             className="script-diff-summary-btn"
             onClick={() => setShowSummary((v) => !v)}
-          >{showSummary ? 'Hide Summary' : 'Show Summary'}</button>
+          >{showSummary ? t('diff.hideSummary') : t('diff.showSummary')}</button>
           {onClose && (
-            <button className="script-diff-close" onClick={onClose} title="Close diff">×</button>
+            <button className="script-diff-close" onClick={onClose} title={t('diff.closeTitle')}>×</button>
           )}
         </div>
       </div>
@@ -98,7 +106,7 @@ const ScriptDiffView: React.FC<Props> = ({ docA, docB, labelA, labelB, onClose }
       <div className="script-diff-body">
         <div className="script-diff-main">
           {displayBlocks.length === 0 ? (
-            <div className="script-diff-empty">No differences.</div>
+            <div className="script-diff-empty">{t('diff.none')}</div>
           ) : mode === 'side-by-side' ? (
             <SideBySideDiff blocks={displayBlocks} />
           ) : (
@@ -107,39 +115,39 @@ const ScriptDiffView: React.FC<Props> = ({ docA, docB, labelA, labelB, onClose }
         </div>
         {showSummary && (
           <div className="script-diff-summary">
-            <h4>Summary</h4>
+            <h4>{t('diff.summary')}</h4>
             <div className="script-diff-summary-row">
               <span className="script-diff-chip-added">+{diff.summary.totalAdded}</span>
-              added
+              {t('diff.added')}
             </div>
             <div className="script-diff-summary-row">
               <span className="script-diff-chip-removed">−{diff.summary.totalDeleted}</span>
-              deleted
+              {t('diff.deleted')}
             </div>
             <div className="script-diff-summary-row">
               <span className="script-diff-chip-modified">~{diff.summary.totalModified}</span>
-              modified
+              {t('diff.modified')}
             </div>
             <div className="script-diff-summary-row">
               <span className="script-diff-chip-moved">{diff.summary.totalMoved}</span>
-              moved
+              {t('diff.movedCount')}
             </div>
             {diff.summary.scenesChanged.length > 0 && (
               <>
-                <h5>Scenes changed ({diff.summary.scenesChanged.length})</h5>
+                <h5>{t('diff.scenesChanged', { count: diff.summary.scenesChanged.length })}</h5>
                 <ul className="script-diff-scenes">
                   {diff.summary.scenesChanged.slice(0, 20).map((s, i) => (
                     <li key={i}>{s}</li>
                   ))}
                   {diff.summary.scenesChanged.length > 20 && (
-                    <li><em>+{diff.summary.scenesChanged.length - 20} more</em></li>
+                    <li><em>{t('diff.more', { count: diff.summary.scenesChanged.length - 20 })}</em></li>
                   )}
                 </ul>
               </>
             )}
             {diff.summary.dialogueDelta.length > 0 && (
               <>
-                <h5>Dialogue changes</h5>
+                <h5>{t('diff.dialogueChanges')}</h5>
                 <ul className="script-diff-dialogue-delta">
                   {diff.summary.dialogueDelta.map((d) => (
                     <li key={d.character}>
@@ -176,6 +184,7 @@ const SideBySideDiff: React.FC<{ blocks: DiffBlock[] }> = ({ blocks }) => (
 );
 
 const BlockView: React.FC<{ side: 'a' | 'b'; block: DiffBlock }> = ({ side, block }) => {
+  const { t } = useTranslation('collab');
   const showHere =
     block.type === 'unchanged' ||
     block.type === 'moved' ||
@@ -187,16 +196,15 @@ const BlockView: React.FC<{ side: 'a' | 'b'; block: DiffBlock }> = ({ side, bloc
   }
 
   const text = side === 'a' ? block.oldText : block.newText;
-  const typeLabel = elementLabel(block);
+  const typeLabel = elementLabel(block, t);
 
   return (
     <div
       className={`diff-block diff-${block.type} diff-el-${block.elementType}`}
-      title={movedTitle(block)}
+      title={movedTitle(block, t)}
     >
       <div className="diff-block-label">
-        {typeLabel}
-        {block.type === 'moved' ? ' · moved' : ''}
+        {block.type === 'moved' ? t('diff.labelDotMoved', { label: typeLabel }) : typeLabel}
       </div>
       <div className="diff-block-content">
         {block.type === 'modified' && block.wordDiffs ? (
@@ -226,10 +234,12 @@ const WordDiffView: React.FC<{ diffs: WordDiff[]; side: 'a' | 'b' }> = ({ diffs,
 
 // ── Unified renderer ──────────────────────────────────────────────────────
 
-const UnifiedDiff: React.FC<{ blocks: DiffBlock[] }> = ({ blocks }) => (
+const UnifiedDiff: React.FC<{ blocks: DiffBlock[] }> = ({ blocks }) => {
+  const { t } = useTranslation('collab');
+  return (
   <div className="diff-unified">
     {blocks.map((b, i) => {
-      const typeLabel = elementLabel(b);
+      const typeLabel = elementLabel(b, t);
       if (b.type === 'unchanged') {
         return (
           <div key={i} className={`diff-block diff-unchanged diff-el-${b.elementType}`}>
@@ -243,9 +253,9 @@ const UnifiedDiff: React.FC<{ blocks: DiffBlock[] }> = ({ blocks }) => (
           <div
             key={i}
             className={`diff-block diff-moved diff-el-${b.elementType}`}
-            title={movedTitle(b)}
+            title={movedTitle(b, t)}
           >
-            <div className="diff-block-label">{typeLabel} (moved)</div>
+            <div className="diff-block-label">{t('diff.labelMoved', { label: typeLabel })}</div>
             <div className="diff-block-content">{b.newText}</div>
           </div>
         );
@@ -253,7 +263,7 @@ const UnifiedDiff: React.FC<{ blocks: DiffBlock[] }> = ({ blocks }) => (
       if (b.type === 'modified' && b.wordDiffs) {
         return (
           <div key={i} className={`diff-block diff-modified diff-el-${b.elementType}`}>
-            <div className="diff-block-label">{typeLabel} (modified)</div>
+            <div className="diff-block-label">{t('diff.labelModified', { label: typeLabel })}</div>
             <div className="diff-block-content">
               <WordDiffView diffs={b.wordDiffs} side="a" />
               {' → '}
@@ -265,19 +275,20 @@ const UnifiedDiff: React.FC<{ blocks: DiffBlock[] }> = ({ blocks }) => (
       if (b.type === 'deleted') {
         return (
           <div key={i} className={`diff-block diff-deleted diff-el-${b.elementType}`}>
-            <div className="diff-block-label">{typeLabel} (deleted)</div>
+            <div className="diff-block-label">{t('diff.labelDeleted', { label: typeLabel })}</div>
             <div className="diff-block-content"><del>{b.oldText}</del></div>
           </div>
         );
       }
       return (
         <div key={i} className={`diff-block diff-added diff-el-${b.elementType}`}>
-          <div className="diff-block-label">{typeLabel} (added)</div>
+          <div className="diff-block-label">{t('diff.labelAdded', { label: typeLabel })}</div>
           <div className="diff-block-content">{b.newText}</div>
         </div>
       );
     })}
   </div>
-);
+  );
+};
 
 export default ScriptDiffView;

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { FaCloud, FaDesktop, FaPlus } from 'react-icons/fa';
+import { Trans, useTranslation } from 'react-i18next';
 import { api } from '../services/api';
 import { cloudApi } from '../services/cloudApi';
 import { isWeb } from '../services/platform';
@@ -8,6 +9,9 @@ import { useSettingsStore } from '../stores/settingsStore';
 import { useEditorStore } from '../stores/editorStore';
 
 export type SaveDestination = 'local' | 'cloud';
+
+// i18n-ignore: stored as the project's name when the writer accepts it, so it stays as data
+const DEFAULT_PROJECT_NAME = 'My Project';
 
 const LAST_PROJECT_KEY = 'opendraft:lastProject';
 
@@ -67,10 +71,12 @@ const ImportedSourceNotice: React.FC = () => {
         lineHeight: 1.45,
       }}
     >
-      <strong>Note:</strong> This document was imported from <strong>{importedSource.name}</strong>{' '}
-      ({importedSource.format}). Saving creates a new file inside OpenDraft's library —
-      it does <strong>not</strong> overwrite the original source file. To write back to
-      the original format, use <em>File → Export</em> after saving.
+      <Trans
+        ns="projects"
+        i18nKey="saveAs.importedNotice"
+        values={{ name: importedSource.name, format: importedSource.format }}
+        components={{ strong: <strong />, em: <em /> }}
+      />
     </div>
   );
 };
@@ -84,6 +90,7 @@ const SaveAsDialog: React.FC<SaveAsDialogProps> = ({
   onClose,
   buildContent,
 }) => {
+  const { t } = useTranslation(['projects', 'common']);
   const [projects, setProjects] = useState<ProjectInfo[]>([]);
   const [projectName, setProjectName] = useState('');
   const [fileName, setFileName] = useState(defaultFileName);
@@ -141,11 +148,11 @@ const SaveAsDialog: React.FC<SaveAsDialogProps> = ({
             const sorted = [...list].sort((a, b) => b.updated_at.localeCompare(a.updated_at));
             return sorted[0].name;
           }
-          return defaultProjectName || 'My Project';
+          return defaultProjectName || DEFAULT_PROJECT_NAME;
         });
       } catch {
         if (!cancelled) {
-          setProjectName((current) => current || defaultProjectName || 'My Project');
+          setProjectName((current) => current || defaultProjectName || DEFAULT_PROJECT_NAME);
         }
       }
     })();
@@ -165,7 +172,7 @@ const SaveAsDialog: React.FC<SaveAsDialogProps> = ({
     if (!projectName) return;
     didInitialFocusRef.current = true;
     // Small delay to let React render the field
-    const t = setTimeout(() => {
+    const focusTimer = setTimeout(() => {
       // If the user has already focused (or typed into) any input in this
       // dialog, leave them alone — auto-focus is only a convenience when
       // they haven't engaged with the form yet.
@@ -182,7 +189,7 @@ const SaveAsDialog: React.FC<SaveAsDialogProps> = ({
         fileInputRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
       }, 350);
     }, 50);
-    return () => clearTimeout(t);
+    return () => clearTimeout(focusTimer);
   }, [projectName]);
 
   // Close dropdown on outside click
@@ -301,7 +308,7 @@ const SaveAsDialog: React.FC<SaveAsDialogProps> = ({
           if (!project) {
             if (!(err as any)?.handled) {
               const msg = err instanceof Error ? err.message : String(err);
-              setError(`Could not create project: ${msg}`);
+              setError(t('saveAs.createFailed', { error: msg }));
             }
             setSaving(false);
             return;
@@ -333,7 +340,7 @@ const SaveAsDialog: React.FC<SaveAsDialogProps> = ({
       // AuthGate / QuotaExceededDialog already showed a dialog for these —
       // don't duplicate the raw message inline.
       if (!(err as any)?.handled) {
-        setError(err instanceof Error ? err.message : 'Save failed');
+        setError(err instanceof Error ? err.message : t('saveAs.saveFailed'));
       }
       setSaving(false);
     }
@@ -355,13 +362,13 @@ const SaveAsDialog: React.FC<SaveAsDialogProps> = ({
   return (
     <div className="dialog-overlay" onClick={onClose}>
       <div className="dialog-box" onClick={(e) => e.stopPropagation()} onKeyDown={handleKeyDown}>
-        <div className="dialog-header">Save Screenplay</div>
+        <div className="dialog-header">{t('saveAs.title')}</div>
         <div className="dialog-body">
           <ImportedSourceNotice />
 
           {!WEB_ONLY_CLOUD && (
             <div className="dialog-row" style={{ marginBottom: 12 }}>
-              <label>Save to</label>
+              <label>{t('saveAs.saveTo')}</label>
               <div className="open-file-source-tabs" role="tablist">
                 <button
                   type="button"
@@ -370,7 +377,7 @@ const SaveAsDialog: React.FC<SaveAsDialogProps> = ({
                   className={`open-file-source-tab ${destination === 'local' ? 'active' : ''}`}
                   onClick={() => setDestination('local')}
                 >
-                  <FaDesktop /> This device
+                  <FaDesktop /> {t('saveAs.thisDevice')}
                 </button>
                 <button
                   type="button"
@@ -379,18 +386,18 @@ const SaveAsDialog: React.FC<SaveAsDialogProps> = ({
                   className={`open-file-source-tab ${destination === 'cloud' ? 'active' : ''}`}
                   onClick={() => setDestination('cloud')}
                 >
-                  <FaCloud /> OpenDraft Cloud
+                  <FaCloud /> {/* i18n-ignore: product name */}OpenDraft Cloud
                 </button>
               </div>
               {destination === 'cloud' && !signedIn && (
                 <div style={{ fontSize: 12, color: '#ff9966', marginTop: 6 }}>
-                  Sign in to save to OpenDraft Cloud — pressing Save will open the login dialog.
+                  {t('saveAs.signInHint')}
                 </div>
               )}
             </div>
           )}
           <div className="dialog-row">
-            <label>Project</label>
+            <label>{t('saveAs.project')}</label>
             <div ref={comboRef} style={{ position: 'relative' }}>
               <div style={{ display: 'flex', gap: 0 }}>
                 <input
@@ -409,7 +416,7 @@ const SaveAsDialog: React.FC<SaveAsDialogProps> = ({
                     setIsTyping(false);
                     setDropdownOpen(true);
                   }}
-                  placeholder="Project name"
+                  placeholder={t('saveAs.projectPlaceholder')}
                   style={{ flex: 1, borderRadius: '4px 0 0 4px' }}
                 />
                 <button
@@ -471,7 +478,7 @@ const SaveAsDialog: React.FC<SaveAsDialogProps> = ({
                     onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--fd-menu-hover)')}
                     onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                   >
-                    <FaPlus size={11} /> New Project&hellip;
+                    <FaPlus size={11} /> {t('saveAs.newProject')}
                   </div>
                   {filteredProjects.map((p) => (
                     <div
@@ -502,19 +509,20 @@ const SaveAsDialog: React.FC<SaveAsDialogProps> = ({
               )}
               {isNewProject && (
                 <div style={{ fontSize: 12, color: 'var(--fd-text-muted)', marginTop: 6 }}>
-                  New project &mdash; &ldquo;{trimmedProjectName}&rdquo; will be created when you save
-                  {destination === 'local' && defaultProjectFolder ? <>, in a folder of its own in {defaultProjectFolder}</> : null}.
+                  {destination === 'local' && defaultProjectFolder
+                    ? t('saveAs.newProjectInFolder', { name: trimmedProjectName, folder: defaultProjectFolder })
+                    : t('saveAs.newProjectNote', { name: trimmedProjectName })}
                 </div>
               )}
             </div>
           </div>
           <div className="dialog-row" style={{ marginTop: 12 }}>
-            <label>File Name</label>
+            <label>{t('saveAs.fileName')}</label>
             <input
               ref={fileInputRef}
               value={fileName}
               onChange={(e) => setFileName(e.target.value)}
-              placeholder="First Draft"
+              placeholder={t('saveAs.fileNamePlaceholder')}
             />
           </div>
           {error && (
@@ -522,15 +530,15 @@ const SaveAsDialog: React.FC<SaveAsDialogProps> = ({
           )}
         </div>
         <div className="dialog-actions">
-          <button onClick={onClose}>Cancel</button>
+          <button onClick={onClose}>{t('common:cancel')}</button>
           <button
             className="dialog-primary"
             onClick={handleSave}
             disabled={saving || !projectName.trim() || !fileName.trim()}
           >
             {saving
-              ? 'Saving...'
-              : destination === 'cloud' ? 'Save to Cloud' : 'Save'}
+              ? t('saveAs.saving')
+              : destination === 'cloud' ? t('saveAs.saveToCloud') : t('common:save')}
           </button>
         </div>
       </div>

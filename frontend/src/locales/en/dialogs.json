@@ -1,0 +1,41 @@
+{
+  "saveError": {
+    "heading": {
+      "autoSave": "Auto-save failed",
+      "saveFailed": "Save failed",
+      "beforeClose": "Could not save before closing"
+    },
+    "body": "OpenDraft could not save your changes. Your work is still in the editor — please copy anything important before closing the app or reloading the window.",
+    "failureAt": "Failure at {{time}}:",
+    "acknowledge": "I understand"
+  },
+  "storageFallback": {
+    "fileHeading": "Switched to file-based storage",
+    "dbHeading": "Local database unavailable",
+    "fileExplanation": "OpenDraft could not open its local database, so your projects are now being saved as individual files in your app data folder. You can keep working — saving and loading still work normally, but version history is disabled until the database is reachable again.",
+    "dbExplanation": "OpenDraft could not open its local database and the file-based fallback also failed. Your changes will be saved in the browser only and may be lost if storage is cleared.",
+    "underlyingError": "Underlying error:"
+  },
+  "quota": {
+    "title": "Free plan limit reached",
+    "usage": "You have <strong>{{current}}</strong> of <strong>{{limit}}</strong> files on the <strong>{{plan}}</strong> plan.",
+    "upgrade": "Upgrade"
+  },
+  "oneDrive": {
+    "title": "OneDrive interference detected",
+    "intro": "OpenDraft's data folder is inside a OneDrive-synced location. This is a known cause of <strong>silent save failures</strong>: OneDrive can grab the SQLite write-ahead log file in the middle of a save, corrupting the database and losing your latest edits.",
+    "affectedFolder": "Affected folder:",
+    "howToFix": "How to fix:",
+    "step1": "Open OneDrive settings → Sync and backup → Manage backup.",
+    "step2": "Turn off backup for the folder that contains the path above (typically Documents or Desktop), or exclude OpenDraft's app data folder explicitly.",
+    "step3": "Restart OpenDraft.",
+    "dontShowAgain": "Don't show again"
+  },
+  "bookmark": {
+    "addTitle": "Add Bookmark",
+    "renameTitle": "Rename Bookmark",
+    "nameLabel": "Bookmark name",
+    "nameClash": "Another bookmark is already called “{{name}}”.",
+    "placeCursor": "Place the cursor in a script element to bookmark it."
+  }
+}

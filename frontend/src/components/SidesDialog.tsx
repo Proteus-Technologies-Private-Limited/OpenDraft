@@ -14,6 +14,7 @@
  */
 import React, { useMemo, useState } from 'react';
 import type { JSONContent } from '@tiptap/react';
+import { useTranslation } from 'react-i18next';
 import { useEditorStore } from '../stores/editorStore';
 import type { PdfPageSelection } from '../utils/pdfExporter';
 import {
@@ -37,6 +38,7 @@ interface Props {
 type Mode = PageChoice['mode'];
 
 const SidesDialog: React.FC<Props> = ({ doc, intent = 'export', onExport, onPrint, onClose }) => {
+  const { t } = useTranslation(['tools', 'common']);
   const tags = useEditorStore((s) => s.tags);
   const tagCategories = useEditorStore((s) => s.tagCategories);
   const scenes = useMemo(() => sceneRanges(doc), [doc]);
@@ -109,7 +111,7 @@ const SidesDialog: React.FC<Props> = ({ doc, intent = 'export', onExport, onPrin
     } catch (err) {
       console.error(`[sides] ${action} failed:`, err);
       const reason = err instanceof Error ? err.message : String(err);
-      setError(action === 'print' ? `Could not print: ${reason}` : reason);
+      setError(action === 'print' ? t('sides.printFailed', { message: reason }) : reason);
     } finally {
       setBusy(null);
     }
@@ -122,7 +124,7 @@ const SidesDialog: React.FC<Props> = ({ doc, intent = 'export', onExport, onPrin
       onClick={() => { void run('export'); }}
       disabled={!ready || busy !== null}
     >
-      {busy === 'export' ? 'Exporting…' : 'Export PDF…'}
+      {busy === 'export' ? t('sides.exporting') : t('sides.exportPdf')}
     </button>
   );
   const printButton = (
@@ -132,7 +134,7 @@ const SidesDialog: React.FC<Props> = ({ doc, intent = 'export', onExport, onPrin
       onClick={() => { void run('print'); }}
       disabled={!ready || busy !== null}
     >
-      {busy === 'print' ? 'Preparing…' : 'Print…'}
+      {busy === 'print' ? t('sides.preparing') : t('sides.print')}
     </button>
   );
 
@@ -146,15 +148,15 @@ const SidesDialog: React.FC<Props> = ({ doc, intent = 'export', onExport, onPrin
         aria-labelledby="sides-dialog-title"
       >
         <div className="dialog-header" id="sides-dialog-title">
-          {intent === 'print' ? 'Print Selected Pages' : 'Sides & Selected Pages'}
+          {intent === 'print' ? t('sides.titlePrint') : t('sides.title')}
         </div>
         <div className="dialog-body">
-          <div className="sides-modes" role="radiogroup" aria-label="What to print">
+          <div className="sides-modes" role="radiogroup" aria-label={t('sides.whatToPrint')}>
             {([
-              ['sides', 'Sides'],
-              ['character', 'Pages with a character'],
-              ['location', 'Pages at a location'],
-              ['tag', 'Pages with a tag'],
+              ['sides', t('sides.modes.sides')],
+              ['character', t('sides.modes.character')],
+              ['location', t('sides.modes.location')],
+              ['tag', t('sides.modes.tag')],
             ] as Array<[Mode, string]>).map(([m, label]) => (
               <label key={m} className="sides-mode">
                 <input type="radio" name="sides-mode" checked={mode === m} onChange={() => { setMode(m); setError(null); }} />
@@ -166,19 +168,19 @@ const SidesDialog: React.FC<Props> = ({ doc, intent = 'export', onExport, onPrin
           {mode === 'sides' && (
             <>
               <p className="sides-help">
-                The chosen scenes on their own pages, keeping the script&rsquo;s page and scene numbers.
+                {t('sides.help')}
               </p>
               {characters.length > 0 && (
                 <div className="sides-row">
-                  <span>Add every scene with</span>
-                  <select value={character} onChange={(e) => setCharacter(e.target.value)} aria-label="Character">
+                  <span>{t('sides.addEveryScene')}</span>
+                  <select value={character} onChange={(e) => setCharacter(e.target.value)} aria-label={t('sides.character')}>
                     {characters.map((c) => <option key={c} value={c}>{c}</option>)}
                   </select>
-                  <button type="button" className="dialog-btn" onClick={() => addScenesFor(character)}>Add</button>
+                  <button type="button" className="dialog-btn" onClick={() => addScenesFor(character)}>{t('common:add')}</button>
                 </div>
               )}
-              <div className="sides-scenes" role="group" aria-label="Scenes">
-                {scenes.length === 0 && <p className="sides-help">This script has no scene headings.</p>}
+              <div className="sides-scenes" role="group" aria-label={t('sides.scenes')}>
+                {scenes.length === 0 && <p className="sides-help">{t('sides.noSceneHeadings')}</p>}
                 {scenes.map((s) => (
                   <label key={s.index} className="sides-scene">
                     <input type="checkbox" checked={chosen.has(s.index)} onChange={() => toggleScene(s.index)} />
@@ -188,21 +190,21 @@ const SidesDialog: React.FC<Props> = ({ doc, intent = 'export', onExport, onPrin
                 ))}
               </div>
               <div className="sides-row">
-                <button type="button" className="dialog-btn" onClick={() => setChosen(new Set())} disabled={chosen.size === 0}>Clear</button>
-                <span className="sides-count">{chosen.size} of {scenes.length} scenes</span>
+                <button type="button" className="dialog-btn" onClick={() => setChosen(new Set())} disabled={chosen.size === 0}>{t('common:clear')}</button>
+                <span className="sides-count">{t('sides.sceneCount', { chosen: chosen.size, count: scenes.length })}</span>
               </div>
               <label className="sides-check">
                 <input type="checkbox" checked={crossOut} onChange={(e) => setCrossOut(e.target.checked)} />
-                <span>Cross out the rest of each page</span>
+                <span>{t('sides.crossOut')}</span>
               </label>
             </>
           )}
 
           {mode === 'character' && (
             <label className="sides-row">
-              <span>Character</span>
+              <span>{t('sides.character')}</span>
               <select value={character} onChange={(e) => setCharacter(e.target.value)}>
-                {characters.length === 0 && <option value="">No speaking characters</option>}
+                {characters.length === 0 && <option value="">{t('sides.noCharacters')}</option>}
                 {characters.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </label>
@@ -210,9 +212,9 @@ const SidesDialog: React.FC<Props> = ({ doc, intent = 'export', onExport, onPrin
 
           {mode === 'location' && (
             <label className="sides-row">
-              <span>Location</span>
+              <span>{t('sides.location')}</span>
               <select value={location} onChange={(e) => setLocation(e.target.value)}>
-                {locations.length === 0 && <option value="">No locations</option>}
+                {locations.length === 0 && <option value="">{t('sides.noLocations')}</option>}
                 {locations.map((l) => <option key={l} value={l}>{l}</option>)}
               </select>
             </label>
@@ -220,9 +222,9 @@ const SidesDialog: React.FC<Props> = ({ doc, intent = 'export', onExport, onPrin
 
           {mode === 'tag' && (
             <label className="sides-row">
-              <span>Tag</span>
+              <span>{t('sides.tag')}</span>
               <select value={tagKey} onChange={(e) => setTagKey(e.target.value)}>
-                {tagChoices.length === 0 && <option value="">No production tags</option>}
+                {tagChoices.length === 0 && <option value="">{t('sides.noTags')}</option>}
                 {tagChoices.map((t) => <option key={t.label} value={t.label}>{t.label}</option>)}
               </select>
             </label>
@@ -230,13 +232,13 @@ const SidesDialog: React.FC<Props> = ({ doc, intent = 'export', onExport, onPrin
 
           <label className="sides-check">
             <input type="checkbox" checked={twoUp} onChange={(e) => setTwoUp(e.target.checked)} />
-            <span>Two pages per sheet (landscape)</span>
+            <span>{t('sides.twoUp')}</span>
           </label>
 
           {error && <p className="revision-settings-error" role="alert">{error}</p>}
         </div>
         <div className="dialog-actions">
-          <button onClick={onClose}>Cancel</button>
+          <button onClick={onClose}>{t('common:cancel')}</button>
           {/* The main button last, where the dialog's other actions put it. */}
           {intent === 'print' ? [exportButton, printButton] : [printButton, exportButton]}
         </div>

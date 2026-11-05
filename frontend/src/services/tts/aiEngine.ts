@@ -19,6 +19,7 @@ import { WordClock, estimateDurationMs } from './wordClock';
 import { wordRanges } from './script';
 import { kokoroGenerate, kokoroVoices } from './kokoroClient';
 import { isTauri } from '../platform';
+import { t } from '../../i18n';
 
 type ProviderConfig = Pick<VoiceSettingsState,
   | 'aiProvider' | 'apiKeys' | 'openaiModel' | 'elevenlabsModel' | 'geminiModel' | 'azureRegion'
@@ -210,11 +211,11 @@ async function describeHttpError(res: Response, name: string): Promise<string> {
  */
 export function unframeSpeechServerResponse(raw: ArrayBuffer | Uint8Array | number[]): Response {
   const bytes = raw instanceof Uint8Array ? raw : new Uint8Array(raw as ArrayBuffer);
-  if (bytes.length < 4) throw new Error('The speech server answered with nothing readable.');
+  if (bytes.length < 4) throw new Error(t('messages:tts.unreadable'));
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const status = view.getUint16(0);
   const ctLen = view.getUint16(2);
-  if (4 + ctLen > bytes.length) throw new Error('The speech server answered with nothing readable.');
+  if (4 + ctLen > bytes.length) throw new Error(t('messages:tts.unreadable'));
   const contentType = new TextDecoder().decode(bytes.subarray(4, 4 + ctLen));
   // A Response refuses a body for these, and refuses a status outside 200–599.
   const body = status === 204 || status === 205 || status === 304 ? null : bytes.slice(4 + ctLen);
@@ -301,7 +302,7 @@ export class AiEngine implements TtsEngine {
 
   constructor(cfg: ProviderConfig) {
     this.cfg = cfg;
-    if (!cfg.aiProvider) throw new TtsUnavailableError('No AI voice provider is set up.');
+    if (!cfg.aiProvider) throw new TtsUnavailableError(t('messages:tts.noProvider'));
     this.provider = cfg.aiProvider;
     this.id = cfg.aiProvider;
     this.label = cfg.aiProvider === 'openai-compatible' ? 'AI voices' : `${PROVIDER_NAMES[cfg.aiProvider]} voices`;
@@ -348,7 +349,7 @@ export class AiEngine implements TtsEngine {
     } else if (p === 'elevenlabs') {
       list = await this.elevenLabsVoices();
     } else if (p === 'gemini') {
-      if (!this.key) throw new TtsUnavailableError('Add your Gemini API key in Settings → Table Read Voices.');
+      if (!this.key) throw new TtsUnavailableError(t('messages:tts.needGeminiKey'));
       list = GEMINI_VOICES.map(([name, character, gender]) => ({ id: `gemini:${name}`, name, lang: '', gender, detail: character }));
     } else if (p === 'azure') {
       list = await this.azureVoices();
@@ -363,7 +364,7 @@ export class AiEngine implements TtsEngine {
   }
 
   private async elevenLabsVoices(): Promise<VoiceInfo[]> {
-    if (!this.key) throw new TtsUnavailableError('Add your ElevenLabs API key in Settings → Table Read Voices.');
+    if (!this.key) throw new TtsUnavailableError(t('messages:tts.needElevenLabsKey'));
     const res = await request(`${ELEVENLABS_BASE}/voices`, { headers: { 'xi-api-key': this.key } }, 'ElevenLabs');
     if (!res.ok) throw new Error(await describeHttpError(res, 'ElevenLabs'));
     const json = await res.json() as { voices?: { voice_id: string; name: string; labels?: Record<string, string> }[] };
@@ -382,7 +383,7 @@ export class AiEngine implements TtsEngine {
 
   private async azureVoices(): Promise<VoiceInfo[]> {
     if (!this.key || !this.cfg.azureRegion) {
-      throw new TtsUnavailableError('Add your Azure Speech key and region in Settings → Table Read Voices.');
+      throw new TtsUnavailableError(t('messages:tts.needAzureKey'));
     }
     const res = await request(`${this.azureHost}/cognitiveservices/voices/list`, {
       headers: { 'Ocp-Apim-Subscription-Key': this.key },
@@ -459,13 +460,13 @@ export class AiEngine implements TtsEngine {
     const p = this.provider;
     if (p === 'kokoro') {
       const voice = bareVoice(p, voiceId);
-      if (!voice) throw new Error('No Kokoro voice is selected.');
+      if (!voice) throw new Error(t('messages:tts.noKokoroVoice'));
       const wav = await kokoroGenerate(text, voice);
       return { url: URL.createObjectURL(new Blob([wav], { type: 'audio/wav' })) };
     }
     if (p === 'gemini') {
       const voice = bareVoice(p, voiceId);
-      if (!voice) throw new Error('No Gemini voice is selected.');
+      if (!voice) throw new Error(t('messages:tts.noGeminiVoice'));
       const content: Record<string, unknown> = { type: 'text', text };
       // A delivery note goes in speech_metadata, never into the text — a
       // prefix like "Say quietly:" would be read aloud.
@@ -492,13 +493,13 @@ export class AiEngine implements TtsEngine {
         .pop();
       if (!audio?.data) {
         console.error('[tableRead] Gemini response had no audio:', JSON.stringify(json).slice(0, 500));
-        throw new Error('Gemini returned no audio for this line.');
+        throw new Error(t('messages:tts.geminiNoAudio'));
       }
       return { url: URL.createObjectURL(new Blob([base64ToBytes(audio.data)], { type: audio.mime_type || 'audio/wav' })) };
     }
     if (p === 'azure') {
       const voice = bareVoice(p, voiceId);
-      if (!voice) throw new Error('No Azure voice is selected.');
+      if (!voice) throw new Error(t('messages:tts.noAzureVoice'));
       if (!this.azureLocales.size) await this.listVoices();
       const locale = this.azureLocales.get(voice) || 'en-US';
       const ssml = `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="${locale}">`
@@ -515,12 +516,12 @@ export class AiEngine implements TtsEngine {
       }, 'Azure Speech');
       if (!res.ok) throw new Error(await describeHttpError(res, 'Azure Speech'));
       const blob = await res.blob();
-      if (!blob.size) throw new Error('Azure Speech returned no audio.');
+      if (!blob.size) throw new Error(t('messages:tts.azureNoAudio'));
       return { url: URL.createObjectURL(new Blob([blob], { type: 'audio/mpeg' })) };
     }
     if (p === 'elevenlabs') {
       const voice = bareVoice(p, voiceId);
-      if (!voice) throw new Error('No ElevenLabs voice is selected.');
+      if (!voice) throw new Error(t('messages:tts.noElevenLabsVoice'));
       const res = await request(`${ELEVENLABS_BASE}/text-to-speech/${encodeURIComponent(voice)}/with-timestamps`, {
         method: 'POST',
         headers: { 'xi-api-key': this.key, 'Content-Type': 'application/json' },
@@ -544,7 +545,7 @@ export class AiEngine implements TtsEngine {
 
     const base = p === 'openai' ? OPENAI_BASE : this.compatibleBase;
     const voice = bareVoice(p, voiceId);
-    if (!voice) throw new Error('No voice is selected.');
+    if (!voice) throw new Error(t('messages:tts.noVoice'));
     const model = p === 'openai' ? this.cfg.openaiModel : this.cfg.compatibleModel;
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (this.key) headers.Authorization = `Bearer ${this.key}`;
@@ -625,7 +626,7 @@ export class AiEngine implements TtsEngine {
         if (audio.currentTime > 0 || opts.signal.aborted) return;
         cleanup();
         audio.pause();
-        reject(new Error(`The audio from ${this.providerName} did not start playing. This browser may not support its format.`));
+        reject(new Error(t('messages:tts.audioNoStart', { provider: this.providerName })));
       }, 15000);
       const cleanup = () => {
         clearTimeout(stall);
@@ -648,7 +649,7 @@ export class AiEngine implements TtsEngine {
       };
       audio.onerror = () => {
         cleanup();
-        reject(new Error(`The audio from ${this.providerName} could not be played.`));
+        reject(new Error(t('messages:tts.audioNoPlay', { provider: this.providerName })));
       };
       audio.play().then(() => {
         raf = requestAnimationFrame(tick);
@@ -676,7 +677,7 @@ export class AiEngine implements TtsEngine {
       const bytes = await (await fetch(clip.url)).arrayBuffer();
       buffer = await ctx.decodeAudioData(bytes);
     } catch (err) {
-      throw new Error(`The audio from ${this.providerName} could not be decoded: ${err instanceof Error ? err.message : String(err)}`);
+      throw new Error(t('messages:tts.audioNoDecode', { provider: this.providerName, message: err instanceof Error ? err.message : String(err) }));
     }
     if (opts.signal.aborted) return;
     const rate = Math.min(4, Math.max(0.25, opts.rate));

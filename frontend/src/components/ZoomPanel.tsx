@@ -1,8 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { FaSearchPlus, FaSearchMinus, FaTimes } from 'react-icons/fa';
+import { useTranslation } from 'react-i18next';
 import { useEditorStore } from '../stores/editorStore';
 
 const ZoomPanel: React.FC = () => {
+  const { t } = useTranslation('common');
   const { zoomLevel, setZoomLevel, zoomPanelOpen, setZoomPanelOpen } = useEditorStore();
   const [inputValue, setInputValue] = useState(String(zoomLevel));
   const panelRef = useRef<HTMLDivElement>(null);
@@ -57,7 +59,7 @@ const ZoomPanel: React.FC = () => {
       <button
         className="zoom-panel-close"
         onClick={() => setZoomPanelOpen(false)}
-        title="Close"
+        title={t('close')}
       >
         <FaTimes />
       </button>

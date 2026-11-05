@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useEditorStore, DEFAULT_PAGE_LAYOUT, resolveHeaderFooter } from '../stores/editorStore';
 import type { PageLayout } from '../stores/editorStore';
 import Select from './Select';
@@ -8,11 +9,13 @@ interface PageSetupDialogProps {
   onClose: () => void;
 }
 
+// i18n-ignore-start: standard paper-size names and their dimensions are the same in every language
 const PAGE_SIZES: Array<{ label: string; width: number; height: number }> = [
   { label: 'US Letter (8.5" x 11")', width: 8.5, height: 11 },
   { label: 'A4 (8.27" x 11.69")', width: 8.27, height: 11.69 },
   { label: 'US Legal (8.5" x 14")', width: 8.5, height: 14 },
 ];
+// i18n-ignore-end
 
 function ptToIn(pt: number): number {
   return +(pointsToInches(pt)).toFixed(3);
@@ -50,6 +53,7 @@ const PORTRAIT_MARGINS = {
 };
 
 const PageSetupDialog: React.FC<PageSetupDialogProps> = ({ onClose }) => {
+  const { t } = useTranslation(['format', 'common']);
   const { pageLayout, setPageLayout, setHeaderFooterOpen } = useEditorStore();
 
   // Backwards-compatible: fill in fields missing from layouts saved by older versions
@@ -146,13 +150,13 @@ const PageSetupDialog: React.FC<PageSetupDialogProps> = ({ onClose }) => {
         className="dialog-box page-setup-dialog"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="dialog-header">Page Setup</div>
+        <div className="dialog-header">{t('pageSetup.title')}</div>
         <div className="dialog-body">
           {/* Page Size */}
           <div className="page-setup-section">
-            <div className="page-setup-section-title">Page Size</div>
+            <div className="page-setup-section-title">{t('pageSetup.pageSize')}</div>
             <div className="page-setup-row">
-              <label>Size</label>
+              <label>{t('pageSetup.size')}</label>
               <Select
                 value={currentSizeLabel}
                 onChange={handlePageSizeChange}
@@ -163,12 +167,12 @@ const PageSetupDialog: React.FC<PageSetupDialogProps> = ({ onClose }) => {
                   </option>
                 ))}
                 {currentSizeLabel === 'Custom' && (
-                  <option value="Custom">Custom</option>
+                  <option value="Custom">{t('common:custom')}</option>
                 )}
               </Select>
             </div>
             <div className="page-setup-row">
-              <label>Orientation</label>
+              <label>{t('pageSetup.orientation')}</label>
               <div className="page-setup-orientation">
                 <label className="page-setup-orientation-option">
                   <input
@@ -177,7 +181,7 @@ const PageSetupDialog: React.FC<PageSetupDialogProps> = ({ onClose }) => {
                     checked={!isLandscape}
                     onChange={() => handleOrientation(false)}
                   />
-                  Portrait
+                  {t('pageSetup.portrait')}
                 </label>
                 <label className="page-setup-orientation-option">
                   <input
@@ -186,13 +190,13 @@ const PageSetupDialog: React.FC<PageSetupDialogProps> = ({ onClose }) => {
                     checked={isLandscape}
                     onChange={() => handleOrientation(true)}
                   />
-                  Landscape
+                  {t('pageSetup.landscape')}
                 </label>
               </div>
             </div>
             <div className="page-setup-row-pair">
               <div className="page-setup-row">
-                <label>Width (in)</label>
+                <label>{t('pageSetup.width')}</label>
                 <input
                   type="number"
                   step="0.01"
@@ -205,7 +209,7 @@ const PageSetupDialog: React.FC<PageSetupDialogProps> = ({ onClose }) => {
                 />
               </div>
               <div className="page-setup-row">
-                <label>Height (in)</label>
+                <label>{t('pageSetup.height')}</label>
                 <input
                   type="number"
                   step="0.01"
@@ -222,10 +226,10 @@ const PageSetupDialog: React.FC<PageSetupDialogProps> = ({ onClose }) => {
 
           {/* Margins */}
           <div className="page-setup-section">
-            <div className="page-setup-section-title">Margins</div>
+            <div className="page-setup-section-title">{t('pageSetup.margins')}</div>
             <div className="page-setup-row-pair">
               <div className="page-setup-row">
-                <label>Top (in)</label>
+                <label>{t('pageSetup.top')}</label>
                 <input
                   type="number"
                   step="0.05"
@@ -241,7 +245,7 @@ const PageSetupDialog: React.FC<PageSetupDialogProps> = ({ onClose }) => {
                 />
               </div>
               <div className="page-setup-row">
-                <label>Bottom (in)</label>
+                <label>{t('pageSetup.bottom')}</label>
                 <input
                   type="number"
                   step="0.05"
@@ -259,7 +263,7 @@ const PageSetupDialog: React.FC<PageSetupDialogProps> = ({ onClose }) => {
             </div>
             <div className="page-setup-row-pair">
               <div className="page-setup-row">
-                <label>Left (in)</label>
+                <label>{t('pageSetup.left')}</label>
                 <input
                   type="number"
                   step="0.05"
@@ -275,7 +279,7 @@ const PageSetupDialog: React.FC<PageSetupDialogProps> = ({ onClose }) => {
                 />
               </div>
               <div className="page-setup-row">
-                <label>Right (in)</label>
+                <label>{t('pageSetup.right')}</label>
                 <input
                   type="number"
                   step="0.05"
@@ -297,24 +301,24 @@ const PageSetupDialog: React.FC<PageSetupDialogProps> = ({ onClose }) => {
               Footer), where it has room for field buttons and a preview. This is
               the signpost for anyone who still looks for it here. */}
           <div className="page-setup-section">
-            <div className="page-setup-section-title">Header &amp; Footer</div>
+            <div className="page-setup-section-title">{t('pageSetup.headerFooter')}</div>
             <div className="page-setup-hf-hint" style={{ marginBottom: 8 }}>
-              Page numbers, header and footer text, and where numbering starts.
+              {t('pageSetup.headerFooterHint')}
             </div>
             <button type="button" className="dialog-btn page-setup-link" onClick={handleOpenHeaderFooter}>
-              Header &amp; Footer Settings…
+              {t('pageSetup.headerFooterSettings')}
             </button>
           </div>
         </div>
 
         <div className="dialog-actions">
           <button className="page-setup-reset" onClick={handleReset}>
-            Reset Default
+            {t('pageSetup.resetDefault')}
           </button>
           <div className="page-setup-spacer" />
-          <button onClick={onClose}>Cancel</button>
+          <button onClick={onClose}>{t('common:cancel')}</button>
           <button className="dialog-primary" onClick={handleApply}>
-            Apply
+            {t('common:apply')}
           </button>
         </div>
       </div>

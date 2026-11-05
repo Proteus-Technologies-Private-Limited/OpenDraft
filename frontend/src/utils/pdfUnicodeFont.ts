@@ -46,6 +46,7 @@ import {
 } from './indic';
 import { shapingFont } from './textShaping';
 import { bindShapingFont } from './pdfShapedText';
+import { t } from '../i18n';
 
 /**
  * The jsPDF font ids the fallbacks are registered under — and, because jsPDF
@@ -224,7 +225,7 @@ const FALLBACKS: readonly FallbackSpec[] = [
     monospace: false,
     variants: [{
       key: 'NotoSansHebrew',
-      label: 'Hebrew',
+      get label() { return t('messages:pdfFonts.hebrew'); },
       files: {
         normal: '/fonts/NotoSansHebrew-Regular.ttf',
         bold: '/fonts/NotoSansHebrew-Bold.ttf',
@@ -239,7 +240,7 @@ const FALLBACKS: readonly FallbackSpec[] = [
     monospace: false,
     variants: [{
       key: 'NotoSansArabic',
-      label: 'Arabic',
+      get label() { return t('messages:pdfFonts.arabic'); },
       files: {
         normal: '/fonts/NotoSansArabic-Regular.ttf',
         bold: '/fonts/NotoSansArabic-Bold.ttf',
@@ -254,7 +255,7 @@ const FALLBACKS: readonly FallbackSpec[] = [
     monospace: false,
     variants: [{
       key: 'NotoSansThai',
-      label: 'Thai',
+      get label() { return t('messages:pdfFonts.thai'); },
       files: {
         normal: '/fonts/NotoSansThai-Regular.ttf',
         bold: '/fonts/NotoSansThai-Bold.ttf',
@@ -270,7 +271,7 @@ const FALLBACKS: readonly FallbackSpec[] = [
     monospace: true,
     variants: [{
       key: UNICODE_FONT_ID,
-      label: 'Cyrillic, Greek, Armenian and Georgian',
+      get label() { return t('messages:pdfFonts.cyrillic'); },
       files: {
         normal: '/fonts/DejaVuSansMono-Regular.ttf',
         bold: '/fonts/DejaVuSansMono-Bold.ttf',
@@ -295,12 +296,12 @@ const FALLBACKS: readonly FallbackSpec[] = [
     variants: [
       {
         key: 'SC',
-        label: 'Chinese',
+        get label() { return t('messages:pdfFonts.chinese'); },
         files: CJK_FILES.SC,
       },
       {
         key: 'JP',
-        label: 'Japanese',
+        get label() { return t('messages:pdfFonts.japanese'); },
         // Kana. Japanese always mixes it with Han, so its presence settles a
         // document that Han alone could not.
         markers: [[0x3040, 0x30ff], [0x31f0, 0x31ff]],
@@ -308,7 +309,7 @@ const FALLBACKS: readonly FallbackSpec[] = [
       },
       {
         key: 'KR',
-        label: 'Korean',
+        get label() { return t('messages:pdfFonts.korean'); },
         markers: [[0x1100, 0x11ff], [0x3130, 0x318f], [0xa960, 0xa97f], [0xac00, 0xd7af]],
         files: CJK_FILES.KR,
       },
@@ -325,7 +326,7 @@ const FALLBACKS: readonly FallbackSpec[] = [
         // code points, so a misread document is drawn in the other one's
         // glyph shapes rather than left blank.
         key: 'TC',
-        label: 'Chinese (traditional)',
+        get label() { return t('messages:pdfFonts.chineseTraditional'); },
         markers: [
           [0x4e5f, 0x4e5f], [0x5011, 0x5011], [0x5169, 0x5169], [0x570b, 0x570b],
           [0x5c0d, 0x5c0d], [0x5be6, 0x5be6], [0x6703, 0x6703], [0x6a23, 0x6a23],

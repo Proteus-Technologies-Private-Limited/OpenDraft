@@ -10,6 +10,7 @@
  * that was probably meant: switch to the window that already has it.
  */
 import React from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import type { OpenElsewhere } from '../services/openDocuments';
 
 interface Props {
@@ -27,7 +28,9 @@ const DocumentOpenElsewhereDialog: React.FC<Props> = ({
   documentTitle,
   onSwitch,
   onOpenAnyway,
-}) => (
+}) => {
+  const { t } = useTranslation('collab');
+  return (
   <div className="dialog-overlay">
     <div
       className="dialog-box"
@@ -37,29 +40,33 @@ const DocumentOpenElsewhereDialog: React.FC<Props> = ({
       aria-labelledby="open-elsewhere-title"
     >
       <div className="dialog-header" id="open-elsewhere-title">
-        Already open in another window
+        {t('openElsewhere.title')}
       </div>
       <div className="dialog-body">
         <p style={{ margin: '0 0 12px' }}>
-          <strong>{documentTitle || other.title || 'This screenplay'}</strong> is
-          open in another OpenDraft window.
+          <Trans
+            ns="collab"
+            i18nKey="openElsewhere.body"
+            values={{ title: documentTitle || other.title || t('openElsewhere.thisScreenplay') }}
+            components={{ strong: <strong /> }}
+          />
         </p>
         <p style={{ margin: 0, fontSize: 13, color: 'var(--fd-text-muted)' }}>
-          Editing it in both places means the two windows save over each other,
-          and only the last one to save is kept.
+          {t('openElsewhere.warning')}
         </p>
       </div>
       <div className="dialog-footer" style={{ display: 'flex', gap: 8 }}>
         <button className="dialog-btn" onClick={onOpenAnyway}>
-          Open anyway
+          {t('openElsewhere.openAnyway')}
         </button>
         <div style={{ flex: 1 }} />
         <button className="dialog-btn dialog-btn-primary" onClick={onSwitch} autoFocus>
-          Switch to that window
+          {t('openElsewhere.switch')}
         </button>
       </div>
     </div>
   </div>
-);
+  );
+};
 
 export default DocumentOpenElsewhereDialog;

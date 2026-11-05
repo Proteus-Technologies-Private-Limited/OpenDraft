@@ -18,6 +18,7 @@
  */
 import type { JSONContent } from '@tiptap/react';
 import type { ParsedPdfScreenplay } from './pdfImport';
+import { t } from '../i18n';
 
 /** The element types a line can be set to, in the order the picker lists them. */
 export const REVIEW_TYPES = [
@@ -31,16 +32,17 @@ export const REVIEW_TYPES = [
   'general',
 ] as const;
 
+// Getters: looked up when read, so the labels follow the interface language.
 export const REVIEW_TYPE_LABELS: Record<string, string> = {
-  sceneHeading: 'Scene Heading',
-  action: 'Action',
-  character: 'Character',
-  parenthetical: 'Parenthetical',
-  dialogue: 'Dialogue',
-  transition: 'Transition',
-  shot: 'Shot',
-  general: 'General',
-  dualDialogue: 'Dual Dialogue',
+  get sceneHeading() { return t('messages:elements.sceneHeading'); },
+  get action() { return t('messages:elements.action'); },
+  get character() { return t('messages:elements.character'); },
+  get parenthetical() { return t('messages:elements.parenthetical'); },
+  get dialogue() { return t('messages:elements.dialogue'); },
+  get transition() { return t('messages:elements.transition'); },
+  get shot() { return t('messages:elements.shot'); },
+  get general() { return t('messages:elements.general'); },
+  get dualDialogue() { return t('messages:elements.dualDialogue'); },
 };
 
 /** One paragraph of the imported script, as the preview lists it. */
@@ -231,7 +233,7 @@ export function applyReviewedTypes(
 /** Thrown when the writer cancels the preview. Callers leave the open script alone and stay quiet. */
 export class ImportCancelledError extends Error {
   constructor() {
-    super('Import cancelled.');
+    super('Import cancelled.'); // i18n-ignore internal signal; callers stay quiet and never show it
     this.name = 'ImportCancelledError';
   }
 }

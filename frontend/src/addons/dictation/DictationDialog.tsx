@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Editor } from '@tiptap/core';
+import { useTranslation } from 'react-i18next';
 import { PLUGIN_PANEL_CLOSE_EVENT } from '../../components/PluginPanelTabs';
 import { loadSettings } from './settings';
-import { availableEngines, ENGINE_NAMES, ENGINE_PRIVACY } from './capabilities';
+import { availableEngines, engineName, enginePrivacy } from './capabilities';
 import { onDeactivate } from './lifecycle';
 import { insertDictation } from './editor/dictation';
 import { parseDictation } from './utils/dictation';
@@ -13,6 +14,7 @@ import { startNativeRecognition } from './services/native';
 import './DictationDialog.css';
 
 export default function DictationDialog({ editor }: { editor: Editor }) {
+  const { t } = useTranslation(['addons', 'common']);
   const close = () => document.dispatchEvent(new CustomEvent(PLUGIN_PANEL_CLOSE_EVENT));
   const [{ engine, language, commands }] = useState(loadSettings);
   const [text, setText] = useState('');
@@ -34,7 +36,7 @@ export default function DictationDialog({ editor }: { editor: Editor }) {
         cancel();
         setBusy(false);
         setText('');
-        setStatus('Recording stopped because the app was hidden.');
+        setStatus(t('dictation.status.hidden'));
       }
     };
     document.addEventListener('visibilitychange', hide);
@@ -48,13 +50,11 @@ export default function DictationDialog({ editor }: { editor: Editor }) {
         else previous?.focus();
       });
     };
-  }, [cancel, editor, engine]);
+  }, [cancel, editor, engine, t]);
   const start = async () => {
     cancel();
     if (!availableEngines().includes(engine)) {
-      setError(
-        'This recognition engine is unavailable here. Choose an available engine in Settings → Add-ons → Dictation.',
-      );
+      setError(t('dictation.error.engineUnavailable'));
       return;
     }
     const abort = new AbortController();
@@ -62,13 +62,13 @@ export default function DictationDialog({ editor }: { editor: Editor }) {
     setBusy(true);
     setText('');
     setError('');
-    setStatus('Listening…');
+    setStatus(t('dictation.status.listening'));
     let failed = false;
     const callbacks = {
       result: (value: string) => {
         if (!abort.signal.aborted && !failed) {
           setText(value);
-          setStatus('Review the transcript before inserting.');
+          setStatus(t('dictation.status.review'));
         }
       },
       interim: (value: string) => {
@@ -90,7 +90,7 @@ export default function DictationDialog({ editor }: { editor: Editor }) {
       end: () => {
         if (!abort.signal.aborted) {
           setBusy(false);
-          if (!failed) setStatus('Recording stopped. Review the transcript before inserting.');
+          if (!failed) setStatus(t('dictation.status.stopped'));
         }
       },
     };
@@ -124,42 +124,35 @@ export default function DictationDialog({ editor }: { editor: Editor }) {
         }
       }}
     >
-      <h2 id="dictation-title">Dictation</h2>
-      <p>Speak a short phrase, review it, then insert it at the script cursor.</p>
+      <h2 id="dictation-title">{t('dictation.title')}</h2>
+      <p>{t('dictation.intro')}</p>
       <p>
-        <strong>{ENGINE_NAMES[engine]}</strong> · {language}
+        <strong>{engineName(engine)}</strong> · {language}
       </p>
-      <p>{ENGINE_PRIVACY[engine]}</p>
+      <p>{enginePrivacy(engine)}</p>
       {engine === 'local' && (
-        <p>
-          First use downloads 39 MiB of q8 model weights, plus tokenizer and runtime assets.
-          Recordings stop after 30 seconds; first recognition may take a few minutes.
-        </p>
+        <p>{t('dictation.localNote')}</p>
       )}
       {engine === 'device' && getOS() === 'android' && (
-        <p>Use the system speech dialog to finish or cancel recording.</p>
+        <p>{t('dictation.androidNote')}</p>
       )}
-      <p>Change engine, language or voice commands in Settings → Add-ons → Dictation.</p>
+      <p>{t('dictation.changeSettings')}</p>
       {commands && (
-        <p>
-          Say a complete command: “new scene”, “character Sarah”, “action”, “dialogue”,
-          “parenthetical”, “transition”, or “new paragraph”. Prefix “literal” to dictate those words
-          instead.
-        </p>
+        <p>{t('dictation.commandsHelp')}</p>
       )}
       <div className="dictation-controls">
         <button type="button" onClick={() => void start()} disabled={busy}>
-          Start recording
+          {t('dictation.start')}
         </button>
         <button
           type="button"
           disabled={!busy || (engine === 'device' && getOS() === 'android')}
           onClick={() => {
-            setStatus('Finishing recognition…');
+            setStatus(t('dictation.status.finishing'));
             session.current?.stop();
           }}
         >
-          Stop
+          {t('dictation.stop')}
         </button>
         <button
           type="button"
@@ -168,10 +161,10 @@ export default function DictationDialog({ editor }: { editor: Editor }) {
             cancel();
             setBusy(false);
             setText('');
-            setStatus('Cancelled.');
+            setStatus(t('dictation.status.cancelled'));
           }}
         >
-          Cancel recording
+          {t('dictation.cancel')}
         </button>
       </div>
       <p role="status" aria-live="polite">
@@ -179,9 +172,9 @@ export default function DictationDialog({ editor }: { editor: Editor }) {
       </p>
       {error && <p role="alert">{error}</p>}
       <label>
-        Transcript{' '}
+        {t('dictation.transcript')}{' '}
         <textarea
-          aria-label="Transcript"
+          aria-label={t('dictation.transcript')}
           value={text}
           onChange={(e) => setText(e.target.value)}
           rows={4}
@@ -190,8 +183,9 @@ export default function DictationDialog({ editor }: { editor: Editor }) {
       </label>
       {action?.kind === 'element' && (
         <p>
-          Command: start {action.type}
-          {action.text ? `: ${action.text}` : ''}.
+          {action.text
+            ? t('dictation.commandWithText', { type: action.type, text: action.text })
+            : t('dictation.command', { type: action.type })}
         </p>
       )}
       <div className="dictation-controls">
@@ -202,19 +196,19 @@ export default function DictationDialog({ editor }: { editor: Editor }) {
             if (insertDictation(editor, text, commands)) {
               setError('');
               setText('');
-              setStatus('Inserted.');
+              setStatus(t('dictation.status.inserted'));
             } else
               setError(
                 action?.kind !== 'text'
-                  ? 'This voice command cannot be inserted here. Choose a compatible element or move the script cursor.'
-                  : 'Place the cursor in a screenplay text element before inserting.',
+                  ? t('dictation.error.commandNotHere')
+                  : t('dictation.error.placeCursor'),
               );
           }}
         >
-          Insert into script
+          {t('dictation.insert')}
         </button>
         <button type="button" onClick={close}>
-          Close
+          {t('common:close')}
         </button>
       </div>
     </section>

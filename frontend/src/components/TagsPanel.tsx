@@ -1,5 +1,7 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import type { Editor } from '@tiptap/react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { panelCloseDelay, useDelayedUnmount, useSwipeDismiss } from '../hooks/useTouch';
 import { useEditorStore } from '../stores/editorStore';
 
@@ -19,7 +21,36 @@ interface TagOccurrence {
   elementType: string;
 }
 
+/** Built-in categories are stored under their English name; only the label shown is looked up by id. */
+function builtInCategoryName(t: TFunction<['story', 'common']>, cat: { id: string; name: string; isBuiltIn?: boolean }): string {
+  if (!cat.isBuiltIn) return cat.name;
+  switch (cat.id) {
+    case 'cast': return t('tags.category.cast');
+    case 'extras': return t('tags.category.extras');
+    case 'stunts': return t('tags.category.stunts');
+    case 'vehicles': return t('tags.category.vehicles');
+    case 'props': return t('tags.category.props');
+    case 'special-effects': return t('tags.category.specialEffects');
+    case 'costumes': return t('tags.category.costumes');
+    case 'makeup': return t('tags.category.makeup');
+    case 'animals': return t('tags.category.animals');
+    case 'animal-handler': return t('tags.category.animalHandler');
+    case 'music': return t('tags.category.music');
+    case 'sound': return t('tags.category.sound');
+    case 'set-dressing': return t('tags.category.setDressing');
+    case 'greenery': return t('tags.category.greenery');
+    case 'special-equipment': return t('tags.category.specialEquipment');
+    case 'security': return t('tags.category.security');
+    case 'additional-labor': return t('tags.category.additionalLabor');
+    case 'vfx': return t('tags.category.vfx');
+    case 'optical-fx': return t('tags.category.opticalFx');
+    case 'mechanical-fx': return t('tags.category.mechanicalFx');
+    default: return cat.name;
+  }
+}
+
 const TagsPanel: React.FC<TagsPanelProps> = ({ editor, style }) => {
+  const { t } = useTranslation(['story', 'common']);
   const {
     tagCategories,
     tags,
@@ -77,7 +108,7 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor, style }) => {
       if (node.type.name === 'sceneHeading') {
         sceneRanges.push({
           id: `scene-${sceneIdx}`,
-          name: node.textContent || 'Untitled Scene',
+          name: node.textContent || t('tags.untitledScene'),
           from: pos,
         });
         sceneIdx++;
@@ -115,7 +146,7 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor, style }) => {
     });
 
     return result;
-  }, [editor, editor?.state.doc]);
+  }, [editor, editor?.state.doc, t]);
 
   // Group occurrences by tagId
   const occurrencesByTag = useMemo(() => {
@@ -399,19 +430,19 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor, style }) => {
 
   // Entities in the currently-selected pending category
   const pendingCatEntities = pendingCategoryId
-    ? tags.filter((t) => t.categoryId === pendingCategoryId)
+    ? tags.filter((tg) => tg.categoryId === pendingCategoryId)
     : [];
 
   return (
     <div ref={panelRef} className={`tags-panel ${panelClass}`} style={style}>
       <div className="tags-panel-header">
-        <span className="tags-panel-title">Production Tags</span>
+        <span className="tags-panel-title">{t('tags.title')}</span>
         <span className="tags-panel-count">{tags.length}</span>
         <button
           className={`tags-visibility-btn${tagsVisible ? ' active' : ''}`}
           onClick={() => setTagsVisible(!tagsVisible)}
-          title={tagsVisible ? 'Hide tag highlights' : 'Show tag highlights'}
-          aria-label={tagsVisible ? 'Hide tag highlights' : 'Show tag highlights'}
+          title={tagsVisible ? t('tags.hideHighlights') : t('tags.showHighlights')}
+          aria-label={tagsVisible ? t('tags.hideHighlights') : t('tags.showHighlights')}
         >
           {tagsVisible ? (
             <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 3C4.36 3 1.26 5.28 0 8.5c1.26 3.22 4.36 5.5 8 5.5s6.74-2.28 8-5.5C14.74 5.28 11.64 3 8 3zm0 9.17c-1.84 0-3.33-1.49-3.33-3.33S6.16 5.5 8 5.5s3.33 1.49 3.33 3.33S9.84 12.17 8 12.17zm0-5.34a2 2 0 100 4 2 2 0 000-4z"/></svg>
@@ -422,8 +453,8 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor, style }) => {
         <button
           className="tags-panel-close"
           onClick={toggleTagsPanel}
-          title="Close"
-          aria-label="Close production tags panel"
+          title={t('common:close')}
+          aria-label={t('tags.closePanel')}
         >
           &times;
         </button>
@@ -435,13 +466,13 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor, style }) => {
           className={`tags-tab${activeTab === 'view' ? ' tags-tab-active' : ''}`}
           onClick={() => setActiveTab('view')}
         >
-          View
+          {t('tags.tabView')}
         </button>
         <button
           className={`tags-tab${activeTab === 'manage' ? ' tags-tab-active' : ''}`}
           onClick={() => setActiveTab('manage')}
         >
-          Manage
+          {t('tags.tabManage')}
           {pendingTagSelection && <span className="tags-tab-dot" />}
         </button>
       </div>
@@ -454,7 +485,7 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor, style }) => {
         <div className="tags-panel-list">
           {tags.length === 0 ? (
             <div className="tags-panel-empty">
-              No tags yet. Select text in the editor, right-click, and choose &ldquo;Tag&rdquo; to get started.
+              {t('tags.empty')}
             </div>
           ) : (
             tagCategories.map((cat) => {
@@ -471,8 +502,8 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor, style }) => {
                     onClick={() => toggleCategory(cat.id)}
                   >
                     <span className="tags-category-swatch" style={{ background: cat.color }} />
-                    <span className="tags-category-name">{cat.name}</span>
-                    <span className="tags-category-count" title={`${entities.length} entities, ${totalOccs} occurrences`}>
+                    <span className="tags-category-name">{builtInCategoryName(t, cat)}</span>
+                    <span className="tags-category-count" title={t('tags.countsTitle', { entities: t('tags.entityCount', { count: entities.length }), occurrences: t('tags.occurrenceCount', { count: totalOccs }) })}>
                       {entities.length}
                     </span>
                     <span className={`tags-category-chevron${isExpanded ? ' expanded' : ''}`}>&#9662;</span>
@@ -489,22 +520,22 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor, style }) => {
                               <span
                                 className="tags-item-text tags-entity-name"
                                 onClick={() => handleNavigateToTag(entity.id)}
-                                title="Navigate to first occurrence"
+                                title={t('tags.firstOccurrence')}
                               >
                                 {entity.name}
                               </span>
-                              <span className="tags-entity-occ-count" title={`${entityOccs.length} occurrence${entityOccs.length !== 1 ? 's' : ''}`}>
+                              <span className="tags-entity-occ-count" title={t('tags.occurrenceCount', { count: entityOccs.length })}>
                                 {entityOccs.length}
                               </span>
                               {entity.notes && (
-                                <span className="tags-item-has-notes" title="Has notes">*</span>
+                                <span className="tags-item-has-notes" title={t('tags.hasNotes')}>*</span>
                               )}
                               {entityOccs.length > 1 && (
                                 <button
                                   className="tags-item-expand"
                                   onClick={() => setViewExpandedTagId(isViewExpanded ? null : entity.id)}
-                                  title={isViewExpanded ? 'Hide occurrences' : 'Show occurrences'}
-                                  aria-label={isViewExpanded ? `Hide occurrences for ${entity.name}` : `Show occurrences for ${entity.name}`}
+                                  title={isViewExpanded ? t('tags.hideOccurrences') : t('tags.showOccurrences')}
+                                  aria-label={isViewExpanded ? t('tags.hideOccurrencesFor', { name: entity.name }) : t('tags.showOccurrencesFor', { name: entity.name })}
                                 >
                                   {isViewExpanded ? '\u25B4' : '\u25BE'}
                                 </button>
@@ -519,7 +550,7 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor, style }) => {
                                       <span
                                         className="tags-occ-text"
                                         onClick={() => handleNavigateToOccurrence(occ.from)}
-                                        title="Navigate to this occurrence"
+                                        title={t('tags.gotoOccurrence')}
                                       >
                                         &ldquo;{occ.text.slice(0, 40)}{occ.text.length > 40 ? '...' : ''}&rdquo;
                                       </span>
@@ -552,16 +583,16 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor, style }) => {
           {pendingTagSelection && !pendingCategoryId && (
             <div className="tags-pending">
               <div className="tags-pending-header">
-                <span>Tag: &ldquo;{pendingTagSelection.text.slice(0, 40)}{pendingTagSelection.text.length > 40 ? '...' : ''}&rdquo;</span>
+                <span>{t('tags.pendingTag', { text: `${pendingTagSelection.text.slice(0, 40)}${pendingTagSelection.text.length > 40 ? '...' : ''}` })}</span>
                 <button
                   className="tags-pending-cancel"
                   onClick={handleCancelPending}
-                  aria-label="Cancel pending tag selection"
+                  aria-label={t('tags.cancelPending')}
                 >
                   &times;
                 </button>
               </div>
-              <div className="tags-pending-label">Select a category:</div>
+              <div className="tags-pending-label">{t('tags.selectCategory')}</div>
               <div className="tags-pending-list">
                 {tagCategories.map((cat) => (
                   <div
@@ -570,7 +601,7 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor, style }) => {
                     onClick={() => handlePickCategory(cat.id)}
                   >
                     <span className="tags-category-swatch" style={{ background: cat.color }} />
-                    <span>{cat.name}</span>
+                    <span>{builtInCategoryName(t, cat)}</span>
                   </div>
                 ))}
               </div>
@@ -582,28 +613,30 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor, style }) => {
             <div className="tags-pending">
               <div className="tags-pending-header">
                 <span>
-                  {tagCategories.find((c) => c.id === pendingCategoryId)?.name}
-                  {' '}&rarr; &ldquo;{pendingTagSelection.text.slice(0, 30)}{pendingTagSelection.text.length > 30 ? '...' : ''}&rdquo;
+                  {t('tags.pendingTarget', {
+                    category: (() => { const c = tagCategories.find((c2) => c2.id === pendingCategoryId); return c ? builtInCategoryName(t, c) : ''; })(),
+                    text: `${pendingTagSelection.text.slice(0, 30)}${pendingTagSelection.text.length > 30 ? '...' : ''}`,
+                  })}
                 </span>
                 <button
                   className="tags-pending-cancel"
                   onClick={handleCancelPending}
-                  aria-label="Cancel pending tag selection"
+                  aria-label={t('tags.cancelPending')}
                 >
                   &times;
                 </button>
               </div>
 
               <div className="tags-entity-create">
-                <div className="tags-pending-label">Create new:</div>
+                <div className="tags-pending-label">{t('tags.createNew')}</div>
                 <div className="tags-entity-create-row">
                   <input
                     className="tags-entity-name-input"
                     type="text"
                     value={newEntityName}
                     onChange={(e) => setNewEntityName(e.target.value)}
-                    placeholder="Entity name..."
-                    aria-label="New entity name"
+                    placeholder={t('tags.entityPlaceholder')}
+                    aria-label={t('tags.newEntityName')}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && newEntityName.trim()) {
                         if (pendingCategoryId) handleCreateNewEntity(pendingCategoryId);
@@ -615,14 +648,14 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor, style }) => {
                     className="tags-entity-create-btn"
                     onClick={() => { if (pendingCategoryId) handleCreateNewEntity(pendingCategoryId); }}
                   >
-                    Create
+                    {t('tags.create')}
                   </button>
                 </div>
               </div>
 
               {pendingCatEntities.length > 0 && (
                 <>
-                  <div className="tags-pending-label tags-pending-separator">Or add to existing:</div>
+                  <div className="tags-pending-label tags-pending-separator">{t('tags.addToExisting')}</div>
                   <div className="tags-pending-list">
                     {pendingCatEntities.map((entity) => {
                       const occCount = occurrencesByTag.get(entity.id)?.length || 0;
@@ -645,7 +678,7 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor, style }) => {
                 className="tags-pending-back"
                 onClick={() => setPendingCategoryId(null)}
               >
-                &larr; Back to categories
+                {t('tags.backToCategories')}
               </button>
             </div>
           )}
@@ -653,7 +686,7 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor, style }) => {
           {/* ── Editable tag list (hidden during pending selection) ───── */}
           <div className="tags-panel-list" style={pendingTagSelection ? { display: 'none' } : undefined}>
             {tagCategories.length === 0 ? (
-              <div className="tags-panel-empty">No categories yet. Add one below.</div>
+              <div className="tags-panel-empty">{t('tags.noCategories')}</div>
             ) : (
               tagCategories.map((cat) => {
                 const entities = tagsByCategory.get(cat.id) || [];
@@ -668,9 +701,9 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor, style }) => {
                       onClick={() => entities.length > 0 && toggleCategory(cat.id)}
                     >
                       <span className="tags-category-swatch" style={{ background: cat.color }} />
-                      <span className="tags-category-name">{cat.name}</span>
+                      <span className="tags-category-name">{builtInCategoryName(t, cat)}</span>
                       {entities.length > 0 && (
-                        <span className="tags-category-count" title={`${entities.length} entities, ${totalOccs} occurrences`}>
+                        <span className="tags-category-count" title={t('tags.countsTitle', { entities: t('tags.entityCount', { count: entities.length }), occurrences: t('tags.occurrenceCount', { count: totalOccs }) })}>
                           {entities.length}
                         </span>
                       )}
@@ -678,8 +711,8 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor, style }) => {
                         <button
                           className="tags-item-delete"
                           onClick={(e) => { e.stopPropagation(); deleteTagCategory(cat.id); }}
-                          title="Delete custom category"
-                          aria-label={`Delete custom category ${cat.name}`}
+                          title={t('tags.deleteCategory')}
+                          aria-label={t('tags.deleteCategoryNamed', { name: builtInCategoryName(t, cat) })}
                         >
                           &times;
                         </button>
@@ -704,18 +737,18 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor, style }) => {
                                 <span
                                   className="tags-item-text tags-entity-name"
                                   onClick={() => setExpandedTagId(isEntityExpanded ? null : entity.id)}
-                                  title="Click to edit"
+                                  title={t('tags.clickToEdit')}
                                 >
                                   {entity.name}
                                 </span>
-                                <span className="tags-entity-occ-count" title={`${entityOccs.length} occurrence${entityOccs.length !== 1 ? 's' : ''}`}>
+                                <span className="tags-entity-occ-count" title={t('tags.occurrenceCount', { count: entityOccs.length })}>
                                   {entityOccs.length}
                                 </span>
                                 <button
                                   className="tags-item-delete"
                                   onClick={() => handleDeleteEntity(entity.id)}
-                                  title="Delete entity and all occurrences"
-                                  aria-label={`Delete entity ${entity.name} and all occurrences`}
+                                  title={t('tags.deleteEntity')}
+                                  aria-label={t('tags.deleteEntityNamed', { name: entity.name })}
                                 >
                                   &times;
                                 </button>
@@ -724,32 +757,32 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor, style }) => {
                               {isEntityExpanded && (
                                 <div className="tags-item-detail">
                                   <div className="tags-entity-name-row">
-                                    <label className="tags-detail-label">Name</label>
+                                    <label className="tags-detail-label">{t('tags.name')}</label>
                                     <input
                                       className="tags-entity-name-edit"
                                       type="text"
                                       value={entity.name}
                                       onChange={(e) => updateTag(entity.id, { name: e.target.value })}
-                                      aria-label={`Edit name for ${entity.name}`}
+                                      aria-label={t('tags.editNameFor', { name: entity.name })}
                                     />
                                   </div>
                                   <textarea
                                     className="tags-item-notes"
                                     value={entity.notes}
                                     onChange={(e) => updateTag(entity.id, { notes: e.target.value })}
-                                    placeholder="Add details: description, requirements, budget notes..."
+                                    placeholder={t('tags.notesPlaceholder')}
                                     rows={3}
-                                    aria-label={`Notes for ${entity.name}`}
+                                    aria-label={t('tags.notesFor', { name: entity.name })}
                                   />
                                   {entityOccs.length > 0 && (
                                     <div className="tags-occ-list">
-                                      <div className="tags-detail-label">Occurrences ({entityOccs.length})</div>
+                                      <div className="tags-detail-label">{t('tags.occurrencesHeading', { count: entityOccs.length })}</div>
                                       {entityOccs.map((occ, i) => (
                                         <div key={`${occ.from}-${i}`} className="tags-occ-item">
                                           <span
                                             className="tags-occ-text"
                                             onClick={() => handleNavigateToOccurrence(occ.from)}
-                                            title="Navigate to this occurrence"
+                                            title={t('tags.gotoOccurrence')}
                                           >
                                             &ldquo;{occ.text.slice(0, 40)}{occ.text.length > 40 ? '...' : ''}&rdquo;
                                           </span>
@@ -759,8 +792,8 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor, style }) => {
                                           <button
                                             className="tags-occ-remove"
                                             onClick={() => handleRemoveOccurrence(occ.tagId, occ.from, occ.to)}
-                                            title="Remove this occurrence"
-                                            aria-label={`Remove occurrence of ${entity.name}`}
+                                            title={t('tags.removeOccurrence')}
+                                            aria-label={t('tags.removeOccurrenceOf', { name: entity.name })}
                                           >
                                             &times;
                                           </button>
@@ -787,26 +820,26 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor, style }) => {
               <input
                 type="text"
                 className="tags-add-input"
-                placeholder="Category name..."
+                placeholder={t('tags.categoryPlaceholder')}
                 value={newCatName}
                 onChange={(e) => setNewCatName(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleAddCategory()}
                 autoFocus
-                aria-label="New category name"
+                aria-label={t('tags.newCategoryName')}
               />
               <input
                 type="color"
                 className="tags-add-color"
                 value={newCatColor}
                 onChange={(e) => setNewCatColor(e.target.value)}
-                aria-label="New category color"
+                aria-label={t('tags.newCategoryColor')}
               />
-              <button className="tags-add-ok" onClick={handleAddCategory}>Add</button>
-              <button className="tags-add-cancel" onClick={() => setShowAddForm(false)}>Cancel</button>
+              <button className="tags-add-ok" onClick={handleAddCategory}>{t('common:add')}</button>
+              <button className="tags-add-cancel" onClick={() => setShowAddForm(false)}>{t('common:cancel')}</button>
             </div>
           ) : (
             <button className="tags-add-btn" onClick={() => setShowAddForm(true)}>
-              + Add Category
+              {t('tags.addCategory')}
             </button>
           )}
         </>

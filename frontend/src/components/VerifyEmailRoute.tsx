@@ -9,9 +9,11 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { collabAuthApi, handleAuthResponse } from '../services/collabAuth';
 
 const VerifyEmailRoute: React.FC = () => {
+  const { t } = useTranslation('collab');
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const email = params.get('email') || '';
@@ -27,7 +29,7 @@ const VerifyEmailRoute: React.FC = () => {
 
     if (!email || !code) {
       setStatus('error');
-      setError('Missing email or code in the activation link.');
+      setError(t('verifyRoute.missingParams'));
       return;
     }
 
@@ -40,10 +42,10 @@ const VerifyEmailRoute: React.FC = () => {
         setTimeout(() => navigate('/', { replace: true }), 900);
       } catch (err: any) {
         setStatus('error');
-        setError(err?.message || 'Activation failed.');
+        setError(err?.message || t('verifyRoute.failed'));
       }
     })();
-  }, [email, code, navigate]);
+  }, [email, code, navigate, t]);
 
   return (
     <div style={{
@@ -59,26 +61,26 @@ const VerifyEmailRoute: React.FC = () => {
       }}>
         {status === 'pending' && (
           <>
-            <h2 style={{ marginTop: 0 }}>Activating your account…</h2>
-            <p>Hang tight — this only takes a moment.</p>
+            <h2 style={{ marginTop: 0 }}>{t('verifyRoute.activating')}</h2>
+            <p>{t('verifyRoute.wait')}</p>
           </>
         )}
         {status === 'success' && (
           <>
-            <h2 style={{ marginTop: 0 }}>You're in!</h2>
-            <p>Your email is verified. Redirecting…</p>
+            <h2 style={{ marginTop: 0 }}>{t('verifyRoute.success')}</h2>
+            <p>{t('verifyRoute.successBody')}</p>
           </>
         )}
         {status === 'error' && (
           <>
-            <h2 style={{ marginTop: 0 }}>Activation failed</h2>
+            <h2 style={{ marginTop: 0 }}>{t('verifyRoute.errorTitle')}</h2>
             <p style={{ color: 'var(--fd-text-muted, #aaa)' }}>{error}</p>
             <button
               className="dialog-btn dialog-btn-primary"
               onClick={() => navigate('/', { replace: true })}
               style={{ marginTop: 12 }}
             >
-              Go to app
+              {t('verifyRoute.goToApp')}
             </button>
           </>
         )}

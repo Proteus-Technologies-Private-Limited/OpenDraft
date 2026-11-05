@@ -30,6 +30,7 @@ import { labelSavedContent } from './elementNumbers';
 import type {
   BeatColumn, BeatInfo, CharacterProfile, PageLayout, TagCategory, TagItem,
 } from '../stores/editorStore';
+import { t } from '../i18n';
 
 /** Formats a project folder can be set to write new scripts in. */
 export const LINKED_FILE_FORMATS = ['odraft', 'fountain', 'fdx'] as const;
@@ -39,8 +40,10 @@ export type LinkedFileFormat = 'odraft' | 'fountain' | 'fdx' | 'osf';
 
 const LINKABLE = new Set<string>(['odraft', 'fountain', 'fdx', 'osf']);
 
+// A getter, so the label follows the interface language. The other three are
+// format names and stay as they are.
 export const LINKED_FORMAT_LABELS: Record<LinkedFileFormat, string> = {
-  odraft: 'OpenDraft (.odraft) — keeps everything',
+  get odraft() { return t('projects:storage.formatOdraft'); },
   fountain: 'Fountain (.fountain)',
   fdx: 'Final Draft (.fdx)',
   osf: 'Open Screenplay Format (.osf)',
@@ -185,7 +188,7 @@ export function serializeContentForFormat(
         content,
       );
     default:
-      throw new Error(`OpenDraft cannot write .${format} files.`);
+      throw new Error(t('messages:export.cannotWrite', { format }));
   }
 }
 

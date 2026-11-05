@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useEditorStore } from '../stores/editorStore';
 import { spellChecker, PROJECT_DICT_TARGET } from '../editor/spellchecker';
 import { BUILTIN, CATALOG, findLanguage } from '../editor/languageCatalog';
@@ -52,12 +53,14 @@ const AddTargetToggle: React.FC<{ active: boolean; onToggle: () => void; disable
   active,
   onToggle,
   disabled,
-}) => (
+}) => {
+  const { t } = useTranslation(['settings', 'common']);
+  return (
   <button
     type="button"
     onClick={onToggle}
     disabled={disabled}
-    title={active ? 'Add to Dictionary writes here' : 'Click to make this an Add-to-Dictionary target'}
+    title={active ? t('dictionaryConfig.addTargetOnTitle') : t('dictionaryConfig.addTargetOffTitle')}
     style={{
       padding: '3px 8px',
       borderRadius: 12,
@@ -70,13 +73,15 @@ const AddTargetToggle: React.FC<{ active: boolean; onToggle: () => void; disable
       whiteSpace: 'nowrap',
     }}
   >
-    {active ? '✓ Add here' : 'Add here'}
+    {active ? t('dictionaryConfig.addHereOn') : t('dictionaryConfig.addHere')}
   </button>
-);
+  );
+};
 
 // ─── Languages ─────────────────────────────────────────────────────────────
 
 const LanguagesSection: React.FC<{ onOpenInstaller: () => void }> = ({ onOpenInstaller }) => {
+  const { t } = useTranslation(['settings', 'common']);
   useSpellCheckerVersion();
   const installedLanguages = useEditorStore((s) => s.installedLanguages);
   const uninstallLanguage = useEditorStore((s) => s.uninstallLanguage);
@@ -94,7 +99,7 @@ const LanguagesSection: React.FC<{ onOpenInstaller: () => void }> = ({ onOpenIns
   const handleUninstall = async (code: string) => {
     const lang = findLanguage(code);
     const label = lang?.label || code;
-    if (!window.confirm(`Remove "${label}" from this installation? You can re-download it any time.`)) return;
+    if (!window.confirm(t('dictionaryConfig.removeConfirm', { name: label }))) return;
     await uninstallLanguage(code);
   };
 
@@ -102,18 +107,18 @@ const LanguagesSection: React.FC<{ onOpenInstaller: () => void }> = ({ onOpenIns
     <div style={cardStyle}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <div style={{ flex: 1 }}>
-          <div style={sectionTitleStyle}>Languages</div>
+          <div style={sectionTitleStyle}>{t('dictionaryConfig.languages')}</div>
           <div style={helpTextStyle}>
-            Hunspell engines that check words. Enable any combination for this script.
+            {t('dictionaryConfig.languagesDesc')}
           </div>
         </div>
         <button type="button" onClick={onOpenInstaller} style={buttonStyle}>
-          Add language…
+          {t('dictionaryConfig.addLanguage')}
         </button>
       </div>
       <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 4 }}>
         {loaded.length === 0 && (
-          <div style={helpTextStyle}>Loading built-in language…</div>
+          <div style={helpTextStyle}>{t('dictionaryConfig.loadingBuiltin')}</div>
         )}
         {loaded.map(({ code, label }) => {
           const isBuiltin = code === BUILTIN.code;
@@ -136,13 +141,14 @@ const LanguagesSection: React.FC<{ onOpenInstaller: () => void }> = ({ onOpenIns
               />
               <span style={{ flex: 1 }}>{label}</span>
               <span style={{ fontSize: 11, color: 'var(--fd-text-muted)' }}>
-                {isBuiltin ? 'bundled' : isDownloaded ? 'installed' : 'loaded'}
+                {isBuiltin ? t('dictionaryConfig.bundled') : isDownloaded ? t('dictionaryConfig.installed') : t('dictionaryConfig.loaded')}
               </span>
               {!isBuiltin && (
                 <button
                   type="button"
                   onClick={() => handleUninstall(code)}
-                  title="Remove this language"
+                  title={t('dictionaryConfig.removeLanguage')}
+                  aria-label={t('dictionaryConfig.removeLanguage')}
                   style={{
                     background: 'transparent',
                     border: 'none',
@@ -166,6 +172,7 @@ const LanguagesSection: React.FC<{ onOpenInstaller: () => void }> = ({ onOpenIns
 // ─── Language installer dialog ─────────────────────────────────────────────
 
 const LanguageInstallerDialog: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+  const { t } = useTranslation(['settings', 'common']);
   useSpellCheckerVersion();
   const installedLanguages = useEditorStore((s) => s.installedLanguages);
   const installLanguage = useEditorStore((s) => s.installLanguage);
@@ -194,7 +201,7 @@ const LanguageInstallerDialog: React.FC<{ onClose: () => void }> = ({ onClose })
     setError(null);
     try {
       const res = await installLanguage(code);
-      if (!res.ok) setError(res.error || 'Install failed.');
+      if (!res.ok) setError(res.error || t('dictionaryConfig.installFailed'));
     } finally {
       setBusy(null);
     }
@@ -203,7 +210,7 @@ const LanguageInstallerDialog: React.FC<{ onClose: () => void }> = ({ onClose })
   const handleInstallCustom = async () => {
     const code = customCode.trim();
     if (!code) {
-      setError('Language code is required (e.g. hi_IN).');
+      setError(t('dictionaryConfig.codeRequired'));
       return;
     }
     setBusy('__custom__');
@@ -216,7 +223,7 @@ const LanguageInstallerDialog: React.FC<{ onClose: () => void }> = ({ onClose })
         dicUrl: customDic.trim(),
       });
       if (!res.ok) {
-        setError(res.error || 'Install failed.');
+        setError(res.error || t('dictionaryConfig.installFailed'));
       } else {
         setCustomCode('');
         setCustomLabel('');
@@ -238,16 +245,14 @@ const LanguageInstallerDialog: React.FC<{ onClose: () => void }> = ({ onClose })
         // and takes the dialog's own buttons off screen at narrow widths.
         style={{ maxWidth: 560, minWidth: 'min(440px, 100%)', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}
       >
-        <div className="dialog-header">Add Language</div>
+        <div className="dialog-header">{t('dictionaryConfig.addLanguageTitle')}</div>
         <div className="dialog-body" style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 16 }}>
           <div style={helpTextStyle}>
-            Languages are downloaded from jsdelivr (wooorm/dictionaries) or
-            the LibreOffice dictionaries repo on GitHub, and cached locally.
-            A network connection is required for the first install.
+            {t('dictionaryConfig.installerDesc')}
           </div>
           <input
             type="text"
-            placeholder="Search languages…"
+            placeholder={t('dictionaryConfig.searchPlaceholder')}
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
             style={{ ...inputStyle, flex: '0 0 auto' }}
@@ -276,7 +281,7 @@ const LanguageInstallerDialog: React.FC<{ onClose: () => void }> = ({ onClose })
             }}
           >
             {filtered.length === 0 && (
-              <div style={{ padding: 12, ...helpTextStyle }}>No matches.</div>
+              <div style={{ padding: 12, ...helpTextStyle }}>{t('dictionaryConfig.noMatches')}</div>
             )}
             {filtered.map((lang) => {
               const isInstalled = loadedCodes.has(lang.code) || installedLanguages.includes(lang.code);
@@ -323,7 +328,7 @@ const LanguageInstallerDialog: React.FC<{ onClose: () => void }> = ({ onClose })
                       cursor: isInstalled || isBusy ? 'default' : 'pointer',
                     }}
                   >
-                    {isInstalled ? 'Installed' : isBusy ? 'Installing…' : 'Install'}
+                    {isInstalled ? t('dictionaryConfig.installedButton') : isBusy ? t('dictionaryConfig.installing') : t('dictionaryConfig.install')}
                   </button>
                 </div>
               );
@@ -341,37 +346,37 @@ const LanguageInstallerDialog: React.FC<{ onClose: () => void }> = ({ onClose })
                 fontSize: 13,
               }}
             >
-              {customOpen ? '▾' : '▸'} Install from custom URL (e.g. Hindi, Tamil, etc.)
+              {customOpen ? '▾' : '▸'} {t('dictionaryConfig.customUrl')}
             </button>
             {customOpen && (
               <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <div style={helpTextStyle}>
-                  Paste links to a Hunspell `.aff` and `.dic` file. The pair will be downloaded and cached locally.
+                  {t('dictionaryConfig.customUrlDesc')}
                 </div>
                 <input
                   type="text"
-                  placeholder="Language code (e.g. hi_IN)"
+                  placeholder={t('dictionaryConfig.codePlaceholder')}
                   value={customCode}
                   onChange={(e) => setCustomCode(e.target.value)}
                   style={{ ...inputStyle, flex: '0 0 auto' }}
                 />
                 <input
                   type="text"
-                  placeholder="Display name (e.g. Hindi)"
+                  placeholder={t('dictionaryConfig.labelPlaceholder')}
                   value={customLabel}
                   onChange={(e) => setCustomLabel(e.target.value)}
                   style={{ ...inputStyle, flex: '0 0 auto' }}
                 />
                 <input
                   type="text"
-                  placeholder=".aff URL"
+                  placeholder={t('dictionaryConfig.affPlaceholder')}
                   value={customAff}
                   onChange={(e) => setCustomAff(e.target.value)}
                   style={{ ...inputStyle, flex: '0 0 auto' }}
                 />
                 <input
                   type="text"
-                  placeholder=".dic URL"
+                  placeholder={t('dictionaryConfig.dicPlaceholder')}
                   value={customDic}
                   onChange={(e) => setCustomDic(e.target.value)}
                   style={{ ...inputStyle, flex: '0 0 auto' }}
@@ -382,14 +387,14 @@ const LanguageInstallerDialog: React.FC<{ onClose: () => void }> = ({ onClose })
                   disabled={busy === '__custom__'}
                   style={{ ...buttonStyle, alignSelf: 'flex-end' }}
                 >
-                  {busy === '__custom__' ? 'Installing…' : 'Install'}
+                  {busy === '__custom__' ? t('dictionaryConfig.installing') : t('dictionaryConfig.install')}
                 </button>
               </div>
             )}
           </div>
         </div>
         <div className="dialog-footer">
-          <button className="dialog-primary" onClick={onClose}>Done</button>
+          <button className="dialog-primary" onClick={onClose}>{t('common:done')}</button>
         </div>
       </div>
     </div>
@@ -399,6 +404,7 @@ const LanguageInstallerDialog: React.FC<{ onClose: () => void }> = ({ onClose })
 // ─── Project dictionary ────────────────────────────────────────────────────
 
 const ProjectDictionarySection: React.FC = () => {
+  const { t } = useTranslation(['settings', 'common']);
   useSpellCheckerVersion();
   const addTargets = useEditorStore((s) => s.addTargets);
   const setAddTargets = useEditorStore((s) => s.setAddTargets);
@@ -421,7 +427,7 @@ const ProjectDictionarySection: React.FC = () => {
   const toggleAddTarget = () => {
     const has = addTargets.includes(PROJECT_DICT_TARGET);
     const next = has
-      ? addTargets.filter((t) => t !== PROJECT_DICT_TARGET)
+      ? addTargets.filter((x) => x !== PROJECT_DICT_TARGET)
       : [...addTargets, PROJECT_DICT_TARGET];
     setAddTargets(next);
   };
@@ -438,13 +444,13 @@ const ProjectDictionarySection: React.FC = () => {
             onChange={(e) => toggleEnabled(e.target.checked)}
           />
           <div style={{ flex: 1 }}>
-            <div style={sectionTitleStyle}>Project dictionary</div>
+            <div style={sectionTitleStyle}>{t('dictionaryConfig.project')}</div>
             <div style={helpTextStyle}>
               {projectEnabled
                 ? projectWords.length === 0
-                  ? 'No words yet — anything you "Add to Dictionary" goes here by default.'
-                  : `${projectWords.length} word${projectWords.length === 1 ? '' : 's'}. Saved with this script.`
-                : 'Disabled for this project — checks skip these words and "Add to Dictionary" routes to globals only.'}
+                  ? t('dictionaryConfig.projectEmpty')
+                  : t('dictionaryConfig.projectWords', { count: projectWords.length })
+                : t('dictionaryConfig.projectDisabled')}
             </div>
           </div>
         </label>
@@ -454,7 +460,7 @@ const ProjectDictionarySection: React.FC = () => {
           onToggle={toggleAddTarget}
         />
         <button type="button" onClick={() => setExpanded((x) => !x)} style={buttonStyle}>
-          {expanded ? 'Hide' : 'Edit words…'}
+          {expanded ? t('dictionaryConfig.hide') : t('dictionaryConfig.editWords')}
         </button>
       </div>
       {expanded && (
@@ -462,7 +468,7 @@ const ProjectDictionarySection: React.FC = () => {
           <div style={{ display: 'flex', gap: 6 }}>
             <input
               type="text"
-              placeholder="Add a word"
+              placeholder={t('dictionaryConfig.addWordPlaceholder')}
               value={newWord}
               onChange={(e) => setNewWord(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') handleAdd(); }}
@@ -470,7 +476,7 @@ const ProjectDictionarySection: React.FC = () => {
               disabled={!projectEnabled}
             />
             <button type="button" onClick={handleAdd} style={buttonStyle} disabled={!projectEnabled}>
-              Add
+              {t('common:add')}
             </button>
           </div>
           {projectWords.length > 0 && (
@@ -492,7 +498,8 @@ const ProjectDictionarySection: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => spellChecker.removeFromProjectDictionary(w)}
-                    title="Remove"
+                    title={t('common:remove')}
+                    aria-label={t('common:remove')}
                     style={{
                       background: 'transparent',
                       border: 'none',
@@ -517,6 +524,7 @@ const ProjectDictionarySection: React.FC = () => {
 // ─── Global dictionaries ───────────────────────────────────────────────────
 
 const GlobalDictionariesSection: React.FC<{ onOpenLibrary: () => void }> = ({ onOpenLibrary }) => {
+  const { t } = useTranslation(['settings', 'common']);
   useSpellCheckerVersion();
   const customDictionaries = useEditorStore((s) => s.customDictionaries);
   const addTargets = useEditorStore((s) => s.addTargets);
@@ -532,7 +540,7 @@ const GlobalDictionariesSection: React.FC<{ onOpenLibrary: () => void }> = ({ on
 
   const toggleAddTarget = (name: string) => {
     const has = addTargets.includes(name);
-    const next = has ? addTargets.filter((t) => t !== name) : [...addTargets, name];
+    const next = has ? addTargets.filter((x) => x !== name) : [...addTargets, name];
     setAddTargets(next);
   };
 
@@ -540,17 +548,17 @@ const GlobalDictionariesSection: React.FC<{ onOpenLibrary: () => void }> = ({ on
     <div style={cardStyle}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <div style={{ flex: 1 }}>
-          <div style={sectionTitleStyle}>Global dictionaries</div>
+          <div style={sectionTitleStyle}>{t('dictionaryConfig.global')}</div>
           <div style={helpTextStyle}>
-            Reusable word lists shared across projects. Enable any combination for this script.
+            {t('dictionaryConfig.globalDesc')}
           </div>
         </div>
-        <button type="button" onClick={onOpenLibrary} style={buttonStyle}>Manage library…</button>
+        <button type="button" onClick={onOpenLibrary} style={buttonStyle}>{t('dictionaryConfig.manageLibrary')}</button>
       </div>
       <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 4 }}>
         {names.length === 0 && (
           <div style={helpTextStyle}>
-            No global dictionaries yet. Click "Manage library…" to create one.
+            {t('dictionaryConfig.globalEmpty')}
           </div>
         )}
         {names.map((name) => (
@@ -568,7 +576,7 @@ const GlobalDictionariesSection: React.FC<{ onOpenLibrary: () => void }> = ({ on
                 {name}
               </span>
               <span style={{ fontSize: 11, color: 'var(--fd-text-muted)' }}>
-                {customDictionaries[name].length} word{customDictionaries[name].length === 1 ? '' : 's'}
+                {t('dictionaryConfig.wordCount', { count: customDictionaries[name].length })}
               </span>
             </label>
             <AddTargetToggle
@@ -586,6 +594,7 @@ const GlobalDictionariesSection: React.FC<{ onOpenLibrary: () => void }> = ({ on
 // ─── Settings ──────────────────────────────────────────────────────────────
 
 const SpellingSettings: React.FC = () => {
+  const { t } = useTranslation(['settings', 'common']);
   const spellingSettings = useEditorStore((s) => s.spellingSettings);
   const setSpellingSetting = useEditorStore((s) => s.setSpellingSetting);
 
@@ -601,10 +610,9 @@ const SpellingSettings: React.FC = () => {
           style={{ marginTop: 3 }}
         />
         <div style={{ flex: 1 }}>
-          <div style={sectionTitleStyle}>Flag proper nouns</div>
+          <div style={sectionTitleStyle}>{t('dictionaryConfig.flagProperNouns')}</div>
           <div style={helpTextStyle}>
-            When off, capitalized unknown words (names, places, brands) are not flagged.
-            Turn on for stricter checking — real proper nouns will then need to be added to a dictionary.
+            {t('dictionaryConfig.flagProperNounsDesc')}
           </div>
         </div>
       </label>
@@ -615,14 +623,14 @@ const SpellingSettings: React.FC = () => {
 // ─── Top-level panel ───────────────────────────────────────────────────────
 
 const DictionaryConfigPanel: React.FC<{ onOpenLibrary: () => void }> = ({ onOpenLibrary }) => {
+  const { t } = useTranslation(['settings', 'common']);
   const [installerOpen, setInstallerOpen] = useState(false);
 
   return (
     <>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <p style={{ fontSize: 12, color: 'var(--fd-text-muted)', marginTop: 0, marginBottom: 0 }}>
-          Configure which dictionaries are active for this script and where
-          "Add to Dictionary" sends new words.
+          {t('dictionaryConfig.intro')}
         </p>
         <LanguagesSection onOpenInstaller={() => setInstallerOpen(true)} />
         <ProjectDictionarySection />

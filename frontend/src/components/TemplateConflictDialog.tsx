@@ -7,6 +7,7 @@
  */
 
 import React, { useState } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import type { TemplateConflicts, DisabledElementConflict, FormattingViolation } from '../utils/templateConflicts';
 import Select from './Select';
 
@@ -27,6 +28,7 @@ const TemplateConflictDialog: React.FC<TemplateConflictDialogProps> = ({
   onSkip,
   onCancel,
 }) => {
+  const { t } = useTranslation(['templates', 'common']);
   const [disabledElements, setDisabledElements] = useState<DisabledElementConflict[]>(
     () => conflicts.disabledElements.map((c) => ({ ...c })),
   );
@@ -57,30 +59,33 @@ const TemplateConflictDialog: React.FC<TemplateConflictDialogProps> = ({
   return (
     <div className="template-conflict-overlay" onClick={onCancel}>
       <div className="template-conflict-dialog" onClick={(e) => e.stopPropagation()}>
-        <h3>Template Conflicts</h3>
+        <h3>{t('conflict.title')}</h3>
         <p className="template-conflict-desc">
-          Applying <strong>{templateName}</strong> requires resolving the following conflicts
-          in your document.
+          <Trans
+            ns="templates"
+            i18nKey="conflict.intro"
+            values={{ name: templateName }}
+            components={{ strong: <strong /> }}
+          />
         </p>
 
         {/* Disabled Element Types */}
         {disabledElements.length > 0 && (
           <div className="template-conflict-section">
-            <h4>Disabled Element Types</h4>
+            <h4>{t('conflict.disabled.title')}</h4>
             <p className="template-conflict-section-desc">
-              These element types are disabled in the template but exist in your document.
-              Choose a replacement for each.
+              {t('conflict.disabled.desc')}
             </p>
             {disabledElements.map((c, i) => (
               <div key={c.elementType} className="template-conflict-item">
                 <div className="template-conflict-item-info">
                   <span className="template-conflict-count">{c.nodeCount}</span>
                   <span className="template-conflict-item-label">
-                    {c.elementLabel} element{c.nodeCount !== 1 ? 's' : ''}
+                    {t('conflict.elementCount', { label: c.elementLabel, count: c.nodeCount })}
                   </span>
                 </div>
                 <div className="template-conflict-item-action">
-                  <label>Replace with:</label>
+                  <label>{t('conflict.replaceWith')}</label>
                   <Select
                     className="dialog-input template-conflict-select"
                     value={c.replacementType}
@@ -99,10 +104,9 @@ const TemplateConflictDialog: React.FC<TemplateConflictDialogProps> = ({
         {/* Formatting Violations */}
         {formattingViolations.length > 0 && (
           <div className="template-conflict-section">
-            <h4>Formatting Conflicts</h4>
+            <h4>{t('conflict.formatting.title')}</h4>
             <p className="template-conflict-section-desc">
-              These elements have inline formatting that conflicts with the template&apos;s
-              locked rules. Check to strip conflicting marks.
+              {t('conflict.formatting.desc')}
             </p>
             {formattingViolations.map((v, i) => (
               <div key={v.elementType} className="template-conflict-item">
@@ -117,8 +121,7 @@ const TemplateConflictDialog: React.FC<TemplateConflictDialogProps> = ({
                       {v.elementLabel}
                     </span>
                     <span className="template-conflict-detail">
-                      {v.nodeCount} element{v.nodeCount !== 1 ? 's' : ''} with{' '}
-                      {v.conflictingMarks.join(', ')}
+                      {t('conflict.formatting.detail', { count: v.nodeCount, marks: v.conflictingMarks.join(', ') })}
                     </span>
                   </div>
                 </label>
@@ -130,13 +133,13 @@ const TemplateConflictDialog: React.FC<TemplateConflictDialogProps> = ({
         {/* Actions */}
         <div className="template-conflict-actions">
           <button className="dialog-btn" onClick={onCancel}>
-            Cancel
+            {t('common:cancel')}
           </button>
           <button className="dialog-btn" onClick={onSkip}>
-            Apply Without Resolving
+            {t('conflict.applyWithout')}
           </button>
           <button className="dialog-btn dialog-btn-primary" onClick={handleResolve}>
-            Resolve &amp; Apply
+            {t('conflict.resolveApply')}
           </button>
         </div>
       </div>

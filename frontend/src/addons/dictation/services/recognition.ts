@@ -1,4 +1,5 @@
 import { permissionErrorMessage } from './permissionError';
+import { t } from '../../../i18n';
 export interface RecognitionSession {
   stop(): void;
   cancel(): void;
@@ -38,7 +39,7 @@ export function startBrowserRecognition(
 ): RecognitionSession {
   const Constructor = browserRecognitionConstructor();
   if (!Constructor)
-    throw new Error('Speech recognition is unavailable in this browser. Choose Local Whisper.');
+    throw new Error(t('addons:dictation.error.browserUnavailable'));
   const recognition = new Constructor();
   let live = true;
   let deadline: ReturnType<typeof setTimeout> | undefined;
@@ -59,7 +60,7 @@ export function startBrowserRecognition(
     if (!live) return;
     live = false;
     clearTimeout(deadline);
-    callbacks.error(permissionErrorMessage(event.error) ?? `Speech recognition: ${event.error}.`);
+    callbacks.error(permissionErrorMessage(event.error) ?? t('addons:dictation.error.recognition', { error: event.error }));
     callbacks.end();
     recognition.abort();
   };

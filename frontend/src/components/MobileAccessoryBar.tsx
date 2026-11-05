@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Editor } from '@tiptap/react';
 import { ELEMENT_LABELS, NOTE_COLORS, type ElementType } from '../stores/editorStore';
-import { ELEMENT_DESCRIPTIONS } from '../stores/formattingTypes';
+import { elementLabel, elementDescription } from '../editor/elementLabels';
 import { useEditorStore } from '../stores/editorStore';
 import { singleLine } from '../utils/nodeText';
 
@@ -44,6 +45,7 @@ interface MobileAccessoryBarProps {
 }
 
 const MobileAccessoryBar: React.FC<MobileAccessoryBarProps> = ({ editor }) => {
+  const { t } = useTranslation('editor');
   const [bottom, setBottom] = useState(0);
   const [visible, setVisible] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -209,7 +211,7 @@ const MobileAccessoryBar: React.FC<MobileAccessoryBarProps> = ({ editor }) => {
           }}
         >
           <div className="mob-acc-sheet">
-            <div className="mob-acc-sheet-header">Element Type</div>
+            <div className="mob-acc-sheet-header">{t('mobileBar.elementType')}</div>
             <div className="mob-acc-sheet-list">
               {orderedTypes.map((type) => (
                 <button
@@ -217,12 +219,12 @@ const MobileAccessoryBar: React.FC<MobileAccessoryBarProps> = ({ editor }) => {
                   className={`mob-acc-sheet-item${currentElement === type ? ' active' : ''}`}
                   onPointerDown={(e) => { e.preventDefault(); handleElementSelect(type); }}
                 >
-                  <span className="mob-acc-sheet-item-label">{ELEMENT_LABELS[type]}</span>
+                  <span className="mob-acc-sheet-item-label">{elementLabel(type)}</span>
                   {/* Shown outright rather than behind a press-and-hold: there is
                       no hover on touch, and a gesture nobody knows about teaches
                       nobody anything. The sheet has the room. */}
-                  {ELEMENT_DESCRIPTIONS[type] && (
-                    <span className="mob-acc-sheet-item-desc">{ELEMENT_DESCRIPTIONS[type]}</span>
+                  {elementDescription(type) && (
+                    <span className="mob-acc-sheet-item-desc">{elementDescription(type)}</span>
                   )}
                 </button>
               ))}
@@ -242,7 +244,7 @@ const MobileAccessoryBar: React.FC<MobileAccessoryBarProps> = ({ editor }) => {
           className="mob-acc-elem-btn"
           onPointerDown={(e) => { e.preventDefault(); setSheetOpen(!sheetOpen); }}
         >
-          <span className="mob-acc-elem-label">{ELEMENT_LABELS[currentElement]}</span>
+          <span className="mob-acc-elem-label">{elementLabel(currentElement)}</span>
           <span className="mob-acc-elem-arrow">{sheetOpen ? '\u25BC' : '\u25B2'}</span>
         </button>
 
@@ -252,7 +254,7 @@ const MobileAccessoryBar: React.FC<MobileAccessoryBarProps> = ({ editor }) => {
         <button
           className="mob-acc-btn"
           onPointerDown={(e) => { e.preventDefault(); handleAddNote(); }}
-          title="Add Script Note"
+          title={t('mobileBar.addScriptNote')}
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
@@ -266,7 +268,7 @@ const MobileAccessoryBar: React.FC<MobileAccessoryBarProps> = ({ editor }) => {
         <button
           className="mob-acc-btn"
           onPointerDown={(e) => { e.preventDefault(); handleTag(); }}
-          title="Tag"
+          title={t('mobileBar.tag')}
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z" />

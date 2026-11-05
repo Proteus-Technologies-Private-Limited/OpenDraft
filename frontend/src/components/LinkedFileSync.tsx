@@ -10,6 +10,7 @@
  *   only the writer can say which one is the script from now on.
  */
 import React, { useEffect } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { useLinkedFileStore } from '../stores/linkedFileStore';
 import { isDesktopTauri } from '../services/platform';
 
@@ -22,6 +23,7 @@ function fileName(path: string): string {
 }
 
 const LinkedFileSync: React.FC = () => {
+  const { t } = useTranslation('collab');
   const conflict = useLinkedFileStore((s) => s.conflict);
   const answerConflict = useLinkedFileStore((s) => s.answerConflict);
 
@@ -55,26 +57,27 @@ const LinkedFileSync: React.FC = () => {
     // open with nobody to answer it.
     <div className="dialog-overlay">
       <div className="dialog-box" role="alertdialog" aria-modal="true" aria-labelledby="linked-conflict-title">
-        <div className="dialog-header" id="linked-conflict-title">File Changed Outside OpenDraft</div>
+        <div className="dialog-header" id="linked-conflict-title">{t('linkedFile.title')}</div>
         <div className="dialog-body">
           <p style={{ margin: '0 0 8px 0', fontSize: 14, color: 'var(--fd-text)' }}>
-            <strong>{name}</strong> was changed by another app or computer since
-            OpenDraft last saved it, and <strong>{conflict.scriptTitle}</strong> has
-            changes here that the file does not have.
+            <Trans
+              ns="collab"
+              i18nKey="linkedFile.changed"
+              values={{ name, title: conflict.scriptTitle }}
+              components={{ strong: <strong /> }}
+            />
           </p>
           <p style={{ margin: '0 0 8px 0', fontSize: 14, color: 'var(--fd-text)' }}>
-            Which version should OpenDraft keep? Neither is lost: if you keep the
-            file&apos;s version, OpenDraft&apos;s is saved in Version History; if you
-            keep OpenDraft&apos;s, the file&apos;s is saved as a copy next to it.
+            {t('linkedFile.question')}
           </p>
           <p style={{ margin: 0, fontSize: 12, color: 'var(--fd-text-muted, var(--fd-text))', wordBreak: 'break-all' }}>
             {conflict.path}
           </p>
         </div>
         <div className="dialog-actions">
-          <button onClick={() => answerConflict('library')}>Keep OpenDraft&apos;s Version</button>
+          <button onClick={() => answerConflict('library')}>{t('linkedFile.keepOurs')}</button>
           <button className="dialog-primary" onClick={() => answerConflict('file')}>
-            Use the File&apos;s Version
+            {t('linkedFile.useFile')}
           </button>
         </div>
       </div>

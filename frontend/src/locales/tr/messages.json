@@ -1,0 +1,458 @@
+{
+  "avFrame": {
+    "notImage": "Lütfen bir resim dosyası seçin",
+    "needRow": "Önce imleci bir AV satırına getirin, sonra kareyi ekleyin",
+    "failed": "Kare eklenemedi: {{message}}"
+  },
+  "image": {
+    "degraded": "Bu resmin belgenin içinde saklanması gerekti. Yer kaplamasın diye kitaplığınıza kaydedin.",
+    "couldNotAdd": "“{{name}}” eklenemedi.",
+    "fileFallbackName": "resim"
+  },
+  "template": {
+    "unreadable": "Bu senaryonun kayıtlı biçimi OpenDraft'ın bu sürümünde okunamıyor. Görüntülemek için yerel bir biçim kullanılıyor; kaydettiğinizde özgün biçim verisi korunur. Kayıtlı biçimi kullanmak için OpenDraft'ı güncelleyin."
+  },
+  "pacing": {
+    "brisk": {
+      "label": "Hızlı",
+      "description": "Hızlı konuşma, hızlı kurgu, üst üste binen diyaloglar — ekran süresi sayfadan kısa olur."
+    },
+    "standard": {
+      "label": "Standart",
+      "description": "Bir sayfa ≈ bir dakika. Çoğu senaryo için uygundur."
+    },
+    "measured": {
+      "label": "Ölçülü",
+      "description": "Yavaş yanan veya dingin — uzun sessizlikler, oyalanan görüntüler, okunduğundan uzun süren anlar."
+    }
+  },
+  "stats": {
+    "bucket": {
+      "under1": "< 1 sayfa",
+      "p1to2": "1-2 sayfa",
+      "p2to3": "2-3 sayfa",
+      "p3to5": "3-5 sayfa",
+      "p5plus": "5+ sayfa"
+    }
+  },
+  "pdfFonts": {
+    "hebrew": "İbranice",
+    "arabic": "Arapça",
+    "thai": "Tayca",
+    "cyrillic": "Kiril, Yunan, Ermeni ve Gürcü alfabeleri",
+    "chinese": "Çince",
+    "japanese": "Japonca",
+    "korean": "Korece",
+    "chineseTraditional": "Çince (geleneksel)",
+    "and": " ve ",
+    "missing": "{{fonts}} yazı tipi yüklenemedi; bu yüzden o metin PDF'de boş.",
+    "unsupported": "{{scripts}} henüz PDF'ye yazılamıyor; bu yüzden o metin eksik veya bozuk. Senaryonun geri kalanı normal şekilde dışa aktarıldı."
+  },
+  "grammar": {
+    "harper": {
+      "Agreement": {
+        "label": "Özne–yüklem uyumu",
+        "description": "Fiil biçimi özneyle uyuşmalıdır (\"she walk\" → \"she walks\")."
+      },
+      "Grammar": {
+        "label": "Dil bilgisi",
+        "description": "Zaman, karıştırılan sözcükler (their/they're), zamir hâli ve benzeri hatalar."
+      },
+      "Capitalization": {
+        "label": "Büyük harf kullanımı",
+        "description": "Özel adlar, cümle başları, \"I\" zamiri."
+      },
+      "Repetition": {
+        "label": "Tekrarlanan sözcük",
+        "description": "Yanlışlıkla yazılan \"the the\"."
+      },
+      "Punctuation": {
+        "label": "Noktalama",
+        "description": "Eksik virgüller, noktalama çevresindeki fazla boşluklar."
+      },
+      "WordChoice": {
+        "label": "Sözcük seçimi",
+        "description": "Daha açık veya daha doğal bir sözcük önerir."
+      },
+      "Readability": {
+        "label": "Okunabilirlik",
+        "description": "Uzun veya çözümlemesi zor cümleler."
+      },
+      "Typo": {
+        "label": "Yazım yanlışı",
+        "description": "Bağlamdan algılanan olası yazım yanlışları (örn. \"teh\" → \"the\")."
+      },
+      "Spelling": {
+        "label": "Yazım",
+        "description": "Yanlış yazılmış sözcükler (yazım denetimiyle çakışır — birini devre dışı bırakın)."
+      },
+      "Style": {
+        "label": "Üslup",
+        "description": "Üslup önerileri (gereksiz uzatma, zayıf ifade)."
+      },
+      "Enhancement": {
+        "label": "İyileştirme",
+        "description": "Anlaşılırlığı çoğu zaman artıran isteğe bağlı yeniden yazımlar."
+      },
+      "Formatting": {
+        "label": "Biçimlendirme",
+        "description": "Boşluklar, tırnak işaretleri, çizgiler."
+      },
+      "Regionalism": {
+        "label": "Bölgesel kullanım",
+        "description": "Belirli bir bölge dışında alışılmadık sözcük kullanımı."
+      },
+      "Miscellaneous": {
+        "label": "Diğer",
+        "description": "Yukarıdaki kategorilere uymayan diğer dil bilgisi sorunları."
+      }
+    },
+    "retext": {
+      "passive": {
+        "label": "Edilgen çatı",
+        "description": "Edilgen yapıları işaretler (\"was kicked\")."
+      },
+      "repeated": {
+        "label": "Tekrarlanan sözcük",
+        "description": "Yanlışlıkla yazılan \"the the\"yi yakalar."
+      },
+      "indefiniteArticle": {
+        "label": "A / an",
+        "description": "\"a hour\" / \"an university\" gibi hataları algılar."
+      },
+      "redundantAcronyms": {
+        "label": "Gereksiz kısaltmalar",
+        "description": "örn. \"ATM machine\"."
+      },
+      "intensify": {
+        "label": "Zayıf pekiştirme",
+        "description": "\"very\", \"really\" yerine daha güçlü seçenekler önerir."
+      },
+      "simplify": {
+        "label": "Uzun ifade",
+        "description": "\"in order to\" → \"to\" gibi sadeleştirir."
+      }
+    }
+  },
+  "reports": {
+    "count": {
+      "scene_one": "{{count}} sahne",
+      "scene_other": "{{count}} sahne",
+      "speakingCharacter_one": "{{count}} konuşan karakter",
+      "speakingCharacter_other": "{{count}} konuşan karakter",
+      "location_one": "{{count}} mekân",
+      "location_other": "{{count}} mekân",
+      "castMember_one": "{{count}} oyuncu",
+      "castMember_other": "{{count}} oyuncu",
+      "taggedItem_one": "{{count}} etiketli öğe",
+      "taggedItem_other": "{{count}} etiketli öğe",
+      "category_one": "{{count}} kategori",
+      "category_other": "{{count}} kategori",
+      "openNote_one": "{{count}} açık not",
+      "openNote_other": "{{count}} açık not",
+      "note_one": "{{count}} not",
+      "note_other": "{{count}} not",
+      "reply_one": "{{count}} yanıt",
+      "reply_other": "{{count}} yanıt"
+    },
+    "scenes": {
+      "label": "Sahne raporu",
+      "description": "Her sahne; mekânı, uzunluğu, ekran süresi ve kimlerin konuştuğuyla birlikte",
+      "summary": "{{scenes}} · {{length}} sayfa",
+      "columns": {
+        "scene": "Sahne",
+        "heading": "Başlık",
+        "intExt": "İç/Dış",
+        "location": "Mekân",
+        "time": "Zaman",
+        "length": "Uzunluk",
+        "estTime": "Tah. süre",
+        "speaking": "Konuşan karakterler",
+        "words": "Sözcük"
+      }
+    },
+    "characters": {
+      "label": "Karakter raporu",
+      "description": "Her konuşan karakter için konuşmalar, sözcükler ve sahneler",
+      "columns": {
+        "character": "Karakter",
+        "role": "Rol",
+        "gender": "Cinsiyet",
+        "speeches": "Konuşma",
+        "words": "Sözcük",
+        "share": "Diyalog payı",
+        "scenes": "Sahne",
+        "sceneNumbers": "Sahne numaraları"
+      }
+    },
+    "locations": {
+      "label": "Mekân raporu",
+      "description": "Her mekân, ne sıklıkla ve kaç sayfa boyunca kullanıldığı",
+      "columns": {
+        "location": "Mekân",
+        "intExt": "İç/Dış",
+        "times": "Günün saatleri",
+        "scenes": "Sahne",
+        "totalLength": "Toplam uzunluk",
+        "sceneNumbers": "Sahne numaraları"
+      }
+    },
+    "cast": {
+      "label": "Oyuncu raporu",
+      "description": "Rol, cinsiyet, yaş ve konuştuğu sahnelerle karakter profilleri",
+      "columns": {
+        "character": "Karakter",
+        "role": "Rol",
+        "gender": "Cinsiyet",
+        "age": "Yaş",
+        "speakingScenes": "Konuştuğu sahneler",
+        "description": "Açıklama"
+      }
+    },
+    "breakdown": {
+      "label": "Döküm raporu",
+      "description": "Etiketlenmiş aksesuar, kostüm, araç ve daha fazlası; sahneleriyle birlikte",
+      "summary": "{{categories}} içinde {{items}}",
+      "columns": {
+        "category": "Kategori",
+        "item": "Öğe",
+        "scenes": "Sahne",
+        "sceneNumbers": "Sahne numaraları",
+        "notes": "Notlar"
+      }
+    },
+    "notes": {
+      "label": "Not raporu",
+      "description": "Her not; yanıtları, yazanı, atandığı kişi ve çözülüp çözülmediğiyle birlikte",
+      "title": "Not raporu",
+      "summary": "{{notes}} · {{open}} açık · {{resolved}} çözüldü · {{replies}}",
+      "columns": {
+        "number": "#",
+        "scene": "Sahne",
+        "on": "Konu",
+        "from": "Yazan",
+        "comment": "Yorum",
+        "status": "Durum",
+        "assignedTo": "Atanan",
+        "date": "Tarih"
+      },
+      "general": "Genel",
+      "open": "Açık",
+      "resolved": "Çözüldü",
+      "resolvedBy": "Çözen: {{name}}",
+      "resolvedAt": "{{status}} {{date}}"
+    },
+    "openNotes": {
+      "label": "Açık notlar",
+      "description": "Yalnızca henüz çözülmemiş notlar, yanıtlarıyla — yapılacaklar",
+      "title": "Açık notlar",
+      "summary": "{{notes}} · {{replies}}"
+    },
+    "nothing": "Raporlanacak bir şey yok."
+  },
+  "backup": {
+    "error": {
+      "missingFolder": "Yedek klasörü artık yok.",
+      "noPermission": "OpenDraft'ın yedek klasörüne yazma izni yok.",
+      "diskFull": "Disk dolu.",
+      "noResponse": "Yedek klasörü yanıt vermedi (bir ağ sürücüsünün bağlantısı kesilmiş olabilir mi?)."
+    },
+    "failed": "Yedekleme başarısız — {{reason}}",
+    "paused": "Otomatik yedekleme duraklatıldı — {{reason}} Sürdürmek için Ayarlar'da klasörü düzeltin.",
+    "notInBrowser": "Yedekleme tarayıcıda kullanılamaz.",
+    "onlyInApp": "Yedekleme yalnızca OpenDraft uygulamasında kullanılabilir.",
+    "noFolder": "Yapılandırılmış bir yedek klasörü yok.",
+    "revealDesktopOnly": "Bir yedeği dosya yöneticisinde göstermek yalnızca masaüstünde kullanılabilir.",
+    "chooseFolderBrowser": "Yedek klasörü seçmek tarayıcıda kullanılamaz."
+  },
+  "sprint": {
+    "finished_one": "Sprint bitti — {{count}} sözcük yazıldı.",
+    "finished_other": "Sprint bitti — {{count}} sözcük yazıldı."
+  },
+  "recovery": {
+    "tooLarge": "Bu belge çökmeye karşı korunamayacak kadar büyük. Otomatik kayıt devralsın diye kitaplığınıza kaydedin.",
+    "noRoom": "Çökme koruması kullanılamıyor — kurtarma kopyasını saklayacak yer yok. Çalışmanızı kitaplığınıza kaydedin."
+  },
+  "fallbackImport": {
+    "project_one": "{{count}} proje",
+    "project_other": "{{count}} proje",
+    "script_one": "{{count}} senaryo",
+    "script_other": "{{count}} senaryo",
+    "asset_one": "{{count}} varlık",
+    "asset_other": "{{count}} varlık",
+    "template_one": "{{count}} şablon",
+    "template_other": "{{count}} şablon",
+    "imported": "Dosya tabanlı yedek depolamadan içe aktarıldı: {{counts}}",
+    "importedWithErrors": "Yedek depolamadan içe aktarıldı: {{counts}}. {{failed}} öğe başarısız oldu — ayrıntılar için DevTools'a bakın.",
+    "nothing": "hiçbir şey"
+  },
+  "dictionary": {
+    "unknownLanguage": "Bilinmeyen dil: {{code}}",
+    "downloadFailed": "“{{label}}” indirilemedi — kaynak geçici olarak kullanılamıyor olabilir ya da ağ çevrimdışı.",
+    "codeRequired": "Dil kodu gerekli.",
+    "urlsRequired": "Hem .aff hem .dic URL'leri gerekli.",
+    "parseFailed": "İndirme veya ayrıştırma başarısız. URL'leri ve dosyaların geçerli Hunspell .aff/.dic olduğunu kontrol edin."
+  },
+  "auth": {
+    "renewFailed": "Oturumunuz şu an yenilenemedi. Lütfen biraz sonra yeniden deneyin."
+  },
+  "cloud": {
+    "notConfigured": "OpenDraft Cloud bu uygulama için yapılandırılmamış. OpenDraft sunucu URL'sini ayarlamak için Ayarlar → Sistem ayarları'nı açın.",
+    "cannotReachNamed": "Erişilemiyor: {{where}}. Sunucunun çalıştığını ve erişilebilir olduğunu kontrol edin.",
+    "cannotReach": "OpenDraft Cloud'a erişilemiyor ({{detail}}).",
+    "invalidResponse": "OpenDraft Cloud geçersiz bir yanıt döndürdü. Sunucu yanlış yapılandırılmış olabilir.",
+    "renewUnavailable": "Oturumunuzu yenilemek için OpenDraft sunucusuna erişilemedi. Lütfen biraz sonra yeniden deneyin."
+  },
+  "fonts": {
+    "tooLarge": "Çok büyük — yazı tipleri {{mb}} MB'tan küçük olmalıdır.",
+    "empty": "Bu dosya boş.",
+    "tooSmall": "Bu dosya yazı tipi olamayacak kadar küçük.",
+    "notFont": "Bu dosya bir TrueType veya OpenType yazı tipi değil.",
+    "installFailed": "Bu yazı tipi yüklenemedi: {{message}}",
+    "noStorage": "Bu tarayıcıda yazı tipleri için yerel depolama yok.",
+    "deleteFailed": "Yazı tipi bu oturumdan kaldırıldı ancak depolamadan silinemedi."
+  },
+  "linkedFiles": {
+    "unsupportedExtension": "OpenDraft senaryoları .odraft, .fountain, .fdx veya .osf dosyalarında tutabilir; .{{ext}} dosyalarında tutamaz.",
+    "noExtension": "(yok)",
+    "cannotWrite": "OpenDraft şuraya yazamıyor: {{folder}}",
+    "cannotWriteReason": "OpenDraft şuraya yazamıyor: {{folder}} — {{reason}}",
+    "notInFolder": "Bu proje bir klasöre kaydedilmiyor."
+  },
+  "elements": {
+    "sceneHeading": "Sahne başlığı",
+    "action": "Aksiyon",
+    "character": "Karakter",
+    "parenthetical": "Parantez",
+    "dialogue": "Diyalog",
+    "transition": "Geçiş",
+    "shot": "Çekim",
+    "general": "Genel",
+    "dualDialogue": "Çift diyalog",
+    "lyrics": "Şarkı sözü",
+    "newAct": "Yeni perde",
+    "endOfAct": "Perde sonu"
+  },
+  "marks": {
+    "bold": "Kalın",
+    "italic": "İtalik",
+    "underline": "Altı çizili",
+    "strike": "Üstü çizili",
+    "subscript": "Alt simge",
+    "superscript": "Üst simge",
+    "textStyle": "Yazı tipi/Boyut",
+    "color": "Yazı rengi",
+    "highlight": "Vurgu",
+    "formatOverride": "Biçim geçersiz kılma"
+  },
+  "relativeTime": {
+    "justNow": "az önce",
+    "minutes_one": "{{count}} dakika önce",
+    "minutes_other": "{{count}} dakika önce",
+    "hours_one": "{{count}} saat önce",
+    "hours_other": "{{count}} saat önce",
+    "days_one": "{{count}} gün önce",
+    "days_other": "{{count}} gün önce"
+  },
+  "suggestions": {
+    "insertedBy": "Öneren: {{name}}",
+    "insertedByAt": "Öneren: {{name}} · {{when}}",
+    "someone": "biri",
+    "someoneCap": "Biri",
+    "deleteBy": "{{name}} bunun silinmesini önerdi",
+    "deleteByAt": "{{name}} bunun silinmesini önerdi · {{when}}",
+    "formatAdd": "{{name}} şunun eklenmesini önerdi: {{format}}",
+    "formatRemove": "{{name}} şunun kaldırılmasını önerdi: {{format}}",
+    "joinLabel": "⤒ birleştir",
+    "joinTitle": "{{name}} bu satırın öncekiyle birleştirilmesini önerdi",
+    "wasType": "önceki tür: {{type}}",
+    "changeTitle": "{{name}} bunun {{from}} türünden {{to}} türüne değiştirilmesini önerdi"
+  },
+  "clipboard": {
+    "pasteDeniedIos": "Pano okunamadı. iOS her yapıştırma için izin ister — göründüğünde “Yapıştır”a dokunun ya da senaryoda basılı tutup oradan Yapıştır'ı kullanın.",
+    "pasteDenied": "Pano okunamadı. OpenDraft için pano erişimine izin verip yeniden deneyin.",
+    "selectFirst": "Önce kopyalanacak bir şey seçin.",
+    "copyFailed": "Panoya kopyalanamadı.",
+    "empty": "Pano boş."
+  },
+  "import": {
+    "archiveNotOpenable": "{{format}} dosyaları sıkıştırılmış arşivlerdir ve bu platformda açılamaz. Senaryoyu {{app}} uygulamasından .fdx, .fountain veya .osf olarak dışa aktarıp onu içe aktarın.",
+    "expectedText": "{{format}} dosyası için metin içeriği bekleniyordu.",
+    "invalidOdraft": "Geçersiz .odraft dosyası: {{message}}",
+    "archiveUnreadable": "{{format}} dosyası okunamadı — geçerli bir .{{ext}} arşivi değil. Hasarlı, eksik veya farklı bir biçimde kaydedilmiş olabilir; {{format}} uygulamasından yeniden dışa aktarmayı deneyin.",
+    "zipInvalid": "Bu dosya geçerli bir zip arşivi değil",
+    "zipSingleScript": "Bu zip bir proje değil, tek bir senaryo içeriyor. Bunun yerine bir projenin içinden içe aktarın.",
+    "zipNoProject": "Geçersiz proje arşivi: project.json eksik",
+    "zipNoneImported": "{{count}} senaryonun hiçbiri içe aktarılamadı",
+    "pdfPassword": "Bu PDF parola korumalı. Bir PDF görüntüleyicide açın, parolasız bir kopyasını kaydedin ve onu içe aktarın.",
+    "pdfUnreadable": "Bu dosya okunabilir bir PDF değil — hasarlı olabilir.",
+    "pdfNoText": "Bu PDF'de okunacak metin yok — taranmış olabilir. Yalnızca seçilebilir metni olan PDF'ler içe aktarılabilir.",
+    "pdfNothingRecognised": "Sahne başlığı veya diyalog tanınmadı — PDF senaryo düzeninde olmayabilir.",
+    "docxTable": "Çift diyalog düzeni olmayan bir tabloyla karşılaşıldı — hücreler aksiyona dönüştürüldü.",
+    "docxNoDocument": "Geçerli bir .docx dosyası değil: word/document.xml eksik",
+    "docxNoBody": "Geçerli bir .docx dosyası değil: <w:body> eksik",
+    "highlandNoFountain": "Bir Highland senaryosu değil: dosyada text.fountain{{contents}} yok.",
+    "highlandNotFountain": "Bu Highland belgesi Fountain yerine {{name}} olarak saklanmış; bu yüzden Fountain metni olarak okundu. İçe aktardıktan sonra öğe türlerini kontrol edin.",
+    "highlandImages": "Highland dosyasında saklanan resimler içe aktarılmadı."
+  },
+  "export": {
+    "zipUnreadable_one": "Senaryo okunamadı: {{names}}",
+    "zipUnreadable_other": "Senaryolar okunamadı: {{names}}",
+    "twoUpPageSize": "Sayfa boyutu geçerli değil; bu yüzden sayfalar kâğıt başına ikiye yerleştirilemiyor.",
+    "twoUpStructure": "Sayfalar kâğıt başına ikiye yerleştirilemedi: PDF beklenmedik bir yapıya sahipti.",
+    "twoUpPageStructure": "Sayfalar kâğıt başına ikiye yerleştirilemedi: {{page}}. sayfa beklenmedik bir yapıya sahipti.",
+    "avEmpty": "Bu belgede dışa aktarılacak AV içeriği yok.",
+    "cannotWrite": "OpenDraft .{{format}} dosyaları yazamaz."
+  },
+  "file": {
+    "chooseDifferent": "Kopya kaydet için farklı bir hedef seçin. Özgün dosya değiştirilmedi.",
+    "openBrowser": "Bir dosyayı yerinde açmak tarayıcıda kullanılamaz.",
+    "saveBrowser": "Bir dosyayı yerinde kaydetmek tarayıcıda kullanılamaz."
+  },
+  "macros": {
+    "notJson": "Bu dosya geçerli bir JSON değil.",
+    "notMacros": "Bu dosya OpenDraft makroları içermiyor."
+  },
+  "avYaml": {
+    "notYaml": "Bu dosya geçerli bir YAML değil.",
+    "notYamlLine": "Bu dosya geçerli bir YAML değil (satır {{line}}).",
+    "notAvDoc": "Bu dosya bir OpenDraft AV belgesi değil.",
+    "wrongFormat": "Bu dosya bir OpenDraft AV belgesi değil (beklenen biçim: {{format}}).",
+    "noVersion": "Bu dosya hangi AV şema sürümünü kullandığını belirtmiyor.",
+    "tooNew": "Bu dosya AV şema sürümü {{version}} kullanıyor, ancak OpenDraft'ın bu sürümü en fazla {{max}} sürümünü okur. Açmak için OpenDraft'ı güncelleyin.",
+    "noSection": "Bu AV dosyasında içe aktarılacak `av:` bölümü yok.",
+    "noRows": "{{n}}. AV bölümünde satır yok."
+  },
+  "sides": {
+    "emptyScenes": "Seçilen sahneler boş.",
+    "noLines": "Bu senaryoda {{name}} için satır yok.",
+    "noSceneAt": "Şu mekânda ayarlanmış sahne yok: {{location}}",
+    "notTagged": "Senaryoda {{label}} etiketli hiçbir şey yok."
+  },
+  "av": {
+    "durationLabel": "Çekim süresi: {{shot}}",
+    "durationInvalid": "Geçerli bir süre değil — 0:05, 1:30 veya 1:02:03 kullanın",
+    "durationTitle": "Çekim süresi",
+    "resizeTitle": "Yeniden boyutlandırmak için sürükleyin · sıfırlamak için çift tıklayın"
+  },
+  "tts": {
+    "unreadable": "Konuşma sunucusu okunabilir bir şey döndürmedi.",
+    "noProvider": "Ayarlanmış bir yapay zekâ ses sağlayıcısı yok.",
+    "needGeminiKey": "Gemini API anahtarınızı Ayarlar → Masa okuması sesleri bölümüne ekleyin.",
+    "needElevenLabsKey": "ElevenLabs API anahtarınızı Ayarlar → Masa okuması sesleri bölümüne ekleyin.",
+    "needAzureKey": "Azure Speech anahtarınızı ve bölgenizi Ayarlar → Masa okuması sesleri bölümüne ekleyin.",
+    "noKokoroVoice": "Kokoro sesi seçilmedi.",
+    "noGeminiVoice": "Gemini sesi seçilmedi.",
+    "noAzureVoice": "Azure sesi seçilmedi.",
+    "noElevenLabsVoice": "ElevenLabs sesi seçilmedi.",
+    "noVoice": "Ses seçilmedi.",
+    "geminiNoAudio": "Gemini bu satır için ses döndürmedi.",
+    "azureNoAudio": "Azure Speech ses döndürmedi.",
+    "audioNoStart": "{{provider}} sesi oynatılmaya başlamadı. Bu tarayıcı biçimini desteklemiyor olabilir.",
+    "audioNoPlay": "{{provider}} sesi oynatılamadı.",
+    "audioNoDecode": "{{provider}} sesi çözülemedi: {{message}}",
+    "kokoroStopped": "Kokoro ses motoru durdu: {{message}}",
+    "kokoroUnknown": "bilinmeyen hata",
+    "systemStopped": "Sistem konuşma motoru yanıt vermeyi durdurdu: {{message}}"
+  }
+}

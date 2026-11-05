@@ -5,9 +5,11 @@
  */
 
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { useStorageStatusStore } from '../stores/storageStatusStore';
 
 const StorageFallbackDialog: React.FC = () => {
+  const { t } = useTranslation(['dialogs', 'common']);
   const { mode, errorReason, acknowledged, acknowledge } = useStorageStatusStore();
 
   if (acknowledged) return null;
@@ -15,11 +17,11 @@ const StorageFallbackDialog: React.FC = () => {
 
   const isFile = mode === 'file-fallback';
   const heading = isFile
-    ? 'Switched to file-based storage'
-    : 'Local database unavailable';
+    ? t('storageFallback.fileHeading')
+    : t('storageFallback.dbHeading');
   const explanation = isFile
-    ? 'OpenDraft could not open its local database, so your projects are now being saved as individual files in your app data folder. You can keep working — saving and loading still work normally, but version history is disabled until the database is reachable again.'
-    : 'OpenDraft could not open its local database and the file-based fallback also failed. Your changes will be saved in the browser only and may be lost if storage is cleared.';
+    ? t('storageFallback.fileExplanation')
+    : t('storageFallback.dbExplanation');
 
   return (
     <div className="dialog-overlay" onClick={acknowledge}>
@@ -36,7 +38,7 @@ const StorageFallbackDialog: React.FC = () => {
           {errorReason && (
             <>
               <p style={{ margin: '0 0 6px', fontSize: 13, color: 'var(--fd-text-muted)' }}>
-                Underlying error:
+                {t('storageFallback.underlyingError')}
               </p>
               <pre
                 style={{
@@ -65,7 +67,7 @@ const StorageFallbackDialog: React.FC = () => {
             onClick={acknowledge}
             autoFocus
           >
-            Continue
+            {t('common:continue')}
           </button>
         </div>
       </div>

@@ -16,6 +16,7 @@ import JSZip from 'jszip';
 import { api } from '../services/api';
 import type { ProjectInfo, ScriptMeta, ScriptResponse } from '../services/api';
 import { assetBytesReader, collectAssetRefs, mimeFor } from '../services/snapshotAssets';
+import { t } from '../i18n';
 
 export const ZIP_VERSION = 2;
 
@@ -80,7 +81,7 @@ export async function buildProjectZip(
     results.forEach((r, i) => {
       if (r.status === 'rejected') console.error('[zipExport] could not read script', scriptMetas[i].id, r.reason);
     });
-    throw new Error(`Could not read ${unreadable.length === 1 ? 'script' : 'scripts'}: ${unreadable.join(', ')}`);
+    throw new Error(t('messages:export.zipUnreadable', { count: unreadable.length, names: unreadable.join(', ') }));
   }
   const scripts = results.map((r) => (r as PromiseFulfilledResult<ScriptResponse>).value);
 

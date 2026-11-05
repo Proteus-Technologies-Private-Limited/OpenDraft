@@ -1,4 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useEditorStore } from '../stores/editorStore';
 
 interface DictionaryLibraryProps {
@@ -26,6 +27,7 @@ const buttonStyle: React.CSSProperties = {
 };
 
 const DictionaryLibrary: React.FC<DictionaryLibraryProps> = ({ onClose }) => {
+  const { t } = useTranslation(['settings', 'common']);
   const customDictionaries = useEditorStore((s) => s.customDictionaries);
   const createGlobalDictionary = useEditorStore((s) => s.createGlobalDictionary);
   const renameGlobalDictionary = useEditorStore((s) => s.renameGlobalDictionary);
@@ -57,12 +59,12 @@ const DictionaryLibrary: React.FC<DictionaryLibraryProps> = ({ onClose }) => {
   };
 
   const handleRename = (oldName: string) => {
-    const next = window.prompt('Rename dictionary', oldName);
+    const next = window.prompt(t('dictionaryLibrary.renamePrompt'), oldName);
     if (next === null) return;
     const trimmed = next.trim();
     if (!trimmed || trimmed === oldName) return;
     if (customDictionaries[trimmed]) {
-      window.alert(`A dictionary named "${trimmed}" already exists.`);
+      window.alert(t('dictionaryLibrary.alreadyExists', { name: trimmed }));
       return;
     }
     renameGlobalDictionary(oldName, trimmed);
@@ -70,7 +72,7 @@ const DictionaryLibrary: React.FC<DictionaryLibraryProps> = ({ onClose }) => {
   };
 
   const handleDelete = (name: string) => {
-    if (!window.confirm(`Delete dictionary "${name}"? This cannot be undone.`)) return;
+    if (!window.confirm(t('dictionaryLibrary.confirmDelete', { name }))) return;
     deleteGlobalDictionary(name);
   };
 
@@ -106,26 +108,26 @@ const DictionaryLibrary: React.FC<DictionaryLibraryProps> = ({ onClose }) => {
         // way out of it, off the edge of the screen (issue #65).
         style={{ maxWidth: 720, minWidth: 'min(560px, 100%)', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}
       >
-        <div className="dialog-header">Dictionary Library</div>
+        <div className="dialog-header">{t('dictionaryLibrary.title')}</div>
         <div className="dialog-body" style={{ display: 'flex', gap: 12, padding: 16, overflow: 'hidden', flex: 1, minHeight: 360 }}>
           {/* Left column: list of dictionaries */}
           <div style={{ flex: '0 0 220px', display: 'flex', flexDirection: 'column', borderRight: '1px solid var(--fd-border)', paddingRight: 12 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Dictionaries</div>
+            <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>{t('dictionaryLibrary.dictionaries')}</div>
             <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
               <input
                 type="text"
-                placeholder="New dictionary"
+                placeholder={t('dictionaryLibrary.newPlaceholder')}
                 value={newDictName}
                 onChange={(e) => setNewDictName(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') handleCreate(); }}
                 style={inputStyle}
               />
-              <button type="button" onClick={handleCreate} style={buttonStyle}>Add</button>
+              <button type="button" onClick={handleCreate} style={buttonStyle}>{t('common:add')}</button>
             </div>
             <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
               {names.length === 0 && (
                 <div style={{ fontSize: 12, color: 'var(--fd-text-muted)', padding: 8 }}>
-                  No dictionaries yet. Create one above.
+                  {t('dictionaryLibrary.empty')}
                 </div>
               )}
               {names.map((name) => {
@@ -157,13 +159,13 @@ const DictionaryLibrary: React.FC<DictionaryLibraryProps> = ({ onClose }) => {
             </div>
             {selected && (
               <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
-                <button type="button" onClick={() => handleRename(selected)} style={buttonStyle}>Rename</button>
+                <button type="button" onClick={() => handleRename(selected)} style={buttonStyle}>{t('common:rename')}</button>
                 <button
                   type="button"
                   onClick={() => handleDelete(selected)}
                   style={{ ...buttonStyle, color: '#c0392b', borderColor: '#c0392b' }}
                 >
-                  Delete
+                  {t('common:delete')}
                 </button>
               </div>
             )}
@@ -173,24 +175,24 @@ const DictionaryLibrary: React.FC<DictionaryLibraryProps> = ({ onClose }) => {
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
             {!selected ? (
               <div style={{ fontSize: 13, color: 'var(--fd-text-muted)', padding: 16 }}>
-                Select or create a dictionary to manage its words.
+                {t('dictionaryLibrary.selectPrompt')}
               </div>
             ) : (
               <>
                 <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>
-                  Words in “{selected}” ({selectedWords.length})
+                  {t('dictionaryLibrary.wordsIn', { name: selected, total: selectedWords.length })}
                 </div>
                 <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
                   <input
                     ref={wordInputRef}
                     type="text"
-                    placeholder="Add a word"
+                    placeholder={t('dictionaryLibrary.addWordPlaceholder')}
                     value={newWord}
                     onChange={(e) => setNewWord(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter') handleAddWord(); }}
                     style={inputStyle}
                   />
-                  <button type="button" onClick={handleAddWord} style={buttonStyle}>Add</button>
+                  <button type="button" onClick={handleAddWord} style={buttonStyle}>{t('common:add')}</button>
                 </div>
                 <div
                   style={{
@@ -204,7 +206,7 @@ const DictionaryLibrary: React.FC<DictionaryLibraryProps> = ({ onClose }) => {
                 >
                   {selectedWords.length === 0 ? (
                     <div style={{ fontSize: 12, color: 'var(--fd-text-muted)', padding: 8 }}>
-                      No words yet.
+                      {t('dictionaryLibrary.noWords')}
                     </div>
                   ) : (
                     selectedWords.map((w) => (
@@ -222,7 +224,8 @@ const DictionaryLibrary: React.FC<DictionaryLibraryProps> = ({ onClose }) => {
                         <button
                           type="button"
                           onClick={() => handleRemoveWord(w)}
-                          title="Remove"
+                          title={t('common:remove')}
+                          aria-label={t('common:remove')}
                           style={{
                             background: 'transparent',
                             border: 'none',
@@ -243,7 +246,7 @@ const DictionaryLibrary: React.FC<DictionaryLibraryProps> = ({ onClose }) => {
           </div>
         </div>
         <div className="dialog-footer">
-          <button className="dialog-primary" onClick={onClose}>Done</button>
+          <button className="dialog-primary" onClick={onClose}>{t('common:done')}</button>
         </div>
       </div>
     </div>

@@ -10,6 +10,7 @@
  * build the text runs every parser ends up producing.
  */
 import JSZip from 'jszip';
+import { t } from '../i18n';
 
 /** Structurally the `TipTapNode` each parser declares for itself. */
 export interface ImportNode {
@@ -51,8 +52,7 @@ export async function loadImportArchive(data: ArrayBuffer, formatName: string, e
     // for diagnosis and the message says what to do instead.
     console.warn(`[import] .${ext} is not a readable zip archive:`, err);
     throw new Error(
-      `Could not read the ${formatName} file — it is not a valid .${ext} archive. ` +
-        `It may be damaged, incomplete, or saved in a different format; try exporting it from ${formatName} again.`,
+      t('messages:import.archiveUnreadable', { format: formatName, ext }),
     );
   }
 }

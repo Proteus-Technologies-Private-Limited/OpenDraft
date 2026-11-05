@@ -41,6 +41,7 @@ import {
   type LinkedFileFormat,
 } from '../utils/linkedFileFormat';
 import { SAVE_METADATA_KEYS } from '../utils/saveContent';
+import { t } from '../i18n';
 
 // ── Platform ────────────────────────────────────────────────────────────────
 
@@ -879,7 +880,7 @@ export async function syncScriptWithFile(
 export async function linkScriptToFile(projectId: string, scriptId: string, path: string): Promise<WriteOutcome> {
   const ext = extensionOfPath(path);
   if (!isLinkableExtension(ext)) {
-    throw new Error(`OpenDraft can keep scripts in .odraft, .fountain, .fdx or .osf files, not .${ext || '(none)'}.`);
+    throw new Error(t('messages:linkedFiles.unsupportedExtension', { ext: ext || t('messages:linkedFiles.noExtension') }));
   }
   return withScriptLock(scriptId, async () => {
     const link: ScriptFileLink = {
@@ -973,7 +974,9 @@ export async function attachProjectFolder(
     'Checking the folder',
   );
   if (!probe.exists || !probe.writable) {
-    throw new Error(`OpenDraft can't write to ${folder}${probe.error ? ` — ${probe.error}` : ''}`);
+    throw new Error(probe.error
+      ? t('messages:linkedFiles.cannotWriteReason', { folder, reason: probe.error })
+      : t('messages:linkedFiles.cannotWrite', { folder }));
   }
 
   const project = await api.getProject(projectId);
@@ -1102,7 +1105,7 @@ export async function detachProjectFolder(projectId: string): Promise<void> {
 export async function moveProjectFolder(projectId: string, newFolder: string): Promise<{ moved: number; failed: string[] }> {
   const project = await api.getProject(projectId);
   const oldFolder = projectFolder(project);
-  if (!oldFolder) throw new Error('This project is not saved to a folder.');
+  if (!oldFolder) throw new Error(t('messages:linkedFiles.notInFolder'));
   if (samePath(oldFolder, newFolder)) return { moved: 0, failed: [] };
 
   await withTimeout(invoke('ensure_dir', { path: newFolder }), 'Creating the folder');

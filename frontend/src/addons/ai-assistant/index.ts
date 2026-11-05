@@ -5,6 +5,7 @@
  * sidebar panel by dispatching `plugin-panel:open`; it does not reach into the
  * editor, the toolbar or the menus, so turning the add-on off removes all of it.
  */
+import { t } from '../../i18n';
 import type { OpenDraftPlugin } from '../../plugins/registry';
 import { PLUGIN_PANEL_OPEN_EVENT } from '../../components/PluginPanelTabs';
 import AssistantPanel from './AssistantPanel';
@@ -15,30 +16,24 @@ const PANEL_ID = 'ai-assistant-panel';
 
 const aiAssistant: OpenDraftPlugin = {
   id: 'ai-assistant',
-  name: 'AI Assistant',
+  // Getters, so the text is looked up when it is shown and follows the interface language.
+  get name() { return t('addons:assistant.plugin.name'); },
   version: '1.0.0',
   optIn: true,
-  description:
-    'Ask an AI model about your script and insert its suggestions after you review them. '
-    + 'Works with a local server such as Ollama, LM Studio or Unsloth Studio.',
-  privacy:
-    'Sends your question, the script context it needs to answer, and the text you select to the AI '
-    + 'server you choose. With a local server such as Ollama, LM Studio or Unsloth Studio on your own '
-    + 'computer, nothing leaves your device. The server address, model name and any API key are stored '
-    + 'on this device only, never in scripts; the key is kept in the app storage unencrypted, so use a '
-    + 'key made for this purpose.',
+  get description() { return t('addons:assistant.plugin.description'); },
+  get privacy() { return t('addons:assistant.plugin.privacy'); },
   settings: AssistantSettingsForm,
   onDeactivate: ({ forgetSettings: forget }) => {
     if (forget) forgetSettings();
   },
   panels: [
-    { id: PANEL_ID, slot: 'right-sidebar', label: 'Assistant', component: AssistantPanel },
+    { id: PANEL_ID, slot: 'right-sidebar', get label() { return t('addons:assistant.plugin.panel'); }, component: AssistantPanel },
   ],
   menuItems: [
     {
       id: 'ai-assistant-open',
       section: 'Tools',
-      label: 'AI Assistant…',
+      get label() { return t('addons:assistant.plugin.menu'); },
       action: () => document.dispatchEvent(
         new CustomEvent(PLUGIN_PANEL_OPEN_EVENT, { detail: { panelId: PANEL_ID } }),
       ),

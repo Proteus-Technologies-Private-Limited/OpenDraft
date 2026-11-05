@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { useWritingGoalsStore } from '../stores/writingGoalsStore';
 import { dayKey } from '../utils/writingGoals';
 import Select from './Select';
@@ -7,6 +8,7 @@ const SPRINT_LENGTHS = [5, 10, 15, 20, 25, 30, 45, 60];
 
 /** Tools → Writing Goals & Sprints: set goals, see today, start a sprint. */
 const WritingGoalsDialog: React.FC = () => {
+  const { t } = useTranslation(['tools', 'common']);
   const goals = useWritingGoalsStore((s) => s.goals);
   const setGoals = useWritingGoalsStore((s) => s.setGoals);
   const history = useWritingGoalsStore((s) => s.history);
@@ -31,15 +33,15 @@ const WritingGoalsDialog: React.FC = () => {
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => { if (e.key === 'Escape') close(); }}
       >
-        <div className="dialog-header" id="writing-goals-title">Writing Goals &amp; Sprints</div>
+        <div className="dialog-header" id="writing-goals-title">{t('goals.title')}</div>
         <div className="dialog-body">
           <p className="writing-goals-summary">
-            Today: <strong>{today}</strong> word{today === 1 ? '' : 's'} &middot; This session: <strong>{session.words}</strong> word{session.words === 1 ? '' : 's'}
-            {session.pages > 0 && <>, {session.pages} page{session.pages === 1 ? '' : 's'}</>}
+            <Trans ns="tools" i18nKey="goals.summary.today" count={today} components={{ strong: <strong /> }} /> &middot; <Trans ns="tools" i18nKey="goals.summary.session" count={session.words} components={{ strong: <strong /> }} />
+            {session.pages > 0 && <>, {t('goals.summary.pages', { count: session.pages })}</>}
           </p>
 
           <div className="dialog-row">
-            <label htmlFor="goal-daily">Daily goal (words, 0 for none)</label>
+            <label htmlFor="goal-daily">{t('goals.daily')}</label>
             <input
               id="goal-daily"
               type="number"
@@ -51,7 +53,7 @@ const WritingGoalsDialog: React.FC = () => {
           </div>
 
           <div className="dialog-row writing-goals-row">
-            <label htmlFor="goal-session">Session goal (0 for none)</label>
+            <label htmlFor="goal-session">{t('goals.session')}</label>
             <div className="writing-goals-inline">
               <input
                 id="goal-session"
@@ -64,46 +66,45 @@ const WritingGoalsDialog: React.FC = () => {
               <Select
                 value={goals.sessionUnit}
                 onChange={(e) => setGoals({ sessionUnit: e.target.value === 'pages' ? 'pages' : 'words' })}
-                aria-label="Session goal unit"
+                aria-label={t('goals.sessionUnit')}
               >
-                <option value="words">words</option>
-                <option value="pages">pages</option>
+                <option value="words">{t('goals.words')}</option>
+                <option value="pages">{t('goals.pages')}</option>
               </Select>
             </div>
           </div>
 
           <div className="writing-goals-sprint">
-            <div className="writing-goals-sprint-title">Sprint</div>
+            <div className="writing-goals-sprint-title">{t('goals.sprint.title')}</div>
             {sprint ? (
               <div className="writing-goals-inline">
-                <span>Running &mdash; {sprint.words} word{sprint.words === 1 ? '' : 's'} so far{sprint.noBackspace ? ', no backspace' : ''}.</span>
-                <button className="dialog-btn" onClick={() => endSprint()}>Stop Sprint</button>
+                <span>{sprint.noBackspace ? t('goals.sprint.runningNoBackspace', { count: sprint.words }) : t('goals.sprint.running', { count: sprint.words })}</span>
+                <button className="dialog-btn" onClick={() => endSprint()}>{t('goals.sprint.stop')}</button>
               </div>
             ) : (
               <>
                 <div className="writing-goals-inline">
-                  <Select value={String(minutes)} onChange={(e) => setMinutes(Number(e.target.value))} aria-label="Sprint length">
-                    {SPRINT_LENGTHS.map((m) => <option key={m} value={m}>{m} minutes</option>)}
+                  <Select value={String(minutes)} onChange={(e) => setMinutes(Number(e.target.value))} aria-label={t('goals.sprint.length')}>
+                    {SPRINT_LENGTHS.map((m) => <option key={m} value={m}>{t('goals.sprint.minutes', { count: m })}</option>)}
                   </Select>
                   <button className="dialog-btn dialog-btn-primary" onClick={() => { startSprint(minutes, noBackspace); close(); }}>
-                    Start Sprint
+                    {t('goals.sprint.start')}
                   </button>
                 </div>
                 <label className="writing-goals-check">
                   <input type="checkbox" checked={noBackspace} onChange={(e) => setNoBackspace(e.target.checked)} />
-                  No backspace &mdash; keep going forward; Backspace and Delete do nothing until the sprint ends
+                  {t('goals.sprint.noBackspace')}
                 </label>
               </>
             )}
           </div>
 
           <p className="writing-goals-note">
-            Words written are counted from your scripts a few seconds after you stop typing, and kept only on this
-            device. Opening a script, imports and large pastes are not counted.
+            {t('goals.note')}
           </p>
         </div>
         <div className="dialog-actions">
-          <button className="dialog-primary" onClick={close}>Done</button>
+          <button className="dialog-primary" onClick={close}>{t('common:done')}</button>
         </div>
       </div>
     </div>

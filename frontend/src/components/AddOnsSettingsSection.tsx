@@ -10,11 +10,19 @@
  * The section is not shown at all when no add-on is installed.
  */
 import React, { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { pluginRegistry, type OpenDraftPlugin } from '../plugins/registry';
+import { useTranslation } from 'react-i18next';
+import { pluginRegistry, resolvePluginText, type OpenDraftPlugin } from '../plugins/registry';
 import { showToast } from './Toast';
 import './AddOnsSettingsSection.css';
 
 type SaveFn = () => boolean | Promise<boolean>;
+
+// What a plugin shows about itself: its own translation when it brought one, else its English text.
+const addOnName = (p: OpenDraftPlugin): string => resolvePluginText(p.nameKey, p.name);
+const addOnDescription = (p: OpenDraftPlugin): string | undefined =>
+  p.description ? resolvePluginText(p.descriptionKey, p.description) : undefined;
+const addOnPrivacy = (p: OpenDraftPlugin): string | undefined =>
+  p.privacy ? resolvePluginText(p.privacyKey, p.privacy) : undefined;
 
 function useAddOns(): OpenDraftPlugin[] {
   // getAddOns() builds a new array each call; cache it per registry revision so
@@ -43,6 +51,10 @@ interface SettingsDialogProps {
 }
 
 const AddOnSettingsDialog: React.FC<SettingsDialogProps> = ({ plugin, mode, onClose }) => {
+  const { t } = useTranslation(['settings', 'common']);
+  const name = addOnName(plugin);
+  const description = addOnDescription(plugin);
+  const privacy = addOnPrivacy(plugin);
   const saveRef = useRef<SaveFn | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -66,9 +78,9 @@ const AddOnSettingsDialog: React.FC<SettingsDialogProps> = ({ plugin, mode, onCl
       }
       if (mode === 'activate') {
         await pluginRegistry.enableAddOn(plugin.id);
-        showToast(`${plugin.name} is on`, 'success');
+        showToast(t('addOns.toastOn', { name }), 'success');
       } else {
-        showToast(`${plugin.name} settings saved`, 'success');
+        showToast(t('addOns.toastSettingsSaved', { name }), 'success');
       }
       onClose();
     } catch (err) {
@@ -89,14 +101,14 @@ const AddOnSettingsDialog: React.FC<SettingsDialogProps> = ({ plugin, mode, onCl
         aria-labelledby={titleId}
       >
         <div className="dialog-header" id={titleId}>
-          {mode === 'activate' ? `Turn on ${plugin.name}` : `${plugin.name} settings`}
+          {mode === 'activate' ? t('addOns.turnOnTitle', { name }) : t('addOns.settingsTitle', { name })}
         </div>
         <div className="dialog-body">
-          {mode === 'activate' && plugin.description && <p className="addon-dialog-desc">{plugin.description}</p>}
+          {mode === 'activate' && description && <p className="addon-dialog-desc">{description}</p>}
           {mode === 'activate' && (
             <div className="addon-privacy" role="note">
-              <strong>What leaves your device</strong>
-              <p>{plugin.privacy || 'This add-on has not said whether it sends anything off your device.'}</p>
+              <strong>{t('addOns.leavesDevice')}</strong>
+              <p>{privacy || t('addOns.privacyUnknown')}</p>
             </div>
           )}
           {Settings && (
@@ -107,9 +119,9 @@ const AddOnSettingsDialog: React.FC<SettingsDialogProps> = ({ plugin, mode, onCl
           {error && <p className="addon-error" role="alert">{error}</p>}
         </div>
         <div className="dialog-actions">
-          <button onClick={onClose} disabled={busy}>Cancel</button>
+          <button onClick={onClose} disabled={busy}>{t('common:cancel')}</button>
           <button className="dialog-primary" onClick={confirm} disabled={busy}>
-            {mode === 'activate' ? 'Turn On' : 'Save'}
+            {mode === 'activate' ? t('addOns.turnOn') : t('common:save')}
           </button>
         </div>
       </div>
@@ -120,6 +132,8 @@ const AddOnSettingsDialog: React.FC<SettingsDialogProps> = ({ plugin, mode, onCl
 // ── Turn off ──
 
 const AddOnDisableDialog: React.FC<{ plugin: OpenDraftPlugin; onClose: () => void }> = ({ plugin, onClose }) => {
+  const { t } = useTranslation(['settings', 'common']);
+  const name = addOnName(plugin);
   // Deleting what the add-on stored is the private choice, so it is the default.
   const [forget, setForget] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -137,7 +151,7 @@ const AddOnDisableDialog: React.FC<{ plugin: OpenDraftPlugin; onClose: () => voi
     setError(null);
     try {
       await pluginRegistry.disableAddOn(plugin.id, { forgetSettings: forget });
-      showToast(`${plugin.name} is off`, 'info');
+      showToast(t('addOns.toastOff', { name }), 'info');
       onClose();
     } catch (err) {
       // disableAddOn has already turned it off; only its clean-up failed.
@@ -157,20 +171,20 @@ const AddOnDisableDialog: React.FC<{ plugin: OpenDraftPlugin; onClose: () => voi
         aria-modal="true"
         aria-labelledby={titleId}
       >
-        <div className="dialog-header" id={titleId}>Turn off {plugin.name}?</div>
+        <div className="dialog-header" id={titleId}>{t('addOns.turnOffTitle', { name })}</div>
         <div className="dialog-body">
           <p className="addon-dialog-desc">
-            Its menu items and panels are removed straight away. You can turn it on again at any time.
+            {t('addOns.turnOffDesc')}
           </p>
           <label className="addon-forget">
             <input type="checkbox" checked={forget} onChange={(e) => setForget(e.target.checked)} disabled={busy} />{' '}
-            Also delete its saved settings, such as a server address or API key
+            {t('addOns.forget')}
           </label>
           {error && <p className="addon-error" role="alert">{error}</p>}
         </div>
         <div className="dialog-actions">
-          <button onClick={onClose} disabled={busy}>{error ? 'Close' : 'Cancel'}</button>
-          {!error && <button className="dialog-primary" onClick={turnOff} disabled={busy}>Turn Off</button>}
+          <button onClick={onClose} disabled={busy}>{error ? t('common:close') : t('common:cancel')}</button>
+          {!error && <button className="dialog-primary" onClick={turnOff} disabled={busy}>{t('addOns.turnOff')}</button>}
         </div>
       </div>
     </div>
@@ -185,6 +199,7 @@ type Pending =
   | null;
 
 const AddOnsSettingsSection: React.FC = () => {
+  const { t } = useTranslation(['settings', 'common']);
   const addOns = useAddOns();
   const [pending, setPending] = useState<Pending>(null);
   const close = useCallback(() => setPending(null), []);
@@ -193,10 +208,9 @@ const AddOnsSettingsSection: React.FC = () => {
 
   return (
     <section className="settings-section">
-      <h2 className="settings-section-title">Add-ons</h2>
+      <h2 className="settings-section-title">{t('addOns.title')}</h2>
       <p className="settings-section-desc">
-        Optional features you can choose to use. Each one is off until you turn it on, and nothing
-        it does reaches your scripts — or leaves your device — before then.
+        {t('addOns.description')}
       </p>
 
       <ul className="addon-list">
@@ -207,15 +221,15 @@ const AddOnsSettingsSection: React.FC = () => {
             <li key={plugin.id} className="addon-item">
               <div className="addon-item-text">
                 <label htmlFor={toggleId} className="addon-name">
-                  {plugin.name} <span className="addon-version">{plugin.version}</span>
+                  {addOnName(plugin)} <span className="addon-version">{plugin.version}</span>
                 </label>
-                {plugin.description && <div className="addon-desc">{plugin.description}</div>}
-                {plugin.privacy && <div className="settings-hint">{plugin.privacy}</div>}
+                {addOnDescription(plugin) && <div className="addon-desc">{addOnDescription(plugin)}</div>}
+                {addOnPrivacy(plugin) && <div className="settings-hint">{addOnPrivacy(plugin)}</div>}
               </div>
               <div className="addon-item-actions">
                 {on && plugin.settings && (
                   <button className="dialog-btn" onClick={() => setPending({ kind: 'edit', plugin })}>
-                    Settings…
+                    {t('addOns.settingsButton')}
                   </button>
                 )}
                 <label className="addon-switch">
@@ -227,7 +241,7 @@ const AddOnsSettingsSection: React.FC = () => {
                     aria-checked={on}
                     onChange={() => setPending({ kind: on ? 'disable' : 'activate', plugin })}
                   />{' '}
-                  {on ? 'On' : 'Off'}
+                  {on ? t('common:on') : t('common:off')}
                 </label>
               </div>
             </li>

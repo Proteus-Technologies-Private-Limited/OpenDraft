@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 export default function ElementNumberDialog({
   initialValue,
   onSave,
@@ -8,6 +9,7 @@ export default function ElementNumberDialog({
   onSave(value: string | null): boolean;
   onClose(): void;
 }) {
+  const { t } = useTranslation(['editor', 'common']);
   const dialog = useRef<HTMLDialogElement>(null);
   const input = useRef<HTMLInputElement>(null);
   const [value, setValue] = useState(initialValue);
@@ -20,9 +22,7 @@ export default function ElementNumberDialog({
   function save(number: string | null) {
     if (onSave(number)) onClose();
     else
-      setError(
-        'That number is already used in this sequence, or this reference was changed or removed. Check the number or reopen the dialog.',
-      );
+      setError(t('elementNumber.conflict'));
   }
   return (
     <dialog
@@ -40,12 +40,9 @@ export default function ElementNumberDialog({
           save(value.trim() || null);
         }}
       >
-        <h2 id="element-number-title">Edit Element Number</h2>
-        <p>
-          Set the reference for this element. Existing references stay with
-          their text when the script reflows.
-        </p>
-        <label htmlFor="element-number-input">Number</label>
+        <h2 id="element-number-title">{t('elementNumber.title')}</h2>
+        <p>{t('elementNumber.description')}</p>
+        <label htmlFor="element-number-input">{t('elementNumber.number')}</label>
         <input
           id="element-number-input"
           ref={input}
@@ -59,12 +56,12 @@ export default function ElementNumberDialog({
         {error && <p role="alert">{error}</p>}
         <div className="dialog-actions">
           <button type="button" onClick={() => save(null)}>
-            Use Automatic Number
+            {t('elementNumber.useAutomatic')}
           </button>
           <button type="button" onClick={onClose}>
-            Cancel
+            {t('common:cancel')}
           </button>
-          <button type="submit">Save</button>
+          <button type="submit">{t('common:save')}</button>
         </div>
       </form>
     </dialog>

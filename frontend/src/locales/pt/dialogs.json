@@ -1,0 +1,41 @@
+{
+  "saveError": {
+    "heading": {
+      "autoSave": "Falha no salvamento automático",
+      "saveFailed": "Falha ao salvar",
+      "beforeClose": "Não foi possível salvar antes de fechar"
+    },
+    "body": "O OpenDraft não conseguiu salvar suas alterações. Seu trabalho continua no editor — copie o que for importante antes de fechar o app ou recarregar a janela.",
+    "failureAt": "Falha às {{time}}:",
+    "acknowledge": "Entendi"
+  },
+  "storageFallback": {
+    "fileHeading": "Mudou para armazenamento em arquivos",
+    "dbHeading": "Banco de dados local indisponível",
+    "fileExplanation": "O OpenDraft não conseguiu abrir o banco de dados local, então seus projetos agora são salvos como arquivos individuais na pasta de dados do app. Você pode continuar trabalhando — salvar e carregar funcionam normalmente, mas o histórico de versões fica desativado até o banco de dados voltar a ficar acessível.",
+    "dbExplanation": "O OpenDraft não conseguiu abrir o banco de dados local e a alternativa baseada em arquivos também falhou. Suas alterações serão salvas apenas no navegador e podem ser perdidas se o armazenamento for limpo.",
+    "underlyingError": "Erro original:"
+  },
+  "quota": {
+    "title": "Limite do plano gratuito atingido",
+    "usage": "Você tem <strong>{{current}}</strong> de <strong>{{limit}}</strong> arquivos no plano <strong>{{plan}}</strong>.",
+    "upgrade": "Fazer upgrade"
+  },
+  "oneDrive": {
+    "title": "Interferência do OneDrive detectada",
+    "intro": "A pasta de dados do OpenDraft está em um local sincronizado pelo OneDrive. Isso é uma causa conhecida de <strong>falhas silenciosas ao salvar</strong>: o OneDrive pode capturar o arquivo de log de gravação (write-ahead log) do SQLite no meio de um salvamento, corrompendo o banco de dados e perdendo suas últimas edições.",
+    "affectedFolder": "Pasta afetada:",
+    "howToFix": "Como corrigir:",
+    "step1": "Abra as configurações do OneDrive → Sincronização e backup → Gerenciar backup.",
+    "step2": "Desative o backup da pasta que contém o caminho acima (geralmente Documentos ou Área de Trabalho) ou exclua explicitamente a pasta de dados do OpenDraft.",
+    "step3": "Reinicie o OpenDraft.",
+    "dontShowAgain": "Não mostrar novamente"
+  },
+  "bookmark": {
+    "addTitle": "Adicionar marcador",
+    "renameTitle": "Renomear marcador",
+    "nameLabel": "Nome do marcador",
+    "nameClash": "Já existe outro marcador chamado “{{name}}”.",
+    "placeCursor": "Coloque o cursor em um elemento do roteiro para marcá-lo."
+  }
+}

@@ -8,6 +8,7 @@
  * collaborators like the rest of Revision Mode.
  */
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useEditorStore } from '../stores/editorStore';
 import {
   REVISION_COLORS, DEFAULT_REVISION_MARK, cleanMark, type RevisionSettings,
@@ -18,6 +19,7 @@ interface Props {
 }
 
 const RevisionSettingsDialog: React.FC<Props> = ({ onClose }) => {
+  const { t } = useTranslation(['format', 'common']);
   const current = useEditorStore((s) => s.revisionSettings);
   const revisionHistory = useEditorStore((s) => s.revisionHistory);
   const [markChar, setMarkChar] = useState(current.markChar);
@@ -31,7 +33,7 @@ const RevisionSettingsDialog: React.FC<Props> = ({ onClose }) => {
   const save = () => {
     const mark = cleanMark(markChar);
     if (!mark) {
-      setError('The revision mark cannot be empty.');
+      setError(t('revisions.markEmpty'));
       return;
     }
     const cleaned: Record<string, string> = {};
@@ -46,7 +48,7 @@ const RevisionSettingsDialog: React.FC<Props> = ({ onClose }) => {
       onClose();
     } catch (err) {
       console.error('[revisions] could not save revision settings', err);
-      setError(`Could not save: ${err instanceof Error ? err.message : String(err)}`);
+      setError(t('revisions.saveFailed', { error: err instanceof Error ? err.message : String(err) }));
     }
   };
 
@@ -59,10 +61,10 @@ const RevisionSettingsDialog: React.FC<Props> = ({ onClose }) => {
         aria-modal="true"
         aria-labelledby="revision-settings-title"
       >
-        <div className="dialog-header" id="revision-settings-title">Revision Settings</div>
+        <div className="dialog-header" id="revision-settings-title">{t('revisions.title')}</div>
         <div className="dialog-body">
           <label className="revision-settings-row">
-            <span>Revision mark</span>
+            <span>{t('revisions.mark')}</span>
             <input
               type="text"
               value={markChar}
@@ -72,12 +74,12 @@ const RevisionSettingsDialog: React.FC<Props> = ({ onClose }) => {
             />
           </label>
           <p id="revision-mark-help" className="revision-settings-help">
-            Printed in the right margin beside every revised line. Final Draft and most productions use {DEFAULT_REVISION_MARK}.
+            {t('revisions.markHelp', { mark: DEFAULT_REVISION_MARK })}
           </p>
 
-          <div className="revision-settings-subhead">Mark for each revision</div>
+          <div className="revision-settings-subhead">{t('revisions.perRevision')}</div>
           <p className="revision-settings-help">
-            Leave a revision blank to use the mark above. A line carrying more than one revision shows the latest one&rsquo;s mark.
+            {t('revisions.perRevisionHelp')}
           </p>
           <div className="revision-settings-grid">
             {REVISION_COLORS.filter((c) => c.slug !== 'white').map((c) => (
@@ -89,7 +91,7 @@ const RevisionSettingsDialog: React.FC<Props> = ({ onClose }) => {
                   value={marks[c.name] ?? ''}
                   placeholder={cleanMark(markChar) ?? DEFAULT_REVISION_MARK}
                   maxLength={4}
-                  aria-label={`Mark for the ${c.name} revision`}
+                  aria-label={t('revisions.markFor', { color: c.name })}
                   onChange={(e) => setMarks((m) => ({ ...m, [c.name]: e.target.value }))}
                 />
               </label>
@@ -99,17 +101,17 @@ const RevisionSettingsDialog: React.FC<Props> = ({ onClose }) => {
           <label className="revision-settings-check">
             <input type="checkbox" checked={colorPages} onChange={(e) => setColorPages(e.target.checked)} />
             <span>
-              Print revised pages on colored paper
+              {t('revisions.colorPages')}
               <span className="revision-settings-help">
-                PDF and Print tint each revised page in its latest revision&rsquo;s color, so it can be told apart without colored stock.
+                {t('revisions.colorPagesHelp')}
               </span>
             </span>
           </label>
           {error && <p className="revision-settings-error" role="alert">{error}</p>}
         </div>
         <div className="dialog-actions">
-          <button onClick={onClose}>Cancel</button>
-          <button className="dialog-primary" onClick={save}>Save</button>
+          <button onClick={onClose}>{t('common:cancel')}</button>
+          <button className="dialog-primary" onClick={save}>{t('common:save')}</button>
         </div>
       </div>
     </div>

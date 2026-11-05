@@ -7,6 +7,7 @@
  * writer's file, which an auto-save rewrites in whatever format it is in.
  */
 import React, { useCallback, useEffect, useState } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { useSettingsStore, AUTO_SAVE_INTERVAL_OPTIONS } from '../stores/settingsStore';
 import { supportsOpenInPlace } from '../utils/fileOps';
 import { isDesktopTauri } from '../services/platform';
@@ -17,15 +18,14 @@ import {
 import { showToast } from './Toast';
 import Select from './Select';
 
-function formatInterval(seconds: number): string {
-  if (seconds < 60) return `${seconds} seconds`;
-  const minutes = seconds / 60;
-  return minutes === 1 ? '1 minute' : `${minutes} minutes`;
-}
-
 type FolderStatus = 'unknown' | 'ok' | 'missing' | 'unwritable';
 
 const SaveSettingsSection: React.FC = () => {
+  const { t } = useTranslation(['settings', 'common']);
+  const formatInterval = (seconds: number): string => {
+    if (seconds < 60) return t('saving.intervalSeconds', { count: seconds });
+    return t('saving.intervalMinutes', { count: seconds / 60 });
+  };
   const {
     autoSaveLibrary, setAutoSaveLibrary,
     autoSaveFiles, setAutoSaveFiles,
@@ -36,7 +36,7 @@ const SaveSettingsSection: React.FC = () => {
 
   const filesSupported = supportsOpenInPlace();
   const desktop = isDesktopTauri();
-  const fileMenuLabel = desktop ? 'Open File from Disk' : 'Open from Files';
+  const fileMenuLabel = desktop ? t('saving.menuOpenFileFromDisk') : t('saving.menuOpenFromFiles');
 
   // A value set by hand (or by an older build) that is not one of the options
   // is still shown, so the select never claims a different interval than the
@@ -54,30 +54,30 @@ const SaveSettingsSection: React.FC = () => {
     try {
       const { invoke } = await import('@tauri-apps/api/core');
       const probe = await invoke<{ exists: boolean; writable: boolean; error?: string | null }>('probe_directory', { path });
-      if (!probe.exists) { setFolderStatus('missing'); setFolderDetail(probe.error || 'Folder not found'); return; }
-      if (!probe.writable) { setFolderStatus('unwritable'); setFolderDetail(probe.error || 'Folder is not writable'); return; }
+      if (!probe.exists) { setFolderStatus('missing'); setFolderDetail(probe.error || t('saving.folderNotFoundDetail')); return; }
+      if (!probe.writable) { setFolderStatus('unwritable'); setFolderDetail(probe.error || t('saving.folderNotWritableDetail')); return; }
       setFolderStatus('ok');
       setFolderDetail('');
     } catch (err) {
       setFolderStatus('missing');
       setFolderDetail(err instanceof Error ? err.message : String(err));
     }
-  }, [desktop]);
+  }, [desktop, t]);
 
   useEffect(() => { void probeFolder(defaultProjectFolder); }, [defaultProjectFolder, probeFolder]);
 
   const chooseFolder = useCallback(async (): Promise<boolean> => {
     try {
       const { pickFolder } = await import('../services/linkedFiles');
-      const picked = await pickFolder('Folder for new projects', defaultProjectFolder || undefined);
+      const picked = await pickFolder(t('saving.pickerTitle'), defaultProjectFolder || undefined);
       if (!picked) return false;
       setDefaultProjectFolder(picked);
       return true;
     } catch (err) {
-      showToast(`Could not open the folder picker: ${err instanceof Error ? err.message : String(err)}`, 'error');
+      showToast(t('saving.pickerFailed', { error: err instanceof Error ? err.message : String(err) }), 'error');
       return false;
     }
-  }, [defaultProjectFolder, setDefaultProjectFolder]);
+  }, [defaultProjectFolder, setDefaultProjectFolder, t]);
 
   const createFolder = useCallback(async () => {
     try {
@@ -85,27 +85,24 @@ const SaveSettingsSection: React.FC = () => {
       await invoke('ensure_dir', { path: defaultProjectFolder });
       await probeFolder(defaultProjectFolder);
     } catch (err) {
-      showToast(`Could not create the folder: ${err instanceof Error ? err.message : String(err)}`, 'error');
+      showToast(t('saving.createFolderFailed', { error: err instanceof Error ? err.message : String(err) }), 'error');
     }
-  }, [defaultProjectFolder, probeFolder]);
+  }, [defaultProjectFolder, probeFolder, t]);
 
   const revealFolder = useCallback(async () => {
     try {
       const { revealPath } = await import('../services/linkedFiles');
       await revealPath(defaultProjectFolder);
     } catch {
-      showToast('Could not open the folder', 'error');
+      showToast(t('saving.openFolderFailed'), 'error');
     }
-  }, [defaultProjectFolder]);
+  }, [defaultProjectFolder, t]);
 
   return (
     <section className="settings-section">
-      <h2 className="settings-section-title">Saving</h2>
+      <h2 className="settings-section-title">{t('saving.title')}</h2>
       <p className="settings-section-desc">
-        Choose whether OpenDraft saves your work on its own. With auto-save off,
-        nothing is written until you choose <strong>Save</strong>. OpenDraft asks
-        before you close a script, open another one or close the window. A
-        recovery copy is still kept in case the app quits unexpectedly.
+        <Trans ns="settings" i18nKey="saving.description" components={{ strong: <strong /> }} />
       </p>
 
       <div className="settings-row">
@@ -115,12 +112,11 @@ const SaveSettingsSection: React.FC = () => {
             checked={autoSaveLibrary}
             onChange={(e) => setAutoSaveLibrary(e.target.checked)}
           />{' '}
-          Auto-save scripts in my OpenDraft library
+          {t('saving.library')}
         </label>
         {desktop && (
           <div className="settings-hint">
-            Including scripts saved to a project folder or with Save to File
-            As — each save updates their file too.
+            {t('saving.libraryHint')}
           </div>
         )}
       </div>
@@ -133,18 +129,16 @@ const SaveSettingsSection: React.FC = () => {
               checked={autoSaveFiles}
               onChange={(e) => setAutoSaveFiles(e.target.checked)}
             />{' '}
-            Auto-save files opened with {fileMenuLabel}
+            {t('saving.files', { menu: fileMenuLabel })}
           </label>
           <div className="settings-hint">
-            Each save writes over the original file. A Final Draft or Fountain file can
-            only keep what its format supports, so notes and other
-            OpenDraft-only details are not saved into it.
+            {t('saving.filesHint')}
           </div>
         </div>
       )}
 
       <div className="settings-row">
-        <label>Auto-save every</label>
+        <label>{t('saving.every')}</label>
         <Select
           className="dialog-input"
           value={autoSaveIntervalSeconds}
@@ -159,16 +153,13 @@ const SaveSettingsSection: React.FC = () => {
 
       {desktop && (
         <>
-          <h3 className="settings-subsection-title" style={{ margin: '18px 0 6px', fontSize: 14 }}>Project folders</h3>
+          <h3 className="settings-subsection-title" style={{ margin: '18px 0 6px', fontSize: 14 }}>{t('saving.projectFolders')}</h3>
           <p className="settings-section-desc">
-            A project can be kept in a folder on disk — a RAID, a network drive,
-            a folder you already use. Each script is saved there as its own
-            file, so the latest version is always in that folder. OpenDraft
-            keeps a working copy too, for versions, notes and images.
+            {t('saving.projectFoldersDesc')}
           </p>
 
           <div className="settings-row">
-            <label>New projects are saved in</label>
+            <label>{t('saving.newProjectsIn')}</label>
             <Select
               className="dialog-input"
               value={defaultProjectFolder ? 'folder' : 'library'}
@@ -177,44 +168,42 @@ const SaveSettingsSection: React.FC = () => {
                 else await chooseFolder();
               }}
             >
-              <option value="library">The OpenDraft library</option>
-              <option value="folder">A folder on disk</option>
+              <option value="library">{t('saving.optionLibrary')}</option>
+              <option value="folder">{t('saving.optionFolder')}</option>
             </Select>
             <div className="settings-hint">
-              You can still choose for each project when you create it.
+              {t('saving.newProjectsHint')}
             </div>
           </div>
 
           {defaultProjectFolder && (
             <div className="settings-row">
-              <label>Projects folder</label>
+              <label>{t('saving.projectsFolder')}</label>
               <div className="settings-url-row">
                 <input className="dialog-input settings-url-input" value={defaultProjectFolder} readOnly />
-                <button className="dialog-btn dialog-btn-primary" onClick={() => void chooseFolder()}>Browse…</button>
-                <button className="dialog-btn" disabled={folderStatus !== 'ok'} onClick={() => void revealFolder()}>Open</button>
+                <button className="dialog-btn dialog-btn-primary" onClick={() => void chooseFolder()}>{t('saving.browse')}</button>
+                <button className="dialog-btn" disabled={folderStatus !== 'ok'} onClick={() => void revealFolder()}>{t('common:open')}</button>
               </div>
-              <div className="settings-hint">Each new project gets a folder of its own inside this one.</div>
+              <div className="settings-hint">{t('saving.projectsFolderHint')}</div>
               {folderStatus === 'missing' && (
                 <div className="settings-status settings-status-fail">
-                  Folder not found — {folderDetail}{' '}
-                  <button className="dialog-btn" onClick={() => void createFolder()}>Create it</button>
+                  {t('saving.folderMissing', { detail: folderDetail })}{' '}
+                  <button className="dialog-btn" onClick={() => void createFolder()}>{t('saving.createIt')}</button>
                 </div>
               )}
               {folderStatus === 'unwritable' && (
-                <div className="settings-status settings-status-fail">OpenDraft can&apos;t write here — {folderDetail}</div>
+                <div className="settings-status settings-status-fail">{t('saving.folderUnwritable', { detail: folderDetail })}</div>
               )}
               {isUnderOneDrive(defaultProjectFolder) && (
                 <div className="settings-hint settings-hint-warning">
-                  This folder is inside OneDrive. That works, but if a script is
-                  edited on two computers before OneDrive syncs, OpenDraft will
-                  ask which version to keep.
+                  {t('saving.oneDrive')}
                 </div>
               )}
             </div>
           )}
 
           <div className="settings-row">
-            <label>Save scripts in folders as</label>
+            <label>{t('saving.fileFormat')}</label>
             <Select
               className="dialog-input"
               value={normalizeLinkedFormat(defaultFileFormat)}
@@ -225,10 +214,7 @@ const SaveSettingsSection: React.FC = () => {
               ))}
             </Select>
             <div className="settings-hint">
-              .odraft keeps everything. Final Draft and Fountain files open in
-              other apps, but notes, tags and other OpenDraft-only details are
-              kept only in OpenDraft&apos;s working copy. Treatments are always saved
-              as .odraft.
+              {t('saving.fileFormatHint')}
             </div>
           </div>
         </>

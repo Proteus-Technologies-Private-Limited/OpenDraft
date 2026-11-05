@@ -237,6 +237,7 @@ export async function createLocalStorage() {
       await db.execute('DELETE FROM assets WHERE project_id = $1', [id]);
       await db.execute('DELETE FROM projects WHERE id = $1', [id]);
       await linkedFileHook((lf) => lf.afterProjectDeleted(id));
+      // i18n-ignore status payload returned by the storage layer, never shown
       return { message: 'deleted' };
     },
 
@@ -249,6 +250,7 @@ export async function createLocalStorage() {
           [item.sort_order, item.id],
         );
       }
+      // i18n-ignore status payload returned by the storage layer, never shown
       return { message: 'ok' };
     },
 
@@ -411,6 +413,7 @@ export async function createLocalStorage() {
       await db.execute('DELETE FROM scripts WHERE id = $1 AND project_id = $2', [scriptId, projectId]);
       await db.execute('UPDATE projects SET updated_at = $1 WHERE id = $2', [now(), projectId]);
       await linkedFileHook((lf) => lf.afterScriptDeleted(projectId, scriptId));
+      // i18n-ignore status payload returned by the storage layer, never shown
       return { message: 'deleted' };
     },
 
@@ -424,6 +427,7 @@ export async function createLocalStorage() {
           [item.sort_order, item.id, projectId],
         );
       }
+      // i18n-ignore status payload returned by the storage layer, never shown
       return { message: 'ok' };
     },
 

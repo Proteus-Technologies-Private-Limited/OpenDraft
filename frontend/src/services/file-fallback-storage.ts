@@ -355,6 +355,7 @@ export async function createFileFallbackStorage() {
         }
       }
       saveIndex(idx);
+      // i18n-ignore status payload returned by the storage layer, never shown
       return { message: 'Deleted' };
     },
 
@@ -364,6 +365,7 @@ export async function createFileFallbackStorage() {
         if (idx.projects[item.id]) idx.projects[item.id].sort_order = item.sort_order;
       }
       saveIndex(idx);
+      // i18n-ignore status payload returned by the storage layer, never shown
       return { message: 'Reordered' };
     },
 
@@ -442,6 +444,7 @@ export async function createFileFallbackStorage() {
         if (idx.scripts[item.id]) idx.scripts[item.id].meta.sort_order = item.sort_order;
       }
       saveIndex(idx);
+      // i18n-ignore status payload returned by the storage layer, never shown
       return { message: 'Reordered' };
     },
 
@@ -467,6 +470,7 @@ export async function createFileFallbackStorage() {
       delete idx.scripts[scriptId];
       saveIndex(idx);
       await deleteScriptFile(scriptId);
+      // i18n-ignore status payload returned by the storage layer, never shown
       return { message: 'Deleted' };
     },
 
@@ -496,7 +500,9 @@ export async function createFileFallbackStorage() {
       throw new Error('Collaboration requires the SQLite-backed storage');
     },
     listCollabSessions: async (): Promise<CollabSession[]> => [],
+    // i18n-ignore status payload returned by the storage layer, never shown
     revokeCollabSession: async (): Promise<{ message: string }> => ({ message: 'ok' }),
+    // i18n-ignore status payload returned by the storage layer, never shown
     revokeAllCollabSessions: async (): Promise<{ message: string }> => ({ message: 'ok' }),
 
     // ── Assets ────────────────────────────────────────────────────────
@@ -641,6 +647,7 @@ export async function createFileFallbackStorage() {
       const idx = loadIndex();
       delete idx.templates[id];
       saveIndex(idx);
+      // i18n-ignore status payload returned by the storage layer, never shown
       return { message: 'Deleted' };
     },
   };

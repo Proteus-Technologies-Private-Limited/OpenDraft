@@ -13,6 +13,7 @@ import type { FormattingTemplate } from '../stores/formattingTypes';
 import { BUILT_IN_ELEMENT_IDS } from '../stores/formattingTypes';
 import { getLockedFormatting } from './effectiveFormatting';
 import type { LockedFormatting } from './effectiveFormatting';
+import { t } from '../i18n';
 
 // ── Type definitions ──
 
@@ -79,17 +80,18 @@ function getElementTypeId(node: any): string | null {
 
 // ── Mark name to human-readable label ──
 
+// Getters: looked up when read, so the labels follow the interface language.
 const MARK_LABELS: Record<string, string> = {
-  bold: 'Bold',
-  italic: 'Italic',
-  underline: 'Underline',
-  strike: 'Strikethrough',
-  subscript: 'Subscript',
-  superscript: 'Superscript',
-  textStyle: 'Font/Size',
-  color: 'Text Color',
-  highlight: 'Highlight',
-  formatOverride: 'Format Override',
+  get bold() { return t('messages:marks.bold'); },
+  get italic() { return t('messages:marks.italic'); },
+  get underline() { return t('messages:marks.underline'); },
+  get strike() { return t('messages:marks.strike'); },
+  get subscript() { return t('messages:marks.subscript'); },
+  get superscript() { return t('messages:marks.superscript'); },
+  get textStyle() { return t('messages:marks.textStyle'); },
+  get color() { return t('messages:marks.color'); },
+  get highlight() { return t('messages:marks.highlight'); },
+  get formatOverride() { return t('messages:marks.formatOverride'); },
 };
 
 // ── Map mark type name to LockedFormatting key ──

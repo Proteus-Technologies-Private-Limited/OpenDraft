@@ -9,6 +9,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { FaCheck } from 'react-icons/fa';
+import { Trans, useTranslation } from 'react-i18next';
 
 export interface DeleteEmptyProjectDialogProps {
   projectName: string;
@@ -33,6 +34,7 @@ const DeleteEmptyProjectDialog: React.FC<DeleteEmptyProjectDialogProps> = ({
   onKeep,
   onDelete,
 }) => {
+  const { t } = useTranslation('projects');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const keepRef = useRef<HTMLButtonElement>(null);
@@ -55,8 +57,8 @@ const DeleteEmptyProjectDialog: React.FC<DeleteEmptyProjectDialogProps> = ({
   };
 
   const history = versionCount && versionCount > 0
-    ? `Its version history (${versionCount} check-in${versionCount === 1 ? '' : 's'})`
-    : 'Its version history';
+    ? t('deleteEmpty.historyWithCount', { count: versionCount })
+    : t('deleteEmpty.history');
 
   return (
     <div className="dialog-overlay" onClick={() => { if (!busy) onKeep(); }}>
@@ -68,46 +70,45 @@ const DeleteEmptyProjectDialog: React.FC<DeleteEmptyProjectDialogProps> = ({
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => { if (e.key === 'Escape' && !busy) { e.stopPropagation(); onKeep(); } }}
       >
-        <div className="dialog-header" id="delete-empty-project-title">Delete the Project Too?</div>
+        <div className="dialog-header" id="delete-empty-project-title">{t('deleteEmpty.title')}</div>
 
         <div className="dialog-body delete-script-body">
           {deletedScriptTitle && (
             <span className="delete-script-hint delete-script-hint--ok delete-empty-done">
-              <FaCheck aria-hidden="true" /> <span><strong>{deletedScriptTitle}</strong> was deleted.</span>
+              <FaCheck aria-hidden="true" /> <span><Trans ns="projects" i18nKey="deleteEmpty.scriptDeleted" values={{ title: deletedScriptTitle }} components={{ strong: <strong /> }} /></span>
             </span>
           )}
 
           <p className="delete-script-warning">
-            <strong>{projectName}</strong> has no scripts left. Do you want to delete the project
-            as well?
+            <Trans ns="projects" i18nKey="deleteEmpty.noScriptsLeft" values={{ name: projectName }} components={{ strong: <strong /> }} />
           </p>
 
           <div className="delete-script-card delete-empty-list">
-            <span className="delete-script-card-meta">Deleting the project also removes</span>
+            <span className="delete-script-card-meta">{t('deleteEmpty.alsoRemoves')}</span>
             <ul>
-              <li>Its assets</li>
+              <li>{t('deleteEmpty.assets')}</li>
               <li>{history}</li>
-              <li>Project properties and the submission log</li>
+              <li>{t('deleteEmpty.propertiesAndLog')}</li>
             </ul>
           </div>
 
           <p className="delete-empty-note">
             {source === 'cloud'
-              ? 'It is removed from OpenDraft Cloud on every device, and can’t be undone.'
-              : 'This can’t be undone.'}
-            {folderPath ? ` The files in ${folderPath} stay on disk.` : ''}
-            {' '}Keep it if you plan to add a new draft here.
+              ? t('deleteEmpty.undoneCloud')
+              : t('deleteEmpty.undoneLocal')}
+            {folderPath ? ` ${t('deleteEmpty.filesStay', { path: folderPath })}` : ''}
+            {' '}{t('deleteEmpty.keepHint')}
           </p>
 
-          {error && <div className="delete-script-error" role="alert">Delete failed: {error}</div>}
+          {error && <div className="delete-script-error" role="alert">{t('deleteEmpty.failed', { error })}</div>}
         </div>
 
         <div className="dialog-actions">
           <button type="button" className="dialog-danger-outline" onClick={() => { void handleDelete(); }} disabled={busy}>
-            {busy ? 'Deleting…' : 'Delete Project'}
+            {busy ? t('deleteEmpty.deleting') : t('deleteEmpty.deleteProject')}
           </button>
           <button type="button" ref={keepRef} className="dialog-primary" onClick={onKeep} disabled={busy}>
-            Keep Project
+            {t('deleteEmpty.keepProject')}
           </button>
         </div>
       </div>

@@ -1,9 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { Editor } from '@tiptap/react';
-import { useEditorStore, ELEMENT_LABELS, type ElementType } from '../stores/editorStore';
+import { useTranslation } from 'react-i18next';
+import { useEditorStore } from '../stores/editorStore';
 import { characterKey } from '../utils/nodeText';
 import { applyCharacterRename, findCharacterRenameMatches } from '../editor/characterRename';
 import { showToast } from './Toast';
+import { elementLabel } from '../editor/elementLabels';
 
 interface RenameCharacterDialogProps {
   editor: Editor;
@@ -18,6 +20,7 @@ interface RenameCharacterDialogProps {
  * name where it appears in action, dialogue and headings. One undo step.
  */
 const RenameCharacterDialog: React.FC<RenameCharacterDialogProps> = ({ editor, name, onClose }) => {
+  const { t } = useTranslation(['tools', 'common']);
   const [newName, setNewName] = useState(name);
   const [includeMentions, setIncludeMentions] = useState(true);
   // Indexes of mentions the writer unticked. The old name fixes where the
@@ -34,9 +37,9 @@ const RenameCharacterDialog: React.FC<RenameCharacterDialogProps> = ({ editor, n
   const target = newName.trim().replace(/\s+/g, ' ');
   const targetKey = characterKey(target);
   const error = !target
-    ? 'Enter a name.'
+    ? t('renameCharacter.enterName')
     : /[()]/.test(target)
-      ? 'Leave out extensions like (V.O.) — they are kept on each cue.'
+      ? t('renameCharacter.noExtensions')
       : null;
   const unchanged = targetKey === name;
 
@@ -78,11 +81,11 @@ const RenameCharacterDialog: React.FC<RenameCharacterDialogProps> = ({ editor, n
     editor.commands.focus();
     if (targetKey !== name) renameCharacter(name, targetKey);
     const cueCount = matches.cues.length;
-    showToast(
-      `Renamed ${name} to ${targetKey} — ${cueCount} cue${cueCount === 1 ? '' : 's'}`
-      + (chosenMentions.length ? `, ${chosenMentions.length} mention${chosenMentions.length === 1 ? '' : 's'}` : ''),
-      'success',
-    );
+    const details = [
+      t('renameCharacter.cueCount', { count: cueCount }),
+      ...(chosenMentions.length ? [t('renameCharacter.mentionCount', { count: chosenMentions.length })] : []),
+    ].join(', ');
+    showToast(t('renameCharacter.renamed', { from: name, to: targetKey, details }), 'success');
     onClose();
   };
 
@@ -96,10 +99,10 @@ const RenameCharacterDialog: React.FC<RenameCharacterDialogProps> = ({ editor, n
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}
       >
-        <div className="dialog-header" id="rename-char-title">Rename Character</div>
+        <div className="dialog-header" id="rename-char-title">{t('renameCharacter.title')}</div>
         <div className="dialog-body">
           <div className="dialog-row">
-            <label htmlFor="rename-char-input">Rename {name} to</label>
+            <label htmlFor="rename-char-input">{t('renameCharacter.renameTo', { name })}</label>
             <input
               id="rename-char-input"
               ref={inputRef}
@@ -113,13 +116,13 @@ const RenameCharacterDialog: React.FC<RenameCharacterDialogProps> = ({ editor, n
           {error && <p className="rename-char-error" role="alert">{error}</p>}
           {!error && mergeInto && (
             <p className="rename-char-note">
-              {targetKey} already exists — the two will be merged. {targetKey}&rsquo;s profile is kept and filled in from {name}&rsquo;s.
+              {t('renameCharacter.merge', { target: targetKey, name })}
             </p>
           )}
           <p className="rename-char-summary">
-            {matches.cues.length} cue{matches.cues.length === 1 ? '' : 's'} will be renamed, keeping extensions like (V.O.) and (CONT&rsquo;D).
-            {matches.skippedCues > 0 && ` ${matches.skippedCues} cue${matches.skippedCues === 1 ? ' is' : 's are'} split across lines and must be renamed by hand.`}
-            {' '}The profile, relationships and Cast tags move with the name.
+            {t('renameCharacter.summary.cues', { count: matches.cues.length })}
+            {matches.skippedCues > 0 && ` ${t('renameCharacter.summary.skipped', { count: matches.skippedCues })}`}
+            {' '}{t('renameCharacter.summary.moves')}
           </p>
 
           {matches.mentions.length > 0 && (
@@ -130,10 +133,10 @@ const RenameCharacterDialog: React.FC<RenameCharacterDialogProps> = ({ editor, n
                   checked={includeMentions}
                   onChange={(e) => setIncludeMentions(e.target.checked)}
                 />
-                Also replace {matches.mentions.length} mention{matches.mentions.length === 1 ? '' : 's'} in action, dialogue and headings
+                {t('renameCharacter.alsoReplace', { count: matches.mentions.length })}
               </label>
               {includeMentions && (
-                <ul className="rename-char-mentions" aria-label="Mentions to replace">
+                <ul className="rename-char-mentions" aria-label={t('renameCharacter.mentionsLabel')}>
                   {matches.mentions.map((m, i) => {
                     const before = m.context.slice(Math.max(0, m.contextOffset - 30), m.contextOffset);
                     const after = m.context.slice(m.contextOffset + m.text.length, m.contextOffset + m.text.length + 30);
@@ -142,7 +145,7 @@ const RenameCharacterDialog: React.FC<RenameCharacterDialogProps> = ({ editor, n
                         <label>
                           <input type="checkbox" checked={!excluded.has(i)} onChange={() => toggle(i)} />
                           <span className="rename-char-mention-type">
-                            {ELEMENT_LABELS[m.blockType as ElementType] ?? m.blockType}
+                            {elementLabel(m.blockType)}
                           </span>
                           <span className="rename-char-mention-text">
                             {m.contextOffset > 30 && '…'}{before}
@@ -159,8 +162,8 @@ const RenameCharacterDialog: React.FC<RenameCharacterDialogProps> = ({ editor, n
           )}
         </div>
         <div className="dialog-actions">
-          <button onClick={onClose}>Cancel</button>
-          <button className="dialog-primary" onClick={apply} disabled={!canApply}>Rename</button>
+          <button onClick={onClose}>{t('common:cancel')}</button>
+          <button className="dialog-primary" onClick={apply} disabled={!canApply}>{t('common:rename')}</button>
         </div>
       </div>
     </div>

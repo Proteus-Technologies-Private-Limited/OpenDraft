@@ -25,6 +25,7 @@ export interface CatalogLanguage {
     | { kind: 'opendraft-extra'; path: string };
 }
 
+// i18n-ignore-start: spell-check dictionary names are English names with the language's own name beside them; the label doubles as a search key in the installer
 /** Built-in language always available; not downloadable. */
 export const BUILTIN: CatalogLanguage = {
   code: 'en_US',
@@ -75,6 +76,7 @@ export const CATALOG: CatalogLanguage[] = [
   { code: 'fa', label: 'Persian (فارسی)', source: { kind: 'jsdelivr', npm: 'dictionary-fa' }, sample: 'ا ب' },
   { code: 'he', label: 'Hebrew (עברית)', source: { kind: 'jsdelivr', npm: 'dictionary-he' }, sample: 'א ב' },
 ];
+// i18n-ignore-end
 
 const ALL_BY_CODE = new Map<string, CatalogLanguage>(
   [BUILTIN, ...CATALOG].map((l) => [l.code, l]),

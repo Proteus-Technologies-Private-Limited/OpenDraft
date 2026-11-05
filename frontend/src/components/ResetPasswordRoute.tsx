@@ -9,6 +9,7 @@
 
 import React, { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import { collabAuthApi } from '../services/collabAuth';
 import { showToast } from './Toast';
@@ -16,6 +17,7 @@ import { showToast } from './Toast';
 type Status = 'idle' | 'submitting' | 'success' | 'error';
 
 const ResetPasswordRoute: React.FC = () => {
+  const { t } = useTranslation(['collab', 'common']);
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const token = params.get('token') || '';
@@ -32,11 +34,11 @@ const ResetPasswordRoute: React.FC = () => {
   const missingToken = !token;
 
   const validate = (): string | null => {
-    if (password.length < 8) return 'Password must be at least 8 characters.';
+    if (password.length < 8) return t('resetPassword.tooShort');
     if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) {
-      return 'Password must contain an uppercase letter, a lowercase letter, and a digit.';
+      return t('resetPassword.weak');
     }
-    if (password !== confirm) return 'Passwords do not match.';
+    if (password !== confirm) return t('resetPassword.mismatch');
     return null;
   };
 
@@ -52,11 +54,11 @@ const ResetPasswordRoute: React.FC = () => {
     try {
       await collabAuthApi.resetPassword(token, password);
       setStatus('success');
-      showToast('Password updated. You can sign in with your new password.', 'success');
+      showToast(t('resetPassword.updated'), 'success');
       setTimeout(() => navigate('/', { replace: true }), 1500);
     } catch (err: any) {
       setStatus('error');
-      setError(err?.message || 'Could not reset password.');
+      setError(err?.message || t('resetPassword.failed'));
     }
   };
 
@@ -78,37 +80,36 @@ const ResetPasswordRoute: React.FC = () => {
         }}
         onKeyDown={handleKeyDown}
       >
-        <h2 style={{ marginTop: 0 }}>Choose a new password</h2>
+        <h2 style={{ marginTop: 0 }}>{t('resetPassword.title')}</h2>
 
         {missingToken ? (
           <>
             <p style={{ color: 'var(--fd-text-muted, #aaa)' }}>
-              This reset link is missing its token. Request a new password-reset
-              email from the sign-in screen.
+              {t('resetPassword.missingToken')}
             </p>
             <button
               className="dialog-btn dialog-btn-primary"
               onClick={() => navigate('/', { replace: true })}
               style={{ marginTop: 12 }}
             >
-              Go to sign in
+              {t('resetPassword.goToSignIn')}
             </button>
           </>
         ) : status === 'success' ? (
           <>
-            <p>Your password was updated. Redirecting to the sign-in screen…</p>
+            <p>{t('resetPassword.success')}</p>
           </>
         ) : (
           <div className="settings-auth-form">
             <div className="settings-field">
-              <label>New Password</label>
+              <label>{t('resetPassword.newPassword')}</label>
               <div className="password-input-wrapper">
                 <input
                   className="dialog-input"
                   type={showPw ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Min 8 chars, upper + lower + digit"
+                  placeholder={t('login.passwordHint')}
                   autoFocus
                   disabled={status === 'submitting'}
                 />
@@ -117,21 +118,21 @@ const ResetPasswordRoute: React.FC = () => {
                   className="password-toggle-btn"
                   onClick={() => setShowPw(!showPw)}
                   tabIndex={-1}
-                  aria-label={showPw ? 'Hide password' : 'Show password'}
+                  aria-label={showPw ? t('resetPassword.hidePassword') : t('resetPassword.showPassword')}
                 >
                   {showPw ? <FaEyeSlash /> : <FaEye />}
                 </button>
               </div>
             </div>
             <div className="settings-field">
-              <label>Confirm Password</label>
+              <label>{t('resetPassword.confirmPassword')}</label>
               <div className="password-input-wrapper">
                 <input
                   className="dialog-input"
                   type={showConfirm ? 'text' : 'password'}
                   value={confirm}
                   onChange={(e) => setConfirm(e.target.value)}
-                  placeholder="Re-enter password"
+                  placeholder={t('resetPassword.reenter')}
                   disabled={status === 'submitting'}
                 />
                 <button
@@ -139,7 +140,7 @@ const ResetPasswordRoute: React.FC = () => {
                   className="password-toggle-btn"
                   onClick={() => setShowConfirm(!showConfirm)}
                   tabIndex={-1}
-                  aria-label={showConfirm ? 'Hide password' : 'Show password'}
+                  aria-label={showConfirm ? t('resetPassword.hidePassword') : t('resetPassword.showPassword')}
                 >
                   {showConfirm ? <FaEyeSlash /> : <FaEye />}
                 </button>
@@ -155,14 +156,14 @@ const ResetPasswordRoute: React.FC = () => {
               onClick={handleSubmit}
               disabled={!password || !confirm || status === 'submitting'}
             >
-              {status === 'submitting' ? 'Updating…' : 'Update password'}
+              {status === 'submitting' ? t('resetPassword.updating') : t('resetPassword.update')}
             </button>
             <button
               className="dialog-btn"
               onClick={() => navigate('/', { replace: true })}
               disabled={status === 'submitting'}
             >
-              Cancel
+              {t('common:cancel')}
             </button>
           </div>
         )}

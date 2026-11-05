@@ -1,5 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import DOMPurify from 'dompurify';
+import { useTranslation } from 'react-i18next';
+import { t } from '../i18n';
+import { formatDate } from '../i18n/format';
 import {
   FaBars, FaBook, FaCompress, FaDownload, FaExpand, FaExternalLinkAlt, FaSearch, FaSyncAlt, FaTimes, FaTrash,
 } from 'react-icons/fa';
@@ -93,6 +96,8 @@ function appIsDark(): boolean {
  * online while those styles stay sealed off from the rest of the app.
  */
 const UserManualDialog: React.FC<UserManualDialogProps> = ({ onClose }) => {
+  // Subscribes to language changes; the strings themselves come from the module-level t.
+  useTranslation('menu');
   const [status, setStatus] = useState<ManualStatus | null>(null);
   const [pages, setPages] = useState<ManualPage[]>([]);
   const [slug, setSlug] = useState<string>('index.html');
@@ -178,7 +183,7 @@ const UserManualDialog: React.FC<UserManualDialogProps> = ({ onClose }) => {
         setCss(await getManualStylesheet());
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not read the stored manual.');
+      setError(err instanceof Error ? err.message : t('menu:manual.errors.readStored'));
     }
   }, []);
 
@@ -202,9 +207,9 @@ const UserManualDialog: React.FC<UserManualDialogProps> = ({ onClose }) => {
     void getCachedPage(slug)
       .then((page) => {
         if (cancelled) return;
-        setHtml(page?.html ?? '<p>That page is not in the downloaded manual.</p>');
+        setHtml(page?.html ?? `<p>${t('menu:manual.errors.pageMissing')}</p>`);
       })
-      .catch(() => { if (!cancelled) setError('Could not open that page.'); });
+      .catch(() => { if (!cancelled) setError(t('menu:manual.errors.openPage')); });
     return () => { cancelled = true; };
   }, [slug, status?.installed]);
 
@@ -216,7 +221,7 @@ const UserManualDialog: React.FC<UserManualDialogProps> = ({ onClose }) => {
       try {
         shadowRef.current = host.attachShadow({ mode: 'open' });
       } catch {
-        setError('This browser could not render the manual.');
+        setError(t('menu:manual.errors.render'));
         return;
       }
     }
@@ -263,7 +268,7 @@ const UserManualDialog: React.FC<UserManualDialogProps> = ({ onClose }) => {
   const runDownload = useCallback(async () => {
     setBusy(true);
     setError(null);
-    setProgress({ done: 0, total: 1, label: 'Starting…' });
+    setProgress({ done: 0, total: 1, label: t('menu:manual.progress.starting') });
     try {
       const s = await downloadManual((p) => setProgress(p));
       setStatus(s);
@@ -272,7 +277,7 @@ const UserManualDialog: React.FC<UserManualDialogProps> = ({ onClose }) => {
       setUpdateReady(false);
       setSlug('index.html');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'The download failed.');
+      setError(err instanceof Error ? err.message : t('menu:manual.errors.download'));
     } finally {
       setBusy(false);
       setProgress(null);
@@ -293,7 +298,7 @@ const UserManualDialog: React.FC<UserManualDialogProps> = ({ onClose }) => {
       setQuery('');
       await refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not remove the manual.');
+      setError(err instanceof Error ? err.message : t('menu:manual.errors.remove'));
     } finally {
       setBusy(false);
     }
@@ -359,7 +364,7 @@ const UserManualDialog: React.FC<UserManualDialogProps> = ({ onClose }) => {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="dialog-header manual-header">
-          <span className="manual-header-title"><FaBook /> User Manual</span>
+          <span className="manual-header-title"><FaBook /> {t('menu:manual.title')}</span>
           <div className="manual-header-tools">
             {status?.installed && (
               <div className="manual-search">
@@ -367,12 +372,12 @@ const UserManualDialog: React.FC<UserManualDialogProps> = ({ onClose }) => {
                 <input
                   type="text"
                   value={query}
-                  placeholder="Search the manual…"
-                  aria-label="Search the manual"
+                  placeholder={t('menu:manual.search.placeholder')}
+                  aria-label={t('menu:manual.search.label')}
                   onChange={(e) => setQuery(e.target.value)}
                 />
                 {query && (
-                  <button className="manual-search-clear" onClick={() => setQuery('')} aria-label="Clear search">
+                  <button className="manual-search-clear" onClick={() => setQuery('')} aria-label={t('menu:manual.search.clear')}>
                     <FaTimes />
                   </button>
                 )}
@@ -383,8 +388,8 @@ const UserManualDialog: React.FC<UserManualDialogProps> = ({ onClose }) => {
                 className="manual-icon-btn manual-nav-toggle"
                 onClick={() => setSidebarOpen((v) => !v)}
                 aria-pressed={sidebarOpen}
-                title={sidebarOpen ? 'Hide contents' : 'Show contents'}
-                aria-label={sidebarOpen ? 'Hide contents' : 'Show contents'}
+                title={sidebarOpen ? t('menu:manual.contents.hide') : t('menu:manual.contents.show')}
+                aria-label={sidebarOpen ? t('menu:manual.contents.hide') : t('menu:manual.contents.show')}
               >
                 <FaBars />
               </button>
@@ -393,8 +398,8 @@ const UserManualDialog: React.FC<UserManualDialogProps> = ({ onClose }) => {
               className="manual-icon-btn manual-fullscreen-toggle"
               onClick={() => setFullScreen((v) => !v)}
               aria-pressed={fullScreen}
-              title={fullScreen ? 'Restore' : 'Full screen'}
-              aria-label={fullScreen ? 'Restore' : 'Full screen'}
+              title={fullScreen ? t('menu:manual.window.restore') : t('menu:manual.window.fullScreen')}
+              aria-label={fullScreen ? t('menu:manual.window.restore') : t('menu:manual.window.fullScreen')}
             >
               {fullScreen ? <FaCompress /> : <FaExpand />}
             </button>
@@ -404,15 +409,12 @@ const UserManualDialog: React.FC<UserManualDialogProps> = ({ onClose }) => {
         {error && <div className="manual-error">{error}</div>}
 
         {!status ? (
-          <div className="dialog-body manual-empty">Checking for a downloaded copy…</div>
+          <div className="dialog-body manual-empty">{t('menu:manual.checking')}</div>
         ) : !status.installed ? (
           <div className="dialog-body manual-empty">
             <FaBook className="manual-empty-icon" />
-            <h3>The manual is not on this device yet</h3>
-            <p>
-              OpenDraft does not ship the manual inside the app. Download it once — about
-              8&nbsp;MB of pages and screenshots — and it stays available with no connection.
-            </p>
+            <h3>{t('menu:manual.missing.title')}</h3>
+            <p>{t('menu:manual.missing.body')}</p>
             {busy && progress && (
               <div className="manual-progress">
                 <div className="manual-progress-bar">
@@ -426,10 +428,10 @@ const UserManualDialog: React.FC<UserManualDialogProps> = ({ onClose }) => {
             )}
             <div className="manual-empty-actions">
               <button className="dialog-primary" onClick={() => void runDownload()} disabled={busy}>
-                <FaDownload /> {busy ? 'Downloading…' : 'Download for offline use'}
+                <FaDownload /> {busy ? t('menu:manual.downloading') : t('menu:manual.download')}
               </button>
               <button className="dialog-btn" onClick={openOnline} disabled={busy}>
-                <FaExternalLinkAlt /> Read online instead
+                <FaExternalLinkAlt /> {t('menu:manual.readOnline')}
               </button>
             </div>
           </div>
@@ -440,7 +442,7 @@ const UserManualDialog: React.FC<UserManualDialogProps> = ({ onClose }) => {
               onClick={() => setSidebarOpen((v) => !v)}
               aria-expanded={sidebarOpen}
             >
-              {sidebarOpen ? 'Hide contents' : 'Contents'}
+              {sidebarOpen ? t('menu:manual.contents.hide') : t('menu:manual.contents.label')}
             </button>
             <nav ref={setSidebarEl} className={`manual-sidebar ${sidebarOpen ? 'manual-sidebar--open' : ''}`}>
               {grouped.map((group) => (
@@ -468,8 +470,8 @@ const UserManualDialog: React.FC<UserManualDialogProps> = ({ onClose }) => {
               <div style={{ display: hits ? 'block' : 'none' }} className="manual-results">
                 <h2>
                   {hits && hits.length === 0
-                    ? `Nothing found for “${query}”`
-                    : `${hits?.length ?? 0} ${hits?.length === 1 ? 'page' : 'pages'} for “${query}”`}
+                    ? t('menu:manual.search.nothing', { query })
+                    : t('menu:manual.search.results', { count: hits?.length ?? 0, query })}
                 </h2>
                 {(hits ?? []).map((hit) => (
                   <button
@@ -496,25 +498,25 @@ const UserManualDialog: React.FC<UserManualDialogProps> = ({ onClose }) => {
         <div className="dialog-actions manual-actions">
           {status?.installed && (
             <div className="manual-meta">
-              {formatBytes(status.bytes)} · {status.pageCount} pages
-              {status.downloadedAt ? ` · downloaded ${new Date(status.downloadedAt).toLocaleDateString()}` : ''}
-              {updateReady && <span className="manual-update-badge">Update available</span>}
+              {t('menu:manual.meta', { size: formatBytes(status.bytes), count: status.pageCount })}
+              {status.downloadedAt ? ` · ${t('menu:manual.downloaded', { date: formatDate(new Date(status.downloadedAt)) })}` : ''}
+              {updateReady && <span className="manual-update-badge">{t('menu:manual.updateAvailable')}</span>}
             </div>
           )}
           {status?.installed && (
             <>
-              <button className="dialog-btn" onClick={openOnline} disabled={busy} title="Open the published manual in your browser">
-                <FaExternalLinkAlt /> Online
+              <button className="dialog-btn" onClick={openOnline} disabled={busy} title={t('menu:manual.onlineTitle')}>
+                <FaExternalLinkAlt /> {t('menu:manual.online')}
               </button>
               <button className="dialog-btn" onClick={() => void runDownload()} disabled={busy}>
-                <FaSyncAlt /> {busy ? (progress?.label ?? 'Updating…') : 'Update'}
+                <FaSyncAlt /> {busy ? (progress?.label ?? t('menu:manual.updating')) : t('menu:manual.update')}
               </button>
-              <button className="dialog-btn" onClick={() => void runRemove()} disabled={busy} title="Delete the offline copy">
-                <FaTrash /> Remove
+              <button className="dialog-btn" onClick={() => void runRemove()} disabled={busy} title={t('menu:manual.removeTitle')}>
+                <FaTrash /> {t('common:remove')}
               </button>
             </>
           )}
-          <button className="dialog-primary" onClick={onClose}>Close</button>
+          <button className="dialog-primary" onClick={onClose}>{t('common:close')}</button>
         </div>
       </div>
     </div>

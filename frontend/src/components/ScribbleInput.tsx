@@ -31,12 +31,13 @@
  * asking them to look away and find their place again.
  */
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Editor } from '@tiptap/react';
 import {
   FaArrowLeft, FaChevronDown, FaChevronUp, FaCog, FaCopy, FaCut, FaKeyboard,
   FaLevelDownAlt, FaPaste, FaTextWidth, FaTimes,
 } from 'react-icons/fa';
-import { ELEMENT_LABELS } from '../stores/editorStore';
+import { elementLabel as labelOfElement } from '../editor/elementLabels';
 import { readClipboardText, writeClipboard } from '../utils/clipboardCommands';
 import {
   clampPanelPosition, defaultPanelPosition, joinHandwriting, splitHandwriting,
@@ -84,12 +85,12 @@ const COMPACT_WIDTH = 470;
  * and handwriting in the same colour as the text underneath is unreadable
  * against it. These are chosen to stay legible over black text on white paper.
  */
-const INKS: { label: string; value: string }[] = [
-  { label: 'Default', value: '' },
-  { label: 'Blue', value: '#1d4ed8' },
-  { label: 'Red', value: '#dc2626' },
-  { label: 'Green', value: '#15803d' },
-  { label: 'Purple', value: '#7c3aed' },
+const INKS: { id: 'default' | 'blue' | 'red' | 'green' | 'purple'; value: string }[] = [
+  { id: 'default', value: '' },
+  { id: 'blue', value: '#1d4ed8' },
+  { id: 'red', value: '#dc2626' },
+  { id: 'green', value: '#15803d' },
+  { id: 'purple', value: '#7c3aed' },
 ];
 
 function loadNumber(key: string, fallback: number, lo: number, hi: number): number {
@@ -192,7 +193,7 @@ function escapeHtml(s: string): string {
 interface PreviewBlock {
   key: number;
   typeName: string;
-  label: string;
+  // label removed: the element's display name is looked up from typeName at render
   text: string;
   /** Character offset the caret sits at, when this is the block being written into. */
   caretAt: number | null;
@@ -206,6 +207,25 @@ interface ScribbleInputProps {
 }
 
 const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose }) => {
+  const { t } = useTranslation(['editor', 'common']);
+  const inkName = (id: (typeof INKS)[number]['id']): string => {
+    switch (id) {
+      case 'blue': return t('scribble.inks.blue');
+      case 'red': return t('scribble.inks.red');
+      case 'green': return t('scribble.inks.green');
+      case 'purple': return t('scribble.inks.purple');
+      default: return t('common:default');
+    }
+  };
+  const inkAria = (id: (typeof INKS)[number]['id']): string => {
+    switch (id) {
+      case 'blue': return t('scribble.inks.blueAria');
+      case 'red': return t('scribble.inks.redAria');
+      case 'green': return t('scribble.inks.greenAria');
+      case 'purple': return t('scribble.inks.purpleAria');
+      default: return t('scribble.inks.defaultAria');
+    }
+  };
   const [text, setText] = useState('');
   const [keyboardOn, setKeyboardOn] = useState(() => loadFlag(KEYBOARD_PREF_KEY, false));
   const [previewOn, setPreviewOn] = useState(() => loadFlag(PREVIEW_PREF_KEY, true));
@@ -251,7 +271,7 @@ const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose }) => {
   }, [editor]);
 
   /** The script around the insertion point, as it stands now. */
-  const { blocks, elementLabel } = useMemo(() => {
+  const { blocks, elementType } = useMemo(() => {
     const out: PreviewBlock[] = [];
     let label = '';
     try {
@@ -262,7 +282,7 @@ const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose }) => {
       const depth = Math.max(1, $from.depth);
       const index = $from.index(depth - 1);
       const parent = $from.node(depth - 1);
-      label = ELEMENT_LABELS[$from.parent.type.name] ?? $from.parent.type.name;
+      label = $from.parent.type.name;
 
       const first = Math.max(0, index - CONTEXT_BLOCKS);
       const last = Math.min(parent.childCount - 1, index + CONTEXT_BLOCKS);
@@ -276,7 +296,6 @@ const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose }) => {
         out.push({
           key: i,
           typeName: node.type.name,
-          label: ELEMENT_LABELS[node.type.name] ?? node.type.name,
           text: blockText,
           caretAt: isCaretBlock ? clamp(from - start - 1, 0, blockText.length) : null,
           replacing: isCaretBlock && target.to > from
@@ -287,7 +306,7 @@ const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose }) => {
     } catch {
       /* a preview is a courtesy; never let it stop the writer writing */
     }
-    return { blocks: out, elementLabel: label };
+    return { blocks: out, elementType: label };
   }, [doc, target]);
 
   /**
@@ -555,16 +574,16 @@ const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose }) => {
     const sel = selectedText();
     if (!sel) return;
     if (!(await writeClipboard(escapeHtml(sel), sel))) {
-      showToast('Could not copy to the clipboard.', 'error');
+      showToast(t('scribble.copyFailed'), 'error');
     }
-  }, [selectedText]);
+  }, [selectedText, t]);
 
   const handleCut = useCallback(async () => {
     const sel = selectedText();
     if (!sel) return;
     if (await writeClipboard(escapeHtml(sel), sel)) replaceSelection('');
-    else showToast('Could not cut to the clipboard.', 'error');
-  }, [selectedText, replaceSelection]);
+    else showToast(t('scribble.cutFailed'), 'error');
+  }, [selectedText, replaceSelection, t]);
 
   const handlePaste = useCallback(async () => {
     const result = await readClipboardText();
@@ -699,7 +718,7 @@ const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose }) => {
       className={`scribble-panel${compact ? ' is-compact' : ''}`}
       ref={panelRef}
       role="dialog"
-      aria-label="Handwriting input"
+      aria-label={t('scribble.panel')}
       style={{
         ...(pos ? { left: pos.left, top: pos.top } : { visibility: 'hidden' }),
         ...(size ? { width: size.width, height: size.height } : {}),
@@ -718,8 +737,8 @@ const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose }) => {
         <div className="scribble-header-row">
           <span className="scribble-title">
             <span className="scribble-grip" aria-hidden="true" />
-            Handwriting
-            {elementLabel && <span className="scribble-element">{elementLabel}</span>}
+            {t('scribble.title')}
+            {elementType && <span className="scribble-element">{labelOfElement(elementType)}</span>}
           </span>
           <div className="scribble-header-tools">
             <button
@@ -727,7 +746,7 @@ const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose }) => {
               className={`scribble-toggle ${keyboardOn ? 'is-on' : ''}`}
               onClick={toggleKeyboard}
               aria-pressed={keyboardOn}
-              title={keyboardOn ? 'Tapping the box opens the keyboard' : 'Tapping the box will not open the keyboard'}
+              title={keyboardOn ? t('scribble.keyboardOnTitle') : t('scribble.keyboardOffTitle')}
             >
               {/* The preference, not a report on what iPadOS is painting.
                   "Keyboard on" read as the latter, and iOS takes the keyboard
@@ -737,24 +756,24 @@ const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose }) => {
                   visual viewport is the mistake PencilCaret documents, so this
                   says only what it actually decides. The filled state carries
                   on or off. */}
-              <FaKeyboard /> Keyboard
+              <FaKeyboard /> {t('scribble.keyboard')}
             </button>
             <button
               type="button"
               className="scribble-toggle"
               onClick={togglePreview}
               aria-pressed={previewOn}
-              title={previewOn ? 'Hide the script preview' : 'Show the script preview'}
+              title={previewOn ? t('scribble.hidePreview') : t('scribble.showPreview')}
             >
-              {previewOn ? <FaChevronUp /> : <FaChevronDown />} Preview
+              {previewOn ? <FaChevronUp /> : <FaChevronDown />} {t('scribble.preview')}
             </button>
             <button
               type="button"
               className={`scribble-close${settingsOpen ? ' is-on' : ''}`}
               onClick={() => setSettingsOpen((o) => !o)}
-              aria-label="Handwriting settings"
+              aria-label={t('scribble.settings')}
               aria-expanded={settingsOpen}
-              title="Transparency and ink"
+              title={t('scribble.settingsTitle')}
             >
               <FaCog />
             </button>
@@ -762,8 +781,8 @@ const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose }) => {
               type="button"
               className="scribble-close"
               onClick={onClose}
-              aria-label="Close handwriting"
-              title="Close handwriting"
+              aria-label={t('scribble.close')}
+              title={t('scribble.close')}
             >
               <FaTimes />
             </button>
@@ -777,7 +796,7 @@ const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose }) => {
         {settingsOpen && (
           <div className="scribble-settings" onPointerDown={(e) => e.stopPropagation()}>
             <label className="scribble-setting">
-              <span>Panel</span>
+              <span>{t('scribble.panelLabel')}</span>
               <input
                 type="range" min={0.2} max={1} step={0.05} value={panelAlpha}
                 onChange={(e) => {
@@ -785,11 +804,11 @@ const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose }) => {
                   setPanelAlpha(v);
                   saveValue(PANEL_ALPHA_KEY, String(v));
                 }}
-                aria-label="Panel opacity"
+                aria-label={t('scribble.panelOpacity')}
               />
             </label>
             <label className="scribble-setting">
-              <span>Writing area</span>
+              <span>{t('scribble.writingArea')}</span>
               <input
                 type="range" min={0} max={1} step={0.05} value={areaAlpha}
                 onChange={(e) => {
@@ -797,22 +816,22 @@ const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose }) => {
                   setAreaAlpha(v);
                   saveValue(AREA_ALPHA_KEY, String(v));
                 }}
-                aria-label="Writing area opacity"
+                aria-label={t('scribble.writingAreaOpacity')}
               />
             </label>
             <div className="scribble-setting scribble-inks">
-              <span>Ink</span>
+              <span>{t('scribble.ink')}</span>
               <div className="scribble-ink-row">
                 {INKS.map((c) => (
                   <button
-                    key={c.label}
+                    key={c.id}
                     type="button"
                     className={`scribble-ink${ink === c.value ? ' is-on' : ''}${c.value ? '' : ' is-default'}`}
                     style={c.value ? { background: c.value } : undefined}
                     onClick={() => { setInk(c.value); saveValue(INK_KEY, c.value); }}
-                    aria-label={`${c.label} ink`}
+                    aria-label={inkAria(c.id)}
                     aria-pressed={ink === c.value}
-                    title={c.label}
+                    title={inkName(c.id)}
                   />
                 ))}
               </div>
@@ -824,10 +843,10 @@ const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose }) => {
             element styles and page metrics. It follows the caret: tap a
             different line and this catches up. */}
         {previewOn && (
-          <div className="scribble-preview" ref={previewRef} aria-label="Where the text will go">
+          <div className="scribble-preview" ref={previewRef} aria-label={t('scribble.previewArea')}>
             <div className="scribble-preview-page screenplay-content" style={pageStyle}>
               {blocks.length === 0 ? (
-                <div className="scribble-preview-empty">The script is empty — this starts it.</div>
+                <div className="scribble-preview-empty">{t('scribble.previewEmpty')}</div>
               ) : blocks.map((b) => (
                 <div
                   key={b.key}
@@ -867,7 +886,7 @@ const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose }) => {
           autoCapitalize="sentences"
           autoCorrect="on"
           spellCheck
-          placeholder="Write here with your Apple Pencil"
+          placeholder={t('scribble.placeholder')}
         />
         {/* iPadOS paints no caret while the keyboard is down, which is how this
             panel is meant to be used, so the app draws one. */}
@@ -878,29 +897,29 @@ const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose }) => {
           its own palette for native fields, but not for a field inside a web
           view, so the app has to supply the equivalents. */}
       <div className="scribble-tools">
-        <button type="button" className="scribble-tool scribble-tool-key" onClick={() => replaceSelection('\n')} aria-label="Enter" title="Enter">
-          <FaLevelDownAlt style={{ transform: 'rotate(90deg)' }} /><span className="scribble-tool-label">Enter</span>
+        <button type="button" className="scribble-tool scribble-tool-key" onClick={() => replaceSelection('\n')} aria-label={t('scribble.enter')} title={t('scribble.enter')}>
+          <FaLevelDownAlt style={{ transform: 'rotate(90deg)' }} /><span className="scribble-tool-label">{t('scribble.enter')}</span>
         </button>
         <button
           type="button"
           className="scribble-tool scribble-tool-key"
-          onClick={() => replaceSelection('', true)} aria-label="Backspace" title="Backspace"
+          onClick={() => replaceSelection('', true)} aria-label={t('scribble.backspace')} title={t('scribble.backspace')}
           disabled={text === ''}
         >
-          <FaArrowLeft /><span className="scribble-tool-label">Backspace</span>
+          <FaArrowLeft /><span className="scribble-tool-label">{t('scribble.backspace')}</span>
         </button>
         <span className="scribble-tools-gap" />
-        <button type="button" className="scribble-tool" onClick={handleSelectAll} aria-label="Select All" title="Select All" disabled={text === ''}>
-          <FaTextWidth /><span className="scribble-tool-label">Select All</span>
+        <button type="button" className="scribble-tool" onClick={handleSelectAll} aria-label={t('common:selectAll')} title={t('common:selectAll')} disabled={text === ''}>
+          <FaTextWidth /><span className="scribble-tool-label">{t('common:selectAll')}</span>
         </button>
-        <button type="button" className="scribble-tool" onClick={() => void handleCut()} aria-label="Cut" title="Cut" disabled={!hasSelection}>
-          <FaCut /><span className="scribble-tool-label">Cut</span>
+        <button type="button" className="scribble-tool" onClick={() => void handleCut()} aria-label={t('common:cut')} title={t('common:cut')} disabled={!hasSelection}>
+          <FaCut /><span className="scribble-tool-label">{t('common:cut')}</span>
         </button>
-        <button type="button" className="scribble-tool" onClick={() => void handleCopy()} aria-label="Copy" title="Copy" disabled={!hasSelection}>
-          <FaCopy /><span className="scribble-tool-label">Copy</span>
+        <button type="button" className="scribble-tool" onClick={() => void handleCopy()} aria-label={t('common:copy')} title={t('common:copy')} disabled={!hasSelection}>
+          <FaCopy /><span className="scribble-tool-label">{t('common:copy')}</span>
         </button>
-        <button type="button" className="scribble-tool" onClick={() => void handlePaste()} aria-label="Paste" title="Paste">
-          <FaPaste /><span className="scribble-tool-label">Paste</span>
+        <button type="button" className="scribble-tool" onClick={() => void handlePaste()} aria-label={t('common:paste')} title={t('common:paste')}>
+          <FaPaste /><span className="scribble-tool-label">{t('common:paste')}</span>
         </button>
       </div>
 
@@ -914,7 +933,7 @@ const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose }) => {
         onPointerUp={onResizeEnd}
         onPointerCancel={onResizeEnd}
         role="separator"
-        aria-label="Resize handwriting panel"
+        aria-label={t('scribble.resize')}
       />
 
       <div className="scribble-actions">
@@ -927,7 +946,7 @@ const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose }) => {
           onClick={() => { setText(''); areaRef.current?.focus(); }}
           disabled={text === ''}
         >
-          Clear
+          {t('common:clear')}
         </button>
         <button
           type="button"
@@ -935,7 +954,7 @@ const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose }) => {
           onClick={handleInsert}
           disabled={text.trim() === ''}
         >
-          Insert
+          {t('scribble.insert')}
         </button>
       </div>
     </div>

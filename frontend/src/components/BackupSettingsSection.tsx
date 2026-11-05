@@ -8,6 +8,7 @@
  * nothing there can hold on to a folder across a reload.
  */
 import React, { useState, useEffect, useCallback } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import {
   useSettingsStore, BACKUP_INTERVAL_OPTIONS, BACKUP_RETENTION_OPTIONS,
 } from '../stores/settingsStore';
@@ -18,16 +19,19 @@ import {
   probeBackupFolder, listSnapshots, revealSnapshot, pickBackupFolder,
   backupsSupported, supportsRevealBackup,
 } from '../services/backupService';
+import { formatNumber } from '../i18n/format';
 import { showToast } from './Toast';
 import Select from './Select';
 
-function formatBytes(n: number): string {
-  if (n < 1024) return `${n} B`;
-  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
-  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
-}
+const ONE_DECIMAL = { minimumFractionDigits: 1, maximumFractionDigits: 1 } as const;
 
 const BackupSettingsSection: React.FC = () => {
+  const { t } = useTranslation(['backup', 'common']);
+  const formatBytes = (n: number): string => {
+    if (n < 1024) return t('backupSettings.sizeBytes', { value: formatNumber(n) });
+    if (n < 1024 * 1024) return t('backupSettings.sizeKb', { value: formatNumber(n / 1024, ONE_DECIMAL) });
+    return t('backupSettings.sizeMb', { value: formatNumber(n / (1024 * 1024), ONE_DECIMAL) });
+  };
   const {
     backupEnabled, setBackupEnabled,
     backupFolder, backupFolderLabel, setBackupFolder,
@@ -58,13 +62,13 @@ const BackupSettingsSection: React.FC = () => {
       const probe = await probeBackupFolder(handle);
       if (!probe.exists) {
         setFolderStatus('missing');
-        setFolderDetail(probe.error || 'Folder not found');
+        setFolderDetail(probe.error || t('backupSettings.folderNotFoundDetail'));
         setStats(null);
         return;
       }
       if (!probe.writable) {
         setFolderStatus('unwritable');
-        setFolderDetail(probe.error || 'Folder is not writable');
+        setFolderDetail(probe.error || t('backupSettings.folderNotWritableDetail'));
         setStats(null);
         return;
       }
@@ -77,7 +81,7 @@ const BackupSettingsSection: React.FC = () => {
       setFolderDetail(err instanceof Error ? err.message : String(err));
       setStats(null);
     }
-  }, [supported]);
+  }, [supported, t]);
 
   useEffect(() => { void refreshFolder(backupFolder); }, [backupFolder, refreshFolder]);
 
@@ -94,9 +98,9 @@ const BackupSettingsSection: React.FC = () => {
       const picked = await pickBackupFolder(backupFolder);
       if (picked) await applyFolder(picked.handle, picked.label);
     } catch (err) {
-      showToast(`Could not open the folder picker: ${err instanceof Error ? err.message : String(err)}`, 'error');
+      showToast(t('folderPrompt.pickerFailed', { error: err instanceof Error ? err.message : String(err) }), 'error');
     }
-  }, [backupFolder, applyFolder]);
+  }, [backupFolder, applyFolder, t]);
 
   const handleUseDefault = useCallback(async () => {
     try {
@@ -106,20 +110,20 @@ const BackupSettingsSection: React.FC = () => {
       // enabling and then changing your mind leaves nothing behind.
       await applyFolder(dir, dir);
     } catch (err) {
-      showToast(`Could not resolve a default folder: ${err instanceof Error ? err.message : String(err)}`, 'error');
+      showToast(t('backupSettings.defaultFolderFailed', { error: err instanceof Error ? err.message : String(err) }), 'error');
     }
-  }, [applyFolder]);
+  }, [applyFolder, t]);
 
   const handleCreateFolder = useCallback(async () => {
     try {
       const { invoke } = await import('@tauri-apps/api/core');
       await invoke('ensure_dir', { path: backupFolder });
       await refreshFolder(backupFolder);
-      showToast('Backup folder created', 'success');
+      showToast(t('backupSettings.folderCreated'), 'success');
     } catch (err) {
-      showToast(`Could not create the folder: ${err instanceof Error ? err.message : String(err)}`, 'error');
+      showToast(t('backupSettings.createFolderFailed', { error: err instanceof Error ? err.message : String(err) }), 'error');
     }
-  }, [backupFolder, refreshFolder]);
+  }, [backupFolder, refreshFolder, t]);
 
   const handleToggleEnabled = useCallback(async (next: boolean) => {
     if (next && !backupFolder) {
@@ -128,22 +132,19 @@ const BackupSettingsSection: React.FC = () => {
       if (!useSettingsStore.getState().backupFolder) return;
     }
     if (next && folderStatus === 'unwritable') {
-      showToast('Choose a folder OpenDraft can write to first', 'error');
+      showToast(t('backupSettings.chooseWritable'), 'error');
       return;
     }
     setBackupEnabled(next);
     resumeBackups();
-  }, [backupFolder, folderStatus, handleBrowse, setBackupEnabled, resumeBackups]);
+  }, [backupFolder, folderStatus, handleBrowse, setBackupEnabled, resumeBackups, t]);
 
   if (!supported) {
     return (
       <section className="settings-section">
-        <h2 className="settings-section-title">Automatic Backups</h2>
+        <h2 className="settings-section-title">{t('backupSettings.title')}</h2>
         <p className="settings-section-desc">
-          Timed backups write files to a folder you choose, which needs the
-          OpenDraft app — a browser tab cannot hold on to a folder. In the
-          browser, use <strong>File → Export → OpenDraft (.odraft)</strong> to
-          save a copy wherever you like.
+          <Trans ns="backup" i18nKey="backupSettings.webOnly" components={{ strong: <strong /> }} />
         </p>
       </section>
     );
@@ -151,14 +152,9 @@ const BackupSettingsSection: React.FC = () => {
 
   return (
     <section className="settings-section">
-      <h2 className="settings-section-title">Automatic Backups</h2>
+      <h2 className="settings-section-title">{t('backupSettings.title')}</h2>
       <p className="settings-section-desc">
-        OpenDraft can save timestamped copies of your script to a folder you
-        choose while you write. Each project gets its own folder inside it, and
-        the first copy is written as soon as you turn this on. Backups live
-        outside the app's database, so they survive even if something happens to
-        it. This is separate from <strong>Version History</strong>, which stores
-        checkpoints inside the database.
+        <Trans ns="backup" i18nKey="backupSettings.description" components={{ strong: <strong /> }} />
       </p>
 
       <div className="settings-row">
@@ -168,112 +164,108 @@ const BackupSettingsSection: React.FC = () => {
             checked={backupEnabled}
             onChange={(e) => void handleToggleEnabled(e.target.checked)}
           />{' '}
-          Back up my work automatically
+          {t('backupSettings.enable')}
         </label>
       </div>
 
       <div className="settings-row">
-        <label>Backup folder</label>
+        <label>{t('backupSettings.folder')}</label>
         <div className="settings-url-row">
           <input
             className="dialog-input settings-url-input"
             value={backupFolderLabel || backupFolder}
             readOnly
-            placeholder="No folder chosen"
+            placeholder={t('backupSettings.noFolder')}
           />
           <button className="dialog-btn dialog-btn-primary" onClick={() => void handleBrowse()}>
-            {desktop ? 'Browse…' : 'Choose Folder…'}
+            {desktop ? t('backupSettings.browse') : t('backupSettings.chooseFolder')}
           </button>
           {desktop && (
             <button className="dialog-btn" onClick={() => void handleUseDefault()}>
-              Use Default
+              {t('backupSettings.useDefault')}
             </button>
           )}
           {canReveal && (
             <button
               className="dialog-btn"
               disabled={!backupFolder || folderStatus !== 'ok'}
-              onClick={() => void revealSnapshot(backupFolder).catch(() => showToast('Could not open the folder', 'error'))}
+              onClick={() => void revealSnapshot(backupFolder).catch(() => showToast(t('backupSettings.openFolderFailed'), 'error'))}
             >
-              Open
+              {t('common:open')}
             </button>
           )}
         </div>
 
         {!desktop && (
           <div className="settings-hint">
-            Pick somewhere outside the app — a folder in Files, iCloud Drive,
-            Google Drive or Dropbox — so your backups survive if OpenDraft is
-            ever removed or reinstalled.
+            {t('backupSettings.mobileHint')}
           </div>
         )}
 
         {folderStatus === 'ok' && stats && (
           <div className="settings-status settings-status-ok">
-            Folder is writable — {stats.count} backup{stats.count === 1 ? '' : 's'}, {formatBytes(stats.bytes)}
+            {t('backupSettings.folderOk', { count: stats.count, size: formatBytes(stats.bytes) })}
           </div>
         )}
         {folderStatus === 'missing' && backupFolder && (
           <div className="settings-status settings-status-fail">
-            Folder not found — {folderDetail}{' '}
+            {t('backupSettings.folderMissing', { detail: folderDetail })}{' '}
             {desktop && (
-              <button className="dialog-btn" onClick={() => void handleCreateFolder()}>Create it</button>
+              <button className="dialog-btn" onClick={() => void handleCreateFolder()}>{t('backupSettings.createIt')}</button>
             )}
           </div>
         )}
         {folderStatus === 'unwritable' && (
           <div className="settings-status settings-status-fail">
-            OpenDraft can't write here — {folderDetail}
+            {t('backupSettings.folderUnwritable', { detail: folderDetail })}
           </div>
         )}
         {isUnderOneDrive(backupFolder) && (
           <div className="settings-hint settings-hint-warning">
-            This folder is inside OneDrive. Cloud sync can interfere with files
-            as they're written — a local folder is safer for backups.
+            {t('backupSettings.oneDrive')}
           </div>
         )}
         {pausedByError && (
           <div className="settings-status settings-status-fail">
-            Automatic backups are paused — {lastError}{' '}
+            {t('backupSettings.paused', { error: lastError })}{' '}
             <button className="dialog-btn" onClick={() => { resumeBackups(); void refreshFolder(backupFolder); }}>
-              Resume
+              {t('backupSettings.resume')}
             </button>
           </div>
         )}
       </div>
 
       <div className="settings-row">
-        <label>Back up every</label>
+        <label>{t('backupSettings.every')}</label>
         <Select
           className="dialog-input"
           value={backupIntervalMinutes}
           onChange={(e) => setBackupIntervalMinutes(Number(e.target.value))}
         >
           {BACKUP_INTERVAL_OPTIONS.map((m) => (
-            <option key={m} value={m}>{m} minutes</option>
+            <option key={m} value={m}>{t('backupSettings.intervalMinutes', { count: m })}</option>
           ))}
         </Select>
         {!desktop && (
           <div className="settings-hint">
-            A copy is also written whenever you leave OpenDraft, so work is
-            saved before the system suspends the app.
+            {t('backupSettings.leaveHint')}
           </div>
         )}
       </div>
 
       <div className="settings-row">
-        <label>Keep</label>
+        <label>{t('backupSettings.keep')}</label>
         <Select
           className="dialog-input"
           value={backupRetentionCount}
           onChange={(e) => setBackupRetentionCount(Number(e.target.value))}
         >
           {BACKUP_RETENTION_OPTIONS.map((n) => (
-            <option key={n} value={n}>{n === 0 ? 'All backups' : `${n} most recent`}</option>
+            <option key={n} value={n}>{n === 0 ? t('backupSettings.keepAll') : t('backupSettings.keepRecent', { count: n })}</option>
           ))}
         </Select>
         <div className="settings-hint">
-          Applies per script. Backups you make yourself with <strong>Back Up Now</strong> are never deleted automatically.
+          <Trans ns="backup" i18nKey="backupSettings.keepHint" components={{ strong: <strong /> }} />
         </div>
       </div>
 
@@ -284,11 +276,10 @@ const BackupSettingsSection: React.FC = () => {
             checked={backupIncludeImages}
             onChange={(e) => setBackupIncludeImages(e.target.checked)}
           />{' '}
-          Include images in backups
+          {t('backupSettings.includeImages')}
         </label>
         <div className="settings-hint">
-          Makes backups larger, but a restored script comes back complete.
-          Without this, images in a restored script will be missing.
+          {t('backupSettings.includeImagesHint')}
         </div>
       </div>
 
@@ -299,7 +290,7 @@ const BackupSettingsSection: React.FC = () => {
             checked={backupUnsavedDocs}
             onChange={(e) => setBackupUnsavedDocs(e.target.checked)}
           />{' '}
-          Also back up documents I haven't saved yet
+          {t('backupSettings.unsaved')}
         </label>
       </div>
     </section>

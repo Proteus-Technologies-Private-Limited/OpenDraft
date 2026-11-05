@@ -13,6 +13,7 @@
  * output, after this, so a password covers the sheets like any other page.
  */
 import type jsPDF from 'jspdf';
+import { t } from '../i18n';
 
 /** Where one script page sits on a sheet, in PDF space (origin bottom-left). */
 export interface TwoUpSlot {
@@ -40,7 +41,7 @@ export interface TwoUpLayout {
  */
 export function twoUpLayout(pageCount: number, pageWidth: number, pageHeight: number): TwoUpLayout {
   if (!(pageWidth > 0) || !(pageHeight > 0)) {
-    throw new Error('The page size is not valid, so the pages cannot be put two to a sheet.');
+    throw new Error(t('messages:export.twoUpPageSize'));
   }
   const sheetWidth = Math.max(pageWidth, pageHeight);
   const sheetHeight = Math.min(pageWidth, pageHeight);
@@ -71,13 +72,13 @@ export function composeTwoUp(pdf: jsPDF, pageWidth: number, pageHeight: number):
   const pages = (pdf as unknown as { internal: { pages?: unknown[] } }).internal.pages;
   const count = pdf.getNumberOfPages();
   if (!Array.isArray(pages) || count < 1) {
-    throw new Error('Could not put the pages two to a sheet: the PDF had an unexpected structure.');
+    throw new Error(t('messages:export.twoUpStructure'));
   }
   const streams: string[][] = [];
   for (let n = 1; n <= count; n++) {
     const stream = pages[n];
     if (!Array.isArray(stream)) {
-      throw new Error(`Could not put the pages two to a sheet: page ${n} had an unexpected structure.`);
+      throw new Error(t('messages:export.twoUpPageStructure', { page: n }));
     }
     streams.push([...(stream as string[])]);
   }

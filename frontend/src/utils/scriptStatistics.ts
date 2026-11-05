@@ -6,6 +6,7 @@ import type { JSONContent } from '@tiptap/react';
 import { jsonBlockText, singleLine } from './nodeText';
 import type { CharacterProfile } from '../stores/editorStore';
 import { isNonPrintingType } from './nonPrinting';
+import { t } from '../i18n';
 
 // ── Scene heading parsing (matching SceneNavigator patterns) ──────────
 
@@ -322,11 +323,11 @@ export function computeSceneBreakdown(doc: JSONContent): SceneBreakdownStats {
   // Scene length distribution (we approximate from word count since we don't have page layout here)
   // ~250 words per page
   const sceneLengthBuckets = [
-    { label: '< 1 page', count: 0 },
-    { label: '1-2 pages', count: 0 },
-    { label: '2-3 pages', count: 0 },
-    { label: '3-5 pages', count: 0 },
-    { label: '5+ pages', count: 0 },
+    { label: t('messages:stats.bucket.under1'), count: 0 },
+    { label: t('messages:stats.bucket.p1to2'), count: 0 },
+    { label: t('messages:stats.bucket.p2to3'), count: 0 },
+    { label: t('messages:stats.bucket.p3to5'), count: 0 },
+    { label: t('messages:stats.bucket.p5plus'), count: 0 },
   ];
   for (const scene of scenes) {
     const pages = scene.totalWords / 250;

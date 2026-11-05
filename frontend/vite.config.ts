@@ -1,5 +1,6 @@
 import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
+import { rtlPlugins } from './vite.rtl'
 
 // Vite 8 uses Rolldown which does NOT transpile JS syntax via build.target.
 // For legacy macOS builds (Catalina / older WKWebView) we run each output
@@ -34,6 +35,14 @@ function legacyTranspile(): Plugin | null {
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), legacyTranspile()].filter(Boolean),
+
+  // Mirrored (right-to-left) rules for Arabic and Persian, emitted beside the
+  // originals and scoped to [dir="rtl"] — see vite.rtl.ts.
+  css: {
+    postcss: {
+      plugins: rtlPlugins(),
+    },
+  },
 
   // Allow Tauri dev server to connect
   server: {

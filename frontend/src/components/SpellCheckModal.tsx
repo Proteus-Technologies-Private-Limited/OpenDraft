@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { Editor } from '@tiptap/react';
+import { useTranslation } from 'react-i18next';
 import { TextSelection } from '@tiptap/pm/state';
 import { spellChecker, PROJECT_DICT_TARGET } from '../editor/spellchecker';
 import { spellCheckPluginKey } from '../editor/extensions/SpellCheck';
@@ -19,6 +20,7 @@ interface SpellCheckModalProps {
 }
 
 const SpellCheckModal: React.FC<SpellCheckModalProps> = ({ editor, onClose }) => {
+  const { t } = useTranslation(['tools', 'common']);
   const [errors, setErrors] = useState<SpellError[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -260,19 +262,19 @@ const SpellCheckModal: React.FC<SpellCheckModalProps> = ({ editor, onClose }) =>
         style={{ left: position.x, top: position.y }}
       >
         <div className="spell-modal-header" onMouseDown={handlePointerDown} onTouchStart={handlePointerDown}>
-          <span>Spelling</span>
+          <span>{t('spellCheck.title')}</span>
         </div>
         <div style={{ textAlign: 'center', padding: '32px 24px' }}>
           <div style={{ fontSize: 36, marginBottom: 12 }}>&#9888;</div>
           <div style={{ color: 'var(--fd-text)', fontSize: 14 }}>
-            Dictionary could not be loaded.<br />
-            <span style={{ fontSize: 12, color: 'var(--fd-text-muted)' }}>Spell check is not available in this environment.</span>
+            {t('spellCheck.dictionaryFailed')}<br />
+            <span style={{ fontSize: 12, color: 'var(--fd-text-muted)' }}>{t('spellCheck.unavailable')}</span>
           </div>
         </div>
         <div className="spell-modal-actions">
           <div className="spell-modal-actions-col" />
           <div className="spell-modal-actions-col">
-            <button className="dialog-primary" onClick={onClose}>Close</button>
+            <button className="dialog-primary" onClick={onClose}>{t('common:close')}</button>
           </div>
         </div>
       </div>
@@ -287,18 +289,18 @@ const SpellCheckModal: React.FC<SpellCheckModalProps> = ({ editor, onClose }) =>
         style={{ left: position.x, top: position.y }}
       >
         <div className="spell-modal-header" onMouseDown={handlePointerDown} onTouchStart={handlePointerDown}>
-          <span>Spelling</span>
+          <span>{t('spellCheck.title')}</span>
         </div>
         <div style={{ textAlign: 'center', padding: '32px 24px' }}>
           <div style={{ fontSize: 36, marginBottom: 12 }}>&#10003;</div>
-          <div style={{ color: 'var(--fd-text)', fontSize: 14 }}>Spelling check is complete.</div>
+          <div style={{ color: 'var(--fd-text)', fontSize: 14 }}>{t('spellCheck.complete')}</div>
         </div>
         <div className="spell-modal-actions">
           <div className="spell-modal-actions-col">
-            <button onClick={handleRecheck}>Recheck</button>
+            <button onClick={handleRecheck}>{t('spellCheck.recheck')}</button>
           </div>
           <div className="spell-modal-actions-col">
-            <button className="dialog-primary" onClick={onClose}>Close</button>
+            <button className="dialog-primary" onClick={onClose}>{t('common:close')}</button>
           </div>
         </div>
       </div>
@@ -313,13 +315,13 @@ const SpellCheckModal: React.FC<SpellCheckModalProps> = ({ editor, onClose }) =>
       style={{ left: position.x, top: position.y }}
     >
       <div className="spell-modal-header" onMouseDown={handlePointerDown} onTouchStart={handlePointerDown}>
-        <span>Spelling: {errors.length} issue{errors.length !== 1 ? 's' : ''}</span>
+        <span>{t('spellCheck.issues', { count: errors.length })}</span>
         <span style={{ fontSize: 11, color: 'var(--fd-text-muted)' }}>{currentIndex + 1} / {errors.length}</span>
       </div>
 
       <div className="spell-modal-body">
         <div className="spell-modal-section">
-          <label className="spell-modal-label">Not in Dictionary:</label>
+          <label className="spell-modal-label">{t('spellCheck.notInDictionary')}</label>
           <div className="spell-modal-context">
             {currentError && (() => {
               // Highlight the misspelled word in its surrounding context.
@@ -348,7 +350,7 @@ const SpellCheckModal: React.FC<SpellCheckModalProps> = ({ editor, onClose }) =>
         </div>
 
         <div className="spell-modal-section">
-          <label className="spell-modal-label">Change to:</label>
+          <label className="spell-modal-label">{t('spellCheck.changeTo')}</label>
           <input
             ref={inputRef}
             type="text"
@@ -359,10 +361,10 @@ const SpellCheckModal: React.FC<SpellCheckModalProps> = ({ editor, onClose }) =>
         </div>
 
         <div className="spell-modal-section">
-          <label className="spell-modal-label">Suggestions:</label>
+          <label className="spell-modal-label">{t('spellCheck.suggestions')}</label>
           <div className="spell-modal-suggestions">
             {suggestions.length === 0 ? (
-              <div className="spell-modal-no-suggestions">(no suggestions)</div>
+              <div className="spell-modal-no-suggestions">{t('spellCheck.noSuggestions')}</div>
             ) : (
               suggestions.map((s, i) => (
                 <div
@@ -381,17 +383,17 @@ const SpellCheckModal: React.FC<SpellCheckModalProps> = ({ editor, onClose }) =>
 
       <div className="spell-modal-actions">
         <div className="spell-modal-actions-col">
-          <button onClick={handleIgnore}>Ignore Once</button>
-          <button onClick={handleIgnoreAll}>Ignore All</button>
+          <button onClick={handleIgnore}>{t('spellCheck.ignoreOnce')}</button>
+          <button onClick={handleIgnoreAll}>{t('spellCheck.ignoreAll')}</button>
           {(() => {
             const targets = spellChecker.getActiveAddTargets();
             if (targets.length <= 1) {
-              return <button onClick={handleAddToDictionary}>Add to Dictionary</button>;
+              return <button onClick={handleAddToDictionary}>{t('spellCheck.addToDictionary')}</button>;
             }
-            return targets.map((t) => {
-              const label = t === PROJECT_DICT_TARGET ? 'Add to Project' : `Add to "${t}"`;
+            return targets.map((target) => {
+              const label = target === PROJECT_DICT_TARGET ? t('spellCheck.addToProject') : t('spellCheck.addToNamed', { name: target });
               return (
-                <button key={t} onClick={() => handleAddToDictionaryTarget(t)}>
+                <button key={target} onClick={() => handleAddToDictionaryTarget(target)}>
                   {label}
                 </button>
               );
@@ -399,10 +401,10 @@ const SpellCheckModal: React.FC<SpellCheckModalProps> = ({ editor, onClose }) =>
           })()}
         </div>
         <div className="spell-modal-actions-col">
-          <button className="dialog-primary" onClick={handleChange}>Change</button>
-          <button onClick={handleChangeAll}>Change All</button>
-          <button onClick={handleRecheck}>Recheck</button>
-          <button onClick={onClose}>Close</button>
+          <button className="dialog-primary" onClick={handleChange}>{t('spellCheck.change')}</button>
+          <button onClick={handleChangeAll}>{t('spellCheck.changeAll')}</button>
+          <button onClick={handleRecheck}>{t('spellCheck.recheck')}</button>
+          <button onClick={onClose}>{t('common:close')}</button>
         </div>
       </div>
     </div>

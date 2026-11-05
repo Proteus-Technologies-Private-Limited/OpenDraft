@@ -12,6 +12,7 @@ import type { Editor } from '@tiptap/react';
 import type { JSONContent } from '@tiptap/react';
 import { parseFountain } from './fountainParser';
 import { pasteFailureMessage, readNativeText } from './clipboardCommands';
+import { t } from '../i18n';
 
 /**
  * How a Fountain paste should land at the caret.
@@ -152,7 +153,7 @@ export async function pasteAsFountain(editor: Editor): Promise<PasteFountainResu
   }
 
   if (!insertFountainText(editor, text)) {
-    return { ok: false, error: 'The clipboard is empty.' };
+    return { ok: false, error: t('messages:clipboard.empty') };
   }
   return { ok: true };
 }

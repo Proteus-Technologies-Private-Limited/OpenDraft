@@ -1,4 +1,6 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
+import { formatNumber } from '../i18n/format';
 import type { Asset } from '../stores/assetStore';
 import { api } from '../services/api';
 
@@ -9,6 +11,7 @@ interface AssetViewerProps {
 }
 
 const AssetViewer: React.FC<AssetViewerProps> = ({ asset, projectId, onClose }) => {
+  const { t } = useTranslation('tools');
   const assetUrl = api.getAssetUrl(projectId, asset.id, asset.filename);
   const mime = asset.mime_type;
 
@@ -27,7 +30,7 @@ const AssetViewer: React.FC<AssetViewerProps> = ({ asset, projectId, onClose }) 
       return (
         <audio controls className="asset-viewer-audio">
           <source src={assetUrl} type={mime} />
-          Your browser does not support the audio element.
+          {t('assetViewer.noAudio')}
         </audio>
       );
     }
@@ -35,7 +38,7 @@ const AssetViewer: React.FC<AssetViewerProps> = ({ asset, projectId, onClose }) 
       return (
         <video controls className="asset-viewer-video">
           <source src={assetUrl} type={mime} />
-          Your browser does not support the video element.
+          {t('assetViewer.noVideo')}
         </video>
       );
     }
@@ -50,7 +53,7 @@ const AssetViewer: React.FC<AssetViewerProps> = ({ asset, projectId, onClose }) 
           {mime} &middot; {formatSize(asset.size_bytes)}
         </div>
         <a href={assetUrl} download={asset.original_name} className="asset-viewer-download-link">
-          Download File
+          {t('assetViewer.download')}
         </a>
       </div>
     );
@@ -64,7 +67,7 @@ const AssetViewer: React.FC<AssetViewerProps> = ({ asset, projectId, onClose }) 
           <button
             className="asset-viewer-close"
             onClick={onClose}
-            aria-label="Close asset viewer"
+            aria-label={t('assetViewer.close')}
           >
             &times;
           </button>
@@ -78,22 +81,31 @@ const AssetViewer: React.FC<AssetViewerProps> = ({ asset, projectId, onClose }) 
 };
 
 const TextPreview: React.FC<{ url: string }> = ({ url }) => {
-  const [text, setText] = React.useState<string>('Loading...');
+  const { t } = useTranslation('tools');
+  // null while loading; `failed` when the file could not be read.
+  const [text, setText] = React.useState<string | null>(null);
+  const [failed, setFailed] = React.useState(false);
 
   React.useEffect(() => {
+    setText(null);
+    setFailed(false);
     fetch(url)
       .then((r) => r.text())
       .then(setText)
-      .catch(() => setText('Failed to load text content'));
+      .catch((err) => {
+        console.error('[assets] could not load text preview', err);
+        setFailed(true);
+      });
   }, [url]);
 
-  return <pre className="asset-viewer-text">{text}</pre>;
+  return <pre className="asset-viewer-text">{failed ? t('assetViewer.loadFailed') : text ?? t('assetViewer.loading')}</pre>;
 };
 
 function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  const oneDecimal = { minimumFractionDigits: 1, maximumFractionDigits: 1 };
+  if (bytes < 1024) return `${formatNumber(bytes)} B`;
+  if (bytes < 1024 * 1024) return `${formatNumber(bytes / 1024, oneDecimal)} KB`;
+  return `${formatNumber(bytes / (1024 * 1024), oneDecimal)} MB`;
 }
 
 export default AssetViewer;

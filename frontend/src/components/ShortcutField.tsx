@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { formatShortcut, shortcutFromEvent } from '../utils/shortcuts';
 
 /**
@@ -14,6 +15,7 @@ const ShortcutField: React.FC<{
   value: string;
   onChange: (spec: string) => void;
 }> = ({ id, value, onChange }) => {
+  const { t } = useTranslation(['settings', 'common']);
   const [listening, setListening] = useState(false);
 
   useEffect(() => {
@@ -35,8 +37,8 @@ const ShortcutField: React.FC<{
   }, [listening, onChange]);
 
   const label = listening
-    ? 'Press the keys\u2026'
-    : (formatShortcut(value) || 'None');
+    ? t('shortcutField.pressKeys')
+    : (formatShortcut(value) || t('common:none'));
 
   return (
     <span className="shortcut-field">
@@ -55,7 +57,7 @@ const ShortcutField: React.FC<{
         onClick={() => { setListening(false); onChange(''); }}
         disabled={!value && !listening}
       >
-        Clear
+        {t('common:clear')}
       </button>
     </span>
   );

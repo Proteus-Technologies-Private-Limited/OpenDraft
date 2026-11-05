@@ -17,6 +17,8 @@
  */
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { formatDateTime, formatNumber } from '../i18n/format';
 import { useProjectStore } from '../stores/projectStore';
 import { scriptApi } from '../services/scriptApi';
 import { api } from '../services/api';
@@ -43,11 +45,11 @@ interface Props {
   onBeforeReplace?: () => { content: Record<string, unknown>; title: string } | undefined;
 }
 
-function formatBytes(n: number): string {
-  if (n < 1024) return `${n} B`;
-  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
-  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
-}
+const ONE_DECIMAL = { minimumFractionDigits: 1, maximumFractionDigits: 1 } as const;
+// Same shape as Date.toLocaleString() in English, in the interface language.
+const FULL_DATE_TIME: Intl.DateTimeFormatOptions = {
+  year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric',
+};
 
 /** First N characters of body text, for the preview pane. */
 function previewText(content: Record<string, unknown>, limit = 1500): string {
@@ -67,6 +69,12 @@ function previewText(content: Record<string, unknown>, limit = 1500): string {
 }
 
 const RecoverBackupDialog: React.FC<Props> = ({ open, onClose, onBeforeReplace }) => {
+  const { t } = useTranslation(['backup', 'common']);
+  const formatBytes = (n: number): string => {
+    if (n < 1024) return t('backupSettings.sizeBytes', { value: formatNumber(n) });
+    if (n < 1024 * 1024) return t('backupSettings.sizeKb', { value: formatNumber(n / 1024, ONE_DECIMAL) });
+    return t('backupSettings.sizeMb', { value: formatNumber(n / (1024 * 1024), ONE_DECIMAL) });
+  };
   const navigate = useNavigate();
   const { currentProject, currentScriptId, triggerScriptReload } = useProjectStore();
 
@@ -131,15 +139,16 @@ const RecoverBackupDialog: React.FC<Props> = ({ open, onClose, onBeforeReplace }
   const restoreAsNew = useCallback(async () => {
     if (!selected || !preview) return;
     if (!currentProject) {
-      showToast('Open or create a project first, then restore into it', 'error');
+      showToast(t('recover.needProject'), 'error');
       return;
     }
     if (!docHasAnyText(preview.content)) {
-      showToast('That backup has no script content', 'error');
+      showToast(t('recover.noContent'), 'error');
       return;
     }
     setBusy(true);
     try {
+      // i18n-ignore: the script title is saved with the script, so it stays English
       const stamp = selected.date.toLocaleString();
       const created = await api.createScript(currentProject.id, {
         title: `${preview.meta.title || selected.title} (restored ${stamp})`,
@@ -148,22 +157,22 @@ const RecoverBackupDialog: React.FC<Props> = ({ open, onClose, onBeforeReplace }
       if (preview.assets.length > 0) {
         await unpackAssets(currentProject.id, preview.assets);
       }
-      showToast('Backup restored as a new script', 'success');
+      showToast(t('recover.restoredAsNew'), 'success');
       onClose();
       // Navigating makes the normal script loader hydrate every store, so
       // there is no separate restore path that could miss something.
       navigate(`/project/${currentProject.id}/edit/${created.meta.id}`);
     } catch (err) {
-      showToast(`Restore failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
+      showToast(t('recover.restoreFailed', { error: err instanceof Error ? err.message : String(err) }), 'error');
     } finally {
       setBusy(false);
     }
-  }, [selected, preview, currentProject, navigate, onClose]);
+  }, [selected, preview, currentProject, navigate, onClose, t]);
 
   const replaceCurrent = useCallback(async () => {
     if (!selected || !preview || !currentProject || !currentScriptId) return;
     if (!docHasAnyText(preview.content)) {
-      showToast('That backup has no script content', 'error');
+      showToast(t('recover.noContent'), 'error');
       return;
     }
     setBusy(true);
@@ -184,7 +193,7 @@ const RecoverBackupDialog: React.FC<Props> = ({ open, onClose, onBeforeReplace }
           });
         } catch (err) {
           console.warn('[backup] safety snapshot before replace failed', err);
-          showToast('Could not save a safety copy first — replacing anyway', 'info');
+          showToast(t('recover.safetyCopyFailed'), 'info');
         }
       }
 
@@ -193,15 +202,15 @@ const RecoverBackupDialog: React.FC<Props> = ({ open, onClose, onBeforeReplace }
         await unpackAssets(currentProject.id, preview.assets);
       }
       triggerScriptReload();
-      showToast('Current script replaced from backup', 'success');
+      showToast(t('recover.replaced'), 'success');
       onClose();
     } catch (err) {
-      showToast(`Restore failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
+      showToast(t('recover.restoreFailed', { error: err instanceof Error ? err.message : String(err) }), 'error');
     } finally {
       setBusy(false);
       setConfirmReplace(false);
     }
-  }, [selected, preview, currentProject, currentScriptId, triggerScriptReload, onClose, onBeforeReplace]);
+  }, [selected, preview, currentProject, currentScriptId, triggerScriptReload, onClose, onBeforeReplace, t]);
 
   const handleDelete = useCallback(async () => {
     if (!selected) return;
@@ -209,11 +218,11 @@ const RecoverBackupDialog: React.FC<Props> = ({ open, onClose, onBeforeReplace }
       await deleteSnapshot(selected.path);
       setSelected(null);
       await refresh();
-      showToast('Backup deleted', 'success');
+      showToast(t('recover.deleted'), 'success');
     } catch (err) {
-      showToast(`Could not delete: ${err instanceof Error ? err.message : String(err)}`, 'error');
+      showToast(t('recover.deleteFailed', { error: err instanceof Error ? err.message : String(err) }), 'error');
     }
-  }, [selected, refresh]);
+  }, [selected, refresh, t]);
 
   /** Recover a snapshot the user moved somewhere else. */
   const handleImportFile = useCallback(async () => {
@@ -228,31 +237,30 @@ const RecoverBackupDialog: React.FC<Props> = ({ open, onClose, onBeforeReplace }
       });
       setPreview(parsed);
     } catch (err) {
-      showToast(`Could not read that file: ${err instanceof Error ? err.message : String(err)}`, 'error');
+      showToast(t('recover.readFileFailed', { error: err instanceof Error ? err.message : String(err) }), 'error');
     }
-  }, []);
+  }, [t]);
 
   if (!open) return null;
 
   return (
     <div className="dialog-overlay" onClick={onClose}>
       <div className="dialog recover-backup-dialog" onClick={(e) => e.stopPropagation()}>
-        <h2 className="dialog-title">Recover Backup</h2>
+        <h2 className="dialog-title">{t('recover.title')}</h2>
 
         <div className="recover-backup-body">
           <div className="recover-backup-list">
-            {loading && <div className="recover-backup-empty">Loading…</div>}
+            {loading && <div className="recover-backup-empty">{t('common:loading')}</div>}
 
             {!loading && loadError && (
               <div className="recover-backup-empty">
-                Can't read the backup folder — {loadError}
+                {t('recover.folderUnreadable', { error: loadError })}
               </div>
             )}
 
             {!loading && !loadError && entries.length === 0 && (
               <div className="recover-backup-empty">
-                No backups yet. Turn on automatic backups in Settings, or use
-                File → Backups → Back Up Now.
+                {t('recover.empty')}
               </div>
             )}
 
@@ -267,9 +275,9 @@ const RecoverBackupDialog: React.FC<Props> = ({ open, onClose, onBeforeReplace }
                   >
                     <span className="recover-backup-when">{relativeTime(e.date)}</span>
                     <span className="recover-backup-meta">
-                      {e.date.toLocaleString()} · {formatBytes(e.sizeBytes)}
-                      {e.kind === 'manual' && <span className="recover-backup-badge">Manual</span>}
-                      {e.kind === 'external' && <span className="recover-backup-badge">Imported</span>}
+                      {formatDateTime(e.date, FULL_DATE_TIME)} · {formatBytes(e.sizeBytes)}
+                      {e.kind === 'manual' && <span className="recover-backup-badge">{t('recover.badgeManual')}</span>}
+                      {e.kind === 'external' && <span className="recover-backup-badge">{t('recover.badgeImported')}</span>}
                     </span>
                   </button>
                 ))}
@@ -278,27 +286,26 @@ const RecoverBackupDialog: React.FC<Props> = ({ open, onClose, onBeforeReplace }
           </div>
 
           <div className="recover-backup-preview">
-            {!selected && <div className="recover-backup-empty">Select a backup to preview it.</div>}
+            {!selected && <div className="recover-backup-empty">{t('recover.selectPrompt')}</div>}
             {selected && previewError && (
-              <div className="recover-backup-empty">Could not read this backup — {previewError}</div>
+              <div className="recover-backup-empty">{t('recover.previewFailed', { error: previewError })}</div>
             )}
-            {selected && !preview && !previewError && <div className="recover-backup-empty">Reading…</div>}
+            {selected && !preview && !previewError && <div className="recover-backup-empty">{t('recover.reading')}</div>}
             {preview && (
               <>
                 <div className="recover-backup-preview-meta">
                   <div><strong>{preview.meta.title || selected?.title}</strong></div>
                   {preview.meta.author && <div>{preview.meta.author}</div>}
-                  {preview.meta.page_count > 0 && <div>{preview.meta.page_count} pages</div>}
-                  {selected && <div>Saved {selected.date.toLocaleString()}</div>}
+                  {preview.meta.page_count > 0 && <div>{t('recover.pages', { count: preview.meta.page_count })}</div>}
+                  {selected && <div>{t('recover.saved', { date: formatDateTime(selected.date, FULL_DATE_TIME) })}</div>}
                   {preview.meta.assets_omitted && (
                     <div className="settings-hint settings-hint-warning">
-                      Images are not included in this backup — a restored script
-                      will be missing them.
+                      {t('recover.noImages')}
                     </div>
                   )}
                   {preview.assets.length > 0 && (
                     <div className="settings-hint">
-                      Includes {preview.assets.length} image{preview.assets.length === 1 ? '' : 's'}.
+                      {t('recover.includesImages', { count: preview.assets.length })}
                     </div>
                   )}
                 </div>
@@ -310,19 +317,17 @@ const RecoverBackupDialog: React.FC<Props> = ({ open, onClose, onBeforeReplace }
 
         {confirmReplace ? (
           <div className="recover-backup-confirm">
-            Replace the script you have open with this backup? Its current
-            contents will be overwritten. A backup of the current state is saved
-            first, so this can be undone.
+            {t('recover.confirmReplace')}
             <div className="dialog-actions">
-              <button className="dialog-btn" onClick={() => setConfirmReplace(false)}>Cancel</button>
+              <button className="dialog-btn" onClick={() => setConfirmReplace(false)}>{t('common:cancel')}</button>
               <button className="dialog-btn dialog-btn-danger" disabled={busy} onClick={() => void replaceCurrent()}>
-                Replace Script
+                {t('recover.replaceScript')}
               </button>
             </div>
           </div>
         ) : (
           <div className="dialog-actions">
-            <button className="dialog-btn" onClick={() => void handleImportFile()}>Import from a file…</button>
+            <button className="dialog-btn" onClick={() => void handleImportFile()}>{t('recover.importFile')}</button>
             {/* Desktop only — neither mobile platform can open Files at a
                 particular document. */}
             {supportsRevealBackup() && (
@@ -331,7 +336,7 @@ const RecoverBackupDialog: React.FC<Props> = ({ open, onClose, onBeforeReplace }
                 disabled={!selected || selected.kind === 'external'}
                 onClick={() => selected && void revealSnapshot(selected.path)}
               >
-                Reveal
+                {t('recover.reveal')}
               </button>
             )}
             <button
@@ -339,23 +344,23 @@ const RecoverBackupDialog: React.FC<Props> = ({ open, onClose, onBeforeReplace }
               disabled={!selected || selected.kind === 'external'}
               onClick={() => void handleDelete()}
             >
-              Delete
+              {t('common:delete')}
             </button>
             <button
               className="dialog-btn"
               disabled={!preview || busy || !currentScriptId}
               onClick={() => setConfirmReplace(true)}
             >
-              Replace Current Script…
+              {t('recover.replaceCurrent')}
             </button>
             <button
               className="dialog-btn dialog-btn-primary"
               disabled={!preview || busy}
               onClick={() => void restoreAsNew()}
             >
-              Open as New Script
+              {t('recover.openAsNew')}
             </button>
-            <button className="dialog-btn" onClick={onClose}>Close</button>
+            <button className="dialog-btn" onClick={onClose}>{t('common:close')}</button>
           </div>
         )}
       </div>

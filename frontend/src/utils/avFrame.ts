@@ -9,6 +9,7 @@
 import type { Editor } from '@tiptap/react';
 import { NodeSelection, TextSelection } from '@tiptap/pm/state';
 import { showToast } from '../components/Toast';
+import { t } from '../i18n';
 
 /**
  * Open the platform's image picker and resolve with the chosen file, or null.
@@ -110,7 +111,7 @@ export async function chooseAvFrameImage(editor: Editor | null, pos?: number): P
     const file = await pickImageFile();
     if (!file) return;
     if (!file.type.startsWith('image/')) {
-      showToast('Please choose an image file', 'error');
+      showToast(t('messages:avFrame.notImage'), 'error');
       return;
     }
     const { buildImageAttrs, warnIfImageDegraded } = await import('./insertImage');
@@ -129,12 +130,12 @@ export async function chooseAvFrameImage(editor: Editor | null, pos?: number): P
       alt: attrs.filename ?? null,
     }).run();
     if (!ok) {
-      showToast('Put the cursor in an AV row first, then add the frame', 'error');
+      showToast(t('messages:avFrame.needRow'), 'error');
       return;
     }
     warnIfImageDegraded(attrs);
   } catch (err) {
     console.error('[av] could not add storyboard frame', err);
-    showToast(`Could not add the frame: ${err instanceof Error ? err.message : String(err)}`, 'error');
+    showToast(t('messages:avFrame.failed', { message: err instanceof Error ? err.message : String(err) }), 'error');
   }
 }

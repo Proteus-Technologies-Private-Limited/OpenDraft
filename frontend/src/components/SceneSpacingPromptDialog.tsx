@@ -14,6 +14,7 @@
  * pointed out that stacking launch dialogs trains people to dismiss them.
  */
 import React, { useEffect, useRef, useState } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 
 interface Props {
   /** Raised once the writer answers: true to adopt the standard spacing. */
@@ -21,6 +22,7 @@ interface Props {
 }
 
 const SceneSpacingPromptDialog: React.FC<Props> = ({ onAnswer }) => {
+  const { t } = useTranslation('tools');
   const boxRef = useRef<HTMLDivElement>(null);
   const [answered, setAnswered] = useState(false);
 
@@ -74,27 +76,23 @@ const SceneSpacingPromptDialog: React.FC<Props> = ({ onAnswer }) => {
         ref={boxRef}
       >
         <div className="dialog-header" id="scene-spacing-dialog-title">
-          Use standard scene heading spacing?
+          {t('sceneSpacing.title')}
         </div>
         <div className="dialog-body">
           <p style={{ margin: '0 0 12px' }}>
-            This script puts <strong>one blank line</strong> before each scene
-            heading. Industry standard — and Final Draft&rsquo;s default — is{' '}
-            <strong>two</strong>.
+            <Trans ns="tools" i18nKey="sceneSpacing.intro" components={{ strong: <strong /> }} />
           </p>
           <p style={{ margin: 0, fontSize: 13, color: 'var(--fd-text-muted)' }}>
-            Reformatting changes where pages break, so the script will get
-            slightly longer. You can change it at any time under Format &rsaquo;
-            Formatting Template, and this script keeps whichever you choose.
+            {t('sceneSpacing.explanation')}
           </p>
         </div>
         <div className="dialog-footer" style={{ display: 'flex', gap: 8 }}>
           <button className="dialog-btn" onClick={() => answer(false)}>
-            Keep one line
+            {t('sceneSpacing.keep')}
           </button>
           <div style={{ flex: 1 }} />
           <button className="dialog-btn dialog-btn-primary" onClick={() => answer(true)}>
-            Reformat
+            {t('sceneSpacing.reformat')}
           </button>
         </div>
       </div>

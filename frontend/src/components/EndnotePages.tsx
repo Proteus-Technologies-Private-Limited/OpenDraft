@@ -67,6 +67,7 @@ const EndnotePages: React.FC<EndnotePagesProps> = ({
               className="endnote-page"
               style={{ top: `${contentTop}px`, height: `${m.pageContentPx}px` }}
             >
+              {/* i18n-ignore: the NOTES heading is script page content, written the same way into exports */}
               {page.hasHeading && <div className="endnote-heading">NOTES</div>}
               {page.slices.map((slice, i) => {
                 const entry = plan.entryById.get(slice.noteId);

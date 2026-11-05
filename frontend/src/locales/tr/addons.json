@@ -1,0 +1,168 @@
+{
+  "dictation": {
+    "plugin": {
+      "name": "Dikte",
+      "menu": "Dikte…",
+      "description": "Kısa bir cümle dikte edin, yazıya dökümünü gözden geçirin, sonra senaryonuza ekleyin. İsteğe bağlı İngilizce sesli komutlar yeni öğeler başlatır.",
+      "privacy": "Yerel Whisper sesi bu cihazda tutar. İlk kullanım, IP adresinizi gören huggingface.co sitesinden model dosyalarını indirir. Tarayıcı konuşma tanıma, kaydedilen sesi Google, Apple veya Microsoft'a gönderebilir. Cihaz tanıma, kaydedilen sesi Apple'a veya Android konuşma sağlayıcısına (genellikle Google) gönderebilir. Desteklenen yerlerde cihaz üzerinde tanıma istenir; Android'in çevrimdışı tercihi bir garanti değildir. Dikteyi açmadan önce aşağıdan motoru seçin. Tercihler bu cihazda kalır ve eklenti kapatıldığında silinebilir."
+    },
+    "engine": {
+      "local": "Yerel Whisper",
+      "browser": "Tarayıcı konuşma hizmeti",
+      "device": "Cihaz konuşma hizmeti"
+    },
+    "privacy": {
+      "local": "Ses bu cihazda kalır. İlk kullanım, IP adresinizi gören huggingface.co sitesinden model dosyalarını indirir.",
+      "browser": "Kaydedilen sesiniz tarayıcı sağlayıcısının konuşma sunucularına (Google, Apple veya Microsoft) gönderilebilir.",
+      "device": "Kaydedilen sesiniz Apple'a veya Android konuşma sağlayıcınıza (genellikle Google) gönderilebilir. Desteklenen yerlerde cihaz üzerinde tanıma istenir; çevrimdışı tercih bir garanti değildir."
+    },
+    "problem": {
+      "linux": "Bu Linux masaüstü sürümü desteklenen WebKit mikrofon kaydını sunmuyor. Yerel Whisper için OpenDraft'ı mikrofon destekli bir tarayıcıda kullanın.",
+      "noMicrophone": "Mikrofon kaydı bu tarayıcıda kullanılamıyor. HTTPS veya localhost kullanın ve mikrofon erişimini etkinleştirin."
+    },
+    "permission": {
+      "macos": "Mikrofon erişimi engelli. Sistem Ayarları → Gizlilik ve Güvenlik → Mikrofon bölümünde OpenDraft'a izin verin, sonra yeniden deneyin.",
+      "windows": "Mikrofon erişimi engelli. Windows Ayarları → Gizlilik ve güvenlik → Mikrofon bölümünde OpenDraft için mikrofon erişimine izin verin, sonra yeniden deneyin.",
+      "browser": "Mikrofon veya konuşma tanıma erişimi engelli. Tarayıcı ayarlarınızda bu site için mikrofon erişimine izin verin, sonra yeniden deneyin."
+    },
+    "error": {
+      "recordingFailed": "Mikrofon kaydı başarısız oldu.",
+      "workerFailed": "Yerel konuşma işleyicisi başarısız oldu.",
+      "localTimeout": "Yerel tanıma zaman aşımına uğradı. Daha kısa bir kayıt deneyin veya model indirme bağlantısını kontrol edin.",
+      "deviceNotFinished": "Cihaz tanıma tamamlanmadı. Lütfen yeniden deneyin.",
+      "deviceFailed": "Cihaz tanıma başarısız oldu.",
+      "deviceTimeout": "Cihaz tanıma zaman aşımına uğradı. Lütfen yeniden deneyin.",
+      "browserUnavailable": "Konuşma tanıma bu tarayıcıda kullanılamıyor. Yerel Whisper'ı seçin.",
+      "recognition": "Konuşma tanıma: {{error}}.",
+      "engineUnavailable": "Bu tanıma motoru burada kullanılamıyor. Ayarlar → Eklentiler → Dikte bölümünden kullanılabilir bir motor seçin.",
+      "commandNotHere": "Bu sesli komut buraya eklenemez. Uyumlu bir öğe seçin veya senaryo imlecini taşıyın.",
+      "placeCursor": "Eklemeden önce imleci bir senaryo metni öğesine yerleştirin."
+    },
+    "status": {
+      "preparing": "Ses hazırlanıyor ve yerel model yükleniyor…",
+      "downloading": "Model dosyaları indiriliyor: %{{percent}}",
+      "hidden": "Uygulama gizlendiği için kayıt durdu.",
+      "listening": "Dinleniyor…",
+      "review": "Eklemeden önce yazıya dökümü gözden geçirin.",
+      "stopped": "Kayıt durdu. Eklemeden önce yazıya dökümü gözden geçirin.",
+      "finishing": "Tanıma tamamlanıyor…",
+      "cancelled": "İptal edildi.",
+      "inserted": "Eklendi."
+    },
+    "openEditable": "Dikteyi kullanmak için düzenlenebilir bir senaryo açın.",
+    "title": "Dikte",
+    "intro": "Kısa bir cümle söyleyin, gözden geçirin, sonra senaryo imlecine ekleyin.",
+    "localNote": "İlk kullanım, 39 MiB q8 model ağırlıklarını ve ayrıca belirteç çözümleyici ile çalışma zamanı dosyalarını indirir. Kayıtlar 30 saniye sonra durur; ilk tanıma birkaç dakika sürebilir.",
+    "androidNote": "Kaydı bitirmek veya iptal etmek için sistem konuşma penceresini kullanın.",
+    "changeSettings": "Motoru, dili veya sesli komutları Ayarlar → Eklentiler → Dikte bölümünden değiştirin.",
+    "commandsHelp": "İngilizce tam bir komut söyleyin: “new scene”, “character Sarah”, “action”, “dialogue”, “parenthetical”, “transition” veya “new paragraph”. Bu sözcükleri komut olarak değil metin olarak dikte etmek için başına “literal” ekleyin.",
+    "start": "Kaydı başlat",
+    "stop": "Durdur",
+    "cancel": "Kaydı iptal et",
+    "transcript": "Yazıya döküm",
+    "command": "Komut: {{type}} başlat.",
+    "commandWithText": "Komut: {{type}} başlat: {{text}}.",
+    "insert": "Senaryoya ekle",
+    "settings": {
+      "engine": "Tanıma motoru",
+      "engineMayLeave": "{{name}} (ses cihazdan çıkabilir)",
+      "language": "Dil",
+      "commands": "İngilizce sesli komutları yorumla",
+      "commandsHint": "Komutlar isteğe bağlıdır. Eklemeden önce her yazıya dökümü gözden geçirin. Ayarlar bu cihazda kalır.",
+      "noEngine": "Bu platformda desteklenen bir tanıma motoru yok.",
+      "noEngineBrowser": "Bu tarayıcıda desteklenen bir konuşma motoru yok.",
+      "saveFailed": "Dikte ayarları kaydedilemedi: {{error}}"
+    },
+    "languages": {
+      "en": "İngilizce",
+      "pl": "Lehçe",
+      "fr": "Fransızca",
+      "de": "Almanca",
+      "es": "İspanyolca",
+      "it": "İtalyanca",
+      "pt": "Portekizce",
+      "ja": "Japonca"
+    }
+  },
+  "assistant": {
+    "plugin": {
+      "name": "Yapay zekâ asistanı",
+      "menu": "Yapay zekâ asistanı…",
+      "panel": "Asistan",
+      "description": "Bir yapay zekâ modeline senaryonuzu sorun ve önerilerini gözden geçirdikten sonra ekleyin. Ollama, LM Studio veya Unsloth Studio gibi yerel bir sunucuyla çalışır.",
+      "privacy": "Sorunuzu, yanıt vermesi için gereken senaryo bağlamını ve seçtiğiniz metni seçtiğiniz yapay zekâ sunucusuna gönderir. Kendi bilgisayarınızdaki Ollama, LM Studio veya Unsloth Studio gibi yerel bir sunucuyla hiçbir şey cihazınızdan çıkmaz. Sunucu adresi, model adı ve varsa API anahtarı yalnızca bu cihazda saklanır, asla senaryolarda değil; anahtar uygulama depolamasında şifresiz tutulur, bu yüzden bu amaç için oluşturulmuş bir anahtar kullanın."
+    },
+    "examples": {
+      "line": "Ben için bir replik yaz: \"Herkese merhaba.\"",
+      "scene": "Bir sahne ekle: INT. ÇAMAŞIRHANE - GECE, açılış aksiyonuyla.",
+      "say": "MARGO \"Geri dönmemeliydin\" desin (fısıldayarak)."
+    },
+    "preview": {
+      "element": "Öğe → {{label}}",
+      "replaceWith": "Şununla değiştir: "
+    },
+    "couldNot": "Yapılamadı: {{message}}",
+    "done": "Bitti.",
+    "discarded": "Öneri atıldı.",
+    "proposalReady": "Öneri hazır - gözden geçirip onaylayın.",
+    "warning": "⚠️ {{message}}",
+    "title": "Yapay zekâ asistanı",
+    "newConversation": "Yeni sohbet",
+    "empty": "Asistandan senaryoya yazmasını isteyin. Uygulamanın komutlarını kullanır; bu yüzden metin zaten biçimlendirilmiş gelir.",
+    "hint": "Sunucu ve model Ayarlar → Eklentiler bölümünde belirlenir.",
+    "you": "Siz",
+    "assistant": "Asistan",
+    "writing": "Yazıyor…",
+    "proposal": "Öneri",
+    "blockCount_one": "{{count}} blok",
+    "blockCount_other": "{{count}} blok",
+    "insert": "Ekle",
+    "discard": "At",
+    "placeholder": "örn. Ben için bir replik yaz: \"Herkese merhaba.\"",
+    "send": "Gönder (Enter)",
+    "openScreenplay": "Asistanı kullanmak için bir senaryo açın.",
+    "error": {
+      "scriptChanged": "Öneri beklerken senaryo değiştiği için atıldı. Yeniden isteyin.",
+      "tooManyActions": "Öneri çok büyük (en fazla 60 işlem). Daha belirli bir istek deneyin.",
+      "tooManyBlocks": "Öneri çok büyük (en fazla 40 blok). Daha belirli bir istek deneyin.",
+      "notAllowed": "Asistanın {{name}} komutunu çalıştırmasına izin yok.",
+      "nothingToInsert": "Önerinin eklenecek bir şeyi yoktu.",
+      "readOnly": "Bu belge salt okunur olduğundan asistan ona ekleme yapamaz.",
+      "replaceGone": "Önerinin değiştireceği metin artık orada değil. Yeniden isteyin.",
+      "notApplied": "Bazı işlemler uygulanmadı: {{details}}",
+      "prepareDialogue": "Diyalog hazırlanamadı.",
+      "prepareScene": "Sahne hazırlanamadı.",
+      "notConfigured": "Önce Ayarlar → Eklentiler bölümünde yapay zekâ sunucusunu ve modeli belirleyin.",
+      "noValidActionsNamed": "Geçerli işlem yok: {{names}}",
+      "noValidActions": "Geçerli işlem yok.",
+      "noValidAction": "Model geçerli bir işlem üretmedi. İsteği başka sözcüklerle yazmayı deneyin.",
+      "noJsonAction": "Model bir JSON işlemi döndürmedi. İsteği yeniden yazmayı deneyin ya da daha büyük bir model kullanın.",
+      "noActionReceived": "İşlem alınmadı.",
+      "stepLimit": "Nihai yanıt olmadan adım sınırına ulaşıldı.",
+      "unreachableDesktop": "{{base}} adresine erişilemedi. Masaüstü uygulaması yalnızca localhost veya 127.0.0.1 için düz http bağlantılarına izin verir; bu yüzden yerel ağınızdaki bir sunucu güvenlik ilkesi tarafından engellenir. Sunucuyu bu bilgisayarda çalıştırın ya da OpenDraft'ı tarayıcıda kullanın.",
+      "unreachable": "{{base}} adresine erişilemedi. Sunucunun çalıştığını ve uygulamanın kaynağına izin verildiğini kontrol edin (Ollama için: OLLAMA_ORIGINS=*; Unsloth Studio için: sunucunun {{base}} adresinde dinliyor olması gerekir).",
+      "model": "Model hatası: {{message}}",
+      "apiKeyRequired": "Sunucu bir API anahtarı gerektiriyor. Onu Unsloth Studio'dan (veya sunucunuzdan) kopyalayıp asistan ayarlarındaki “API anahtarı” alanına yapıştırın."
+    },
+    "settings": {
+      "addressMissing": "Sunucu adresini girin, örn. http://localhost:11434",
+      "addressProtocol": "Adres http:// veya https:// ile başlamalıdır",
+      "modelMissing": "Kullanılacak modelin adını girin.",
+      "reached": "Sunucuya erişildi. Modeller: {{models}}",
+      "noModels": "Sunucuya erişildi ancak hiç model bildirmedi. Önce bir model yükleyin.",
+      "serverType": "Sunucu türü",
+      "ollama": "Ollama (kendi API'si)",
+      "openai": "OpenAI uyumlu (Unsloth Studio, LM Studio, llama.cpp…)",
+      "addressExamples": "Ollama: http://localhost:11434 · Unsloth Studio: http://localhost:8080/v1 · LM Studio: http://localhost:1234/v1",
+      "serverAddress": "Sunucu adresi",
+      "desktopNote": "Masaüstü uygulamasında sunucu bu bilgisayarda (localhost veya 127.0.0.1) çalışmalıdır; yerel ağınızdaki bir sunucu uygulamanın güvenlik ilkesi tarafından engellenir.",
+      "model": "Model",
+      "modelHint": "Güvenilir sonuçlar için 7B veya daha büyük bir talimat (instruct) modeli kullanın; küçük modeller sık sık bir repliği yanlış kişiye atar veya işlemleri atlar.",
+      "apiKey": "API anahtarı (yalnızca sunucunuz gerektiriyorsa)",
+      "optional": "isteğe bağlı",
+      "testing": "Sınanıyor…",
+      "test": "Bağlantıyı sına",
+      "saveFailed": "Ayarlar bu cihaza kaydedilemedi: {{message}}"
+    }
+  }
+}

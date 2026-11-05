@@ -104,6 +104,7 @@ export interface FDXPageLayout {
 const FDX_LABEL_TO_TOKEN: Record<string, string> = {
   'page #': '{page}',
   'last page #': '{pages}',
+  // i18n-ignore template field token, not UI text
   title: '{title}',
   date: '{date}',
 };

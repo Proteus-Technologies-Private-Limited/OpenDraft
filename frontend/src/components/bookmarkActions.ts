@@ -6,6 +6,7 @@ import type { Editor } from '@tiptap/react';
 import { useEditorStore } from '../stores/editorStore';
 import { bookmarkTargetAt, setBookmark, suggestBookmarkName } from '../utils/bookmarks';
 import { showToast } from './Toast';
+import { t } from '../i18n';
 
 /** Put the caret on a bookmarked element and scroll it a third of the way down the view. */
 export function goToBookmark(editor: Editor, pos: number): void {
@@ -27,7 +28,7 @@ export function goToBookmark(editor: Editor, pos: number): void {
 export function editBookmarkAtSelection(editor: Editor): void {
   const target = bookmarkTargetAt(editor.state.doc, editor.state.selection.from);
   if (!target) {
-    showToast('Place the cursor in a script element to bookmark it.', 'info');
+    showToast(t('dialogs:bookmark.placeCursor'), 'info');
     return;
   }
   const existing = target.node.attrs.bookmark as string | null;

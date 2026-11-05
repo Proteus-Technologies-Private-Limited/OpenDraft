@@ -1,0 +1,115 @@
+{
+  "status": {
+    "save": {
+      "unsaved": "تغييرات غير محفوظة",
+      "saving": "جارٍ الحفظ…",
+      "saved": "تم الحفظ",
+      "error": "فشل الحفظ"
+    },
+    "linked": {
+      "notSaved": "لم يُحفظ في الملف",
+      "missing": "الملف غير موجود",
+      "conflict": "تغيّر خارج OpenDraft",
+      "retryHint": "انقر للمحاولة مرة أخرى.",
+      "everySave": "كل عملية حفظ تكتب أيضًا إلى {{path}}"
+    },
+    "acts_zero": "لا فصول",
+    "acts_one": "فصل واحد",
+    "acts_two": "فصلان",
+    "acts_few": "{{count}} فصول",
+    "acts_many": "{{count}} فصلًا",
+    "acts_other": "{{count}} فصل",
+    "saveWritesBack": "يُكتب الحفظ مباشرة في {{name}}",
+    "actStructure": "بنية الفصول",
+    "runtime": {
+      "title": "المدة التقديرية بإيقاع {{pacing}} — انقر لضبط النوع والإيقاع",
+      "est": "تقريبًا {{runtime}}"
+    },
+    "wordsTitle": "الكلمات في السيناريو",
+    "words_zero": "{{formatted}} كلمة",
+    "words_one": "{{formatted}} كلمة",
+    "words_two": "{{formatted}} كلمة",
+    "words_few": "{{formatted}} كلمات",
+    "words_many": "{{formatted}} كلمة",
+    "words_other": "{{formatted}} كلمة",
+    "revision": "المراجعة: {{color}}",
+    "page": "الصفحة {{label}}",
+    "pageOf": "الصفحة {{current}} من {{total}}",
+    "pagesLocked": "الصفحات مقفلة",
+    "locked": "(مقفلة)",
+    "suggesting": {
+      "lockedTitle": "انضممت لتقديم اقتراحات: الكاتب يقبل تعديلاتك أو يرفضها",
+      "title": "تعديلاتك اقتراحات. انقر للتحرير المباشر مرة أخرى.",
+      "label": "اقتراح"
+    }
+  },
+  "resetToDefault": "إعادة التعيين إلى الافتراضي",
+  "richText": {
+    "bold": "غامق",
+    "italic": "مائل",
+    "underline": "تسطير",
+    "bulletList": "قائمة نقطية"
+  },
+  "fontPicker": {
+    "fontFamily": "عائلة الخط",
+    "search": "ابحث عن الخطوط…",
+    "searchLabel": "البحث في الخطوط",
+    "noMatch": "لا يوجد خط يطابق “{{query}}”.",
+    "notInstalledTitle": "الخط {{name}} غير مثبّت على هذا الجهاز — يُعرض خط مشابه بدلًا منه",
+    "notInstalled": "غير مثبّت",
+    "manage": "إضافة الخطوط أو إدارتها…",
+    "group": {
+      "document": "من هذا المستند",
+      "custom": "خطوط مخصصة",
+      "screenplay": "معيار السيناريو",
+      "typewriter": "الآلة الكاتبة",
+      "serif": "ذات الزوائد (Serif)",
+      "sansSerif": "بدون زوائد (Sans Serif)",
+      "monospace": "ثابتة العرض",
+      "display": "العناوين والعرض",
+      "handwriting": "خط اليد",
+      "latinExtended": "اللاتينية الموسّعة",
+      "indic": "الهندية",
+      "arabicHebrew": "العربية والعبرية",
+      "cjk": "الصينية واليابانية والكورية",
+      "other": "أخرى",
+      "device": "على هذا الجهاز"
+    }
+  },
+  "languageSelector": {
+    "title": "لغة الحوار"
+  },
+  "toolbar": {
+    "fontSize": "حجم الخط",
+    "pt": "{{size}}pt",
+    "bold": "غامق ({{shortcut}})",
+    "italic": "مائل ({{shortcut}})",
+    "underline": "تسطير ({{shortcut}})",
+    "strikethrough": "يتوسطه خط",
+    "subscript": "منخفض",
+    "superscript": "مرتفع",
+    "textColor": "لون النص",
+    "highlightColor": "لون التمييز",
+    "alignLeft": "محاذاة لليسار",
+    "alignCenter": "توسيط",
+    "alignRight": "محاذاة لليمين",
+    "justify": "ضبط",
+    "findReplace": "بحث واستبدال ({{shortcut}})",
+    "goToPage": "الانتقال إلى صفحة ({{shortcut}})",
+    "scriptNotes": "ملاحظات السيناريو",
+    "productionTags": "وسوم الإنتاج",
+    "zoomOut": "تصغير",
+    "editZoom": "انقر لتحرير التكبير",
+    "zoomIn": "تكبير",
+    "undo": "تراجع ({{shortcut}})",
+    "redo": "إعادة ({{shortcut}})",
+    "addAvRow": "إضافة صف AV أدناه (Tab من خلية الصوت، أو {{shortcut}})",
+    "row": "صف",
+    "deleteAvRow": "حذف صف AV هذا",
+    "moreFormatting": "مزيد من خيارات التنسيق",
+    "zoom": "التكبير",
+    "elementType": "نوع العنصر",
+    "elementTypeTitlePage": "تُضبط عناصر صفحة العنوان في محرر صفحة العنوان؛ ويكمن تنسيقها في القالب",
+    "titlePage": "صفحة العنوان"
+  }
+}

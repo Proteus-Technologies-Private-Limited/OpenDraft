@@ -94,7 +94,9 @@ const OSF_STYLE_NAME_TO_TYPE: Record<string, string> = {
   'shot': 'shot',
   // Word-processor styles the OSF spec documents alongside the screenplay
   // elements.  They carry no screenplay meaning, so they land on General.
+  // i18n-ignore import-format data key, not UI text
   'title': 'general',
+  // i18n-ignore import-format data key, not UI text
   'heading': 'general',
   'left column': 'general',
   'right column': 'general',
@@ -593,7 +595,9 @@ const TITLE_PAGE_ATTR_DEFAULTS: Record<string, string> = {
 
 /** Maps the bookmark names OSF 2.x uses on title-page paragraphs. */
 const BOOKMARK_TO_TP_ATTR: Record<string, string> = {
+  // i18n-ignore import-format data key, not UI text
   title: 'tpTitle',
+  // i18n-ignore import-format data key, not UI text
   subtitle: 'tpBasedOn',
   credit: 'tpCredit',
   author: 'tpWrittenBy',

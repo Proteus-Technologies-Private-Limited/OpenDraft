@@ -1,0 +1,109 @@
+{
+  "status": {
+    "save": {
+      "unsaved": "Alterações não salvas",
+      "saving": "Salvando…",
+      "saved": "Salvo",
+      "error": "Falha ao salvar"
+    },
+    "linked": {
+      "notSaved": "não salvo no arquivo",
+      "missing": "arquivo não encontrado",
+      "conflict": "alterado fora do OpenDraft",
+      "retryHint": "Clique para tentar novamente.",
+      "everySave": "Cada salvamento também grava em {{path}}"
+    },
+    "acts_one": "{{count}} ato",
+    "acts_many": "{{count}} de atos",
+    "acts_other": "{{count}} atos",
+    "saveWritesBack": "Salvar grava de volta em {{name}}",
+    "actStructure": "Estrutura de atos",
+    "runtime": {
+      "title": "Duração estimada com ritmo {{pacing}} — clique para definir gênero e ritmo",
+      "est": "Dur. est. {{runtime}}"
+    },
+    "wordsTitle": "Palavras no roteiro",
+    "words_one": "{{formatted}} palavra",
+    "words_many": "{{formatted}} de palavras",
+    "words_other": "{{formatted}} palavras",
+    "revision": "Revisão: {{color}}",
+    "page": "Página {{label}}",
+    "pageOf": "Página {{current}} de {{total}}",
+    "pagesLocked": "As páginas estão travadas",
+    "locked": "(travada)",
+    "suggesting": {
+      "lockedTitle": "Você entrou para sugerir: o roteirista aceita ou rejeita suas edições",
+      "title": "Suas edições são sugestões. Clique para voltar a editar diretamente.",
+      "label": "Sugerindo"
+    }
+  },
+  "resetToDefault": "Restaurar padrão",
+  "richText": {
+    "bold": "Negrito",
+    "italic": "Itálico",
+    "underline": "Sublinhado",
+    "bulletList": "Lista com marcadores"
+  },
+  "fontPicker": {
+    "fontFamily": "Família da fonte",
+    "search": "Pesquisar fontes…",
+    "searchLabel": "Pesquisar fontes",
+    "noMatch": "Nenhuma fonte corresponde a “{{query}}”.",
+    "notInstalledTitle": "{{name}} não está instalada neste dispositivo — uma fonte semelhante é exibida no lugar",
+    "notInstalled": "não instalada",
+    "manage": "Adicionar ou gerenciar fontes…",
+    "group": {
+      "document": "Deste documento",
+      "custom": "Fontes personalizadas",
+      "screenplay": "Padrão de roteiro",
+      "typewriter": "Máquina de escrever",
+      "serif": "Com serifa",
+      "sansSerif": "Sem serifa",
+      "monospace": "Monoespaçada",
+      "display": "Display e títulos",
+      "handwriting": "Manuscrita",
+      "latinExtended": "Latino estendido",
+      "indic": "Indiana / Índica",
+      "arabicHebrew": "Árabe e hebraico",
+      "cjk": "CJK",
+      "other": "Outras",
+      "device": "Neste dispositivo"
+    }
+  },
+  "languageSelector": {
+    "title": "Idioma do diálogo"
+  },
+  "toolbar": {
+    "fontSize": "Tamanho da fonte",
+    "pt": "{{size}}pt",
+    "bold": "Negrito ({{shortcut}})",
+    "italic": "Itálico ({{shortcut}})",
+    "underline": "Sublinhado ({{shortcut}})",
+    "strikethrough": "Tachado",
+    "subscript": "Subscrito",
+    "superscript": "Sobrescrito",
+    "textColor": "Cor do texto",
+    "highlightColor": "Cor de destaque",
+    "alignLeft": "Alinhar à esquerda",
+    "alignCenter": "Centralizar",
+    "alignRight": "Alinhar à direita",
+    "justify": "Justificar",
+    "findReplace": "Localizar e substituir ({{shortcut}})",
+    "goToPage": "Ir para a página ({{shortcut}})",
+    "scriptNotes": "Notas do roteiro",
+    "productionTags": "Tags de produção",
+    "zoomOut": "Reduzir zoom",
+    "editZoom": "Clique para editar o zoom",
+    "zoomIn": "Aumentar zoom",
+    "undo": "Desfazer ({{shortcut}})",
+    "redo": "Refazer ({{shortcut}})",
+    "addAvRow": "Adicionar linha AV abaixo (Tab na célula de áudio, ou {{shortcut}})",
+    "row": "Linha",
+    "deleteAvRow": "Excluir esta linha AV",
+    "moreFormatting": "Mais opções de formatação",
+    "zoom": "Zoom",
+    "elementType": "Tipo de elemento",
+    "elementTypeTitlePage": "Os elementos da página de rosto são definidos no editor de Página de rosto; a formatação deles fica no modelo",
+    "titlePage": "Página de rosto"
+  }
+}

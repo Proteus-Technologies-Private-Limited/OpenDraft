@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Editor } from '@tiptap/react';
 import FontPicker from './FontPicker';
 import { findFont, loadFontByName } from '../utils/fonts';
@@ -15,6 +16,7 @@ interface FormatPanelProps {
 }
 
 const FormatPanel: React.FC<FormatPanelProps> = ({ editor, onClose }) => {
+  const { t } = useTranslation(['format', 'common']);
   const { fontFamily: pageFont, fontSize: pageFontSize } = useEditorStore();
 
   // Per-attribute locking from active template
@@ -224,23 +226,23 @@ const FormatPanel: React.FC<FormatPanelProps> = ({ editor, onClose }) => {
       <div className="format-panel-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
         <div className="format-panel" ref={panelRef} style={panelPos ? { position: 'fixed', left: panelPos.x, top: panelPos.y, margin: 0 } : undefined}>
           <div className="format-panel-header" style={{ cursor: 'move' }} onPointerDown={onHeaderPointerDown} onPointerMove={onHeaderPointerMove} onPointerUp={onHeaderPointerUp}>
-            <span>Image</span>
-            <button className="format-panel-close" onClick={onClose} aria-label="Close image properties">&times;</button>
+            <span>{t('formatPanel.image')}</span>
+            <button className="format-panel-close" onClick={onClose} aria-label={t('formatPanel.closeImage')}>&times;</button>
           </div>
           <div className="format-panel-body">
             <div className="format-row">
-              <label className="format-label">Width (px)</label>
+              <label className="format-label">{t('formatPanel.widthPx')}</label>
               <input
                 type="number"
                 min={40}
                 value={a.width ?? ''}
-                placeholder="auto"
+                placeholder={t('formatPanel.auto')}
                 style={{ width: 90 }}
                 onChange={(e) => setImgAttr({ width: Math.max(40, Number(e.target.value) || 40) })}
               />
             </div>
             <div className="format-row">
-              <label className="format-label">Align</label>
+              <label className="format-label">{t('formatPanel.align')}</label>
               <div style={{ display: 'flex', gap: 4 }}>
                 {(['left', 'center', 'right'] as const).map((al) => (
                   <button
@@ -248,14 +250,14 @@ const FormatPanel: React.FC<FormatPanelProps> = ({ editor, onClose }) => {
                     onClick={() => setImgAttr({ align: al })}
                     style={{ textTransform: 'capitalize', fontWeight: (a.align || 'center') === al ? 700 : 400 }}
                   >
-                    {al}
+                    {al === 'left' ? t('formatPanel.alignLeft') : al === 'center' ? t('formatPanel.alignCenter') : t('formatPanel.alignRight')}
                   </button>
                 ))}
               </div>
             </div>
           </div>
           <div className="format-panel-actions">
-            <button className="format-primary" onClick={onClose}>Done</button>
+            <button className="format-primary" onClick={onClose}>{t('common:done')}</button>
           </div>
         </div>
       </div>
@@ -276,11 +278,11 @@ const FormatPanel: React.FC<FormatPanelProps> = ({ editor, onClose }) => {
           onPointerMove={onHeaderPointerMove}
           onPointerUp={onHeaderPointerUp}
         >
-          <span>Font & Formatting</span>
+          <span>{t('formatPanel.title')}</span>
           <button
             className="format-panel-close"
             onClick={handleCancel}
-            aria-label="Close formatting panel"
+            aria-label={t('formatPanel.close')}
           >
             &times;
           </button>
@@ -289,7 +291,7 @@ const FormatPanel: React.FC<FormatPanelProps> = ({ editor, onClose }) => {
         <div className="format-panel-body">
           {/* Font family */}
           <div className="format-row" style={locked.fontFamily ? { opacity: 0.5, pointerEvents: 'none' } : undefined}>
-            <label className="format-label">Font</label>
+            <label className="format-label">{t('formatPanel.font')}</label>
             <FontPicker
               value={font}
               extraFonts={extraFonts}
@@ -300,69 +302,69 @@ const FormatPanel: React.FC<FormatPanelProps> = ({ editor, onClose }) => {
 
           {/* Font size */}
           <div className="format-row">
-            <label className="format-label">Size</label>
+            <label className="format-label">{t('formatPanel.size')}</label>
             <Select
               className="format-size-select"
               value={size}
               disabled={locked.fontSize}
               onChange={(e) => handleSizeChange(Number(e.target.value))}
-              aria-label="Font size"
+              aria-label={t('formatPanel.fontSize')}
             >
               {(FONT_SIZES.includes(size) ? FONT_SIZES : [...FONT_SIZES, size].sort((a, b) => a - b)).map((s) => (
-                <option key={s} value={s}>{s}pt</option>
+                <option key={s} value={s}>{t('formatPanel.pt', { size: s })}</option>
               ))}
             </Select>
           </div>
 
           {/* Style toggles */}
           <div className="format-row">
-            <label className="format-label">Style</label>
+            <label className="format-label">{t('formatPanel.style')}</label>
             <div className="format-style-btns">
-              <button className={`format-style-btn${bold ? ' active' : ''}`} onClick={handleBoldToggle} disabled={locked.bold} title="Bold"><strong>B</strong></button>
-              <button className={`format-style-btn${italic ? ' active' : ''}`} onClick={handleItalicToggle} disabled={locked.italic} title="Italic"><em>I</em></button>
-              <button className={`format-style-btn${underline ? ' active' : ''}`} onClick={handleUnderlineToggle} disabled={locked.underline} title="Underline"><u>U</u></button>
-              <button className={`format-style-btn${strike ? ' active' : ''}`} onClick={handleStrikeToggle} disabled={locked.strikethrough} title="Strikethrough"><s>S</s></button>
-              <button className={`format-style-btn${subscript ? ' active' : ''}`} onClick={handleSubscriptToggle} disabled={locked.subscript} title="Subscript" style={{ fontSize: '0.75em' }}>X<sub>2</sub></button>
-              <button className={`format-style-btn${superscript ? ' active' : ''}`} onClick={handleSuperscriptToggle} disabled={locked.superscript} title="Superscript" style={{ fontSize: '0.75em' }}>X<sup>2</sup></button>
+              <button className={`format-style-btn${bold ? ' active' : ''}`} onClick={handleBoldToggle} disabled={locked.bold} title={t('formatPanel.bold')}><strong>B</strong></button>
+              <button className={`format-style-btn${italic ? ' active' : ''}`} onClick={handleItalicToggle} disabled={locked.italic} title={t('formatPanel.italic')}><em>I</em></button>
+              <button className={`format-style-btn${underline ? ' active' : ''}`} onClick={handleUnderlineToggle} disabled={locked.underline} title={t('formatPanel.underline')}><u>U</u></button>
+              <button className={`format-style-btn${strike ? ' active' : ''}`} onClick={handleStrikeToggle} disabled={locked.strikethrough} title={t('formatPanel.strikethrough')}><s>S</s></button>
+              <button className={`format-style-btn${subscript ? ' active' : ''}`} onClick={handleSubscriptToggle} disabled={locked.subscript} title={t('formatPanel.subscript')} style={{ fontSize: '0.75em' }}>X<sub>2</sub></button>
+              <button className={`format-style-btn${superscript ? ' active' : ''}`} onClick={handleSuperscriptToggle} disabled={locked.superscript} title={t('formatPanel.superscript')} style={{ fontSize: '0.75em' }}>X<sup>2</sup></button>
             </div>
           </div>
 
           {/* Text color */}
           <div className="format-row" style={locked.textColor ? { opacity: 0.5, pointerEvents: 'none' } : undefined}>
-            <label className="format-label">Color</label>
+            <label className="format-label">{t('formatPanel.color')}</label>
             <div className="format-color-row">
               <input
                 type="color"
                 value={textColor || '#000000'}
                 onChange={(e) => handleTextColorChange(e.target.value)}
                 className="format-color-input"
-                title="Text color"
+                title={t('formatPanel.textColor')}
               />
-              <span className="format-color-hex">{textColor || 'Default'}</span>
-              {textColor && <button className="format-color-reset" onClick={() => handleTextColorChange('')}>Reset</button>}
+              <span className="format-color-hex">{textColor || t('common:default')}</span>
+              {textColor && <button className="format-color-reset" onClick={() => handleTextColorChange('')}>{t('common:reset')}</button>}
             </div>
           </div>
 
           {/* Highlight color */}
           <div className="format-row" style={locked.backgroundColor ? { opacity: 0.5, pointerEvents: 'none' } : undefined}>
-            <label className="format-label">Highlight</label>
+            <label className="format-label">{t('formatPanel.highlight')}</label>
             <div className="format-color-row">
               <input
                 type="color"
                 value={highlightColor || '#ffff00'}
                 onChange={(e) => handleHighlightChange(e.target.value)}
                 className="format-color-input"
-                title="Highlight color"
+                title={t('formatPanel.highlightColor')}
               />
-              <span className="format-color-hex">{highlightColor || 'None'}</span>
-              {highlightColor && <button className="format-color-reset" onClick={() => handleHighlightChange('')}>Reset</button>}
+              <span className="format-color-hex">{highlightColor || t('common:none')}</span>
+              {highlightColor && <button className="format-color-reset" onClick={() => handleHighlightChange('')}>{t('common:reset')}</button>}
             </div>
           </div>
         </div>
 
         <div className="format-panel-actions">
-          <button className="format-btn format-btn-cancel" onClick={handleCancel}>Cancel</button>
-          <button className="format-btn format-btn-ok" onClick={handleOk}>OK</button>
+          <button className="format-btn format-btn-cancel" onClick={handleCancel}>{t('common:cancel')}</button>
+          <button className="format-btn format-btn-ok" onClick={handleOk}>{t('common:ok')}</button>
         </div>
       </div>
     </div>

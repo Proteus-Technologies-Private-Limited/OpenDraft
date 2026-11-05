@@ -9,6 +9,7 @@ import type { FormattingTemplate, FormattingElementRule } from '../stores/format
 import { ELEMENT_CSS_CLASS, titlePageFieldOf, isTitlePageRuleId, AV_BLOCK_RULE_ID } from '../stores/formattingTypes';
 import type { PageLayout } from '../stores/editorStore';
 import { fontStack } from './fonts';
+import { templatePlaceholder } from '../editor/elementLabels';
 import { pageInk, pagePaper } from './inkColor';
 
 const STYLE_ELEMENT_ID = 'opendraft-template-css';
@@ -126,6 +127,23 @@ function getSelector(elementId: string, rule: FormattingElementRule): string {
   }
   // Custom element
   return `.page .screenplay-element.custom-element[data-custom-type="${elementId}"]`;
+}
+
+/**
+ * Placeholder hints in the interface language. The built-in templates (and the
+ * static stylesheet behind the default one) carry their descriptive hints in
+ * English; where the interface speaks another language this overrides just
+ * those. In English it emits nothing, so the English CSS is exactly as before.
+ */
+export function generatePlaceholderLocaleCss(template: FormattingTemplate): string {
+  const out: string[] = [];
+  for (const [elementId, rule] of Object.entries(template.rules)) {
+    if (!rule.placeholder) continue;
+    const text = templatePlaceholder(rule.placeholder);
+    if (text === rule.placeholder) continue;
+    out.push(`${getPlaceholderSelector(elementId, rule)} { content: '${escapeCssString(text)}'; }`);
+  }
+  return out.join('\n');
 }
 
 function getPlaceholderSelector(elementId: string, rule: FormattingElementRule): string {

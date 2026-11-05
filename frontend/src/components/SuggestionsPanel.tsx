@@ -9,8 +9,10 @@
  */
 import React, { useCallback, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import type { Editor } from '@tiptap/react';
+import type { TFunction } from 'i18next';
+import { useTranslation } from 'react-i18next';
+import { formatDate, formatTime } from '../i18n/format';
 import { useDelayedUnmount, useSwipeDismiss } from '../hooks/useTouch';
-import { ELEMENT_LABELS } from '../stores/editorStore';
 import { useSuggestModeStore, suggestionAuthor } from '../stores/suggestModeStore';
 import {
   isOwn, listSuggestions, resolveSuggestionTransaction, resolveSuggestionsTransaction, type Suggestion,
@@ -22,29 +24,30 @@ import {
   formattingDescription,
   type ReviewFilter,
 } from '../editor/suggestionReview';
+import { elementLabel } from '../editor/elementLabels';
 
 interface Props {
   editor: Editor | null;
   style?: React.CSSProperties;
 }
 
-const typeLabel = (t?: string) => (t ? (ELEMENT_LABELS[t] ?? t).replace(/ \(.*\)$/, '') : '');
+const typeLabel = (type?: string) => (type ? elementLabel(type).replace(/ \(.*\)$/, '') : '');
 
 /** One line saying what the suggestion does. */
-function describe(s: Suggestion): string {
+function describe(s: Suggestion, t: TFunction<'tools'>): string {
   const parts: string[] = [];
   const ins = s.inserted.replace(/\n/g, ' ').trim();
   const del = s.deleted.replace(/\n/g, ' ').trim();
-  if (del && ins) parts.push(`Replace “${del}” with “${ins}”`);
-  else if (ins) parts.push(`Add “${ins}”`);
-  else if (del) parts.push(`Delete “${del}”`);
-  if (s.kinds.includes('split') && !ins) parts.push('Start a new line');
-  else if (s.kinds.includes('split')) parts.push('on a new line');
-  if (s.kinds.includes('join')) parts.push('Join to the line before');
-  if (s.kinds.includes('type')) parts.push(`Change ${typeLabel(s.fromType)} to ${typeLabel(s.toType)}`);
+  if (del && ins) parts.push(t('suggestions.replace', { deleted: del, inserted: ins }));
+  else if (ins) parts.push(t('suggestions.add', { text: ins }));
+  else if (del) parts.push(t('suggestions.delete', { text: del }));
+  if (s.kinds.includes('split') && !ins) parts.push(t('suggestions.startNewLine'));
+  else if (s.kinds.includes('split')) parts.push(t('suggestions.onNewLine'));
+  if (s.kinds.includes('join')) parts.push(t('suggestions.joinLine'));
+  if (s.kinds.includes('type')) parts.push(t('suggestions.changeType', { from: typeLabel(s.fromType), to: typeLabel(s.toType) }));
   const formatting = formattingDescription(s);
   if (formatting) parts.push(formatting);
-  return parts.join(' · ') || 'Change';
+  return parts.join(' · ') || t('suggestions.change');
 }
 
 function when(at: number): string {
@@ -52,8 +55,8 @@ function when(at: number): string {
   const d = new Date(at);
   const today = new Date();
   return d.toDateString() === today.toDateString()
-    ? d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
-    : d.toLocaleDateString();
+    ? formatTime(d, { hour: 'numeric', minute: '2-digit' })
+    : formatDate(d);
 }
 
 function goTo(editor: Editor, pos: number, focus = true) {
@@ -71,6 +74,7 @@ function goTo(editor: Editor, pos: number, focus = true) {
 }
 
 const SuggestionsPanel: React.FC<Props> = ({ editor, style }) => {
+  const { t } = useTranslation(['tools', 'common']);
   const open = useSuggestModeStore((s) => s.panelOpen);
   const setOpen = useSuggestModeStore((s) => s.setPanelOpen);
   const locked = useSuggestModeStore((s) => s.locked);
@@ -136,11 +140,11 @@ const SuggestionsPanel: React.FC<Props> = ({ editor, style }) => {
   const canResolve = (s: Suggestion) => !locked || isOwn(s, me);
 
   return (
-    <div ref={panelRef} className={`tags-panel suggestions-panel ${panelClass}`} style={style} aria-label="Suggestions">
+    <div ref={panelRef} className={`tags-panel suggestions-panel ${panelClass}`} style={style} aria-label={t('suggestions.title')}>
       <div className="tags-panel-header">
-        <span className="tags-panel-title">Suggestions</span>
-        <span className="tags-panel-count" title="Suggestions waiting">{all.length}</span>
-        <button className="tags-panel-close" onClick={close} title="Close" aria-label="Close Suggestions">&times;</button>
+        <span className="tags-panel-title">{t('suggestions.title')}</span>
+        <span className="tags-panel-count" title={t('suggestions.waiting')}>{all.length}</span>
+        <button className="tags-panel-close" onClick={close} title={t('common:close')} aria-label={t('suggestions.closePanel')}>&times;</button>
       </div>
       <div className="suggestions-controls">
         <label className="suggestions-mode">
@@ -150,34 +154,34 @@ const SuggestionsPanel: React.FC<Props> = ({ editor, style }) => {
             disabled={locked}
             onChange={(e) => setSuggesting(e.target.checked)}
           />
-          <span>{locked ? 'You are suggesting — the writer decides what goes in' : 'Suggest my own changes'}</span>
+          <span>{locked ? t('suggestions.youAreSuggesting') : t('suggestions.suggestMine')}</span>
         </label>
         {(people.length > 1 || who) && (
-          <Select value={who} onChange={(e) => setWho(e.target.value)} aria-label="Whose suggestions">
-            <option value="">Everyone</option>
+          <Select value={who} onChange={(e) => setWho(e.target.value)} aria-label={t('suggestions.whose')}>
+            <option value="">{t('suggestions.everyone')}</option>
             {who && !people.includes(who) && <option value={who}>{who}</option>}
             {people.map((person) => <option key={person} value={person}>{person}</option>)}
           </Select>
         )}
         {all.length >= 2 && (
-          <Select value={kind} onChange={(e) => { setKind(e.target.value as ReviewFilter); setCurrentId(null); }} aria-label="Change type">
-            <option value="all">All change types</option>
-            <option value="text">Text changes</option>
-            <option value="format">Formatting changes</option>
-            <option value="structure">Element and line changes</option>
+          <Select value={kind} onChange={(e) => { setKind(e.target.value as ReviewFilter); setCurrentId(null); }} aria-label={t('suggestions.changeTypeLabel')}>
+            <option value="all">{t('suggestions.filters.all')}</option>
+            <option value="text">{t('suggestions.filters.text')}</option>
+            <option value="format">{t('suggestions.filters.format')}</option>
+            <option value="structure">{t('suggestions.filters.structure')}</option>
           </Select>
         )}
         {shown.length >= 2 && (
-          <div className="suggestions-navigation" aria-label="Review navigation">
-            <button className="dialog-btn" onClick={() => navigate(-1)} aria-label="Previous suggestion">← Previous</button>
-            <span role="status" aria-live="polite">{selected ? `${shown.indexOf(selected) + 1} of ${shown.length}` : `${shown.length} shown`}</span>
-            <button className="dialog-btn" onClick={() => navigate(1)} aria-label="Next suggestion">Next →</button>
+          <div className="suggestions-navigation" aria-label={t('suggestions.reviewNavigation')}>
+            <button className="dialog-btn" onClick={() => navigate(-1)} aria-label={t('suggestions.previousSuggestion')}>{t('suggestions.previous')}</button>
+            <span role="status" aria-live="polite">{selected ? t('suggestions.position', { current: shown.indexOf(selected) + 1, total: shown.length }) : t('suggestions.shown', { count: shown.length })}</span>
+            <button className="dialog-btn" onClick={() => navigate(1)} aria-label={t('suggestions.nextSuggestion')}>{t('suggestions.next')}</button>
           </div>
         )}
         {!locked && shown.length > 1 && (
           <div className="suggestions-bulk">
-            <button className="dialog-btn" onClick={() => resolveShown(true)}>Accept shown ({shown.length})</button>
-            <button className="dialog-btn" onClick={() => resolveShown(false)}>Reject shown ({shown.length})</button>
+            <button className="dialog-btn" onClick={() => resolveShown(true)}>{t('suggestions.acceptShown', { count: shown.length })}</button>
+            <button className="dialog-btn" onClick={() => resolveShown(false)}>{t('suggestions.rejectShown', { count: shown.length })}</button>
           </div>
         )}
       </div>
@@ -185,23 +189,23 @@ const SuggestionsPanel: React.FC<Props> = ({ editor, style }) => {
         {shown.length === 0 && (
           <div className="tags-panel-empty">
             {all.length === 0
-              ? 'No suggestions. Turn on Suggest my own changes, or invite someone to suggest from Tools → Collaboration.'
-              : 'No suggestions match these filters.'}
+              ? t('suggestions.empty')
+              : t('suggestions.noMatch')}
           </div>
         )}
         {shown.map((s) => (
           <div key={s.id} data-suggestion-id={s.id} className={`suggestion-card${s.id === currentId ? ' suggestion-card--current' : ''}`}>
-            <button className="suggestion-card-main" onClick={() => visit(s)} aria-current={s.id === currentId ? 'true' : undefined} title="Go to this change in the script">
+            <button className="suggestion-card-main" onClick={() => visit(s)} aria-current={s.id === currentId ? 'true' : undefined} title={t('suggestions.goTo')}>
               <span className="suggestion-card-who">{s.by}<span className="suggestion-card-when">{when(s.at)}</span></span>
-              <span className="suggestion-card-what">{describe(s)}</span>
+              <span className="suggestion-card-what">{describe(s, t)}</span>
             </button>
             {canResolve(s) && (
               <div className="suggestion-card-actions">
                 {!locked && (
-                  <button className="suggestion-accept" onClick={() => resolveOne(s.id, true)} aria-label="Accept" title="Accept and go to the next shown suggestion">&#10003; Accept</button>
+                  <button className="suggestion-accept" onClick={() => resolveOne(s.id, true)} aria-label={t('suggestions.accept')} title={t('suggestions.acceptTitle')}>&#10003; {t('suggestions.accept')}</button>
                 )}
-                <button className="suggestion-reject" onClick={() => resolveOne(s.id, false)} aria-label={locked ? 'Withdraw' : 'Reject'} title={locked ? 'Withdraw and go to the next shown suggestion' : 'Reject and go to the next shown suggestion'}>
-                  &#10005; {locked ? 'Withdraw' : 'Reject'}
+                <button className="suggestion-reject" onClick={() => resolveOne(s.id, false)} aria-label={locked ? t('suggestions.withdraw') : t('suggestions.reject')} title={locked ? t('suggestions.withdrawTitle') : t('suggestions.rejectTitle')}>
+                  &#10005; {locked ? t('suggestions.withdraw') : t('suggestions.reject')}
                 </button>
               </div>
             )}

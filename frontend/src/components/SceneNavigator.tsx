@@ -1,6 +1,9 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Editor } from '@tiptap/react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
+import { formatNumber } from '../i18n/format';
 import { useDelayedUnmount, useSwipeDismiss } from '../hooks/useTouch';
 import { useEditorStore } from '../stores/editorStore';
 import { computeSceneLengths, computePageBlocks, activeTemplateHints, type PageContentInfo } from '../editor/pagination';
@@ -11,9 +14,9 @@ import SynopsisModal from './SynopsisModal';
 import { showToast } from './Toast';
 import { blockContentRange, characterKey, singleLine } from '../utils/nodeText';
 import Select from './Select';
-import { ELEMENT_LABELS, type ElementType } from '../stores/editorStore';
 import { listBookmarks } from '../utils/bookmarks';
 import { goToBookmark, removeBookmark } from './bookmarkActions';
+import { elementLabel } from '../editor/elementLabels';
 
 interface SceneNavigatorProps {
   editor: Editor | null;
@@ -133,9 +136,9 @@ interface SceneDetail {
   pageLength: number;
 }
 
-function formatPageLength(pages: number): string {
+function formatPageLength(t: TFunction<['story', 'common']>, pages: number): string {
   const n = Number(pages.toFixed(2));
-  return `${n} ${n <= 1 ? 'page' : 'pages'}`;
+  return t(n <= 1 ? 'navigator.pageSingular' : 'navigator.pagePlural', { n: formatNumber(n) });
 }
 
 // ── Scene Length Icon ────────────────────────────────────────────────────
@@ -214,7 +217,9 @@ interface SectionOutlineProps {
  */
 const SectionOutline: React.FC<SectionOutlineProps> = ({
   sections, onGoToSection, onGoToScene, query,
-}) => (
+}) => {
+  const { t } = useTranslation(['story', 'common']);
+  return (
   <>
     {sections.map((section) => (
       <div key={`section-${section.sectionIndex}`} className="structure-section">
@@ -226,7 +231,7 @@ const SectionOutline: React.FC<SectionOutlineProps> = ({
         >
           <span className="structure-section-level">{'#'.repeat(section.level)}</span>
           <span className="structure-section-name">
-            {highlightText(section.title || 'Untitled section', query)}
+            {highlightText(section.title || t('navigator.untitledSection'), query)}
           </span>
           {section.scenes.length > 0 && (
             <span className="structure-section-count">{section.scenes.length}</span>
@@ -264,11 +269,13 @@ const SectionOutline: React.FC<SectionOutlineProps> = ({
       </div>
     ))}
   </>
-);
+  );
+};
 
 // ── Main component ──────────────────────────────────────────────────────
 
 const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer, style }) => {
+  const { t } = useTranslation(['story', 'common']);
   const { scenes, navigatorOpen, toggleNavigator, updateSceneSynopsis, updateSceneColor, pageLabels } = useEditorStore();
   const pageLayout = useEditorStore((s) => s.pageLayout);
   const plotlines = useEditorStore((s) => s.plotlines);
@@ -774,7 +781,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
 
     if (skippedBroken > 0) {
       showToast(
-        `Skipped ${skippedBroken} scene heading${skippedBroken === 1 ? '' : 's'} containing a line break`,
+        t('navigator.skippedHeadings', { count: skippedBroken }),
         'info',
       );
     }
@@ -782,7 +789,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
     if (tr.steps.length > 0) editor.view.dispatch(tr);
     setRenamingLocation(null);
     setExpandedLocation(newName.toUpperCase());
-  }, [editor, renamingLocation, renameValue]);
+  }, [editor, renamingLocation, renameValue, t]);
 
   const { shouldRender, animationState } = useDelayedUnmount(navigatorOpen, 250);
   const navPanelRef = useRef<HTMLDivElement>(null);
@@ -799,27 +806,27 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
       {/* Tab bar — horizontally scrollable tab strip + pinned close button */}
       <div className="navigator-tabs">
         <div className="navigator-tabs-scroll">
-          <button className={`navigator-tab${activeTab === 'scenes' ? ' active' : ''}`} onClick={() => setActiveTab('scenes')}>Scenes</button>
-          <button className={`navigator-tab${activeTab === 'pages' ? ' active' : ''}`} onClick={() => setActiveTab('pages')}>Pages</button>
-          <button className={`navigator-tab${activeTab === 'locations' ? ' active' : ''}`} onClick={() => setActiveTab('locations')}>Locations</button>
-          <button className={`navigator-tab${activeTab === 'structure' ? ' active' : ''}`} onClick={() => setActiveTab('structure')}>Structure</button>
-          <button className={`navigator-tab${activeTab === 'bookmarks' ? ' active' : ''}`} onClick={() => setActiveTab('bookmarks')}>Bookmarks</button>
+          <button className={`navigator-tab${activeTab === 'scenes' ? ' active' : ''}`} onClick={() => setActiveTab('scenes')}>{t('navigator.tabs.scenes')}</button>
+          <button className={`navigator-tab${activeTab === 'pages' ? ' active' : ''}`} onClick={() => setActiveTab('pages')}>{t('navigator.tabs.pages')}</button>
+          <button className={`navigator-tab${activeTab === 'locations' ? ' active' : ''}`} onClick={() => setActiveTab('locations')}>{t('navigator.tabs.locations')}</button>
+          <button className={`navigator-tab${activeTab === 'structure' ? ' active' : ''}`} onClick={() => setActiveTab('structure')}>{t('navigator.tabs.structure')}</button>
+          <button className={`navigator-tab${activeTab === 'bookmarks' ? ' active' : ''}`} onClick={() => setActiveTab('bookmarks')}>{t('navigator.tabs.bookmarks')}</button>
         </div>
-        <button className="navigator-close" onClick={toggleNavigator} title="Close Navigator">×</button>
+        <button className="navigator-close" onClick={toggleNavigator} title={t('navigator.close')}>×</button>
       </div>
 
       {/* ── Scenes tab ───────────────────────────────────────────────── */}
       {activeTab === 'scenes' && (
         <>
           <div className="navigator-header">
-            <span className="navigator-title">Scenes</span>
+            <span className="navigator-title">{t('navigator.tabs.scenes')}</span>
             <span className="scene-count">
               {(hasActiveFilter || searchQuery) ? `${filteredIndices.length}/` : ''}{scenes.length}
             </span>
             <button
               className={`scene-filter-btn${hasActiveFilter ? ' active' : ''}`}
               onClick={() => setShowFilters(!showFilters)}
-              title="Filter scenes"
+              title={t('navigator.filterScenes')}
             >
               <svg viewBox="0 0 16 16" width="16" height="16" fill={hasActiveFilter ? 'var(--fd-accent)' : 'none'} stroke="currentColor" strokeWidth="1.2">
                 <path d="M1.5 2h13l-5 5.5v5l-3-1.5V7.5z" />
@@ -839,7 +846,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
                     }
                   }}
                 >
-                  <option value="">Character...</option>
+                  <option value="">{t('navigator.characterFilter')}</option>
                   {allCharacters.filter(c => !filterCharacters.includes(c)).map(c => (
                     <option key={c} value={c}>{c}</option>
                   ))}
@@ -857,18 +864,18 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
               </div>
               <div className="scene-filter-row">
                 <Select className="scene-filter-select" value={filterLocation} onChange={(e) => setFilterLocation(e.target.value)}>
-                  <option value="">Location...</option>
+                  <option value="">{t('navigator.locationFilter')}</option>
                   {allLocations.map(l => <option key={l} value={l}>{l}</option>)}
                 </Select>
                 <Select className="scene-filter-select" value={filterPrefix} onChange={(e) => setFilterPrefix(e.target.value)}>
-                  <option value="">INT/EXT...</option>
+                  <option value="">{t('navigator.intExtFilter')}</option>
                   {allPrefixes.map(p => <option key={p} value={p}>{p}</option>)}
                 </Select>
               </div>
               <div className="scene-filter-row">
                 <Select className="scene-filter-select" value={filterTime} onChange={(e) => setFilterTime(e.target.value)}>
-                  <option value="">Time of Day...</option>
-                  {allTimes.map(t => <option key={t} value={t}>{t}</option>)}
+                  <option value="">{t('navigator.timeFilter')}</option>
+                  {allTimes.map(tm => <option key={tm} value={tm}>{tm}</option>)}
                 </Select>
                 <div className="scene-filter-colors">
                   {['', '#8b5cf6', '#4f46e5', '#2563eb', '#059669', '#eab308', '#f97316', '#ef4444', '#000000', '#ffffff'].map(c => (
@@ -877,7 +884,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
                       className={`scene-filter-color-dot${filterColor === c ? ' active' : ''}`}
                       style={{ background: c || 'var(--fd-text)', opacity: c ? 1 : 0.25 }}
                       onClick={() => setFilterColor(c)}
-                      title={c ? c : 'All colors'}
+                      title={c ? c : t('navigator.allColors')}
                     />
                   ))}
                 </div>
@@ -886,7 +893,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
                 <input
                   className="scene-filter-input"
                   type="text"
-                  placeholder="Synopsis contains..."
+                  placeholder={t('navigator.synopsisFilter')}
                   value={filterSynopsis}
                   onChange={(e) => setFilterSynopsis(e.target.value)}
                 />
@@ -900,7 +907,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
                     setFilterTime('');
                     setFilterColor('');
                     setFilterSynopsis('');
-                  }}>Clear All</button>
+                  }}>{t('navigator.clearAll')}</button>
                 )}
               </div>
             </div>
@@ -915,7 +922,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
               <input
                 className="navigator-search-input"
                 type="text"
-                placeholder="Search headings & synopses..."
+                placeholder={t('navigator.searchPlaceholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -926,8 +933,8 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
             {filteredIndices.length === 0 ? (
               <div className="navigator-empty">
                 {(hasActiveFilter || searchQuery)
-                  ? 'No scenes match the current filters.'
-                  : 'No scenes yet. Start writing a scene heading (INT. or EXT.)'}
+                  ? t('navigator.noMatch')
+                  : t('navigator.noScenes')}
               </div>
             ) : (
               filteredIndices.map((sceneIdx) => {
@@ -944,21 +951,21 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
                           )}
                           {(() => {
                             const label = sceneActLabel(structure, sceneIdx);
-                            return label ? <span className="scene-act-badge" title={`Act ${label.slice(1)}`}>{label}</span> : null;
+                            return label ? <span className="scene-act-badge" title={t('navigator.actTitle', { number: label.slice(1) })}>{label}</span> : null;
                           })()}
                           <span className="scene-heading-label">{highlightText(scene.heading, searchQuery)}</span>
                           {/* The plotlines this scene carries — View → Story Timeline. */}
                           {plotlines.some((p) => scene.plotlineIds?.includes(p.id)) && (
                             <span className="scene-plotline-dots">
                               {plotlines.filter((p) => scene.plotlineIds?.includes(p.id)).map((p) => (
-                                <span key={p.id} className="scene-plotline-dot" style={{ background: p.color }} title={p.name || 'Plotline'} />
+                                <span key={p.id} className="scene-plotline-dot" style={{ background: p.color }} title={p.name || t('navigator.plotline')} />
                               ))}
                             </span>
                           )}
                         </div>
                         {detail && detail.pageLength > 0 && (
                           <div className="scene-length" data-tooltip={
-                            formatPageLength(detail.pageLength) +
+                            formatPageLength(t, detail.pageLength) +
                             (sceneTimings[sceneIdx]?.finalSeconds ? ` \u00b7 ${formatSceneDuration(sceneTimings[sceneIdx].finalSeconds)}` : '')
                           }>
                             <SceneLengthIcon pages={detail.pageLength} />
@@ -973,7 +980,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
                           {(detail || sceneTimings[sceneIdx]) && (
                             <div className="scene-detail-meta">
                               {detail && detail.pageLength > 0 && (
-                                <span className="scene-meta-item">{formatPageLength(detail.pageLength)}</span>
+                                <span className="scene-meta-item">{formatPageLength(t, detail.pageLength)}</span>
                               )}
                               {sceneTimings[sceneIdx]?.finalSeconds > 0 && (
                                 <span className="scene-meta-item" style={{ color: getTimingColor(sceneTimings[sceneIdx].finalSeconds) }}>
@@ -986,7 +993,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
                           {scene.synopsis ? (
                             <div className="scene-synopsis-text">{scene.synopsis}</div>
                           ) : (
-                            <div className="scene-synopsis-empty">No synopsis for this scene available.</div>
+                            <div className="scene-synopsis-empty">{t('navigator.noSynopsis')}</div>
                           )}
                           <button
                             className="scene-synopsis-edit-btn"
@@ -995,7 +1002,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
                               setSynopsisModal({ sceneIdx, id: scene.id, heading: scene.heading, synopsis: scene.synopsis, color: scene.color });
                             }}
                           >
-                            {scene.synopsis ? 'Edit' : '+ Add'}
+                            {scene.synopsis ? t('navigator.editSynopsis') : t('navigator.addSynopsis')}
                           </button>
                         </div>
                       )}
@@ -1012,7 +1019,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
       {activeTab === 'pages' && (
         <div className="navigator-list page-thumbnails-scroll" ref={pageGridRef}>
           {pageContent.length === 0 ? (
-            <div className="navigator-empty">No pages yet. Start writing to see page previews.</div>
+            <div className="navigator-empty">{t('navigator.noPages')}</div>
           ) : (
             <div className="page-thumbnails-grid">
               {pageContent.map((page) => (
@@ -1043,7 +1050,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
                     </div>
                   </div>
                   {/* A locked page reads by its label: "Page 12A". */}
-                  <div className="page-thumb-number">Page {pageLabels?.[page.pageNumber - 1] ?? page.pageNumber}</div>
+                  <div className="page-thumb-number">{t('navigator.pageLabel', { label: pageLabels?.[page.pageNumber - 1] ?? page.pageNumber })}</div>
                 </div>
               ))}
             </div>
@@ -1055,11 +1062,13 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
       {activeTab === 'structure' && (
         <>
           <div className="navigator-header">
-            <span className="navigator-title">Structure</span>
+            <span className="navigator-title">{t('navigator.tabs.structure')}</span>
             <span className="scene-count">
               {structure.totalSections > 0
-                ? `${structure.totalSections} section${structure.totalSections === 1 ? '' : 's'}`
-                : `${structure.acts.filter((a) => a.actNumber > 0).length || '—'} acts`}
+                ? t('navigator.sectionCount', { count: structure.totalSections })
+                : (structure.acts.filter((a) => a.actNumber > 0).length
+                  ? t('navigator.actCount', { count: structure.acts.filter((a) => a.actNumber > 0).length })
+                  : t('navigator.actCountNone'))}
             </span>
           </div>
           <div className="navigator-list">
@@ -1068,7 +1077,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
                 separate hierarchies, and a script can use either or both. */}
             {structure.sections.length > 0 && (
               <div className="structure-outline">
-                <div className="structure-outline-title">Outline</div>
+                <div className="structure-outline-title">{t('navigator.outline')}</div>
                 <SectionOutline
                   sections={structure.sections}
                   onGoToSection={goToSection}
@@ -1080,8 +1089,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
             {structure.acts.length === 0 ? (
               structure.sections.length === 0 && (
                 <div className="navigator-empty">
-                  No structure yet. Add a Section for an outline heading, insert an Act Break from
-                  the element selector, or start writing scenes.
+                  {t('navigator.noStructure')}
                 </div>
               )
             ) : (
@@ -1160,37 +1168,36 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
       {activeTab === 'bookmarks' && (
         <>
           <div className="navigator-header">
-            <span className="navigator-title">Bookmarks</span>
+            <span className="navigator-title">{t('navigator.tabs.bookmarks')}</span>
             <span className="scene-count">{bookmarks.length}</span>
           </div>
           <div className="navigator-list">
             {bookmarks.length === 0 ? (
               <div className="navigator-empty">
-                No bookmarks yet. Right-click a line and choose
-                &ldquo;Add Bookmark&hellip;&rdquo;, or use Edit &rarr; Add Bookmark&hellip;
+                {t('navigator.noBookmarks')}
               </div>
             ) : (
               bookmarks.map((b) => (
-                <div key={b.pos} className="bookmark-item" onClick={() => editor && goToBookmark(editor, b.pos)} title="Go to bookmark">
+                <div key={b.pos} className="bookmark-item" onClick={() => editor && goToBookmark(editor, b.pos)} title={t('navigator.goToBookmark')}>
                   <span className="bookmark-item-flag" aria-hidden="true" />
                   <div className="bookmark-item-info">
                     <div className="bookmark-item-name">{b.name}</div>
                     <div className="bookmark-item-text">
-                      <span className="bookmark-item-type">{ELEMENT_LABELS[b.blockType as ElementType] ?? b.blockType}</span>
+                      <span className="bookmark-item-type">{elementLabel(b.blockType)}</span>
                       {b.text}
                     </div>
                   </div>
                   <div className="bookmark-item-actions">
                     <button
-                      title="Rename bookmark"
-                      aria-label={`Rename bookmark ${b.name}`}
+                      title={t('navigator.renameBookmark')}
+                      aria-label={t('navigator.renameBookmarkNamed', { name: b.name })}
                       onClick={(e) => { e.stopPropagation(); setBookmarkEditing({ pos: b.pos, name: b.name, isNew: false }); }}
                     >
                       &#x270E;
                     </button>
                     <button
-                      title="Remove bookmark"
-                      aria-label={`Remove bookmark ${b.name}`}
+                      title={t('navigator.removeBookmark')}
+                      aria-label={t('navigator.removeBookmarkNamed', { name: b.name })}
                       onClick={(e) => { e.stopPropagation(); if (editor) removeBookmark(editor, b.pos); }}
                     >
                       &times;
@@ -1207,14 +1214,13 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
       {activeTab === 'locations' && (
         <>
           <div className="navigator-header">
-            <span className="navigator-title">Locations</span>
+            <span className="navigator-title">{t('navigator.tabs.locations')}</span>
             <span className="scene-count">{locations.length}</span>
           </div>
           <div className="navigator-list">
             {locations.length === 0 ? (
               <div className="navigator-empty">
-                No locations yet. Scene headings like
-                &ldquo;INT. COFFEE SHOP - DAY&rdquo; will appear here.
+                {t('navigator.noLocations')}
               </div>
             ) : (
               locations.map((loc) => {
@@ -1243,7 +1249,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
                           </div>
                         ) : (
                           <button className="location-rename-btn" onClick={(e) => { e.stopPropagation(); setRenamingLocation(key); setRenameValue(loc.name); }}>
-                            Rename Location
+                            {t('navigator.renameLocation')}
                           </button>
                         )}
                         <div className="location-scenes">

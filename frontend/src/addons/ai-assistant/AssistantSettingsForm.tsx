@@ -7,6 +7,8 @@
  * keeps the dialog open with the message on screen.
  */
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { t as translate } from '../../i18n';
 import type { PluginSettingsProps } from '../../plugins/registry';
 import { listModels, DEFAULT_UNSLOTH_URL } from './client';
 import {
@@ -22,15 +24,16 @@ function checkAddress(raw: string): string | null {
   try {
     url = new URL(raw.trim());
   } catch {
-    return 'Enter the server address, e.g. http://localhost:11434';
+    return translate('addons:assistant.settings.addressMissing');
   }
   if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-    return 'The address must start with http:// or https://';
+    return translate('addons:assistant.settings.addressProtocol');
   }
   return null;
 }
 
 const AssistantSettingsForm: React.FC<PluginSettingsProps> = ({ registerSave }) => {
+  const { t } = useTranslation('addons');
   const [settings, setSettings] = useState<AssistantSettings>(loadSettings);
   const [error, setError] = useState('');
   const [testResult, setTestResult] = useState('');
@@ -45,7 +48,7 @@ const AssistantSettingsForm: React.FC<PluginSettingsProps> = ({ registerSave }) 
         return false;
       }
       if (!settings.model.trim()) {
-        setError('Enter the name of the model to use.');
+        setError(t('assistant.settings.modelMissing'));
         return false;
       }
       try {
@@ -61,7 +64,7 @@ const AssistantSettingsForm: React.FC<PluginSettingsProps> = ({ registerSave }) 
         return false;
       }
     });
-  }, [settings, registerSave]);
+  }, [settings, registerSave, t]);
 
   const field = (key: 'baseUrl' | 'model' | 'apiKey') =>
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -83,8 +86,8 @@ const AssistantSettingsForm: React.FC<PluginSettingsProps> = ({ registerSave }) 
       const found = await listModels(settings);
       setTestResult(
         found.length > 0
-          ? `Reached the server. Models: ${found.slice(0, 8).join(', ')}${found.length > 8 ? '…' : ''}`
-          : 'Reached the server, but it reported no models. Load one first.',
+          ? t('assistant.settings.reached', { models: `${found.slice(0, 8).join(', ')}${found.length > 8 ? '…' : ''}` })
+          : t('assistant.settings.noModels'),
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -96,7 +99,7 @@ const AssistantSettingsForm: React.FC<PluginSettingsProps> = ({ registerSave }) 
   return (
     <div>
       <div className="settings-row">
-        <label htmlFor="ai-provider">Server type</label>
+        <label htmlFor="ai-provider">{t('assistant.settings.serverType')}</label>
         <select
           id="ai-provider"
           className="settings-input"
@@ -114,16 +117,15 @@ const AssistantSettingsForm: React.FC<PluginSettingsProps> = ({ registerSave }) 
             }));
           }}
         >
-          <option value="ollama">Ollama (its own API)</option>
-          <option value="openai">OpenAI-compatible (Unsloth Studio, LM Studio, llama.cpp…)</option>
+          <option value="ollama">{t('assistant.settings.ollama')}</option>
+          <option value="openai">{t('assistant.settings.openai')}</option>
         </select>
         <div className="settings-hint">
-          Ollama: http://localhost:11434 · Unsloth Studio: http://localhost:8080/v1 ·
-          LM Studio: http://localhost:1234/v1
+          {t('assistant.settings.addressExamples')}
         </div>
       </div>
       <div className="settings-row">
-        <label htmlFor="ai-base-url">Server address</label>
+        <label htmlFor="ai-base-url">{t('assistant.settings.serverAddress')}</label>
         <input
           id="ai-base-url"
           className="settings-input"
@@ -132,12 +134,11 @@ const AssistantSettingsForm: React.FC<PluginSettingsProps> = ({ registerSave }) 
           placeholder="http://localhost:11434"
         />
         <div className="settings-hint">
-          In the desktop app the server must run on this computer (localhost or 127.0.0.1);
-          a server on your local network is blocked by the app&rsquo;s security policy.
+          {t('assistant.settings.desktopNote')}
         </div>
       </div>
       <div className="settings-row">
-        <label htmlFor="ai-model">Model</label>
+        <label htmlFor="ai-model">{t('assistant.settings.model')}</label>
         <input
           id="ai-model"
           className="settings-input"
@@ -146,12 +147,11 @@ const AssistantSettingsForm: React.FC<PluginSettingsProps> = ({ registerSave }) 
           placeholder="qwen2.5"
         />
         <div className="settings-hint">
-          For reliable results use an instruct model of 7B or more; small models often
-          misattribute a line or drop actions.
+          {t('assistant.settings.modelHint')}
         </div>
       </div>
       <div className="settings-row">
-        <label htmlFor="ai-key">API key (only if your server needs one)</label>
+        <label htmlFor="ai-key">{t('assistant.settings.apiKey')}</label>
         <input
           id="ai-key"
           className="settings-input"
@@ -159,12 +159,12 @@ const AssistantSettingsForm: React.FC<PluginSettingsProps> = ({ registerSave }) 
           autoComplete="off"
           value={settings.apiKey}
           onChange={field('apiKey')}
-          placeholder="optional"
+          placeholder={t('assistant.settings.optional')}
         />
       </div>
       <div className="settings-row">
         <button type="button" className="ai-test-button" onClick={testConnection} disabled={testing}>
-          {testing ? 'Testing…' : 'Test connection'}
+          {testing ? t('assistant.settings.testing') : t('assistant.settings.test')}
         </button>
         {testResult && <div className="settings-hint">{testResult}</div>}
       </div>

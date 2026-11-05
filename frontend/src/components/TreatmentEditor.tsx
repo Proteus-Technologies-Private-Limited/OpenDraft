@@ -17,6 +17,8 @@ import Dropcursor from '@tiptap/extension-dropcursor';
 import Gapcursor from '@tiptap/extension-gapcursor';
 import Placeholder from '@tiptap/extension-placeholder';
 import { useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { t as translate } from '../i18n';
 import { api } from '../services/api';
 import { useGoBackTo } from '../hooks/useGoBack';
 import { showToast } from './Toast';
@@ -31,6 +33,7 @@ import Select from './Select';
  * Manuscript-format page layout (serif font, double-spaced, 1-inch margins).
  */
 const TreatmentEditor: React.FC = () => {
+  const { t } = useTranslation(['story', 'common']);
   const { projectId, scriptId } = useParams<{ projectId: string; scriptId: string }>();
   // Pop back to the project rather than pushing another copy of it, or the
   // project's own back control walks straight back in here (issue #66).
@@ -60,7 +63,8 @@ const TreatmentEditor: React.FC = () => {
       Dropcursor,
       Gapcursor,
       Placeholder.configure({
-        placeholder: 'Start writing your treatment…',
+        // A function so the text follows the interface language (the editor is created once).
+        placeholder: () => translate('story:treatment.placeholder'),
       }),
     ],
     content: { type: 'doc', content: [{ type: 'paragraph' }] },
@@ -84,7 +88,7 @@ const TreatmentEditor: React.FC = () => {
           if (lf.linkingSupported()) {
             const sync = await lf.syncScriptWithFile(projectId, scriptId);
             if (sync.kind === 'loaded-from-file' && !cancelled) {
-              showToast(`${lf.basenameOf(sync.path)} was changed outside OpenDraft — opened that version.`, 'info');
+              showToast(translate('story:treatment.changedOutside', { name: lf.basenameOf(sync.path) }), 'info');
             }
           }
         } catch (err) {
@@ -100,7 +104,7 @@ const TreatmentEditor: React.FC = () => {
       } catch (err) {
         console.error('[TreatmentEditor] load failed:', err);
         if (!cancelled) showToast(
-          err instanceof Error ? err.message : 'Failed to load treatment',
+          err instanceof Error ? err.message : translate('story:treatment.loadFailed'),
           'error',
         );
       } finally {
@@ -124,7 +128,7 @@ const TreatmentEditor: React.FC = () => {
       setSaveStatus('saved');
     } catch (err) {
       setSaveStatus('error');
-      showToast(err instanceof Error ? err.message : 'Save failed', 'error');
+      showToast(err instanceof Error ? err.message : translate('story:treatment.saveFailed'), 'error');
     } finally {
       setSaving(false);
     }
@@ -170,7 +174,7 @@ const TreatmentEditor: React.FC = () => {
         <button
           className="treatment-back-btn"
           onClick={handleBack}
-          title="Back to project"
+          title={t('treatment.backToProject')}
         >
           <FaArrowLeft />
         </button>
@@ -179,20 +183,20 @@ const TreatmentEditor: React.FC = () => {
           className="treatment-title-input"
           value={title}
           onChange={(e) => handleTitleChange(e.target.value)}
-          placeholder="Treatment title…"
+          placeholder={t('treatment.titlePlaceholder')}
         />
         <div className="treatment-save-status">
-          {saveStatus === 'saving' && 'Saving…'}
-          {saveStatus === 'saved' && 'Saved'}
-          {saveStatus === 'error' && 'Save failed'}
+          {saveStatus === 'saving' && t('treatment.saving')}
+          {saveStatus === 'saved' && t('treatment.saved')}
+          {saveStatus === 'error' && t('treatment.saveFailed')}
         </div>
         <button
           className="treatment-save-btn"
           onClick={() => save()}
           disabled={saving || !editor}
-          title="Save (⌘S)"
+          title={t('treatment.saveTitle')}
         >
-          <FaSave /> Save
+          <FaSave /> {t('common:save')}
         </button>
       </div>
 
@@ -218,48 +222,48 @@ const TreatmentEditor: React.FC = () => {
             else if (v === 'blockquote') chain.toggleBlockquote().run();
           }}
         >
-          <option value="paragraph">Paragraph</option>
-          <option value="h1">Act / Section</option>
-          <option value="h2">Sequence / Beat</option>
-          <option value="h3">Sub-heading</option>
-          <option value="blockquote">Block Quote</option>
+          <option value="paragraph">{t('treatment.style.paragraph')}</option>
+          <option value="h1">{t('treatment.style.h1')}</option>
+          <option value="h2">{t('treatment.style.h2')}</option>
+          <option value="h3">{t('treatment.style.h3')}</option>
+          <option value="blockquote">{t('treatment.style.blockquote')}</option>
         </Select>
         <button
           className={`treatment-tool-btn${isActive('bold') ? ' active' : ''}`}
           onClick={() => editor?.chain().focus().toggleBold().run()}
           disabled={!editor}
-          title="Bold"
+          title={t('treatment.tool.bold')}
         ><FaBold /></button>
         <button
           className={`treatment-tool-btn${isActive('italic') ? ' active' : ''}`}
           onClick={() => editor?.chain().focus().toggleItalic().run()}
           disabled={!editor}
-          title="Italic"
+          title={t('treatment.tool.italic')}
         ><FaItalic /></button>
         <button
           className={`treatment-tool-btn${isActive('underline') ? ' active' : ''}`}
           onClick={() => editor?.chain().focus().toggleUnderline().run()}
           disabled={!editor}
-          title="Underline"
+          title={t('treatment.tool.underline')}
         ><FaUnderline /></button>
         <div className="treatment-tool-sep" />
         <button
           className={`treatment-tool-btn${isActive('bulletList') ? ' active' : ''}`}
           onClick={() => editor?.chain().focus().toggleBulletList().run()}
           disabled={!editor}
-          title="Bullet list"
+          title={t('treatment.tool.bulletList')}
         ><FaListUl /></button>
         <button
           className={`treatment-tool-btn${isActive('orderedList') ? ' active' : ''}`}
           onClick={() => editor?.chain().focus().toggleOrderedList().run()}
           disabled={!editor}
-          title="Numbered list"
+          title={t('treatment.tool.numberedList')}
         ><FaListOl /></button>
         <button
           className={`treatment-tool-btn${isActive('blockquote') ? ' active' : ''}`}
           onClick={() => editor?.chain().focus().toggleBlockquote().run()}
           disabled={!editor}
-          title="Block quote"
+          title={t('treatment.tool.blockQuote')}
         ><FaQuoteLeft /></button>
       </div>
 
@@ -268,7 +272,7 @@ const TreatmentEditor: React.FC = () => {
           {editor ? (
             <EditorContent editor={editor} />
           ) : (
-            <div className="treatment-initializing">Initializing editor…</div>
+            <div className="treatment-initializing">{t('treatment.initializing')}</div>
           )}
         </div>
       </div>

@@ -35,6 +35,22 @@ jobs:
       - name: Unit tests
         run: npm test
 
+      # Every shipped language is complete and well-formed: the same keys as
+      # English, the same {{placeholders}} and <tags>, the plural forms the
+      # language needs, and the right letters (Persian vs Arabic, French
+      # spacing). `npm test` already runs these; they are named here so a
+      # missing translation reads as one rather than as a failed unit test.
+      # See docs/i18n.md.
+      - name: Translations are complete
+        run: npx vitest run src/i18n
+
+      # No new hard-coded English in the interface. Anything that must stay
+      # English carries an `i18n-ignore` with its reason. Runs from the repo
+      # root because the scanner reads frontend/src by that path.
+      - name: No hard-coded UI strings
+        working-directory: .
+        run: node test-script/i18n_scan_literals.mjs --max 0
+
       - name: Build
         run: npm run build
 

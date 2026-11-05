@@ -14,13 +14,13 @@ import { getApiBase } from '../config';
 import { authedFetch } from './authedFetch';
 import { handleNonOkResponse } from './api';
 import type { ProjectInfo, ProjectProperties, ScriptMeta, ScriptResponse } from './api';
+import { t } from '../i18n';
 
-const NOT_CONFIGURED =
-  'OpenDraft Cloud is not configured for this app. Open Settings → System Settings to set the OpenDraft server URL.';
+const notConfigured = (): string => t('messages:cloud.notConfigured');
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const base = getApiBase();
-  if (!base) throw new Error(NOT_CONFIGURED);
+  if (!base) throw new Error(notConfigured());
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options?.headers as Record<string, string>),
@@ -34,13 +34,13 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     // up malformed (e.g. opaque-origin Tauri schemes). Surface a single clean
     // message so the user sees something actionable instead of either raw text.
     const detail = err instanceof Error ? err.message : String(err);
-    throw new Error(`Cannot reach OpenDraft Cloud (${detail}).`);
+    throw new Error(t('messages:cloud.cannotReach', { detail }));
   }
   if (!res.ok) await handleNonOkResponse(res, 'Cloud API');
   try {
     return await res.json();
   } catch {
-    throw new Error('OpenDraft Cloud returned an invalid response. The server may be misconfigured.');
+    throw new Error(t('messages:cloud.invalidResponse'));
   }
 }
 
@@ -123,7 +123,7 @@ export const cloudApi = {
    */
   uploadAsset: async (projectId: string, file: File, tags: string[] = []): Promise<{ id: string; filename?: string }> => {
     const base = getApiBase();
-    if (!base) throw new Error(NOT_CONFIGURED);
+    if (!base) throw new Error(notConfigured());
     const formData = new FormData();
     formData.append('file', file);
     if (tags.length) formData.append('tags', tags.join(','));
@@ -138,7 +138,7 @@ export const cloudApi = {
 
   getAssetUrl: (projectId: string, assetId: string, _filename?: string): string => {
     const base = getApiBase();
-    if (!base) throw new Error(NOT_CONFIGURED);
+    if (!base) throw new Error(notConfigured());
     return `${base}/projects/${projectId}/assets/${assetId}`;
   },
 };

@@ -16,6 +16,7 @@
  * views; only the one selected draws scene rows.
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Editor } from '@tiptap/react';
 import { FaPlus, FaPen, FaTimes, FaTrashAlt } from 'react-icons/fa';
 import { useEditorStore } from '../stores/editorStore';
@@ -69,6 +70,7 @@ function currentSceneIndex(editor: Editor): number | null {
 }
 
 const OutlineView: React.FC<Props> = ({ editor }) => {
+  const { t } = useTranslation(['story', 'common']);
   const setOutlineOpen = useEditorStore((s) => s.toggleOutline);
   const pageLayout = useEditorStore((s) => s.pageLayout);
   const scenes = useEditorStore((s) => s.scenes);
@@ -114,6 +116,7 @@ const OutlineView: React.FC<Props> = ({ editor }) => {
         if (scene.sequenceId && !found.has(scene.sequenceId)) {
           found.set(scene.sequenceId, {
             id: scene.sequenceId,
+            // i18n-ignore: becomes the stored sequence name when chosen, so it is data
             name: scene.sequenceName || 'Untitled Sequence',
             color: safeSequenceColor(scene.sequenceColor) || '#64748b',
           });
@@ -172,6 +175,7 @@ const OutlineView: React.FC<Props> = ({ editor }) => {
     insertAtSelection({
       type: 'section',
       attrs: { level: 1 },
+      // i18n-ignore: written into the script, so it stays English like the rest of the document
       content: [{ type: 'text', text: 'New Section' }],
     });
   }, [insertAtSelection]);
@@ -256,8 +260,8 @@ const OutlineView: React.FC<Props> = ({ editor }) => {
         {sequences.length > 0 && (
           <select
             className="outline-seq-select"
-            title="Sequence"
-            aria-label={`Sequence for scene ${scene.sceneIndex + 1}`}
+            title={t('outline.sequence')}
+            aria-label={t('outline.sequenceForScene', { number: scene.sceneIndex + 1 })}
             value={scene.sequenceId ?? ''}
             onClick={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
@@ -280,6 +284,7 @@ const OutlineView: React.FC<Props> = ({ editor }) => {
   const sequenceHeader = (scene: StructureScene) => {
     const id = scene.sequenceId;
     if (!id) return null;
+    // i18n-ignore: the name can be saved back into the script on rename, so it is data
     const name = scene.sequenceName || sequences.find((s) => s.id === id)?.name || 'Untitled Sequence';
     const color = safeSequenceColor(scene.sequenceColor)
       || safeSequenceColor(sequences.find((s) => s.id === id)?.color)
@@ -291,7 +296,7 @@ const OutlineView: React.FC<Props> = ({ editor }) => {
         {editing ? (
           <input
             className="outline-seq-input"
-            aria-label="Sequence name"
+            aria-label={t('outline.sequenceName')}
             autoFocus
             value={editingSequence.name}
             onChange={(e) => setEditingSequence({ id, name: e.target.value })}
@@ -309,7 +314,7 @@ const OutlineView: React.FC<Props> = ({ editor }) => {
           <button
             type="button"
             className="outline-seq-action"
-            title="Rename sequence"
+            title={t('outline.renameSequence')}
             onClick={(e) => { e.stopPropagation(); setEditingSequence({ id, name }); }}
           >
             <FaPen />
@@ -317,7 +322,7 @@ const OutlineView: React.FC<Props> = ({ editor }) => {
           <button
             type="button"
             className="outline-seq-action"
-            title="Delete sequence (undoable)"
+            title={t('outline.deleteSequence')}
             onClick={(e) => { e.stopPropagation(); updateSequence(id, null); }}
           >
             <FaTrashAlt />
@@ -361,7 +366,7 @@ const OutlineView: React.FC<Props> = ({ editor }) => {
     <div key={`section-${section.sectionIndex}`} className="outline-section" style={{ marginLeft: depth * 16 }}>
       <div className="outline-row outline-section-row">
         <span className="outline-section-level">{'#'.repeat(section.level)}</span>
-        <span>{section.title || 'Untitled section'}</span>
+        <span>{section.title || t('outline.untitledSection')}</span>
       </div>
       {section.synopsis ? <div className="outline-synopsis outline-section-synopsis">{section.synopsis}</div> : null}
       {sceneRows(section.scenes)}
@@ -381,9 +386,9 @@ const OutlineView: React.FC<Props> = ({ editor }) => {
   return (
     <div className="outline-view">
       <div className="outline-header">
-        <span className="outline-title">Outline</span>
+        <span className="outline-title">{t('outline.title')}</span>
         {hasActs && hasSections && (
-          <div className="outline-modes" role="tablist" aria-label="Outline view">
+          <div className="outline-modes" role="tablist" aria-label={t('outline.viewLabel')}>
             <button
               type="button"
               role="tab"
@@ -391,7 +396,7 @@ const OutlineView: React.FC<Props> = ({ editor }) => {
               className={`outline-mode${activeMode === 'acts' ? ' active' : ''}`}
               onClick={() => setMode('acts')}
             >
-              Acts
+              {t('outline.acts')}
             </button>
             <button
               type="button"
@@ -400,27 +405,27 @@ const OutlineView: React.FC<Props> = ({ editor }) => {
               className={`outline-mode${activeMode === 'sections' ? ' active' : ''}`}
               onClick={() => setMode('sections')}
             >
-              Sections
+              {t('outline.sections')}
             </button>
           </div>
         )}
         <div className="outline-actions">
-          <button className="outline-action" onClick={addAct}><FaPlus /> Act</button>
+          <button className="outline-action" onClick={addAct}><FaPlus /> {t('outline.addAct')}</button>
           <button
             className="outline-action"
             onClick={addSequence}
             disabled={(structure?.totalScenes ?? 0) === 0}
-            title={(structure?.totalScenes ?? 0) === 0 ? 'Write a scene first' : 'Tag the current scene with a new sequence'}
+            title={(structure?.totalScenes ?? 0) === 0 ? t('outline.writeSceneFirst') : t('outline.tagScene')}
           >
-            <FaPlus /> Sequence
+            <FaPlus /> {t('outline.addSequence')}
           </button>
-          <button className="outline-action" onClick={addSection}><FaPlus /> Section</button>
-          <button className="outline-close" onClick={close} title="Close Outline"><FaTimes /></button>
+          <button className="outline-action" onClick={addSection}><FaPlus /> {t('outline.addSection')}</button>
+          <button className="outline-close" onClick={close} title={t('outline.close')}><FaTimes /></button>
         </div>
       </div>
       <div className="outline-body">
         {!structure || structure.totalScenes === 0 ? (
-          <p className="outline-empty">No scenes yet. Write a scene heading, or add an act, sequence or section.</p>
+          <p className="outline-empty">{t('outline.empty')}</p>
         ) : activeMode === 'sections' && hasSections ? (
           <section className="outline-sections">
             {structure.sections.map((section) => sectionBlock(section))}

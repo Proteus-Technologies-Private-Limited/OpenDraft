@@ -49,6 +49,7 @@ import { SPLIT_PARAGRAPH_TYPES, paragraphFragments, originalTextOffset, slicePar
 import { withElementNumbers, elementNumberOf } from './elementNumbers';
 import { noteBlockText } from './noteContent';
 import { composeTwoUp } from './pdfTwoUp';
+import { t } from '../i18n';
 
 // --- Constants matching pagination.ts ---
 
@@ -671,14 +672,12 @@ function fallbackWarning(fallbacks: UnicodeFallbacks): string | undefined {
   const parts: string[] = [];
 
   if (fallbacks.missing.length > 0) {
-    parts.push(`The ${fallbacks.missing.join(' and ')} font could not be loaded, `
-      + 'so that text is blank in the PDF.');
+    parts.push(t('messages:pdfFonts.missing', { fonts: fallbacks.missing.join(t('messages:pdfFonts.and')) }));
   }
 
   if (fallbacks.unsupported.length > 0) {
-    const names = fallbacks.unsupported.join(' and ');
-    parts.push(`${names} cannot be written to a PDF yet, so that text is `
-      + 'missing or garbled. The rest of the script exported normally.');
+    const names = fallbacks.unsupported.join(t('messages:pdfFonts.and'));
+    parts.push(t('messages:pdfFonts.unsupported', { scripts: names }));
   }
 
   return parts.length > 0 ? parts.join(' ') : undefined;

@@ -18,6 +18,7 @@
 import JSZip from 'jszip';
 import type { JSONContent } from '@tiptap/react';
 import { extractAvBodies, avBodyToGrid, type AvExportBody } from './avDocument';
+import { t } from '../i18n';
 
 // ── CSV ────────────────────────────────────────────────────────────────────
 
@@ -272,7 +273,7 @@ export function avDocumentToText(doc: JSONContent | null | undefined): string {
  */
 export async function downloadAvXlsx(doc: JSONContent | null | undefined, title = 'Untitled'): Promise<void> {
   const blob = await avDocumentToXlsx(doc, { sheetName: title });
-  if (!blob) throw new Error('This document has no AV content to export.');
+  if (!blob) throw new Error(t('messages:export.avEmpty'));
   const { sanitizeExportFilename } = await import('./exportFilename');
   const { saveFile } = await import('./fileOps');
   const bytes = new Uint8Array(await blob.arrayBuffer());
@@ -284,7 +285,7 @@ export async function downloadAvXlsx(doc: JSONContent | null | undefined, title 
 /** Save the document's AV bodies as CSV. */
 export async function downloadAvCsv(doc: JSONContent | null | undefined, title = 'Untitled'): Promise<void> {
   const text = avDocumentToCsv(doc);
-  if (!text) throw new Error('This document has no AV content to export.');
+  if (!text) throw new Error(t('messages:export.avEmpty'));
   const { sanitizeExportFilename } = await import('./exportFilename');
   const { saveFile } = await import('./fileOps');
   await saveFile(text, `${sanitizeExportFilename(title)}.csv`, [{ name: 'CSV', extensions: ['csv'] }]);
@@ -293,7 +294,7 @@ export async function downloadAvCsv(doc: JSONContent | null | undefined, title =
 /** Save the document's AV bodies as flattened plain text. */
 export async function downloadAvText(doc: JSONContent | null | undefined, title = 'Untitled'): Promise<void> {
   const text = avDocumentToText(doc);
-  if (!text.trim()) throw new Error('This document has no AV content to export.');
+  if (!text.trim()) throw new Error(t('messages:export.avEmpty'));
   const { sanitizeExportFilename } = await import('./exportFilename');
   const { saveFile } = await import('./fileOps');
   await saveFile(text, `${sanitizeExportFilename(title)}.txt`, [{ name: 'Plain Text', extensions: ['txt'] }]);

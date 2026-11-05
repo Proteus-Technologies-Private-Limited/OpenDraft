@@ -21,6 +21,7 @@ import { COMIC_TEMPLATE, COMIC_ID } from './templates/comicTemplate';
 import { AV_SCRIPT_TEMPLATE, AV_SCRIPT_ID } from './templates/avScriptTemplate';
 import { api } from '../services/api';
 import { useSettingsStore } from './settingsStore';
+import { t } from '../i18n';
 
 /** Built-in system templates, keyed by id. Read-only — never persisted. */
 export const SYSTEM_TEMPLATES: Record<string, FormattingTemplate> = {
@@ -289,7 +290,7 @@ export const useFormattingTemplateStore = create<FormattingTemplateState>((set, 
       documentTemplate: parsed ? withMissingRulesOnce(parsed) : null,
       unreadableTemplateSnapshot: valid ? null : copySnapshot(snapshot),
     });
-    if (!valid) showToast('This script’s saved format cannot be read by this version of OpenDraft. A local format is used for display; the original format data will be kept when you save. Update OpenDraft to use the saved format.', 'error');
+    if (!valid) showToast(t('messages:template.unreadable'), 'error');
     return valid;
   },
   loaded: false,

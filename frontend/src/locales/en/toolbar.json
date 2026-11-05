@@ -1,0 +1,107 @@
+{
+  "status": {
+    "save": {
+      "unsaved": "Unsaved changes",
+      "saving": "Saving…",
+      "saved": "Saved",
+      "error": "Save failed"
+    },
+    "linked": {
+      "notSaved": "not saved to file",
+      "missing": "file not found",
+      "conflict": "changed outside OpenDraft",
+      "retryHint": "Click to try again.",
+      "everySave": "Every save also writes {{path}}"
+    },
+    "acts_one": "{{count}} act",
+    "acts_other": "{{count}} acts",
+    "saveWritesBack": "Save writes back to {{name}}",
+    "actStructure": "Act structure",
+    "runtime": {
+      "title": "Estimated runtime at {{pacing}} pacing — click to set genre & pacing",
+      "est": "Est. {{runtime}}"
+    },
+    "wordsTitle": "Words in the script",
+    "words_one": "{{formatted}} word",
+    "words_other": "{{formatted}} words",
+    "revision": "Rev: {{color}}",
+    "page": "Page {{label}}",
+    "pageOf": "Page {{current}} of {{total}}",
+    "pagesLocked": "Pages are locked",
+    "locked": "(locked)",
+    "suggesting": {
+      "lockedTitle": "You joined to suggest: the writer accepts or rejects your edits",
+      "title": "Your edits are suggestions. Click to edit directly again.",
+      "label": "Suggesting"
+    }
+  },
+  "resetToDefault": "Reset to Default",
+  "richText": {
+    "bold": "Bold",
+    "italic": "Italic",
+    "underline": "Underline",
+    "bulletList": "Bullet list"
+  },
+  "fontPicker": {
+    "fontFamily": "Font Family",
+    "search": "Search fonts…",
+    "searchLabel": "Search fonts",
+    "noMatch": "No font matches “{{query}}”.",
+    "notInstalledTitle": "{{name}} is not installed on this device — a similar font is shown instead",
+    "notInstalled": "not installed",
+    "manage": "Add or manage fonts…",
+    "group": {
+      "document": "From This Document",
+      "custom": "Custom Fonts",
+      "screenplay": "Screenplay Standard",
+      "typewriter": "Typewriter",
+      "serif": "Serif",
+      "sansSerif": "Sans Serif",
+      "monospace": "Monospace",
+      "display": "Display & Titles",
+      "handwriting": "Handwriting",
+      "latinExtended": "Latin Extended",
+      "indic": "Indian / Indic",
+      "arabicHebrew": "Arabic & Hebrew",
+      "cjk": "CJK",
+      "other": "Other",
+      "device": "On This Device"
+    }
+  },
+  "languageSelector": {
+    "title": "Dialogue Language"
+  },
+  "toolbar": {
+    "fontSize": "Font Size",
+    "pt": "{{size}}pt",
+    "bold": "Bold ({{shortcut}})",
+    "italic": "Italic ({{shortcut}})",
+    "underline": "Underline ({{shortcut}})",
+    "strikethrough": "Strikethrough",
+    "subscript": "Subscript",
+    "superscript": "Superscript",
+    "textColor": "Text Color",
+    "highlightColor": "Highlight Color",
+    "alignLeft": "Align Left",
+    "alignCenter": "Align Center",
+    "alignRight": "Align Right",
+    "justify": "Justify",
+    "findReplace": "Find & Replace ({{shortcut}})",
+    "goToPage": "Go to Page ({{shortcut}})",
+    "scriptNotes": "Script Notes",
+    "productionTags": "Production Tags",
+    "zoomOut": "Zoom Out",
+    "editZoom": "Click to edit zoom",
+    "zoomIn": "Zoom In",
+    "undo": "Undo ({{shortcut}})",
+    "redo": "Redo ({{shortcut}})",
+    "addAvRow": "Add AV Row below (Tab from the audio cell, or {{shortcut}})",
+    "row": "Row",
+    "deleteAvRow": "Delete this AV Row",
+    "moreFormatting": "More formatting options",
+    "zoom": "Zoom",
+    "elementType": "Element type",
+    "elementTypeTitlePage": "Title page elements are set in the Title Page editor; their formatting lives in the template",
+    "titlePage": "Title Page"
+  }
+}

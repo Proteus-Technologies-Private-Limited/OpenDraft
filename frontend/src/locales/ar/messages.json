@@ -1,0 +1,530 @@
+{
+  "avFrame": {
+    "notImage": "يُرجى اختيار ملف صورة",
+    "needRow": "ضع المؤشر في صف AV أولًا، ثم أضف الإطار",
+    "failed": "تعذّرت إضافة الإطار: {{message}}"
+  },
+  "image": {
+    "degraded": "اضطُر إلى تخزين هذه الصورة داخل المستند. احفظ في مكتبتك لإبعادها عن الطريق.",
+    "couldNotAdd": "تعذّرت إضافة \"{{name}}\".",
+    "fileFallbackName": "صورة"
+  },
+  "template": {
+    "unreadable": "لا تستطيع هذه النسخة من OpenDraft قراءة التنسيق المحفوظ لهذا السيناريو. يُستخدم تنسيق محلي للعرض؛ وتُحفظ بيانات التنسيق الأصلية عند الحفظ. حدّث OpenDraft لاستخدام التنسيق المحفوظ."
+  },
+  "pacing": {
+    "brisk": {
+      "label": "سريع",
+      "description": "كلام سريع وقطع سريع وحوار متداخل — يكون زمن الشاشة أقصر من الصفحة."
+    },
+    "standard": {
+      "label": "معياري",
+      "description": "صفحة واحدة ≈ دقيقة واحدة. مناسب لمعظم السيناريوهات."
+    },
+    "measured": {
+      "label": "متأنٍّ",
+      "description": "بطيء الاشتعال أو تأملي — صمت طويل وصور تلبث ولحظات ممتدة يطول عرضها عن قراءتها."
+    }
+  },
+  "stats": {
+    "bucket": {
+      "under1": "أقل من صفحة",
+      "p1to2": "1-2 صفحة",
+      "p2to3": "2-3 صفحات",
+      "p3to5": "3-5 صفحات",
+      "p5plus": "5+ صفحات"
+    }
+  },
+  "pdfFonts": {
+    "hebrew": "العبرية",
+    "arabic": "العربية",
+    "thai": "التايلاندية",
+    "cyrillic": "السيريلية واليونانية والأرمنية والجورجية",
+    "chinese": "الصينية",
+    "japanese": "اليابانية",
+    "korean": "الكورية",
+    "chineseTraditional": "الصينية (التقليدية)",
+    "and": " و",
+    "missing": "تعذّر تحميل خط {{fonts}}، لذا يظهر ذلك النص فارغًا في PDF.",
+    "unsupported": "لا يمكن كتابة {{scripts}} في PDF بعد، لذا يكون ذلك النص مفقودًا أو مشوّهًا. وصُدّر بقية السيناريو بشكل طبيعي."
+  },
+  "grammar": {
+    "harper": {
+      "Agreement": {
+        "label": "مطابقة الفاعل والفعل",
+        "description": "يجب أن تطابق صيغة الفعل الفاعل (\"she walk\" ← \"she walks\")."
+      },
+      "Grammar": {
+        "label": "القواعد",
+        "description": "الزمن والكلمات المتشابهة (their/they're) وحالة الضمير وما شابه من أخطاء."
+      },
+      "Capitalization": {
+        "label": "الأحرف الكبيرة",
+        "description": "الأسماء العلم وبدايات الجمل والضمير \"I\"."
+      },
+      "Repetition": {
+        "label": "كلمة مكررة",
+        "description": "تكرار عرضي مثل \"the the\"."
+      },
+      "Punctuation": {
+        "label": "علامات الترقيم",
+        "description": "فواصل ناقصة، ومسافات زائدة حول علامات الترقيم."
+      },
+      "WordChoice": {
+        "label": "اختيار الكلمة",
+        "description": "يقترح كلمة أوضح أو أقرب إلى الاستعمال المعتاد."
+      },
+      "Readability": {
+        "label": "سهولة القراءة",
+        "description": "جمل طويلة أو يصعب تحليلها."
+      },
+      "Typo": {
+        "label": "خطأ مطبعي",
+        "description": "أخطاء مطبعية محتملة اكتُشفت من السياق (مثل \"teh\" ← \"the\")."
+      },
+      "Spelling": {
+        "label": "الإملاء",
+        "description": "كلمات خاطئة الإملاء (تتداخل مع المدقق الإملائي — عطّل أحدهما)."
+      },
+      "Style": {
+        "label": "الأسلوب",
+        "description": "اقتراحات أسلوبية (الإطالة، والصياغة الضعيفة)."
+      },
+      "Enhancement": {
+        "label": "تحسين",
+        "description": "إعادة صياغة اختيارية تحسّن الوضوح غالبًا."
+      },
+      "Formatting": {
+        "label": "التنسيق",
+        "description": "المسافات وعلامات الاقتباس والشرطات."
+      },
+      "Regionalism": {
+        "label": "الخصوصية الإقليمية",
+        "description": "استعمال كلمات غير مألوف خارج منطقة بعينها."
+      },
+      "Miscellaneous": {
+        "label": "أخرى",
+        "description": "مشكلات قواعد أخرى لا تندرج في الفئات أعلاه."
+      }
+    },
+    "retext": {
+      "passive": {
+        "label": "المبني للمجهول",
+        "description": "تمييز التراكيب المبنية للمجهول (\"was kicked\")."
+      },
+      "repeated": {
+        "label": "كلمة مكررة",
+        "description": "اكتشاف التكرار العرضي مثل \"the the\"."
+      },
+      "indefiniteArticle": {
+        "label": "A / an",
+        "description": "اكتشاف \"a hour\" / \"an university\"."
+      },
+      "redundantAcronyms": {
+        "label": "اختصارات زائدة",
+        "description": "مثل \"ATM machine\"."
+      },
+      "intensify": {
+        "label": "مكثّف ضعيف",
+        "description": "اقتراح بدائل أقوى لـ \"very\" و\"really\"."
+      },
+      "simplify": {
+        "label": "عبارة مطوّلة",
+        "description": "اختصار \"in order to\" ← \"to\"."
+      }
+    }
+  },
+  "reports": {
+    "count": {
+      "scene_zero": "لا مشاهد",
+      "scene_one": "مشهد واحد",
+      "scene_two": "مشهدان",
+      "scene_few": "{{count}} مشاهد",
+      "scene_many": "{{count}} مشهدًا",
+      "scene_other": "{{count}} مشهد",
+      "speakingCharacter_zero": "لا شخصيات متحدثة",
+      "speakingCharacter_one": "شخصية متحدثة واحدة",
+      "speakingCharacter_two": "شخصيتان متحدثتان",
+      "speakingCharacter_few": "{{count}} شخصيات متحدثة",
+      "speakingCharacter_many": "{{count}} شخصية متحدثة",
+      "speakingCharacter_other": "{{count}} شخصية متحدثة",
+      "location_zero": "لا مواقع",
+      "location_one": "موقع واحد",
+      "location_two": "موقعان",
+      "location_few": "{{count}} مواقع",
+      "location_many": "{{count}} موقعًا",
+      "location_other": "{{count}} موقع",
+      "castMember_zero": "لا ممثلين",
+      "castMember_one": "ممثل واحد",
+      "castMember_two": "ممثلان",
+      "castMember_few": "{{count}} ممثلين",
+      "castMember_many": "{{count}} ممثلًا",
+      "castMember_other": "{{count}} ممثل",
+      "taggedItem_zero": "لا عناصر موسومة",
+      "taggedItem_one": "عنصر موسوم واحد",
+      "taggedItem_two": "عنصران موسومان",
+      "taggedItem_few": "{{count}} عناصر موسومة",
+      "taggedItem_many": "{{count}} عنصرًا موسومًا",
+      "taggedItem_other": "{{count}} عنصر موسوم",
+      "category_zero": "لا فئات",
+      "category_one": "فئة واحدة",
+      "category_two": "فئتان",
+      "category_few": "{{count}} فئات",
+      "category_many": "{{count}} فئة",
+      "category_other": "{{count}} فئة",
+      "openNote_zero": "لا ملاحظات مفتوحة",
+      "openNote_one": "ملاحظة مفتوحة واحدة",
+      "openNote_two": "ملاحظتان مفتوحتان",
+      "openNote_few": "{{count}} ملاحظات مفتوحة",
+      "openNote_many": "{{count}} ملاحظة مفتوحة",
+      "openNote_other": "{{count}} ملاحظة مفتوحة",
+      "note_zero": "لا ملاحظات",
+      "note_one": "ملاحظة واحدة",
+      "note_two": "ملاحظتان",
+      "note_few": "{{count}} ملاحظات",
+      "note_many": "{{count}} ملاحظة",
+      "note_other": "{{count}} ملاحظة",
+      "reply_zero": "لا ردود",
+      "reply_one": "رد واحد",
+      "reply_two": "ردان",
+      "reply_few": "{{count}} ردود",
+      "reply_many": "{{count}} ردًا",
+      "reply_other": "{{count}} رد"
+    },
+    "scenes": {
+      "label": "تقرير المشاهد",
+      "description": "كل مشهد مع موقعه وطوله وزمنه على الشاشة ومن يتكلم فيه",
+      "summary": "{{scenes}} · {{length}} صفحة",
+      "columns": {
+        "scene": "المشهد",
+        "heading": "العنوان",
+        "intExt": "داخلي/خارجي",
+        "location": "الموقع",
+        "time": "الوقت",
+        "length": "الطول",
+        "estTime": "الزمن التقديري",
+        "speaking": "الشخصيات المتحدثة",
+        "words": "الكلمات"
+      }
+    },
+    "characters": {
+      "label": "تقرير الشخصيات",
+      "description": "الخطابات والكلمات والمشاهد لكل شخصية متحدثة",
+      "columns": {
+        "character": "الشخصية",
+        "role": "الدور",
+        "gender": "الجنس",
+        "speeches": "الخطابات",
+        "words": "الكلمات",
+        "share": "حصة الحوار",
+        "scenes": "المشاهد",
+        "sceneNumbers": "أرقام المشاهد"
+      }
+    },
+    "locations": {
+      "label": "تقرير المواقع",
+      "description": "كل موقع، وعدد مرات استخدامه، وعدد الصفحات التي يشغلها",
+      "columns": {
+        "location": "الموقع",
+        "intExt": "داخلي/خارجي",
+        "times": "أوقات اليوم",
+        "scenes": "المشاهد",
+        "totalLength": "الطول الإجمالي",
+        "sceneNumbers": "أرقام المشاهد"
+      }
+    },
+    "cast": {
+      "label": "تقرير الممثلين",
+      "description": "ملفات الشخصيات مع الدور والجنس والعمر والمشاهد المتحدثة",
+      "columns": {
+        "character": "الشخصية",
+        "role": "الدور",
+        "gender": "الجنس",
+        "age": "العمر",
+        "speakingScenes": "المشاهد المتحدثة",
+        "description": "الوصف"
+      }
+    },
+    "breakdown": {
+      "label": "تقرير التفريغ",
+      "description": "الإكسسوارات والأزياء والمركبات وغيرها من العناصر الموسومة، مع مشاهدها",
+      "summary": "{{items}} في {{categories}}",
+      "columns": {
+        "category": "الفئة",
+        "item": "العنصر",
+        "scenes": "المشاهد",
+        "sceneNumbers": "أرقام المشاهد",
+        "notes": "ملاحظات"
+      }
+    },
+    "notes": {
+      "label": "تقرير الملاحظات",
+      "description": "كل ملاحظة مع ردودها، ومن كتبها، ومن أُسندت إليه، وهل حُلّت",
+      "title": "تقرير الملاحظات",
+      "summary": "{{notes}} · {{open}} مفتوحة · {{resolved}} محلولة · {{replies}}",
+      "columns": {
+        "number": "#",
+        "scene": "المشهد",
+        "on": "على",
+        "from": "من",
+        "comment": "التعليق",
+        "status": "الحالة",
+        "assignedTo": "مُسندة إلى",
+        "date": "التاريخ"
+      },
+      "general": "عامة",
+      "open": "مفتوحة",
+      "resolved": "محلولة",
+      "resolvedBy": "حلّها {{name}}",
+      "resolvedAt": "{{status}} {{date}}"
+    },
+    "openNotes": {
+      "label": "الملاحظات المفتوحة",
+      "description": "الملاحظات التي لم تُحل بعد فقط، مع ردودها — ما لا يزال مطلوبًا",
+      "title": "الملاحظات المفتوحة",
+      "summary": "{{notes}} · {{replies}}"
+    },
+    "nothing": "لا شيء للإبلاغ عنه."
+  },
+  "backup": {
+    "error": {
+      "missingFolder": "مجلد النسخ الاحتياطي لم يعد موجودًا.",
+      "noPermission": "ليس لدى OpenDraft إذن الكتابة في مجلد النسخ الاحتياطي.",
+      "diskFull": "القرص ممتلئ.",
+      "noResponse": "لم يستجب مجلد النسخ الاحتياطي (هل فُصل قرص شبكي؟)."
+    },
+    "failed": "فشل النسخ الاحتياطي — {{reason}}",
+    "paused": "النسخ الاحتياطي التلقائي متوقف مؤقتًا — {{reason}} أصلح المجلد في الإعدادات للاستئناف.",
+    "notInBrowser": "النسخ الاحتياطية غير متاحة في المتصفح.",
+    "onlyInApp": "النسخ الاحتياطية متاحة في تطبيق OpenDraft فقط.",
+    "noFolder": "لم يُضبط مجلد للنسخ الاحتياطي.",
+    "revealDesktopOnly": "إظهار نسخة احتياطية في مدير الملفات متاح على سطح المكتب فقط.",
+    "chooseFolderBrowser": "اختيار مجلد للنسخ الاحتياطي غير متاح في المتصفح."
+  },
+  "sprint": {
+    "finished_zero": "انتهى السباق — لم تُكتب كلمات.",
+    "finished_one": "انتهى السباق — كُتبت كلمة واحدة.",
+    "finished_two": "انتهى السباق — كُتبت كلمتان.",
+    "finished_few": "انتهى السباق — كُتبت {{count}} كلمات.",
+    "finished_many": "انتهى السباق — كُتبت {{count}} كلمة.",
+    "finished_other": "انتهى السباق — كُتبت {{count}} كلمة."
+  },
+  "recovery": {
+    "tooLarge": "هذا المستند أكبر من أن يُحمى من الانهيار. احفظه في مكتبتك ليتولى الحفظ التلقائي الأمر.",
+    "noRoom": "الحماية من الانهيار غير متاحة — لا مساحة لتخزين نسخة استعادة. احفظ عملك في مكتبتك."
+  },
+  "fallbackImport": {
+    "project_zero": "لا مشاريع",
+    "project_one": "مشروع واحد",
+    "project_two": "مشروعان",
+    "project_few": "{{count}} مشاريع",
+    "project_many": "{{count}} مشروعًا",
+    "project_other": "{{count}} مشروع",
+    "script_zero": "لا سيناريوهات",
+    "script_one": "سيناريو واحد",
+    "script_two": "سيناريوهان",
+    "script_few": "{{count}} سيناريوهات",
+    "script_many": "{{count}} سيناريو",
+    "script_other": "{{count}} سيناريو",
+    "asset_zero": "لا أصول",
+    "asset_one": "أصل واحد",
+    "asset_two": "أصلان",
+    "asset_few": "{{count}} أصول",
+    "asset_many": "{{count}} أصلًا",
+    "asset_other": "{{count}} أصل",
+    "template_zero": "لا قوالب",
+    "template_one": "قالب واحد",
+    "template_two": "قالبان",
+    "template_few": "{{count}} قوالب",
+    "template_many": "{{count}} قالبًا",
+    "template_other": "{{count}} قالب",
+    "imported": "استُورد {{counts}} من التخزين البديل القائم على الملفات",
+    "importedWithErrors": "استُورد {{counts}} من التخزين البديل. فشل {{failed}} عنصر — راجع أدوات المطور للتفاصيل.",
+    "nothing": "لا شيء"
+  },
+  "dictionary": {
+    "unknownLanguage": "لغة غير معروفة: {{code}}",
+    "downloadFailed": "تعذّر تنزيل \"{{label}}\" — قد يكون المصدر غير متاح مؤقتًا، أو الشبكة غير متصلة.",
+    "codeRequired": "رمز اللغة مطلوب.",
+    "urlsRequired": "رابطا .aff و.dic كلاهما مطلوبان.",
+    "parseFailed": "فشل التنزيل أو التحليل. تحقق من الرابطين ومن أن الملفين .aff/.dic صالحان لـ Hunspell."
+  },
+  "auth": {
+    "renewFailed": "تعذّر تجديد تسجيل دخولك الآن. يُرجى المحاولة مرة أخرى بعد قليل."
+  },
+  "cloud": {
+    "notConfigured": "OpenDraft Cloud غير مُعدّ لهذا التطبيق. افتح الإعدادات ← إعدادات النظام لضبط رابط خادم OpenDraft.",
+    "cannotReachNamed": "تعذّر الوصول إلى {{where}}. تحقق من أن الخادم يعمل ويمكن الوصول إليه.",
+    "cannotReach": "تعذّر الوصول إلى OpenDraft Cloud ({{detail}}).",
+    "invalidResponse": "أعاد OpenDraft Cloud استجابة غير صالحة. ربما الخادم غير مضبوط بشكل صحيح.",
+    "renewUnavailable": "تعذّر الوصول إلى خادم OpenDraft لتجديد تسجيل دخولك. يُرجى المحاولة مرة أخرى بعد قليل."
+  },
+  "fonts": {
+    "tooLarge": "كبير جدًا — يجب أن تقل الخطوط عن {{mb}} MB.",
+    "empty": "هذا الملف فارغ.",
+    "tooSmall": "هذا الملف أصغر من أن يكون خطًا.",
+    "notFont": "هذا الملف ليس خط TrueType أو OpenType.",
+    "installFailed": "تعذّر تثبيت هذا الخط: {{message}}",
+    "noStorage": "لا يوجد في هذا المتصفح تخزين محلي للخطوط.",
+    "deleteFailed": "أُزيل الخط من هذه الجلسة لكن تعذّر حذفه من التخزين."
+  },
+  "linkedFiles": {
+    "unsupportedExtension": "يستطيع OpenDraft حفظ السيناريوهات في ملفات .odraft أو .fountain أو .fdx أو .osf، وليس .{{ext}}.",
+    "noExtension": "(لا شيء)",
+    "cannotWrite": "لا يستطيع OpenDraft الكتابة في {{folder}}",
+    "cannotWriteReason": "لا يستطيع OpenDraft الكتابة في {{folder}} — {{reason}}",
+    "notInFolder": "هذا المشروع غير محفوظ في مجلد."
+  },
+  "elements": {
+    "sceneHeading": "عنوان المشهد",
+    "action": "الحدث",
+    "character": "الشخصية",
+    "parenthetical": "توجيه الأداء",
+    "dialogue": "الحوار",
+    "transition": "انتقال",
+    "shot": "لقطة",
+    "general": "عام",
+    "dualDialogue": "حوار متزامن",
+    "lyrics": "كلمات الأغنية",
+    "newAct": "فصل جديد",
+    "endOfAct": "نهاية الفصل"
+  },
+  "marks": {
+    "bold": "غامق",
+    "italic": "مائل",
+    "underline": "تسطير",
+    "strike": "يتوسطه خط",
+    "subscript": "منخفض",
+    "superscript": "مرتفع",
+    "textStyle": "الخط/الحجم",
+    "color": "لون النص",
+    "highlight": "التمييز",
+    "formatOverride": "تجاوز التنسيق"
+  },
+  "relativeTime": {
+    "justNow": "الآن",
+    "minutes_zero": "الآن",
+    "minutes_one": "منذ دقيقة",
+    "minutes_two": "منذ دقيقتين",
+    "minutes_few": "منذ {{count}} دقائق",
+    "minutes_many": "منذ {{count}} دقيقة",
+    "minutes_other": "منذ {{count}} دقيقة",
+    "hours_zero": "الآن",
+    "hours_one": "منذ ساعة",
+    "hours_two": "منذ ساعتين",
+    "hours_few": "منذ {{count}} ساعات",
+    "hours_many": "منذ {{count}} ساعة",
+    "hours_other": "منذ {{count}} ساعة",
+    "days_zero": "اليوم",
+    "days_one": "منذ يوم",
+    "days_two": "منذ يومين",
+    "days_few": "منذ {{count}} أيام",
+    "days_many": "منذ {{count}} يومًا",
+    "days_other": "منذ {{count}} يوم"
+  },
+  "suggestions": {
+    "insertedBy": "اقتراح من {{name}}",
+    "insertedByAt": "اقتراح من {{name}} · {{when}}",
+    "someone": "شخص ما",
+    "someoneCap": "شخص ما",
+    "deleteBy": "اقترح {{name}} حذف هذا",
+    "deleteByAt": "اقترح {{name}} حذف هذا · {{when}}",
+    "formatAdd": "اقترح {{name}} إضافة {{format}}",
+    "formatRemove": "اقترح {{name}} إزالة {{format}}",
+    "joinLabel": "⤒ ضم",
+    "joinTitle": "اقترح {{name}} ضم هذا السطر إلى السطر السابق",
+    "wasType": "كان {{type}}",
+    "changeTitle": "اقترح {{name}} تغيير هذا من {{from}} إلى {{to}}"
+  },
+  "clipboard": {
+    "pasteDeniedIos": "تعذّرت قراءة الحافظة. يطلب iOS إذنًا عند كل لصق — اضغط «لصق» عند ظهوره، أو اضغط مطولًا في السيناريو واستخدم «لصق» هناك.",
+    "pasteDenied": "تعذّرت قراءة الحافظة. اسمح لـ OpenDraft بالوصول إلى الحافظة وأعد المحاولة.",
+    "selectFirst": "حدّد شيئًا لنسخه أولًا.",
+    "copyFailed": "تعذّر النسخ إلى الحافظة.",
+    "empty": "الحافظة فارغة."
+  },
+  "import": {
+    "archiveNotOpenable": "ملفات {{format}} أرشيفات مضغوطة ولا يمكن فتحها على هذه المنصة. صدّر السيناريو من {{app}} بصيغة .fdx أو .fountain أو .osf واستورده بدلًا من ذلك.",
+    "expectedText": "كان المتوقع محتوى نصيًا لملف {{format}}.",
+    "invalidOdraft": "ملف .odraft غير صالح: {{message}}",
+    "archiveUnreadable": "تعذّرت قراءة ملف {{format}} — فهو ليس أرشيف .{{ext}} صالحًا. قد يكون تالفًا أو غير مكتمل أو محفوظًا بصيغة أخرى؛ جرّب تصديره من {{format}} مرة أخرى.",
+    "zipInvalid": "هذا الملف ليس أرشيف zip صالحًا",
+    "zipSingleScript": "يحتوي هذا الـ zip على سيناريو واحد وليس مشروعًا. استورده من داخل مشروع بدلًا من ذلك.",
+    "zipNoProject": "أرشيف مشروع غير صالح: project.json مفقود",
+    "zipNoneImported": "تعذّر استيراد أي من السيناريوهات الـ {{count}}",
+    "pdfPassword": "ملف PDF هذا محمي بكلمة مرور. افتحه في عارض PDF، واحفظ نسخة بدون كلمة المرور، واستورد تلك النسخة.",
+    "pdfUnreadable": "هذا الملف ليس PDF يمكن قراءته — قد يكون تالفًا.",
+    "pdfNoText": "ملف PDF هذا لا يحتوي على نص للقراءة — قد يكون مسحًا ضوئيًا. لا يمكن استيراد إلا ملفات PDF ذات النص القابل للتحديد.",
+    "pdfNothingRecognised": "لم يُتعرَّف على أي عناوين مشاهد أو حوار — قد لا يكون PDF منسّقًا كسيناريو.",
+    "docxTable": "ظهر جدول ليس بتخطيط حوار متزامن — سُطّحت خلاياه إلى حدث.",
+    "docxNoDocument": "ليس ملف .docx صالحًا: word/document.xml مفقود",
+    "docxNoBody": "ليس ملف .docx صالحًا: <w:body> مفقود",
+    "highlandNoFountain": "ليس سيناريو Highland: لا يحتوي الملف على text.fountain{{contents}}.",
+    "highlandNotFountain": "هذا المستند من Highland مخزّن بصيغة {{name}} وليس Fountain، لذا قُرئ كنص Fountain؛ تحقق من أنواع العناصر بعد الاستيراد.",
+    "highlandImages": "لم تُستورد الصور المخزّنة في ملف Highland."
+  },
+  "export": {
+    "zipUnreadable_zero": "لا سيناريوهات تعذّرت قراءتها: {{names}}",
+    "zipUnreadable_one": "تعذّرت قراءة السيناريو: {{names}}",
+    "zipUnreadable_two": "تعذّرت قراءة السيناريوهين: {{names}}",
+    "zipUnreadable_few": "تعذّرت قراءة السيناريوهات: {{names}}",
+    "zipUnreadable_many": "تعذّرت قراءة السيناريوهات: {{names}}",
+    "zipUnreadable_other": "تعذّرت قراءة السيناريوهات: {{names}}",
+    "twoUpPageSize": "حجم الصفحة غير صالح، لذا لا يمكن وضع صفحتين في الورقة.",
+    "twoUpStructure": "تعذّر وضع صفحتين في الورقة: بنية PDF غير متوقعة.",
+    "twoUpPageStructure": "تعذّر وضع صفحتين في الورقة: بنية الصفحة {{page}} غير متوقعة.",
+    "avEmpty": "لا يحتوي هذا المستند على محتوى AV للتصدير.",
+    "cannotWrite": "لا يستطيع OpenDraft كتابة ملفات .{{format}}."
+  },
+  "file": {
+    "chooseDifferent": "اختر وجهة مختلفة لـ «حفظ نسخة». تُرك الأصل دون تغيير.",
+    "openBrowser": "فتح ملف في مكانه غير متاح في المتصفح.",
+    "saveBrowser": "حفظ ملف في مكانه غير متاح في المتصفح."
+  },
+  "macros": {
+    "notJson": "هذا الملف ليس JSON صالحًا.",
+    "notMacros": "هذا الملف لا يحتوي على ماكرو OpenDraft."
+  },
+  "avYaml": {
+    "notYaml": "هذا الملف ليس YAML صالحًا.",
+    "notYamlLine": "هذا الملف ليس YAML صالحًا (السطر {{line}}).",
+    "notAvDoc": "هذا الملف ليس مستند AV لـ OpenDraft.",
+    "wrongFormat": "هذا الملف ليس مستند AV لـ OpenDraft (الصيغة المتوقعة: {{format}}).",
+    "noVersion": "لا يذكر هذا الملف إصدار مخطط AV الذي يستخدمه.",
+    "tooNew": "يستخدم هذا الملف إصدار مخطط AV {{version}}، لكن هذه النسخة من OpenDraft تقرأ حتى {{max}}. حدّث OpenDraft لفتحه.",
+    "noSection": "لا يحتوي ملف AV هذا على قسم `av:` للاستيراد.",
+    "noRows": "قسم AV رقم {{n}} لا يحتوي على صفوف."
+  },
+  "sides": {
+    "emptyScenes": "المشاهد المختارة فارغة.",
+    "noLines": "لا أسطر لـ {{name}} في هذا السيناريو.",
+    "noSceneAt": "لا مشهد مضبوط في {{location}}.",
+    "notTagged": "لا شيء في السيناريو موسوم بـ {{label}}."
+  },
+  "av": {
+    "durationLabel": "مدة اللقطة {{shot}}",
+    "durationInvalid": "ليس وقتًا — استخدم 0:05 أو 1:30 أو 1:02:03",
+    "durationTitle": "مدة اللقطة",
+    "resizeTitle": "اسحب لتغيير الحجم · انقر مرتين لإعادة التعيين"
+  },
+  "tts": {
+    "unreadable": "ردّ خادم الكلام بما لا يمكن قراءته.",
+    "noProvider": "لم يُعدّ مزوّد أصوات بالذكاء الاصطناعي.",
+    "needGeminiKey": "أضف مفتاح Gemini API في الإعدادات ← أصوات القراءة الجماعية.",
+    "needElevenLabsKey": "أضف مفتاح ElevenLabs API في الإعدادات ← أصوات القراءة الجماعية.",
+    "needAzureKey": "أضف مفتاح Azure Speech والمنطقة في الإعدادات ← أصوات القراءة الجماعية.",
+    "noKokoroVoice": "لم يُختر صوت Kokoro.",
+    "noGeminiVoice": "لم يُختر صوت Gemini.",
+    "noAzureVoice": "لم يُختر صوت Azure.",
+    "noElevenLabsVoice": "لم يُختر صوت ElevenLabs.",
+    "noVoice": "لم يُختر صوت.",
+    "geminiNoAudio": "لم يُعد Gemini صوتًا لهذا السطر.",
+    "azureNoAudio": "لم يُعد Azure Speech صوتًا.",
+    "audioNoStart": "لم يبدأ تشغيل الصوت من {{provider}}. قد لا يدعم هذا المتصفح صيغته.",
+    "audioNoPlay": "تعذّر تشغيل الصوت من {{provider}}.",
+    "audioNoDecode": "تعذّر فك ترميز الصوت من {{provider}}: {{message}}",
+    "kokoroStopped": "توقف محرك صوت Kokoro: {{message}}",
+    "kokoroUnknown": "خطأ غير معروف",
+    "systemStopped": "توقف محرك الكلام في النظام عن الاستجابة: {{message}}"
+  }
+}

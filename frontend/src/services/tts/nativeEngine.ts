@@ -16,6 +16,7 @@
 import type { SpeakOptions, TtsEngine, VoiceInfo } from './types';
 import { estimateDurationMs, WordClock } from './wordClock';
 import { isNoveltyVoice, voiceGender } from './voiceTraits';
+import { t } from '../../i18n';
 
 interface NativeVoice {
   id: string;
@@ -104,7 +105,7 @@ export class NativeEngine implements TtsEngine {
       try {
         events = await invoke<NativeEvent[]>('tts_native_poll');
       } catch (err) {
-        throw new Error(`The system speech engine stopped responding: ${err instanceof Error ? err.message : String(err)}`);
+        throw new Error(t('messages:tts.systemStopped', { message: err instanceof Error ? err.message : String(err) }));
       }
       for (const ev of events) {
         if (ev.id !== id) continue;

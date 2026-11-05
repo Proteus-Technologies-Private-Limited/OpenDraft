@@ -4,6 +4,7 @@ import { Plugin } from '@tiptap/pm/state';
 import { ScreenplayImageView } from './ScreenplayImageView';
 import { buildImageAttrs, imageFilesFrom, insertImageNode, warnIfImageDegraded } from '../../utils/insertImage';
 import { showToast } from '../../components/Toast';
+import { t } from '../../i18n';
 
 // Upload each file and insert an image node at `pos` (or the selection),
 // selecting it so the writer sees the resize handle (not a bare gapcursor).
@@ -17,7 +18,7 @@ async function insertImageFiles(editor: Editor, files: File[], pos?: number) {
       // Previously swallowed, so a pasted image that failed to upload simply
       // vanished with nothing to explain it.
       console.warn('[image] could not insert', file.name, err);
-      showToast(`Could not add "${file.name || 'image'}".`, 'error');
+      showToast(t('messages:image.couldNotAdd', { name: file.name || t('messages:image.fileFallbackName') }), 'error');
     }
   }
 }

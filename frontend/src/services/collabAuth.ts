@@ -5,6 +5,7 @@ import type { CollabAuth, CollabUser } from '../stores/settingsStore';
 import { platformFetch } from './platform';
 import { authedFetch, accessTokenExpired, refreshAccessToken } from './authedFetch';
 import { getDeviceInfo, getDeviceId } from './deviceId';
+import { t } from '../i18n';
 
 // ── URL helpers ──
 
@@ -20,7 +21,7 @@ function getCollabHttpBase(): string {
  *  a generic "cannot reach server" is more useful than "Failed to fetch". */
 function wrapNetworkError(err: unknown, where: string): Error {
   if (err instanceof TypeError) {
-    return new Error(`Cannot reach ${where}. Check that the server is running and reachable.`);
+    return new Error(t('messages:cloud.cannotReachNamed', { where }));
   }
   return err instanceof Error ? err : new Error(String(err));
 }
@@ -56,7 +57,7 @@ async function parseError(res: Response, fallbackLabel: string): Promise<AuthHtt
 async function backendAuthRequest<T>(path: string, options?: RequestInit): Promise<T> {
   const base = getApiBase();
   if (!base) {
-    throw new Error('OpenDraft Cloud is not configured for this app. Open Settings → System Settings to set the OpenDraft server URL.');
+    throw new Error(t('messages:cloud.notConfigured'));
   }
   const url = `${base}/auth${path}`;
   let res: Response;
@@ -82,7 +83,7 @@ async function backendAuthRequest<T>(path: string, options?: RequestInit): Promi
 async function backendAuthRequestRaw(path: string, options?: RequestInit): Promise<Response> {
   const base = getApiBase();
   if (!base) {
-    throw new Error('OpenDraft Cloud is not configured for this app. Open Settings → System Settings to set the OpenDraft server URL.');
+    throw new Error(t('messages:cloud.notConfigured'));
   }
   const url = `${base}/auth${path}`;
   try {
@@ -103,7 +104,7 @@ async function backendAuthRequestRaw(path: string, options?: RequestInit): Promi
 async function backendAuthedRequest<T>(path: string, options?: RequestInit): Promise<T> {
   const base = getApiBase();
   if (!base) {
-    throw new Error('OpenDraft Cloud is not configured for this app. Open Settings → System Settings to set the OpenDraft server URL.');
+    throw new Error(t('messages:cloud.notConfigured'));
   }
   const url = `${base}/auth${path}`;
   let res: Response;
@@ -375,6 +376,15 @@ export const collabAuthApi = {
 export type CollabAuthStatus = 'ok' | 'signed-out' | 'unavailable';
 
 /** Shown when the session is fine but could not be renewed right now. */
+export function collabAuthUnavailableMessage(): string {
+  return t('messages:cloud.renewUnavailable');
+}
+
+/**
+ * @deprecated English only. Callers should use `collabAuthUnavailableMessage()`,
+ * which follows the interface language.
+ */
+// i18n-ignore kept so existing importers compile; superseded by collabAuthUnavailableMessage()
 export const COLLAB_AUTH_UNAVAILABLE_MESSAGE =
   'Could not reach the OpenDraft server to renew your sign-in. Please try again in a moment.';
 

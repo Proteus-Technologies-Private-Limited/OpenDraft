@@ -1,0 +1,107 @@
+{
+  "status": {
+    "save": {
+      "unsaved": "تغییرات ذخیره‌نشده",
+      "saving": "در حال ذخیره…",
+      "saved": "ذخیره شد",
+      "error": "ذخیره ناموفق بود"
+    },
+    "linked": {
+      "notSaved": "در فایل ذخیره نشده",
+      "missing": "فایل پیدا نشد",
+      "conflict": "بیرون از OpenDraft تغییر کرده است",
+      "retryHint": "برای تلاش دوباره کلیک کنید.",
+      "everySave": "هر ذخیره‌سازی در {{path}} هم نوشته می‌شود"
+    },
+    "acts_one": "{{count}} پرده",
+    "acts_other": "{{count}} پرده",
+    "saveWritesBack": "ذخیره‌سازی در {{name}} نوشته می‌شود",
+    "actStructure": "ساختار پرده‌ها",
+    "runtime": {
+      "title": "مدت‌زمان تقریبی با ریتم {{pacing}} — برای تنظیم ژانر و ریتم کلیک کنید",
+      "est": "تقریباً {{runtime}}"
+    },
+    "wordsTitle": "واژه‌های فیلمنامه",
+    "words_one": "{{formatted}} واژه",
+    "words_other": "{{formatted}} واژه",
+    "revision": "بازنگری: {{color}}",
+    "page": "صفحهٔ {{label}}",
+    "pageOf": "صفحهٔ {{current}} از {{total}}",
+    "pagesLocked": "صفحه‌ها قفل شده‌اند",
+    "locked": "(قفل‌شده)",
+    "suggesting": {
+      "lockedTitle": "شما برای پیشنهاد دادن پیوسته‌اید: نویسنده ویرایش‌های شما را می‌پذیرد یا رد می‌کند",
+      "title": "ویرایش‌های شما پیشنهاد هستند. برای ویرایش مستقیم دوباره کلیک کنید.",
+      "label": "پیشنهاددهی"
+    }
+  },
+  "resetToDefault": "بازنشانی به پیش‌فرض",
+  "richText": {
+    "bold": "پررنگ",
+    "italic": "مورب",
+    "underline": "زیرخط‌دار",
+    "bulletList": "فهرست گلوله‌ای"
+  },
+  "fontPicker": {
+    "fontFamily": "خانوادهٔ قلم",
+    "search": "جست‌وجوی قلم‌ها…",
+    "searchLabel": "جست‌وجوی قلم‌ها",
+    "noMatch": "هیچ قلمی با «{{query}}» مطابقت ندارد.",
+    "notInstalledTitle": "{{name}} روی این دستگاه نصب نیست — به‌جای آن قلمی مشابه نشان داده می‌شود",
+    "notInstalled": "نصب نشده",
+    "manage": "افزودن یا مدیریت قلم‌ها…",
+    "group": {
+      "document": "از این سند",
+      "custom": "قلم‌های سفارشی",
+      "screenplay": "استاندارد فیلمنامه",
+      "typewriter": "ماشین تحریر",
+      "serif": "سریف‌دار",
+      "sansSerif": "بدون سریف",
+      "monospace": "هم‌عرض",
+      "display": "نمایشی و عنوان",
+      "handwriting": "دست‌نویس",
+      "latinExtended": "لاتین گسترده",
+      "indic": "هندی / هندوآریایی",
+      "arabicHebrew": "عربی و عبری",
+      "cjk": "چینی، ژاپنی و کره‌ای",
+      "other": "سایر",
+      "device": "روی این دستگاه"
+    }
+  },
+  "languageSelector": {
+    "title": "زبان دیالوگ"
+  },
+  "toolbar": {
+    "fontSize": "اندازهٔ قلم",
+    "pt": "{{size}}pt",
+    "bold": "پررنگ ({{shortcut}})",
+    "italic": "مورب ({{shortcut}})",
+    "underline": "زیرخط ({{shortcut}})",
+    "strikethrough": "خط‌خورده",
+    "subscript": "زیرنویس",
+    "superscript": "بالانویس",
+    "textColor": "رنگ متن",
+    "highlightColor": "رنگ هایلایت",
+    "alignLeft": "چپ‌چین",
+    "alignCenter": "وسط‌چین",
+    "alignRight": "راست‌چین",
+    "justify": "تراز دوطرفه",
+    "findReplace": "یافتن و جایگزینی ({{shortcut}})",
+    "goToPage": "رفتن به صفحه ({{shortcut}})",
+    "scriptNotes": "یادداشت‌های فیلمنامه",
+    "productionTags": "برچسب‌های تولید",
+    "zoomOut": "کوچک‌نمایی",
+    "editZoom": "برای ویرایش بزرگ‌نمایی کلیک کنید",
+    "zoomIn": "بزرگ‌نمایی",
+    "undo": "واگرد ({{shortcut}})",
+    "redo": "از نو ({{shortcut}})",
+    "addAvRow": "افزودن ردیف صدا و تصویر در پایین (Tab از خانهٔ صدا، یا {{shortcut}})",
+    "row": "ردیف",
+    "deleteAvRow": "حذف این ردیف صدا و تصویر",
+    "moreFormatting": "گزینه‌های قالب‌بندی بیشتر",
+    "zoom": "بزرگ‌نمایی",
+    "elementType": "نوع عنصر",
+    "elementTypeTitlePage": "عناصر صفحهٔ عنوان در ویرایشگر صفحهٔ عنوان تنظیم می‌شوند؛ قالب‌بندی آن‌ها در قالب قرار دارد",
+    "titlePage": "صفحهٔ عنوان"
+  }
+}

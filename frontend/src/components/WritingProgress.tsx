@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useEditorStore } from '../stores/editorStore';
 import { useWritingGoalsStore } from '../stores/writingGoalsStore';
 import { dayKey, goalFraction } from '../utils/writingGoals';
@@ -17,6 +18,7 @@ function clock(ms: number): string {
  * Click for Writing Goals & Sprints.
  */
 const WritingProgress: React.FC = () => {
+  const { t } = useTranslation('tools');
   const goals = useWritingGoalsStore((s) => s.goals);
   const history = useWritingGoalsStore((s) => s.history);
   const session = useWritingGoalsStore((s) => s.session);
@@ -27,8 +29,8 @@ const WritingProgress: React.FC = () => {
 
   useEffect(() => {
     if (!sprint) return;
-    const t = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(t);
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
   }, [sprint]);
 
   const today = history[dayKey(new Date())]?.words ?? 0;
@@ -40,20 +42,24 @@ const WritingProgress: React.FC = () => {
     const left = Math.min(sprint.durationMs, Math.max(0, sprint.endsAt - now));
     fraction = goalFraction(sprint.durationMs - left, sprint.durationMs);
     label = `${clock(left)} · ${sprint.words}w`;
-    title = `Sprint: ${sprint.words} words so far${sprint.noBackspace ? ', no backspace' : ''}`;
+    title = sprint.noBackspace
+      ? t('progress.sprintNoBackspace', { count: sprint.words })
+      : t('progress.sprint', { count: sprint.words });
   } else if (goals.dailyWords > 0) {
     fraction = goalFraction(today, goals.dailyWords);
     label = `${today} / ${goals.dailyWords}`;
-    title = `${today} of ${goals.dailyWords} words today`;
+    title = t('progress.dailyGoal', { today, goal: goals.dailyWords, count: goals.dailyWords });
   } else if (goals.sessionTarget > 0) {
     const done = goals.sessionUnit === 'pages' ? session.pages : session.words;
     fraction = goalFraction(done, goals.sessionTarget);
     label = `${done} / ${goals.sessionTarget}${goals.sessionUnit === 'pages' ? 'p' : ''}`;
-    title = `${done} of ${goals.sessionTarget} ${goals.sessionUnit} this session (script is ${pageCount} pages)`;
+    title = goals.sessionUnit === 'pages'
+      ? t('progress.sessionPages', { done, target: goals.sessionTarget, pages: pageCount })
+      : t('progress.sessionWords', { done, target: goals.sessionTarget, pages: pageCount });
   } else {
     fraction = 0;
-    label = `${today} today`;
-    title = `${today} words written today — set a goal`;
+    label = t('progress.todayLabel', { count: today });
+    title = t('progress.todayNoGoal', { count: today });
   }
 
   return (
@@ -61,7 +67,7 @@ const WritingProgress: React.FC = () => {
       type="button"
       className={`status-item status-goals${sprint ? ' is-sprint' : ''}${fraction >= 1 && !sprint ? ' is-met' : ''}`}
       onClick={() => setOpen(true)}
-      title={`${title} — Writing Goals & Sprints`}
+      title={t('progress.withDialogName', { title })}
     >
       <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
         <circle cx="8" cy="8" r={R} className="status-goals-track" />

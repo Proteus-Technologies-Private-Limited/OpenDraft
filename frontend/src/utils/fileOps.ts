@@ -18,6 +18,7 @@ import {
   recordOwnWrite, ownWriteTime, forgetOwnWrite,
 } from '../services/externalSave';
 import { isTauri, getOS } from '../services/platform';
+import { t } from '../i18n';
 
 interface FileFilter {
   name: string;
@@ -79,7 +80,7 @@ async function saveFileTauri(
   const path = await save({ defaultPath: defaultFilename, filters });
   if (!path) return false;
   if (options.preserveOriginal && await invoke<boolean>('same_file_path', { first: options.preserveOriginal, second: path })) {
-    throw new Error('Choose a different destination for Save a Copy. The original was left unchanged.');
+    throw new Error(t('messages:file.chooseDifferent'));
   }
 
   // The save dialog has already asked whether to replace an existing file, so
@@ -634,7 +635,7 @@ async function pickInPlaceDocument(): Promise<PickedFile | null> {
     return { name: path.split(/[/\\]/).pop() || 'Untitled', bookmark: path };
   }
 
-  throw new Error('Opening a file in place is not available in the browser.');
+  throw new Error(t('messages:file.openBrowser'));
 }
 
 /** Read a picked file, as bytes for the archive formats and text otherwise. */
@@ -781,7 +782,7 @@ export async function saveDocumentInPlace(
     return;
   }
   if (!isTauri()) {
-    throw new Error('Saving a file in place is not available in the browser.');
+    throw new Error(t('messages:file.saveBrowser'));
   }
 
   // Desktop: the bookmark is the path. save_text_atomic writes through a

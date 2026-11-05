@@ -7,6 +7,7 @@
  * two things the file needs: a range of scenes, and one scene per page.
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useEditorStore } from '../stores/editorStore';
 import Select from './Select';
 
@@ -38,6 +39,7 @@ interface Props {
 }
 
 const PdfExportDialog: React.FC<Props> = ({ scenes, onClose, onExport }) => {
+  const { t } = useTranslation(['tools', 'common']);
   const includeTitlePageInOutput = useEditorStore((s) => s.includeTitlePageInOutput);
   const sceneNumbersVisible = useEditorStore((s) => s.sceneNumbersVisible);
 
@@ -53,12 +55,13 @@ const PdfExportDialog: React.FC<Props> = ({ scenes, onClose, onExport }) => {
   const [sceneNumbers, setSceneNumbers] = useState(sceneNumbersVisible);
   const [oneScenePerPage, setOneScenePerPage] = useState(false);
   const [watermark, setWatermark] = useState(false);
+  // i18n-ignore: watermark text is written into the PDF, so it stays as it always was
   const [watermarkText, setWatermarkText] = useState('CONFIDENTIAL');
 
   const options = useMemo(() => scenes.map((heading, index) => ({
     value: String(index),
-    label: `${index + 1}. ${heading || 'Untitled scene'}`,
-  })), [scenes]);
+    label: `${index + 1}. ${heading || t('pdfExport.untitledScene')}`,
+  })), [scenes, t]);
 
   /** The pick list narrowed by the search field. All / None act on what is
    *  shown, so "None" after searching clears only the matches. */
@@ -136,37 +139,37 @@ const PdfExportDialog: React.FC<Props> = ({ scenes, onClose, onExport }) => {
         aria-modal="true"
         aria-labelledby="pdf-export-title"
       >
-        <div className="dialog-header" id="pdf-export-title">Export PDF</div>
+        <div className="dialog-header" id="pdf-export-title">{t('pdfExport.title')}</div>
         <div className="dialog-body pdf-export-body">
           {scenes.length > 0 ? (
             <div className="pdf-export-section">
-              <div className="pdf-export-mode" role="group" aria-label="Which scenes to export">
+              <div className="pdf-export-mode" role="group" aria-label={t('pdfExport.whichScenes')}>
                 <button
                   type="button"
                   className={mode === 'range' ? 'active' : ''}
                   onClick={() => setMode('range')}
                 >
-                  Range
+                  {t('pdfExport.range')}
                 </button>
                 <button
                   type="button"
                   className={mode === 'pick' ? 'active' : ''}
                   onClick={() => setMode('pick')}
                 >
-                  Pick scenes
+                  {t('pdfExport.pickScenes')}
                 </button>
               </div>
 
               {mode === 'range' ? (
                 <div className="pdf-export-range">
                   <label>
-                    <span>From</span>
+                    <span>{t('pdfExport.from')}</span>
                     <Select value={String(fromIndex)} onChange={(e) => changeFrom(e.target.value)}>
                       {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </Select>
                   </label>
                   <label>
-                    <span>To</span>
+                    <span>{t('pdfExport.to')}</span>
                     <Select value={String(toIndex)} onChange={(e) => changeTo(e.target.value)}>
                       {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </Select>
@@ -177,22 +180,22 @@ const PdfExportDialog: React.FC<Props> = ({ scenes, onClose, onExport }) => {
                   <input
                     className="pdf-export-search"
                     type="text"
-                    placeholder="Search scenes…"
+                    placeholder={t('pdfExport.searchScenesPlaceholder')}
                     value={pickQuery}
                     onChange={(e) => setPickQuery(e.target.value)}
-                    aria-label="Search scenes"
+                    aria-label={t('pdfExport.searchScenes')}
                   />
                   <div className="pdf-export-pick-actions">
                     <span>
-                      {picked.size} of {scenes.length} selected
-                      {visibleOptions.length !== scenes.length ? ` \u00b7 ${visibleOptions.length} shown` : ''}
+                      {t('pdfExport.selectedCount', { selected: picked.size, total: scenes.length })}
+                      {visibleOptions.length !== scenes.length ? ` \u00b7 ${t('pdfExport.shownCount', { count: visibleOptions.length })}` : ''}
                     </span>
-                    <button type="button" onClick={selectVisible} title="Select all shown">All</button>
-                    <button type="button" onClick={clearVisible} title="Clear all shown">None</button>
+                    <button type="button" onClick={selectVisible} title={t('pdfExport.selectAllShown')}>{t('pdfExport.all')}</button>
+                    <button type="button" onClick={clearVisible} title={t('pdfExport.clearAllShown')}>{t('common:none')}</button>
                   </div>
                   <div className="pdf-export-pick-list" ref={pickListRef}>
                     {visibleOptions.length === 0 ? (
-                      <p className="pdf-export-no-match">No scenes match &ldquo;{pickQuery}&rdquo;.</p>
+                      <p className="pdf-export-no-match">{t('pdfExport.noMatch', { query: pickQuery })}</p>
                     ) : visibleOptions.map((option) => {
                       const index = Number(option.value);
                       return (
@@ -211,55 +214,53 @@ const PdfExportDialog: React.FC<Props> = ({ scenes, onClose, onExport }) => {
               )}
             </div>
           ) : (
-            <p className="pdf-export-empty">No scenes yet. The whole script will be exported.</p>
+            <p className="pdf-export-empty">{t('pdfExport.noScenes')}</p>
           )}
 
           <div className="pdf-export-checks">
             <label className="pdf-export-check">
               <input type="checkbox" checked={includeTitlePage} onChange={(e) => setIncludeTitlePage(e.target.checked)} />
-              <span>Title page</span>
+              <span>{t('pdfExport.titlePage')}</span>
             </label>
             <label className="pdf-export-check">
               <input type="checkbox" checked={pageNumbers} onChange={(e) => setPageNumbers(e.target.checked)} />
-              <span>Page numbers</span>
+              <span>{t('pdfExport.pageNumbers')}</span>
             </label>
             <label className="pdf-export-check">
               <input type="checkbox" checked={sceneNumbers} onChange={(e) => setSceneNumbers(e.target.checked)} />
-              <span>Scene numbers</span>
+              <span>{t('pdfExport.sceneNumbers')}</span>
             </label>
             <label className="pdf-export-check">
               <input type="checkbox" checked={oneScenePerPage} onChange={(e) => setOneScenePerPage(e.target.checked)} />
-              <span>One scene per page</span>
+              <span>{t('pdfExport.oneScenePerPage')}</span>
             </label>
             <label className="pdf-export-check">
               <input type="checkbox" checked={watermark} onChange={(e) => setWatermark(e.target.checked)} />
-              <span>Watermark</span>
+              <span>{t('pdfExport.watermark')}</span>
             </label>
           </div>
 
           {watermark && (
             <div className="pdf-export-field">
-              <span>Watermark text</span>
+              <span>{t('pdfExport.watermarkText')}</span>
               <input
                 type="text"
                 value={watermarkText}
                 onChange={(e) => setWatermarkText(e.target.value)}
-                placeholder="CONFIDENTIAL"
+                placeholder="CONFIDENTIAL" /* i18n-ignore: example of text written into the PDF */
                 autoFocus
               />
             </div>
           )}
 
           <p className="pdf-export-hint">
-            A range exports those scenes; Pick scenes exports any combination.
-            Either way the pages start again at 1, and One scene per page starts
-            every scene on a fresh sheet.
+            {t('pdfExport.hint')}
           </p>
         </div>
         <div className="dialog-actions">
-          <button onClick={onClose}>Cancel</button>
+          <button onClick={onClose}>{t('common:cancel')}</button>
           <button className="dialog-primary" onClick={exportNow} disabled={nothingPicked || (watermark && !watermarkText.trim())}>
-            Export PDF
+            {t('pdfExport.export')}
           </button>
         </div>
       </div>

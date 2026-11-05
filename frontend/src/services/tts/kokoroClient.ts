@@ -4,6 +4,7 @@
  * so the Table Read panel can show it.
  */
 import type { VoiceInfo } from './types';
+import { t } from '../../i18n';
 
 interface KokoroVoice {
   id: string;
@@ -85,7 +86,7 @@ function spawn(): Worker {
   };
   w.onerror = (ev) => {
     console.error('[kokoro] worker crashed:', ev.message);
-    const err = new Error(`The Kokoro voice engine stopped: ${ev.message || 'unknown error'}`);
+    const err = new Error(t('messages:tts.kokoroStopped', { message: ev.message || t('messages:tts.kokoroUnknown') }));
     for (const p of pending.values()) p.reject(err);
     pending.clear();
     worker?.terminate();

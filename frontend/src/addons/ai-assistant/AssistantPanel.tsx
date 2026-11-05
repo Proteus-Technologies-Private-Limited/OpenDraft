@@ -17,8 +17,10 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Editor } from '@tiptap/react';
 import type { Transaction } from '@tiptap/pm/state';
 import { Mapping } from '@tiptap/pm/transform';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { FaRobot, FaPaperPlane, FaTrashAlt } from 'react-icons/fa';
-import { ELEMENT_LABELS } from '../../stores/editorStore';
+import { elementLabel } from '../../editor/elementLabels';
 import {
   createPreviewAdapter, createTiptapAdapter, executeCommand, previewTextLines,
   type PreviewOp, type ScriptContext,
@@ -47,11 +49,14 @@ interface UiMessage {
   content: string;
 }
 
-const EXAMPLES = [
-  'Write a line for Ben: "Hello, everyone."',
-  'Add a scene: INT. LAUNDRY - NIGHT, with an opening action.',
-  'Have MARGO say "You shouldn\'t have come back" (whispering).',
-];
+/** Example requests offered to the writer. Looked up when shown, so they follow the interface language. */
+function exampleRequests(t: TFunction<'addons'>): string[] {
+  return [
+    t('assistant.examples.line'),
+    t('assistant.examples.scene'),
+    t('assistant.examples.say'),
+  ];
+}
 
 const MAX_STEPS = 6;
 const MAX_REPLY_CHARS = 12_000;
@@ -81,6 +86,7 @@ const CORE_JSON_TOOLS = new Set([
  * nothing is inserted. It is told that the app does the inserting, and that
  * JSON is the reply only when no tools arrive.
  */
+// i18n-ignore-start model-facing prompt: sent to the LLM, never shown or translated
 function systemPrompt(
   context: unknown,
   openAiCompatible: boolean,
@@ -132,6 +138,8 @@ function systemPrompt(
   ].join('\n');
 }
 
+// i18n-ignore-end
+
 function clampReply(text: string): string {
   return text.length > MAX_REPLY_CHARS ? `${text.slice(0, MAX_REPLY_CHARS)}…` : text;
 }
@@ -148,6 +156,7 @@ function messageId(): string {
 
 /** One step of a proposal, drawn the way it will land on the page. */
 const PreviewOpView: React.FC<{ op: PreviewOp }> = ({ op }) => {
+  const { t } = useTranslation('addons');
   if (op.kind === 'blocks') {
     return (
       <>
@@ -164,7 +173,7 @@ const PreviewOpView: React.FC<{ op: PreviewOp }> = ({ op }) => {
   if (op.kind === 'element') {
     return (
       <div className="ai-preview-note">
-        Element → {ELEMENT_LABELS[op.type] ?? op.type}
+        {t('assistant.preview.element', { label: elementLabel(op.type) })}
       </div>
     );
   }
@@ -173,9 +182,9 @@ const PreviewOpView: React.FC<{ op: PreviewOp }> = ({ op }) => {
       <>
         {previewTextLines(op).map((line, i) => (
           <div key={i} className="ai-preview-block ai-preview-replace">
-            {i === 0 ? 'Replace with: ' : ''}
+            {i === 0 ? t('assistant.preview.replaceWith') : ''}
             {line}
-            {i === 0 && op.element ? ` (${ELEMENT_LABELS[op.element] ?? op.element})` : ''}
+            {i === 0 && op.element ? ` (${elementLabel(op.element)})` : ''}
           </div>
         ))}
       </>
@@ -191,6 +200,7 @@ const PreviewOpView: React.FC<{ op: PreviewOp }> = ({ op }) => {
 };
 
 const AssistantPanel: React.FC<Props> = ({ editor }) => {
+  const { t } = useTranslation('addons');
   const [messages, setMessages] = useState<UiMessage[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -222,7 +232,7 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
       if (discardsProposal(transaction)) {
         pendingSelectionRef.current = null;
         setPending(null);
-        setError('The script changed while the proposal was waiting, so it was discarded. Ask again.');
+        setError(t('assistant.error.scriptChanged'));
         return;
       }
       saved.mapping.appendMapping(transaction.mapping);
@@ -231,7 +241,7 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
     return () => {
       editor.off('transaction', follow);
     };
-  }, [editor]);
+  }, [editor, t]);
 
   // A request in flight when the panel closes must not land on a dead panel.
   useEffect(() => {
@@ -281,12 +291,12 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
         lines.push(result.message);
         applied++;
       } else {
-        lines.push(`Could not: ${result.message}`);
+        lines.push(t('assistant.couldNot', { message: result.message }));
         failures.push(result.message);
       }
     }
     return { lines, failures, applied };
-  }, [resolveCommand]);
+  }, [resolveCommand, t]);
 
   /**
    * Run the calls against a dry-run adapter first. Valid ones become a
@@ -304,7 +314,7 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
       return {
         staged: false,
         lines: [] as string[],
-        failures: ['The proposal is too large (max 60 actions). Try a more specific request.'],
+        failures: [t('assistant.error.tooManyActions')],
         count: 0,
       };
     }
@@ -314,7 +324,7 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
     for (const call of calls) {
       const id = resolveCommand(call.name);
       if (!isModelCommand(id, commandForTool, allowed)) {
-        failures.push(`The assistant is not allowed to run ${call.name}.`);
+        failures.push(t('assistant.error.notAllowed', { name: call.name }));
         continue;
       }
       const before = preview.ops.length;
@@ -338,7 +348,7 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
       return {
         staged: false,
         lines: [] as string[],
-        failures: ['The proposal had nothing to insert.'],
+        failures: [t('assistant.error.nothingToInsert')],
         count: 0,
       };
     }
@@ -346,20 +356,20 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
       return {
         staged: false,
         lines: [] as string[],
-        failures: ['The proposal is too large (max 40 blocks). Try a more specific request.'],
+        failures: [t('assistant.error.tooManyBlocks')],
         count: 0,
       };
     }
     // Always show the proposal: nothing reaches the script without the writer.
     setPending({ calls: valid, ops: preview.ops });
     return { staged: true, lines: [] as string[], failures, count: valid.length };
-  }, [resolveCommand, commandForTool, allowed]);
+  }, [resolveCommand, commandForTool, allowed, t]);
 
   const acceptPending = useCallback(() => {
     if (!pending || !editor) return;
     if (!editor.isEditable) {
       clearPending();
-      setError('This document is read-only, so the assistant cannot insert into it.');
+      setError(t('assistant.error.readOnly'));
       return;
     }
     const saved = pendingSelectionRef.current;
@@ -368,7 +378,7 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
       const range = mappedSelection(saved, editor.state.doc.content.size);
       if (!range) {
         clearPending();
-        setError('The text the proposal was going to replace is no longer there. Ask again.');
+        setError(t('assistant.error.replaceGone'));
         return;
       }
       try {
@@ -380,16 +390,16 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
     const adapter = createTiptapAdapter(editor);
     const ran = runCalls(adapter, pending.calls);
     setPending(null);
-    addMessage('assistant', ran.lines.join(' ') || 'Done.');
+    addMessage('assistant', ran.lines.join(' ') || t('assistant.done'));
     if (ran.failures.length > 0) {
-      setError(`Some actions were not applied: ${ran.failures.join(' ')}`);
+      setError(t('assistant.error.notApplied', { details: ran.failures.join(' ') }));
     }
-  }, [pending, editor, runCalls, addMessage, clearPending]);
+  }, [pending, editor, runCalls, addMessage, clearPending, t]);
 
   const rejectPending = useCallback(() => {
     clearPending();
-    addMessage('assistant', 'Proposal discarded.');
-  }, [addMessage, clearPending]);
+    addMessage('assistant', t('assistant.discarded'));
+  }, [addMessage, clearPending, t]);
 
   const send = useCallback(async (promptArg?: string) => {
     const prompt = (promptArg ?? input).trim();
@@ -418,12 +428,12 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
         if (staged.count === 0) return false;
         if (staged.staged) {
           keptSelection = true;
-          addMessage('assistant', 'Proposal ready - review and confirm.');
+          addMessage('assistant', t('assistant.proposalReady'));
         } else {
-          addMessage('assistant', staged.lines.join(' ') || 'Done.');
+          addMessage('assistant', staged.lines.join(' ') || t('assistant.done'));
         }
         if (staged.failures.length > 0) {
-          setError(`Some actions were not applied: ${staged.failures.join(' ')}`);
+          setError(t('assistant.error.notApplied', { details: staged.failures.join(' ') }));
         }
         return true;
       };
@@ -436,8 +446,8 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
           args: { character: quick.character, text: quick.text },
         }]);
         if (!finishStaged(staged)) {
-          setError('I could not prepare the dialogue.');
-          addMessage('assistant', 'I could not prepare the dialogue.');
+          setError(t('assistant.error.prepareDialogue'));
+          addMessage('assistant', t('assistant.error.prepareDialogue'));
         }
         return;
       }
@@ -451,8 +461,8 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
           args: { blocks: script.blocks },
         }]);
         if (!finishStaged(staged)) {
-          setError('I could not prepare the scene.');
-          addMessage('assistant', 'I could not prepare the scene.');
+          setError(t('assistant.error.prepareScene'));
+          addMessage('assistant', t('assistant.error.prepareScene'));
         }
         return;
       }
@@ -469,15 +479,15 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
           },
         }]);
         if (!finishStaged(staged)) {
-          setError('I could not prepare the scene.');
-          addMessage('assistant', 'I could not prepare the scene.');
+          setError(t('assistant.error.prepareScene'));
+          addMessage('assistant', t('assistant.error.prepareScene'));
         }
         return;
       }
 
       if (!settings.baseUrl.trim() || !settings.model.trim()) {
-        setError('Set the AI server and model in Settings → Add-ons first.');
-        addMessage('assistant', 'Set the AI server and model in Settings → Add-ons first.');
+        setError(t('assistant.error.notConfigured'));
+        addMessage('assistant', t('assistant.error.notConfigured'));
         return;
       }
 
@@ -510,6 +520,7 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
           const correction = await callModel(settings, [
             ...conversation,
             reply.assistantMessage,
+            // i18n-ignore model-facing prompt
             {
               role: 'user',
               content: 'The previous tool calls were invalid. A new place or time is script_insertScene; use script_insertTransition only for CUT TO, DISSOLVE or FADE. Reply with corrected tool calls.',
@@ -517,8 +528,8 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
           ], tools);
           if (!mountedRef.current) return;
           if (correction.toolCalls.length > 0 && finishStaged(stageCalls(adapter, correction.toolCalls))) return;
-          setError(`No valid actions: ${reply.toolCalls.map((c) => c.name).join(', ')}`);
-          addMessage('assistant', 'No valid actions.');
+          setError(t('assistant.error.noValidActionsNamed', { names: reply.toolCalls.map((c) => c.name).join(', ') }));
+          addMessage('assistant', t('assistant.error.noValidActions'));
           return;
         }
 
@@ -532,6 +543,7 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
           const correction = await callModel(settings, [
             ...conversation,
             reply.assistantMessage,
+            // i18n-ignore model-facing prompt
             {
               role: 'user',
               content: 'The actions were not valid: parameters are missing or wrong. Reply again with ONLY valid JSON, using the schema parameters.',
@@ -540,8 +552,8 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
           if (!mountedRef.current) return;
           const corrected = parseJsonActions(correction.content);
           if (corrected.length > 0 && finishStaged(stageCalls(adapter, corrected))) return;
-          setError('The model did not produce a valid action. Try rephrasing the request.');
-          addMessage('assistant', 'No valid actions.');
+          setError(t('assistant.error.noValidAction'));
+          addMessage('assistant', t('assistant.error.noValidActions'));
           return;
         }
 
@@ -551,6 +563,7 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
           const retry = await callModel(settings, [
             ...conversation,
             reply.assistantMessage,
+            // i18n-ignore model-facing prompt
             {
               role: 'user',
               content: 'The previous reply contained no JSON action. Reply again with ONLY the action JSON, with no text around it.',
@@ -559,21 +572,21 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
           if (!mountedRef.current) return;
           const retryActions = parseJsonActions(retry.content);
           if (retryActions.length > 0 && finishStaged(stageCalls(adapter, retryActions))) return;
-          setError('The model did not return a JSON action. Try rephrasing or use a larger model.');
-          addMessage('assistant', clampReply(retry.content || reply.content || 'No action received.'));
+          setError(t('assistant.error.noJsonAction'));
+          addMessage('assistant', clampReply(retry.content || reply.content || t('assistant.error.noActionReceived')));
           return;
         }
 
-        addMessage('assistant', clampReply(reply.content || executed.join(' ') || 'Done.'));
+        addMessage('assistant', clampReply(reply.content || executed.join(' ') || t('assistant.done')));
         return;
       }
 
-      addMessage('assistant', executed.join(' ') || 'Reached the step limit without a final answer.');
+      addMessage('assistant', executed.join(' ') || t('assistant.error.stepLimit'));
     } catch (err) {
       if (!mountedRef.current) return;
       const message = err instanceof Error ? err.message : String(err);
       setError(message);
-      addMessage('assistant', `⚠️ ${message}`);
+      addMessage('assistant', t('assistant.warning', { message }));
     } finally {
       if (!keptSelection) pendingSelectionRef.current = null;
       if (mountedRef.current) {
@@ -582,7 +595,7 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
       }
     }
   }, [
-    input, busy, editor, messages, tools, addMessage, clearPending, stageCalls,
+    input, busy, editor, messages, tools, addMessage, clearPending, stageCalls, t,
   ]);
 
   const previewBlockCount = pending
@@ -597,11 +610,11 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
   return (
     <div className="ai-panel">
       <div className="ai-header">
-        <span className="ai-title"><FaRobot /> AI Assistant</span>
+        <span className="ai-title"><FaRobot /> {t('assistant.title')}</span>
         <div className="ai-header-actions">
           <button
             className="ai-icon-btn"
-            title="New conversation"
+            title={t('assistant.newConversation')}
             onClick={() => { setMessages([]); setError(null); clearPending(); }}
             disabled={messages.length === 0 || busy}
           >
@@ -613,26 +626,25 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
       <div className="ai-messages" ref={listRef}>
         {messages.length === 0 && (
           <div className="ai-empty">
-            <p>Ask the assistant to write into the script. It uses the app&apos;s commands,
-               so the text arrives already formatted.</p>
-            {EXAMPLES.map((example) => (
+            <p>{t('assistant.empty')}</p>
+            {exampleRequests(t).map((example) => (
               <button key={example} className="ai-example" onClick={() => void send(example)}>
                 {example}
               </button>
             ))}
-            <p className="ai-hint">The server and model are set in Settings → Add-ons.</p>
+            <p className="ai-hint">{t('assistant.hint')}</p>
           </div>
         )}
         {messages.map((message) => (
           <div key={message.id} className={`ai-message ai-${message.role}`}>
-            <div className="ai-message-role">{message.role === 'user' ? 'You' : 'Assistant'}</div>
+            <div className="ai-message-role">{message.role === 'user' ? t('assistant.you') : t('assistant.assistant')}</div>
             <div className="ai-message-text">{message.content}</div>
           </div>
         ))}
         {busy && (
           <div className="ai-message ai-assistant">
-            <div className="ai-message-role">Assistant</div>
-            <div className="ai-message-text ai-thinking">Writing…</div>
+            <div className="ai-message-role">{t('assistant.assistant')}</div>
+            <div className="ai-message-text ai-thinking">{t('assistant.writing')}</div>
           </div>
         )}
       </div>
@@ -640,17 +652,17 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
       {pending && (
         <div className="ai-preview">
           <div className="ai-preview-header">
-            <span>Proposal</span>
+            <span>{t('assistant.proposal')}</span>
             <span className="ai-preview-count">
-              {previewBlockCount} {previewBlockCount === 1 ? 'block' : 'blocks'}
+              {t('assistant.blockCount', { count: previewBlockCount })}
             </span>
           </div>
           <div className="ai-preview-body">
             {pending.ops.map((op, i) => <PreviewOpView key={i} op={op} />)}
           </div>
           <div className="ai-preview-actions">
-            <button className="ai-preview-accept" onClick={acceptPending}>Insert</button>
-            <button className="ai-preview-reject" onClick={rejectPending}>Discard</button>
+            <button className="ai-preview-accept" onClick={acceptPending}>{t('assistant.insert')}</button>
+            <button className="ai-preview-reject" onClick={rejectPending}>{t('assistant.discard')}</button>
           </div>
         </div>
       )}
@@ -663,7 +675,7 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
           className="ai-input ai-textarea"
           rows={3}
           value={input}
-          placeholder="e.g. Write a line for Ben: &quot;Hello, everyone.&quot;"
+          placeholder={t('assistant.placeholder')}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
@@ -675,14 +687,14 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
         />
         <button
           className="ai-send"
-          title="Send (Enter)"
+          title={t('assistant.send')}
           onClick={() => void send()}
           disabled={busy || !input.trim() || !editor}
         >
           <FaPaperPlane />
         </button>
       </div>
-      {!editor && <div className="ai-error">Open a screenplay to use the assistant.</div>}
+      {!editor && <div className="ai-error">{t('assistant.openScreenplay')}</div>}
     </div>
   );
 };

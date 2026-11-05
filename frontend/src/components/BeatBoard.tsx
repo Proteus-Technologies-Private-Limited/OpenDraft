@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 import type { Editor } from '@tiptap/react';
 import {
   DndContext,
@@ -136,7 +137,9 @@ function useLinkPreviews(
 const LinkPreviewCard: React.FC<{
   preview: BeatLinkPreview;
   onRemove: () => void;
-}> = ({ preview, onRemove }) => (
+}> = ({ preview, onRemove }) => {
+  const { t } = useTranslation(['story', 'common']);
+  return (
   <a
     className="beat-link-preview"
     href={preview.url}
@@ -158,10 +161,11 @@ const LinkPreviewCard: React.FC<{
     <button
       className="beat-link-preview-remove"
       onClick={(e) => { e.preventDefault(); e.stopPropagation(); onRemove(); }}
-      title="Remove preview"
+      title={t('beatBoard.removePreview')}
     >&times;</button>
   </a>
-);
+  );
+};
 
 /* ─── Render description text with clickable links ─── */
 const DescriptionWithLinks: React.FC<{ text: string }> = ({ text }) => {
@@ -267,6 +271,7 @@ interface BeatCardContentProps {
 const BeatCardContent: React.FC<BeatCardContentProps> = ({
   beat, onUpdate, onDelete, dragHandleProps, resizePointerDown,
 }) => {
+  const { t } = useTranslation(['story', 'common']);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showPlotlines, setShowPlotlines] = useState(false);
   const plotlines = useEditorStore((s) => s.plotlines);
@@ -424,19 +429,19 @@ const BeatCardContent: React.FC<BeatCardContentProps> = ({
                   <button
                     className="beat-card-image-action-btn"
                     onClick={() => onUpdate(beat.id, { imageHeight: -1 })}
-                    title="Fill card"
+                    title={t('beatBoard.fillCard')}
                   >&#x229E;</button>
                   {imgH !== 0 && (
                     <button
                       className="beat-card-image-action-btn"
                       onClick={() => onUpdate(beat.id, { imageHeight: 0 })}
-                      title="Reset image size"
+                      title={t('beatBoard.resetImageSize')}
                     >&#8634;</button>
                   )}
                   <button
                     className="beat-card-image-remove"
                     onClick={() => onUpdate(beat.id, { imageUrl: '', imageHeight: 0 })}
-                    title="Remove image"
+                    title={t('beatBoard.removeImage')}
                   >&times;</button>
                 </div>
                 <div
@@ -452,12 +457,12 @@ const BeatCardContent: React.FC<BeatCardContentProps> = ({
               <button
                 className="beat-card-image-action-btn"
                 onClick={() => onUpdate(beat.id, { imageHeight: 0 })}
-                title="Default size"
+                title={t('beatBoard.defaultSize')}
               >&#x229F;</button>
               <button
                 className="beat-card-image-remove"
                 onClick={() => onUpdate(beat.id, { imageUrl: '', imageHeight: 0 })}
-                title="Remove image"
+                title={t('beatBoard.removeImage')}
               >&times;</button>
             </div>
           )}
@@ -472,9 +477,9 @@ const BeatCardContent: React.FC<BeatCardContentProps> = ({
               className="beat-card-title"
               value={beat.title}
               onChange={(e) => onUpdate(beat.id, { title: e.target.value })}
-              placeholder="Beat title..."
+              placeholder={t('beatBoard.beatTitle')}
             />
-            <button className="beat-card-delete" onClick={() => onDelete(beat.id)} title="Delete beat">&times;</button>
+            <button className="beat-card-delete" onClick={() => onDelete(beat.id)} title={t('beatBoard.deleteBeat')}>&times;</button>
           </div>
           {descFocused ? (
             <textarea
@@ -483,7 +488,7 @@ const BeatCardContent: React.FC<BeatCardContentProps> = ({
               value={beat.description}
               onChange={(e) => onUpdate(beat.id, { description: e.target.value })}
               onBlur={() => { if (descRef.current) descHeightRef.current = descRef.current.offsetHeight; setDescFocused(false); }}
-              placeholder="Describe this beat..."
+              placeholder={t('beatBoard.describe')}
               rows={2}
               style={descHeightRef.current ? { height: descHeightRef.current } : undefined}
               autoFocus
@@ -492,7 +497,7 @@ const BeatCardContent: React.FC<BeatCardContentProps> = ({
             <div className="beat-card-description-view" onClick={() => setDescFocused(true)}
               style={descHeightRef.current ? { minHeight: descHeightRef.current } : undefined}>
               {beat.description ? <DescriptionWithLinks text={beat.description} /> : (
-                <span className="beat-card-desc-placeholder">Describe this beat...</span>
+                <span className="beat-card-desc-placeholder">{t('beatBoard.describe')}</span>
               )}
             </div>
           )}
@@ -512,9 +517,9 @@ const BeatCardContent: React.FC<BeatCardContentProps> = ({
               className="beat-card-title"
               value={beat.title}
               onChange={(e) => onUpdate(beat.id, { title: e.target.value })}
-              placeholder="Beat title..."
+              placeholder={t('beatBoard.beatTitle')}
             />
-            <button className="beat-card-delete" onClick={() => onDelete(beat.id)} title="Delete beat">&times;</button>
+            <button className="beat-card-delete" onClick={() => onDelete(beat.id)} title={t('beatBoard.deleteBeat')}>&times;</button>
           </div>
           {descFocused ? (
             <textarea
@@ -523,7 +528,7 @@ const BeatCardContent: React.FC<BeatCardContentProps> = ({
               value={beat.description}
               onChange={(e) => onUpdate(beat.id, { description: e.target.value })}
               onBlur={() => { if (descRef.current) descHeightRef.current = descRef.current.offsetHeight; setDescFocused(false); }}
-              placeholder="Describe this beat..."
+              placeholder={t('beatBoard.describe')}
               rows={3}
               style={descHeightRef.current ? { height: descHeightRef.current } : undefined}
               autoFocus
@@ -532,7 +537,7 @@ const BeatCardContent: React.FC<BeatCardContentProps> = ({
             <div className="beat-card-description-view" onClick={() => setDescFocused(true)}
               style={descHeightRef.current ? { minHeight: descHeightRef.current } : undefined}>
               {beat.description ? <DescriptionWithLinks text={beat.description} /> : (
-                <span className="beat-card-desc-placeholder">Describe this beat...</span>
+                <span className="beat-card-desc-placeholder">{t('beatBoard.describe')}</span>
               )}
             </div>
           )}
@@ -550,7 +555,7 @@ const BeatCardContent: React.FC<BeatCardContentProps> = ({
         <div className="beat-card-plotlines">
           {beatPlotlines.map((p) => (
             <span key={p.id} className="beat-plotline-chip" style={{ borderColor: p.color, color: p.color }}>
-              {p.name || 'Plotline'}
+              {p.name || t('beatBoard.plotline')}
             </span>
           ))}
         </div>
@@ -563,7 +568,7 @@ const BeatCardContent: React.FC<BeatCardContentProps> = ({
               key={s.uid!}
               className="beat-scene-chip"
               onClick={() => sceneLinks.goToScene(s.uid!)}
-              title={`Go to scene ${sceneLabel(s)}`}
+              title={t('beatBoard.goToScene', { scene: sceneLabel(s) })}
             >
               <span className="beat-scene-chip-label">{sceneLabel(s)}</span>
             </button>
@@ -572,14 +577,14 @@ const BeatCardContent: React.FC<BeatCardContentProps> = ({
             <span
               key={id}
               className="beat-scene-chip beat-scene-chip-missing"
-              title="The scene this beat was linked to is no longer in the script. Undoing its deletion brings the link back."
+              title={t('beatBoard.sceneDeletedTitle')}
             >
-              Scene deleted
+              {t('beatBoard.sceneDeleted')}
               <button
                 className="beat-scene-chip-remove"
                 onClick={() => sceneLinks.removeLink(beat.id, id)}
-                title="Remove this link"
-                aria-label="Remove link to deleted scene"
+                title={t('beatBoard.removeLink')}
+                aria-label={t('beatBoard.removeLinkAria')}
               >&times;</button>
             </span>
           ))}
@@ -591,7 +596,7 @@ const BeatCardContent: React.FC<BeatCardContentProps> = ({
           <button
             className="beat-toolbar-btn"
             onClick={() => setShowColorPicker(!showColorPicker)}
-            title="Color"
+            title={t('beatBoard.color')}
             style={beat.color ? { color: beat.color } : undefined}
           >&#9679;</button>
           {showColorPicker && (
@@ -602,7 +607,7 @@ const BeatCardContent: React.FC<BeatCardContentProps> = ({
                   className={`beat-color-swatch${beat.color === c ? ' active' : ''}`}
                   style={c ? { background: c } : undefined}
                   onClick={() => { onUpdate(beat.id, { color: c }); setShowColorPicker(false); }}
-                  title={c || 'No color'}
+                  title={c || t('beatBoard.noColor')}
                 >{!c && <span className="beat-color-none">&times;</span>}</button>
               ))}
             </div>
@@ -613,8 +618,8 @@ const BeatCardContent: React.FC<BeatCardContentProps> = ({
             <button
               className="beat-toolbar-btn"
               onClick={() => setShowPlotlines(!showPlotlines)}
-              title="Plotlines"
-              aria-label="Plotlines"
+              title={t('beatBoard.plotlines')}
+              aria-label={t('beatBoard.plotlines')}
               aria-expanded={showPlotlines}
             >&#8801;</button>
             {showPlotlines && (
@@ -627,7 +632,7 @@ const BeatCardContent: React.FC<BeatCardContentProps> = ({
                       onChange={() => togglePlotline(p.id)}
                     />
                     <span className="beat-plotline-dot" style={{ background: p.color }} />
-                    <span>{p.name || 'Plotline'}</span>
+                    <span>{p.name || t('beatBoard.plotline')}</span>
                   </label>
                 ))}
               </div>
@@ -640,8 +645,8 @@ const BeatCardContent: React.FC<BeatCardContentProps> = ({
               ref={sceneBtnRef}
               className={`beat-toolbar-btn${linkedIds.length ? ' beat-toolbar-btn-on' : ''}`}
               onClick={toggleScenePicker}
-              title="Linked scenes"
-              aria-label="Linked scenes"
+              title={t('beatBoard.linkedScenes')}
+              aria-label={t('beatBoard.linkedScenes')}
               aria-expanded={showScenes}
             >&#127916;</button>
             {showScenes && scenePickerPos && createPortal(
@@ -649,14 +654,14 @@ const BeatCardContent: React.FC<BeatCardContentProps> = ({
                 ref={scenePickerRef}
                 className="beat-scene-picker"
                 role="group"
-                aria-label="Linked scenes"
+                aria-label={t('beatBoard.linkedScenes')}
                 style={scenePickerPos}
                 // The card under it is draggable; keep presses here from starting a drag.
                 onPointerDown={(e) => e.stopPropagation()}
               >
-                <div className="beat-scene-picker-title">Linked scenes</div>
+                <div className="beat-scene-picker-title">{t('beatBoard.linkedScenes')}</div>
                 {sceneLinks.scenes.length === 0 ? (
-                  <div className="beat-scene-picker-empty">No scenes in the script yet.</div>
+                  <div className="beat-scene-picker-empty">{t('beatBoard.noScenesYet')}</div>
                 ) : (
                   <>
                     {sceneLinks.scenes.length > 8 && (
@@ -664,8 +669,8 @@ const BeatCardContent: React.FC<BeatCardContentProps> = ({
                         className="beat-scene-picker-filter"
                         value={sceneFilter}
                         onChange={(e) => setSceneFilter(e.target.value)}
-                        placeholder="Find a scene..."
-                        aria-label="Find a scene"
+                        placeholder={t('beatBoard.findScene')}
+                        aria-label={t('beatBoard.findSceneAria')}
                         autoFocus
                       />
                     )}
@@ -681,7 +686,7 @@ const BeatCardContent: React.FC<BeatCardContentProps> = ({
                         </label>
                       ))}
                       {pickableScenes.length === 0 && (
-                        <div className="beat-scene-picker-empty">No scene matches.</div>
+                        <div className="beat-scene-picker-empty">{t('beatBoard.noSceneMatches')}</div>
                       )}
                     </div>
                   </>
@@ -691,13 +696,13 @@ const BeatCardContent: React.FC<BeatCardContentProps> = ({
             )}
           </div>
         )}
-        <button className="beat-toolbar-btn" onClick={() => fileInputRef.current?.click()} title="Attach image">&#128247;</button>
+        <button className="beat-toolbar-btn" onClick={() => fileInputRef.current?.click()} title={t('beatBoard.attachImage')}>&#128247;</button>
         <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileChange} />
         {(beat.cardWidth > 0 || beat.cardHeight > 0) && (
           <button
             className="beat-toolbar-btn"
             onClick={() => onUpdate(beat.id, { cardWidth: 0, cardHeight: 0 })}
-            title="Reset size"
+            title={t('beatBoard.resetSize')}
           >&#8634;</button>
         )}
       </div>
@@ -865,6 +870,7 @@ interface BeatBoardProps {
 }
 
 const BeatBoard: React.FC<BeatBoardProps> = ({ editor = null }) => {
+  const { t } = useTranslation(['story', 'common']);
   const {
     beats, beatBoardOpen, beatColumns, beatArrangeMode,
     addBeat, updateBeat, deleteBeat, setBeats,
@@ -909,12 +915,12 @@ const BeatBoard: React.FC<BeatBoardProps> = ({ editor = null }) => {
         if (!uid) {
           // First link to this scene: its heading needs an id.
           if (!editor.isEditable) {
-            showToast('This script is read-only, so a beat cannot be linked to a new scene.', 'error');
+            showToast(t('beatBoard.toast.readOnly'), 'error');
             return;
           }
           const given = ensureSceneUid(editor.state, scene.pos);
           if (!given) {
-            showToast('That scene has moved. Open the list again and pick it.', 'error');
+            showToast(t('beatBoard.toast.sceneMoved'), 'error');
             return;
           }
           if (given.tr) {
@@ -922,7 +928,7 @@ const BeatBoard: React.FC<BeatBoardProps> = ({ editor = null }) => {
             // A suggester's session keeps a new id but not a changed one
             // (editor/suggestions onlyGivesSceneIds): link only what landed.
             if (sceneUidOf(editor.state.doc.nodeAt(scene.pos)?.attrs) !== given.uid) {
-              showToast('That scene can’t be linked while you are suggesting. Ask the writer to link it.', 'error');
+              showToast(t('beatBoard.toast.suggesting'), 'error');
               return;
             }
           }
@@ -931,7 +937,7 @@ const BeatBoard: React.FC<BeatBoardProps> = ({ editor = null }) => {
         updateBeat(beatId, { sceneIds: toggleBeatScene(beat, uid) });
       } catch (err) {
         console.error('[BeatBoard] could not link the beat to the scene', err);
-        showToast('Could not link the beat to that scene.', 'error');
+        showToast(t('beatBoard.toast.linkFailed'), 'error');
       }
     },
     removeLink: (beatId, sceneId) => {
@@ -942,7 +948,7 @@ const BeatBoard: React.FC<BeatBoardProps> = ({ editor = null }) => {
     goToScene: (sceneId) => {
       if (!editor || editor.isDestroyed) return;
       if (!findSceneByUid(editor.state.doc, sceneId)) {
-        showToast('That scene is no longer in the script.', 'info');
+        showToast(t('beatBoard.toast.sceneGone'), 'info');
         return;
       }
       // The board stands in for the script; close it, then go to the scene
@@ -959,7 +965,7 @@ const BeatBoard: React.FC<BeatBoardProps> = ({ editor = null }) => {
         }
       }), 0);
     },
-  }), [editor, scenes, updateBeat, toggleBeatBoard]);
+  }), [editor, scenes, updateBeat, toggleBeatBoard, t]);
 
   const boardRef = useRef<HTMLDivElement>(null);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
@@ -998,6 +1004,7 @@ const BeatBoard: React.FC<BeatBoardProps> = ({ editor = null }) => {
   const isSingleColumn = sortedColumns.length === 1;
 
   const handleAddColumn = useCallback(() => {
+    // i18n-ignore: stored as the column's title, so it is data the writer can rename
     addBeatColumn(`Column ${beatColumns.length + 1}`);
   }, [addBeatColumn, beatColumns.length]);
 
@@ -1058,6 +1065,7 @@ const BeatBoard: React.FC<BeatBoardProps> = ({ editor = null }) => {
   const defaultColumnId = sortedColumns.length > 0 ? sortedColumns[0].id : '';
 
   const handleAddBeatFree = useCallback(() => {
+    // i18n-ignore: stored as the column's / beat's title (data the writer can rename)
     const colId = defaultColumnId || addBeatColumn('Column 1');
     const offset = (beats.length % 10) * 30;
     addBeat('New Beat', colId);
@@ -1076,9 +1084,9 @@ const BeatBoard: React.FC<BeatBoardProps> = ({ editor = null }) => {
     <BeatScenesContext.Provider value={sceneLinks}>
     <div className="beat-board" ref={boardRef}>
       <div className="beat-board-header">
-        <span className="beat-board-title">Beat Board</span>
+        <span className="beat-board-title">{t('beatBoard.title')}</span>
         <span className="beat-board-info">
-          {beats.length} beat{beats.length !== 1 ? 's' : ''}
+          {t('beatBoard.beatCount', { count: beats.length })}
         </span>
 
         {/* Mode toggle */}
@@ -1086,19 +1094,19 @@ const BeatBoard: React.FC<BeatBoardProps> = ({ editor = null }) => {
           <button
             className={`beat-mode-btn${beatArrangeMode === 'auto' ? ' active' : ''}`}
             onClick={() => setBeatArrangeMode('auto')}
-            title="Auto Arrange — column-based layout"
-          >Auto Arrange</button>
+            title={t('beatBoard.autoArrangeTitle')}
+          >{t('beatBoard.autoArrange')}</button>
           <button
             className={`beat-mode-btn${beatArrangeMode === 'custom' ? ' active' : ''}`}
             onClick={() => setBeatArrangeMode('custom')}
-            title="Custom Arrange — free-form placement"
-          >Custom</button>
+            title={t('beatBoard.customTitle')}
+          >{t('beatBoard.custom')}</button>
         </div>
 
         {beatArrangeMode === 'auto' ? (
-          <button className="beat-board-add-col-btn" onClick={handleAddColumn}>+ Add Column</button>
+          <button className="beat-board-add-col-btn" onClick={handleAddColumn}>{t('beatBoard.addColumn')}</button>
         ) : (
-          <button className="beat-board-add-col-btn" onClick={handleAddBeatFree}>+ Add Beat</button>
+          <button className="beat-board-add-col-btn" onClick={handleAddBeatFree}>{t('beatBoard.addBeat')}</button>
         )}
 
         {/* The board replaces the script, and on a touch device the Tools menu
@@ -1106,8 +1114,8 @@ const BeatBoard: React.FC<BeatBoardProps> = ({ editor = null }) => {
         <button
           className="panel-close-btn"
           onClick={toggleBeatBoard}
-          title="Close Beat Board"
-          aria-label="Close Beat Board"
+          title={t('beatBoard.close')}
+          aria-label={t('beatBoard.close')}
         >
           &times;
         </button>
@@ -1120,8 +1128,8 @@ const BeatBoard: React.FC<BeatBoardProps> = ({ editor = null }) => {
                 says where beats come from. */}
             {sortedColumns.length === 0 && (
               <div className="beat-board-empty">
-                <p>Beats are the turning points of your story. Add a column &mdash; an act, a sequence &mdash; then add beats to it.</p>
-                <button className="beat-board-add-col-btn" onClick={handleAddColumn}>+ Add Column</button>
+                <p>{t('beatBoard.empty')}</p>
+                <button className="beat-board-add-col-btn" onClick={handleAddColumn}>{t('beatBoard.addColumn')}</button>
               </div>
             )}
             {sortedColumns.map((col) => {
@@ -1177,6 +1185,7 @@ const BeatColumnView: React.FC<BeatColumnViewProps> = ({
   col, colBeats, isSingleColumn, isMaximized, onToggleMaximize, showMaximizeBtn,
   onUpdateColumn, onDeleteColumn, onAddBeat, onUpdateBeat, onDeleteBeat,
 }) => {
+  const { t } = useTranslation(['story', 'common']);
   const colResizePointerDown = useColumnResize((w) => onUpdateColumn(col.id, { width: w }));
   const { setNodeRef: setDropRef } = useDroppable({ id: `column-drop-${col.id}` });
 
@@ -1195,16 +1204,16 @@ const BeatColumnView: React.FC<BeatColumnViewProps> = ({
           className="beat-column-title-input"
           value={col.title}
           onChange={(e) => onUpdateColumn(col.id, { title: e.target.value })}
-          placeholder="Column name..."
+          placeholder={t('beatBoard.columnName')}
         />
         {showMaximizeBtn && (
           <button
             className="beat-column-maximize"
             onClick={onToggleMaximize}
-            title={isMaximized ? 'Restore column' : 'Maximize column'}
+            title={isMaximized ? t('beatBoard.restoreColumn') : t('beatBoard.maximizeColumn')}
           >{isMaximized ? '\u29C9' : '\u2922'}</button>
         )}
-        <button className="beat-column-delete" onClick={() => onDeleteColumn(col.id)} title="Delete column">&times;</button>
+        <button className="beat-column-delete" onClick={() => onDeleteColumn(col.id)} title={t('beatBoard.deleteColumn')}>&times;</button>
       </div>
       <SortableContext items={colBeats.map((b) => b.id)} strategy={verticalListSortingStrategy}>
         <div ref={setDropRef} className={`beat-column-cards${isSingleColumn ? ' beat-column-cards-wrap' : ''}`}>
@@ -1213,7 +1222,7 @@ const BeatColumnView: React.FC<BeatColumnViewProps> = ({
           ))}
         </div>
       </SortableContext>
-      <button className="beat-add-btn" onClick={() => onAddBeat('New Beat', col.id)}>+ Add Beat</button>
+      <button className="beat-add-btn" onClick={() => onAddBeat(/* i18n-ignore: stored beat title */ 'New Beat', col.id)}>{t('beatBoard.addBeat')}</button>
       {/* Column resize handle (right edge) */}
       {!isSingleColumn && !isMaximized && <div className="beat-column-resize-handle" onPointerDown={colResizePointerDown} style={{ touchAction: 'none' }} />}
     </div>

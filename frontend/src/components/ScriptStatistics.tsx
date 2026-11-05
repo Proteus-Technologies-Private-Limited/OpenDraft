@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
+import { formatNumber } from '../i18n/format';
 import type { Editor } from '@tiptap/react';
 import { useEditorStore } from '../stores/editorStore';
 import {
@@ -25,6 +27,7 @@ interface Props {
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#6366f1', '#84cc16'];
 
 const ScriptStatistics: React.FC<Props> = ({ editor }) => {
+  const { t } = useTranslation(['tools', 'common']);
   const { characterProfiles, pageCount, setStatisticsOpen, statisticsScrollTo, setStatisticsScrollTo } = useEditorStore();
 
   const doc = useMemo(() => editor.getJSON(), [editor]);
@@ -42,19 +45,19 @@ const ScriptStatistics: React.FC<Props> = ({ editor }) => {
   useEffect(() => {
     if (!statisticsScrollTo) return;
     const id = statisticsScrollTo;
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       const el = document.getElementById(id);
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
       setStatisticsScrollTo(null);
     }, 50);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
   }, [statisticsScrollTo, setStatisticsScrollTo]);
 
   return (
     <div className="stats-panel">
       <div className="stats-header">
-        <h2 className="stats-title">Script Statistics</h2>
-        <button className="stats-close" onClick={() => setStatisticsOpen(false)} title="Close">&times;</button>
+        <h2 className="stats-title">{t('statistics.title')}</h2>
+        <button className="stats-close" onClick={() => setStatisticsOpen(false)} title={t('common:close')}>&times;</button>
       </div>
 
       <div className="stats-content">
@@ -62,23 +65,23 @@ const ScriptStatistics: React.FC<Props> = ({ editor }) => {
         <div className="stats-overview-cards">
           <div className="stats-card">
             <div className="stats-card-value">{overview.totalPages}</div>
-            <div className="stats-card-label">Pages</div>
-            <div className="stats-card-sub">Est. {timingResult.totalSeconds > 0 ? formatRuntime(timingResult.totalSeconds) : formatRuntime(overview.estimatedRuntime * 60)}</div>
+            <div className="stats-card-label">{t('statistics.cards.pages')}</div>
+            <div className="stats-card-sub">{t('statistics.cards.estimated', { time: timingResult.totalSeconds > 0 ? formatRuntime(timingResult.totalSeconds) : formatRuntime(overview.estimatedRuntime * 60) })}</div>
           </div>
           <div className="stats-card">
             <div className="stats-card-value">{overview.totalScenes}</div>
-            <div className="stats-card-label">Scenes</div>
-            <div className="stats-card-sub">Avg {overview.averageSceneLength.toFixed(1)} pages</div>
+            <div className="stats-card-label">{t('statistics.cards.scenes')}</div>
+            <div className="stats-card-sub">{t('statistics.cards.averageSceneLength', { value: overview.averageSceneLength.toFixed(1) })}</div>
           </div>
           <div className="stats-card">
             <div className="stats-card-value">{overview.totalCharacters}</div>
-            <div className="stats-card-label">Characters</div>
-            <div className="stats-card-sub">{overview.totalDialogueLines} dialogue lines</div>
+            <div className="stats-card-label">{t('statistics.cards.characters')}</div>
+            <div className="stats-card-sub">{t('statistics.cards.dialogueLines', { count: overview.totalDialogueLines })}</div>
           </div>
           <div className="stats-card">
-            <div className="stats-card-value">{overview.totalWords.toLocaleString()}</div>
-            <div className="stats-card-label">Words</div>
-            <div className="stats-card-sub">{overview.totalPages > 0 ? Math.round(overview.totalWords / overview.totalPages) : 0} per page</div>
+            <div className="stats-card-value">{formatNumber(overview.totalWords)}</div>
+            <div className="stats-card-label">{t('statistics.cards.words')}</div>
+            <div className="stats-card-sub">{t('statistics.cards.perPage', { count: overview.totalPages > 0 ? Math.round(overview.totalWords / overview.totalPages) : 0 })}</div>
           </div>
         </div>
 
@@ -86,7 +89,7 @@ const ScriptStatistics: React.FC<Props> = ({ editor }) => {
         <WritingHeatmap />
 
         <div className="stats-section">
-          <h3 className="stats-section-title">Dialogue Distribution</h3>
+          <h3 className="stats-section-title">{t('statistics.dialogue.title')}</h3>
           <div className="stats-dialogue-chart">
             {charDialogue.length > 0 ? (
               <ResponsiveContainer width="100%" height={Math.max(200, charDialogue.slice(0, 15).length * 28)}>
@@ -95,8 +98,8 @@ const ScriptStatistics: React.FC<Props> = ({ editor }) => {
                   <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={95} />
                   <Tooltip
                     formatter={((value: any, name: any) => [
-                      name === 'wordCount' ? `${value} words` : `${Number(value).toFixed(1)}%`,
-                      name === 'wordCount' ? 'Words' : '% of dialogue',
+                      name === 'wordCount' ? t('statistics.dialogue.wordsValue', { count: Number(value) }) : `${Number(value).toFixed(1)}%`,
+                      name === 'wordCount' ? t('statistics.dialogue.wordsLabel') : t('statistics.dialogue.percentOfDialogue'),
                     ]) as any}
                     contentStyle={{ background: '#1a1a1a', border: '1px solid #333', borderRadius: 4, fontSize: 12 }}
                   />
@@ -108,19 +111,19 @@ const ScriptStatistics: React.FC<Props> = ({ editor }) => {
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <div className="stats-empty">No dialogue found</div>
+              <div className="stats-empty">{t('statistics.dialogue.empty')}</div>
             )}
           </div>
           {charDialogue.length > 0 && (
             <table className="stats-table">
               <thead>
                 <tr>
-                  <th>Character</th>
-                  <th>Lines</th>
-                  <th>Words</th>
-                  <th>% Dialogue</th>
-                  <th>Scenes</th>
-                  <th>Role</th>
+                  <th>{t('statistics.dialogue.columns.character')}</th>
+                  <th>{t('statistics.dialogue.columns.lines')}</th>
+                  <th>{t('statistics.dialogue.columns.words')}</th>
+                  <th>{t('statistics.dialogue.columns.percentDialogue')}</th>
+                  <th>{t('statistics.dialogue.columns.scenes')}</th>
+                  <th>{t('statistics.dialogue.columns.role')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -145,7 +148,7 @@ const ScriptStatistics: React.FC<Props> = ({ editor }) => {
         {/* C. Gender Analysis */}
         {genderStats.length > 0 && (
           <div className="stats-section">
-            <h3 className="stats-section-title">Gender Analysis</h3>
+            <h3 className="stats-section-title">{t('statistics.gender.title')}</h3>
             <div className="stats-gender-row">
               <div className="stats-gender-chart">
                 <ResponsiveContainer width="100%" height={200}>
@@ -166,7 +169,7 @@ const ScriptStatistics: React.FC<Props> = ({ editor }) => {
                       ))}
                     </Pie>
                     <Tooltip
-                      formatter={((value: any) => [`${value} words`, 'Dialogue']) as any}
+                      formatter={((value: any) => [t('statistics.dialogue.wordsValue', { count: Number(value) }), t('statistics.series.dialogue')]) as any}
                       contentStyle={{ background: '#1a1a1a', border: '1px solid #333', borderRadius: 4, fontSize: 12 }}
                     />
                   </PieChart>
@@ -174,7 +177,7 @@ const ScriptStatistics: React.FC<Props> = ({ editor }) => {
               </div>
               <table className="stats-table stats-gender-table">
                 <thead>
-                  <tr><th>Gender</th><th>Characters</th><th>Lines</th><th>Words</th><th>%</th></tr>
+                  <tr><th>{t('statistics.gender.columns.gender')}</th><th>{t('statistics.gender.columns.characters')}</th><th>{t('statistics.gender.columns.lines')}</th><th>{t('statistics.gender.columns.words')}</th><th>%</th></tr>
                 </thead>
                 <tbody>
                   {genderStats.map((g, idx) => (
@@ -197,11 +200,11 @@ const ScriptStatistics: React.FC<Props> = ({ editor }) => {
 
         {/* D. Scene Breakdown — 2×2 grid */}
         <div className="stats-section">
-          <h3 className="stats-section-title">Scene Breakdown</h3>
+          <h3 className="stats-section-title">{t('statistics.scenes.title')}</h3>
           <div className="stats-breakdown-grid">
             {/* INT vs EXT */}
             <div className="stats-mini-chart">
-              <div className="stats-mini-title">Interior / Exterior</div>
+              <div className="stats-mini-title">{t('statistics.scenes.interiorExterior')}</div>
               <ResponsiveContainer width="100%" height={160}>
                 <PieChart>
                   <Pie
@@ -226,14 +229,14 @@ const ScriptStatistics: React.FC<Props> = ({ editor }) => {
 
             {/* DAY vs NIGHT */}
             <div className="stats-mini-chart">
-              <div className="stats-mini-title">Time of Day</div>
+              <div className="stats-mini-title">{t('statistics.scenes.timeOfDay')}</div>
               <ResponsiveContainer width="100%" height={160}>
                 <PieChart>
                   <Pie
                     data={[
-                      { name: 'Day', value: sceneBreakdown.dayCount },
-                      { name: 'Night', value: sceneBreakdown.nightCount },
-                      { name: 'Other', value: sceneBreakdown.otherTimeCount },
+                      { name: t('statistics.scenes.day'), value: sceneBreakdown.dayCount },
+                      { name: t('statistics.scenes.night'), value: sceneBreakdown.nightCount },
+                      { name: t('statistics.scenes.other'), value: sceneBreakdown.otherTimeCount },
                     ].filter((d) => d.value > 0)}
                     dataKey="value"
                     nameKey="name"
@@ -251,7 +254,7 @@ const ScriptStatistics: React.FC<Props> = ({ editor }) => {
 
             {/* Scene Length Distribution */}
             <div className="stats-mini-chart">
-              <div className="stats-mini-title">Scene Length Distribution</div>
+              <div className="stats-mini-title">{t('statistics.scenes.lengthDistribution')}</div>
               <ResponsiveContainer width="100%" height={160}>
                 <BarChart data={sceneBreakdown.sceneLengthBuckets} margin={{ left: 0, right: 10, top: 5, bottom: 5 }}>
                   <XAxis dataKey="label" tick={{ fontSize: 10 }} />
@@ -264,7 +267,7 @@ const ScriptStatistics: React.FC<Props> = ({ editor }) => {
 
             {/* Location Frequency */}
             <div className="stats-mini-chart">
-              <div className="stats-mini-title">Top Locations</div>
+              <div className="stats-mini-title">{t('statistics.scenes.topLocations')}</div>
               {sceneBreakdown.locationFrequency.length > 0 ? (
                 <ResponsiveContainer width="100%" height={160}>
                   <BarChart data={sceneBreakdown.locationFrequency.slice(0, 8)} layout="vertical" margin={{ left: 80, right: 10, top: 5, bottom: 5 }}>
@@ -275,7 +278,7 @@ const ScriptStatistics: React.FC<Props> = ({ editor }) => {
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="stats-empty">No locations found</div>
+                <div className="stats-empty">{t('statistics.scenes.noLocations')}</div>
               )}
             </div>
           </div>
@@ -284,23 +287,23 @@ const ScriptStatistics: React.FC<Props> = ({ editor }) => {
         {/* E. Pacing Chart */}
         {pacingData.length > 0 && (
           <div className="stats-section">
-            <h3 className="stats-section-title">Pacing — Dialogue vs Action by Scene</h3>
+            <h3 className="stats-section-title">{t('statistics.pacing.title')}</h3>
             <ResponsiveContainer width="100%" height={200}>
               <AreaChart data={pacingData} margin={{ left: 10, right: 10, top: 5, bottom: 5 }}>
                 <XAxis
                   dataKey="sceneIndex"
                   tick={{ fontSize: 10 }}
-                  tickFormatter={(v: any) => `S${Number(v) + 1}`}
+                  tickFormatter={(v: any) => t('statistics.pacing.sceneShort', { number: Number(v) + 1 })}
                 />
-                <YAxis tick={{ fontSize: 10 }} label={{ value: 'Words', angle: -90, position: 'insideLeft', fontSize: 10 }} />
+                <YAxis tick={{ fontSize: 10 }} label={{ value: t('statistics.dialogue.wordsLabel'), angle: -90, position: 'insideLeft', fontSize: 10 }} />
                 <Tooltip
-                  labelFormatter={(v: any) => sceneHeadings[v as number] || `Scene ${(v as number) + 1}`}
-                  formatter={((value: any, name: any) => [`${value} words`, name === 'dialogueWords' ? 'Dialogue' : 'Action']) as any}
+                  labelFormatter={(v: any) => sceneHeadings[v as number] || t('statistics.pacing.sceneLabel', { number: (v as number) + 1 })}
+                  formatter={((value: any, name: any) => [t('statistics.dialogue.wordsValue', { count: Number(value) }), name === 'dialogueWords' ? t('statistics.series.dialogue') : t('statistics.series.action')]) as any}
                   contentStyle={{ background: '#1a1a1a', border: '1px solid #333', borderRadius: 4, fontSize: 12 }}
                 />
                 <Area type="monotone" dataKey="dialogueWords" stackId="1" stroke="#3b82f6" fill="#3b82f680" name="dialogueWords" />
                 <Area type="monotone" dataKey="actionWords" stackId="1" stroke="#f59e0b" fill="#f59e0b80" name="actionWords" />
-                <Legend formatter={(value: any) => (value === 'dialogueWords' ? 'Dialogue' : 'Action')} />
+                <Legend formatter={(value: any) => (value === 'dialogueWords' ? t('statistics.series.dialogue') : t('statistics.series.action'))} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -309,12 +312,12 @@ const ScriptStatistics: React.FC<Props> = ({ editor }) => {
         {/* F. Character Presence Map */}
         {charPresence.length > 0 && (
           <div className="stats-section">
-            <h3 className="stats-section-title">Character Presence by Scene</h3>
+            <h3 className="stats-section-title">{t('statistics.presence.title')}</h3>
             <div className="stats-presence-scroll">
               <table className="stats-presence-table">
                 <thead>
                   <tr>
-                    <th className="stats-presence-name-col">Character</th>
+                    <th className="stats-presence-name-col">{t('statistics.dialogue.columns.character')}</th>
                     {pacingData.map((_, i) => (
                       <th key={i} className="stats-presence-scene-col" title={sceneHeadings[i]}>
                         {i + 1}
@@ -347,16 +350,16 @@ const ScriptStatistics: React.FC<Props> = ({ editor }) => {
         {/* G. Timing Report */}
         {timingResult.scenes.length > 0 && (
           <div className="stats-section" id="stats-timing-report">
-            <h3 className="stats-section-title">Timing Report — Est. {formatRuntime(timingResult.totalSeconds)}</h3>
+            <h3 className="stats-section-title">{t('statistics.timing.title', { time: formatRuntime(timingResult.totalSeconds) })}</h3>
             <table className="stats-table">
               <thead>
                 <tr>
                   <th>#</th>
-                  <th>Scene</th>
-                  <th>Dialogue</th>
-                  <th>Action</th>
-                  <th>Est.</th>
-                  <th>Cumulative</th>
+                  <th>{t('statistics.timing.columns.scene')}</th>
+                  <th>{t('statistics.series.dialogue')}</th>
+                  <th>{t('statistics.series.action')}</th>
+                  <th>{t('statistics.timing.columns.estimate')}</th>
+                  <th>{t('statistics.timing.columns.cumulative')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -370,14 +373,14 @@ const ScriptStatistics: React.FC<Props> = ({ editor }) => {
                     <td>{formatSceneDuration(st.breakdown.actionSeconds)}</td>
                     <td style={{ color: getTimingColor(st.finalSeconds), fontWeight: 600 }}>
                       {formatSceneDuration(st.finalSeconds)}
-                      {st.overrideSeconds != null && <span title="Manual override"> *</span>}
+                      {st.overrideSeconds != null && <span title={t('statistics.timing.manualOverride')}> *</span>}
                     </td>
                     <td>{formatRuntime(st.cumulativeSeconds)}</td>
                   </tr>
                 ))}
                 <tr style={{ fontWeight: 700, borderTop: '2px solid var(--fd-border)' }}>
                   <td></td>
-                  <td>TOTAL</td>
+                  <td>{t('statistics.timing.total')}</td>
                   <td></td>
                   <td></td>
                   <td>{formatRuntime(timingResult.totalSeconds)}</td>

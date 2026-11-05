@@ -1,12 +1,13 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
+import { formatDate as formatLocalDate } from '../i18n/format';
 import type { Editor } from '@tiptap/react';
 import { panelCloseDelay, useDelayedUnmount, useSwipeDismiss } from '../hooks/useTouch';
 import {
   useEditorStore,
-  ELEMENT_LABELS,
   NOTE_COLORS,
   type NoteColor,
-  type ElementType,
   type NoteFilter,
 } from '../stores/editorStore';
 import { useAssetStore, type Asset } from '../stores/assetStore';
@@ -40,12 +41,26 @@ import {
   mentionQueryAt,
   type MentionSuggestion,
 } from '../utils/noteMentions';
+import { elementLabel } from '../editor/elementLabels';
 
 /** Open a URL in the default browser. Uses Tauri invoke on desktop, window.open on web. */
 const openInBrowser = (url: string) => {
   // Same path on every platform — see openExternal. The `open_url` command
   // this used to invoke has no mobile implementation behind it.
   void openExternal(url).catch((err: unknown) => console.error('Failed to open URL:', err));
+};
+
+/** The colour name is the stored value ('Yellow'); only its label is translated. */
+const colorLabel = (name: NoteColor, t: TFunction<'collab'>): string => {
+  switch (name) {
+    case 'Yellow': return t('notes.color.Yellow');
+    case 'Red': return t('notes.color.Red');
+    case 'Blue': return t('notes.color.Blue');
+    case 'Green': return t('notes.color.Green');
+    case 'Orange': return t('notes.color.Orange');
+    case 'Purple': return t('notes.color.Purple');
+    default: return name;
+  }
 };
 
 interface ScriptNotesProps {
@@ -88,6 +103,7 @@ const NoteContentDisplay: React.FC<{
   people?: string[];
   me?: string;
 }> = ({ content, assets, projectId, people = [], me = '' }) => {
+  const { t } = useTranslation('collab');
   if (!content) return null;
 
   const lines = content.split('\n');
@@ -129,7 +145,7 @@ const NoteContentDisplay: React.FC<{
         } else {
           elements.push(
             <div key={i} className="note-media-embed note-media-video">
-              <iframe src={embedUrl} allowFullScreen title="video" />
+              <iframe src={embedUrl} allowFullScreen title={t('notes.videoTitle')} />
             </div>,
           );
         }
@@ -183,7 +199,7 @@ const NoteContentDisplay: React.FC<{
               <span
                 key={j}
                 className={`note-mention${samePerson(person, me) ? ' note-mention-me' : ''}`}
-                title={samePerson(person, me) ? 'Mentions you' : `Mentions ${person}`}
+                title={samePerson(person, me) ? t('notes.mentionsYou') : t('notes.mentionsPerson', { name: person })}
               >
                 @{person}
               </span>,
@@ -233,6 +249,7 @@ const NoteContentDisplay: React.FC<{
 };
 
 const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
+  const { t } = useTranslation(['collab', 'common']);
   const {
     notes,
     scriptNotesOpen,
@@ -331,8 +348,8 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
     const fn = resolveFootnotes(useEditorStore.getState().pageLayout);
     if (fn.enabled) return;
     setPageLayout({ ...useEditorStore.getState().pageLayout, footnotes: { ...fn, enabled: true } });
-    showToast('Notes now print in the screenplay. Format \u2192 Footnotes & Endnotes to configure.', 'info');
-  }, [setPageLayout]);
+    showToast(t('notes.printEnabled'), 'info');
+  }, [setPageLayout, t]);
 
   /**
    * Where one note prints. `''` means it does not.
@@ -660,15 +677,12 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
     [assetSuggestions, assetSugIdx, insertAssetRef],
   );
 
-  const formatDate = (iso: string) => {
-    const d = new Date(iso);
-    return d.toLocaleDateString(undefined, {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
+  const formatDate = (iso: string) => formatLocalDate(iso, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 
   const renderThreadContent = (text: string) => (
     <NoteContentDisplay content={text} assets={assets} projectId={projectId} people={people} me={me} />
@@ -686,16 +700,16 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
   return (
     <div ref={panelRef} className={`script-notes-panel ${panelClass}`} style={style}>
       <div className="script-notes-header">
-        <span className="script-notes-title">Notes</span>
+        <span className="script-notes-title">{t('notes.title')}</span>
         {/* Right where the writer is when they set a note to print. */}
         <button
           className="script-notes-settings"
           onClick={() => setFootnoteDialogOpen(true)}
-          title="Footnote and endnote settings"
+          title={t('notes.footnoteSettings')}
         >
           &#9881;
         </button>
-        <button className="script-notes-close" onClick={toggleScriptNotes} title="Close">
+        <button className="script-notes-close" onClick={toggleScriptNotes} title={t('common:close')}>
           &times;
         </button>
       </div>
@@ -706,15 +720,21 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
           className={`sn-tab${activeTab === 'general' ? ' active' : ''}`}
           onClick={() => setActiveTab('general')}
         >
-          General{generalNotes.length > 0
-            ? ` (${visibleGeneralNotes.length !== generalNotes.length ? `${visibleGeneralNotes.length}/` : ''}${generalNotes.length})`
-            : ''}
+          {generalNotes.length === 0
+            ? t('notes.tabGeneral')
+            : visibleGeneralNotes.length !== generalNotes.length
+              ? t('notes.tabGeneralFiltered', { shown: visibleGeneralNotes.length, total: generalNotes.length })
+              : t('notes.tabGeneralCount', { total: generalNotes.length })}
         </button>
         <button
           className={`sn-tab${activeTab === 'script' ? ' active' : ''}`}
           onClick={() => setActiveTab('script')}
         >
-          Script{notes.length > 0 ? ` (${scriptCountFiltered ? `${filteredNotes.length}/` : ''}${notes.length})` : ''}
+          {notes.length === 0
+            ? t('notes.tabScript')
+            : scriptCountFiltered
+              ? t('notes.tabScriptFiltered', { shown: filteredNotes.length, total: notes.length })
+              : t('notes.tabScriptCount', { total: notes.length })}
         </button>
       </div>
 
@@ -725,10 +745,10 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
             <button
               className={`sn-chip${forMeOnly ? ' active' : ''}`}
               onClick={() => setForMeOnly((v) => !v)}
-              title="Only open notes assigned to you or mentioning you"
+              title={t('notes.forMeTitle')}
               aria-pressed={forMeOnly}
             >
-              For me{forMeCount > 0 ? ` (${forMeCount})` : ''}
+              {forMeCount > 0 ? t('notes.forMeCount', { n: forMeCount }) : t('notes.forMe')}
             </button>
           )}
           {resolvedCount > 0 && (
@@ -738,7 +758,7 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
                 checked={showResolved}
                 onChange={(e) => setShowResolved(e.target.checked)}
               />
-              Show resolved ({resolvedCount})
+              {t('notes.showResolved', { n: resolvedCount })}
             </label>
           )}
         </div>
@@ -752,7 +772,7 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
           <div className="sn-filter-active">
             {localFilter.noteId && (
               <span className="sn-filter-chip" onClick={handleClearFilter}>
-                Selected note
+                {t('notes.selectedNote')}
                 <span className="sn-chip-x">&times;</span>
               </span>
             )}
@@ -761,7 +781,7 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
                 className="sn-filter-chip"
                 onClick={() => toggleTypeFilter(localFilter.elementType!)}
               >
-                {ELEMENT_LABELS[localFilter.elementType as ElementType] || localFilter.elementType}
+                {elementLabel(localFilter.elementType)}
                 <span className="sn-chip-x">&times;</span>
               </span>
             )}
@@ -780,12 +800,12 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
                 onClick={() => toggleColorFilter(localFilter.color!)}
                 style={{ borderColor: getNoteColorHex(localFilter.color) }}
               >
-                {localFilter.color}
+                {colorLabel(localFilter.color, t)}
                 <span className="sn-chip-x">&times;</span>
               </span>
             )}
             <button className="sn-filter-clear" onClick={handleClearFilter}>
-              Show All
+              {t('notes.showAll')}
             </button>
           </div>
         )}
@@ -793,15 +813,15 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
         {/* Type filter row */}
         {filterOptions.types.length > 1 && (
           <div className="sn-filter-row">
-            <span className="sn-filter-label">Type</span>
+            <span className="sn-filter-label">{t('notes.filterType')}</span>
             <div className="sn-filter-chips">
-              {filterOptions.types.map((t) => (
+              {filterOptions.types.map((type) => (
                 <button
-                  key={t}
-                  className={`sn-chip${localFilter.elementType === t ? ' active' : ''}`}
-                  onClick={() => toggleTypeFilter(t)}
+                  key={type}
+                  className={`sn-chip${localFilter.elementType === type ? ' active' : ''}`}
+                  onClick={() => toggleTypeFilter(type)}
                 >
-                  {ELEMENT_LABELS[t as ElementType] || t}
+                  {elementLabel(type)}
                 </button>
               ))}
             </div>
@@ -811,7 +831,7 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
         {/* Context filter row */}
         {filterOptions.contexts.length > 0 && (
           <div className="sn-filter-row">
-            <span className="sn-filter-label">Context</span>
+            <span className="sn-filter-label">{t('notes.filterContext')}</span>
             <div className="sn-filter-chips">
               {filterOptions.contexts.map((c) => (
                 <button
@@ -836,7 +856,7 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
                 key={c.name}
                 className={`sn-color-btn${localFilter.color === c.name ? ' active' : ''}`}
                 onClick={() => toggleColorFilter(c.name)}
-                title={`${c.name} (${count})`}
+                title={t('notes.colorCount', { color: colorLabel(c.name, t), n: count })}
                 style={{ '--swatch-color': c.hex } as React.CSSProperties}
               >
                 <span className="swatch" />
@@ -851,16 +871,16 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
         {filteredNotes.length === 0 ? (
           <div className="script-notes-empty">
             {notes.length === 0
-              ? 'No notes yet. Select text in the editor, right-click, and choose "Add Script Note".'
+              ? t('notes.emptyNone')
               : !isFiltered && !forMeOnly && !showResolved && notes.every(isNoteResolved)
-                ? 'Every note is resolved. Tick "Show resolved" to see them.'
-                : 'No notes match this filter.'}
+                ? t('notes.emptyResolved')
+                : t('notes.emptyFilter')}
           </div>
         ) : (
           filteredNotes.map((note) => {
             const hex = getNoteColorHex(note.color);
             const sceneName = getSceneName(note.sceneId);
-            const elemLabel = ELEMENT_LABELS[note.elementType as ElementType] || note.elementType;
+            const elemLabel = elementLabel(note.elementType);
             const isEditing = editingNoteId === note.id;
             const marker = markerFor(note.id);
             const resolved = isNoteResolved(note);
@@ -878,7 +898,7 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
                       <span
                         className="note-item-ctx-label"
                         onClick={() => toggleContextFilter(note.contextLabel)}
-                        title={`Filter by "${note.contextLabel}"`}
+                        title={t('notes.filterByContext', { label: note.contextLabel })}
                       >
                         {note.contextLabel}
                       </span>
@@ -888,11 +908,11 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
                     )}
                     {marker && (
                       <span className="note-item-fn-badge">
-                        {notePlacementOf(note) === 'endnote' ? 'Endnote' : 'Footnote'} {marker}
+                        {notePlacementOf(note) === 'endnote' ? t('notes.endnoteBadge', { marker }) : t('notes.footnoteBadge', { marker })}
                       </span>
                     )}
                     {!marker && note.printInScript && (
-                      <span className="note-item-fn-badge muted">Not printed &mdash; empty</span>
+                      <span className="note-item-fn-badge muted">{t('notes.notPrinted')}</span>
                     )}
                   </div>
                   <span className="note-item-date">
@@ -905,7 +925,7 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
                   <div
                     className="note-item-anchor"
                     onClick={() => handleNavigateToNote(note.id)}
-                    title="Click to navigate to this text"
+                    title={t('notes.goToText')}
                   >
                     &ldquo;{note.anchorText}&rdquo;
                   </div>
@@ -930,7 +950,7 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
                           setAssetSuggestions([]);
                         }, 200);
                       }}
-                      placeholder="Write your note... (@ to mention a collaborator or reference an asset, paste media URLs on their own line)"
+                      placeholder={t('notes.placeholder')}
                       rows={3}
                       autoFocus
                     />
@@ -946,7 +966,7 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
                   <div
                     className="note-item-preview"
                     onClick={() => setEditingNoteId(note.id)}
-                    title="Click to edit"
+                    title={t('notes.clickToEdit')}
                   >
                     {note.content ? (
                       <NoteContentDisplay
@@ -957,7 +977,7 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
                         me={me}
                       />
                     ) : (
-                      <span className="note-item-placeholder">Click to add note...</span>
+                      <span className="note-item-placeholder">{t('notes.clickToAdd')}</span>
                     )}
                   </div>
                 )}
@@ -980,7 +1000,7 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
                         className={`note-color-dot${note.color === c.name ? ' active' : ''}`}
                         style={{ background: c.hex }}
                         onClick={() => handleColorChange(note.id, c.name)}
-                        title={c.name}
+                        title={colorLabel(c.name, t)}
                       />
                     ))}
                   </div>
@@ -992,27 +1012,27 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
                       onChange={(e) => handlePlacementChange(note.id, e.target.value)}
                       title={
                         note.content.trim()
-                          ? 'Where this note prints in the screenplay'
-                          : 'Add note text first'
+                          ? t('notes.printWhere')
+                          : t('notes.addTextFirst')
                       }
                     >
-                      <option value="">Do not print</option>
-                      <option value="footnote">Page footer</option>
-                      <option value="endnote">End note</option>
+                      <option value="">{t('notes.doNotPrint')}</option>
+                      <option value="footnote">{t('notes.pageFooter')}</option>
+                      <option value="endnote">{t('notes.endNote')}</option>
                     </Select>
                     <button
                       className="note-icon-btn"
                       onClick={() => handleNavigateToNote(note.id)}
-                      title="Scroll to the text this note is attached to"
-                      aria-label="Go to the text this note is attached to"
+                      title={t('notes.scrollTitle')}
+                      aria-label={t('notes.scrollAria')}
                     >
                       <FaCrosshairs />
                     </button>
                     <button
                       className="note-icon-btn note-icon-danger"
                       onClick={() => handleDeleteRequest(note.id)}
-                      title="Delete note"
-                      aria-label="Delete note"
+                      title={t('notes.deleteNote')}
+                      aria-label={t('notes.deleteNote')}
                     >
                       <FaTrash />
                     </button>
@@ -1026,14 +1046,14 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
       {pendingDeleteNoteId && (
         <div className="dialog-overlay" onClick={() => setPendingDeleteNoteId(null)}>
           <div className="dialog-box" onClick={(e) => e.stopPropagation()}>
-            <div className="dialog-header">Delete Note</div>
+            <div className="dialog-header">{t('notes.deleteDialogTitle')}</div>
             <div className="dialog-body">
-              <p style={{ margin: 0 }}>Delete this note? The highlight will also be removed from the script.</p>
+              <p style={{ margin: 0 }}>{t('notes.deleteConfirm')}</p>
             </div>
             <div className="dialog-actions">
-              <button onClick={() => setPendingDeleteNoteId(null)}>Cancel</button>
+              <button onClick={() => setPendingDeleteNoteId(null)}>{t('common:cancel')}</button>
               <button className="dialog-primary" style={{ background: '#c0392b' }} onClick={handleDeleteConfirm}>
-                Delete
+                {t('common:delete')}
               </button>
             </div>
           </div>
@@ -1045,14 +1065,14 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
       {activeTab === 'general' && (
         <>
           <div className="general-notes-toolbar">
-            <button className="general-notes-add-btn" onClick={handleAddGeneralNote}>+ Add Note</button>
+            <button className="general-notes-add-btn" onClick={handleAddGeneralNote}>{t('notes.addNote')}</button>
           </div>
           <div className="script-notes-list">
             {visibleGeneralNotes.length === 0 ? (
               <div className="script-notes-empty">
                 {generalNotes.length === 0
-                  ? <>No general notes yet. Click &ldquo;+ Add Note&rdquo; to create one.</>
-                  : 'No general notes match this filter.'}
+                  ? t('notes.emptyGeneral')
+                  : t('notes.emptyGeneralFilter')}
               </div>
             ) : (
               visibleGeneralNotes.map((gn) => {
@@ -1064,10 +1084,10 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
                   <div key={gn.id} className={`note-item${resolved ? ' note-item-resolved' : ''}`} style={{ borderLeftColor: hex }}>
                     <div className="note-item-header">
                       {gnMarker && (
-                        <span className="note-item-fn-badge">Endnote {gnMarker}</span>
+                        <span className="note-item-fn-badge">{t('notes.endnoteBadge', { marker: gnMarker })}</span>
                       )}
                       {!gnMarker && gn.printInScript && (
-                        <span className="note-item-fn-badge muted">Not printed &mdash; empty</span>
+                        <span className="note-item-fn-badge muted">{t('notes.notPrinted')}</span>
                       )}
                       <span className="note-item-date">
                         {gn.author && <span className="note-item-author">{gn.author} &middot; </span>}
@@ -1080,7 +1100,7 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
                           className="general-note-title-input"
                           value={gn.title}
                           onChange={(e) => updateGeneralNote(gn.id, { title: e.target.value })}
-                          placeholder="Note title..."
+                          placeholder={t('notes.titlePlaceholder')}
                           autoFocus
                         />
                         <textarea
@@ -1088,7 +1108,7 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
                           value={gn.content}
                           onChange={(e) => updateGeneralNote(gn.id, { content: e.target.value })}
                           onBlur={() => setTimeout(() => setEditingGeneralNoteId(null), 200)}
-                          placeholder="Write your note..."
+                          placeholder={t('notes.generalPlaceholder')}
                           rows={4}
                         />
                       </>
@@ -1096,14 +1116,14 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
                       <div
                         className="note-item-preview"
                         onClick={() => setEditingGeneralNoteId(gn.id)}
-                        title="Click to edit"
+                        title={t('notes.clickToEdit')}
                       >
                         {gn.title && <div className="general-note-title">{gn.title}</div>}
                         {gn.content ? (
                           <NoteContentDisplay content={gn.content} assets={assets} projectId={projectId} people={people} me={me} />
                         ) : (
                           <span className="note-item-placeholder">
-                            {gn.title ? '' : 'Click to add note...'}
+                            {gn.title ? '' : t('notes.clickToAdd')}
                           </span>
                         )}
                       </div>
@@ -1125,7 +1145,7 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
                             className={`note-color-dot${gn.color === c.name ? ' active' : ''}`}
                             style={{ background: c.hex }}
                             onClick={() => updateGeneralNote(gn.id, { color: c.name })}
-                            title={c.name}
+                            title={colorLabel(c.name, t)}
                           />
                         ))}
                       </div>
@@ -1140,18 +1160,18 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
                               // A general note is attached to the file, not to a
                               // line of it, so there is no page it could sit at
                               // the foot of.
-                              ? 'A general note can only print at the end of the script'
-                              : 'Add note text first'
+                              ? t('notes.generalPrintTitle')
+                              : t('notes.addTextFirst')
                           }
                         >
-                          <option value="">Do not print</option>
-                          <option value="endnote">End note</option>
+                          <option value="">{t('notes.doNotPrint')}</option>
+                          <option value="endnote">{t('notes.endNote')}</option>
                         </Select>
                         <button
                           className="note-icon-btn note-icon-danger"
                           onClick={() => setPendingDeleteGeneralNoteId(gn.id)}
-                          title="Delete note"
-                          aria-label="Delete note"
+                          title={t('notes.deleteNote')}
+                          aria-label={t('notes.deleteNote')}
                         >
                           <FaTrash />
                         </button>
@@ -1165,14 +1185,14 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
           {pendingDeleteGeneralNoteId && (
             <div className="dialog-overlay" onClick={() => setPendingDeleteGeneralNoteId(null)}>
               <div className="dialog-box" onClick={(e) => e.stopPropagation()}>
-                <div className="dialog-header">Delete Note</div>
+                <div className="dialog-header">{t('notes.deleteDialogTitle')}</div>
                 <div className="dialog-body">
-                  <p style={{ margin: 0 }}>Delete this general note?</p>
+                  <p style={{ margin: 0 }}>{t('notes.deleteGeneralConfirm')}</p>
                 </div>
                 <div className="dialog-actions">
-                  <button onClick={() => setPendingDeleteGeneralNoteId(null)}>Cancel</button>
+                  <button onClick={() => setPendingDeleteGeneralNoteId(null)}>{t('common:cancel')}</button>
                   <button className="dialog-primary" style={{ background: '#c0392b' }} onClick={handleDeleteGeneralNoteConfirm}>
-                    Delete
+                    {t('common:delete')}
                   </button>
                 </div>
               </div>

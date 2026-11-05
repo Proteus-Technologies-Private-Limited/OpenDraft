@@ -7,6 +7,7 @@
  */
 
 import React from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import type { QuotaErrorDetail } from '../services/api';
 import { pluginRegistry } from '../plugins/registry';
 
@@ -16,6 +17,7 @@ interface QuotaExceededDialogProps {
 }
 
 const QuotaExceededDialog: React.FC<QuotaExceededDialogProps> = ({ detail, onClose }) => {
+  const { t } = useTranslation(['dialogs', 'common']);
   // Pro can register an upgrade handler; core has none, so the button hides.
   const upgradeHandler = (pluginRegistry as any).getUpgradeHandler?.() as
     | (() => void)
@@ -28,23 +30,27 @@ const QuotaExceededDialog: React.FC<QuotaExceededDialogProps> = ({ detail, onClo
         style={{ maxWidth: 420 }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="dialog-header">Free plan limit reached</div>
+        <div className="dialog-header">{t('quota.title')}</div>
         <div className="dialog-body">
           <p style={{ margin: '0 0 12px' }}>{detail.message}</p>
           <p style={{ margin: 0, fontSize: 13, color: 'var(--fd-text-muted)' }}>
-            You have <strong>{detail.current}</strong> of <strong>{detail.limit}</strong> files on the{' '}
-            <strong>{detail.current_plan}</strong> plan.
+            <Trans
+              ns="dialogs"
+              i18nKey="quota.usage"
+              values={{ current: detail.current, limit: detail.limit, plan: detail.current_plan }}
+              components={{ strong: <strong /> }}
+            />
           </p>
         </div>
         <div className="dialog-footer">
           <div style={{ flex: 1 }} />
-          <button className="dialog-btn" onClick={onClose}>Close</button>
+          <button className="dialog-btn" onClick={onClose}>{t('common:close')}</button>
           {upgradeHandler && (
             <button
               className="dialog-btn dialog-btn-primary"
               onClick={() => { upgradeHandler(); onClose(); }}
             >
-              Upgrade
+              {t('quota.upgrade')}
             </button>
           )}
         </div>

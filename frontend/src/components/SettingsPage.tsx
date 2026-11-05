@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { useGoBack } from '../hooks/useGoBack';
 import { useSettingsStore } from '../stores/settingsStore';
 import { collabAuthApi, handleAuthResponse, performLogout, isDeviceChallenge, useSigningOut } from '../services/collabAuth';
@@ -16,19 +17,39 @@ import ShortcutField from './ShortcutField';
 import MacroSettingsSection from './MacroSettingsSection';
 import { printRoute, isTauri as isTauriApp } from '../services/platform';
 import Select from './Select';
+import { t as translate } from '../i18n';
+import { useLanguage } from '../i18n/useLanguage';
+import { formatDateTime } from '../i18n/format';
+import { buildLanguageOptions } from './languageOptions';
 
-const EXPIRY_OPTIONS = [
-  { label: '30 minutes', hours: 0.5 },
-  { label: '1 hour', hours: 1 },
-  { label: '6 hours', hours: 6 },
-  { label: '12 hours', hours: 12 },
-  { label: '24 hours', hours: 24 },
-  { label: '48 hours', hours: 48 },
-  { label: '7 days', hours: 168 },
-  { label: '30 days', hours: 720 },
+// The value stored is `hours`; the words shown for it are built from unit and count when rendering.
+const EXPIRY_OPTIONS: { hours: number; unit: 'minutes' | 'hours' | 'days'; count: number }[] = [
+  { hours: 0.5, unit: 'minutes', count: 30 },
+  { hours: 1, unit: 'hours', count: 1 },
+  { hours: 6, unit: 'hours', count: 6 },
+  { hours: 12, unit: 'hours', count: 12 },
+  { hours: 24, unit: 'hours', count: 24 },
+  { hours: 48, unit: 'hours', count: 48 },
+  { hours: 168, unit: 'days', count: 7 },
+  { hours: 720, unit: 'days', count: 30 },
 ];
 
+// Same shape as Date.toLocaleString() in English, written in the interface language.
+const FULL_DATE_TIME: Intl.DateTimeFormatOptions = {
+  year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric',
+};
+
+// The word the writer types to confirm deleting the account. The server checks for this exact value, so it is data and is never translated.
+const DELETE_WORD = 'DELETE';
+
 const SettingsPage: React.FC = () => {
+  const { t } = useTranslation(['settings', 'common']);
+  const { preference: languagePreference, setLanguage } = useLanguage();
+  const languageOptions = buildLanguageOptions((language) => t('language.system', { language }));
+  const expiryLabel = (o: (typeof EXPIRY_OPTIONS)[number]): string =>
+    o.unit === 'minutes' ? t('invite.expiryMinutes', { count: o.count })
+      : o.unit === 'hours' ? t('invite.expiryHours', { count: o.count })
+        : t('invite.expiryDays', { count: o.count });
   const goBack = useGoBack();
   const {
     collabServerUrl, setCollabServerUrl,
@@ -134,25 +155,25 @@ const SettingsPage: React.FC = () => {
   const handleSaveUrl = () => {
     const trimmed = urlInput.trim();
     if (!trimmed.startsWith('ws://') && !trimmed.startsWith('wss://')) {
-      showToast('URL must start with ws:// or wss://', 'error');
+      showToast(t('collabServer.urlInvalid'), 'error');
       return;
     }
     setCollabServerUrl(trimmed);
-    showToast('Collaboration server URL saved', 'success');
+    showToast(t('collabServer.urlSaved'), 'success');
   };
 
   const handleSaveCloudApi = () => {
     const trimmed = cloudApiInput.trim().replace(/\/+$/, '');
     if (trimmed && !/^https?:\/\//.test(trimmed)) {
-      showToast('URL must start with http:// or https://', 'error');
+      showToast(t('cloud.urlInvalid'), 'error');
       return;
     }
     try {
       if (trimmed) localStorage.setItem(CLOUD_API_KEY, trimmed);
       else localStorage.removeItem(CLOUD_API_KEY);
-      showToast('OpenDraft Cloud URL saved', 'success');
+      showToast(t('cloud.urlSaved'), 'success');
     } catch {
-      showToast('Could not save URL', 'error');
+      showToast(t('cloud.saveFailed'), 'error');
     }
   };
 
@@ -185,13 +206,13 @@ const SettingsPage: React.FC = () => {
       const res = await platformFetch(`${httpUrl}/health`);
       setConnectionStatus(res.ok ? 'ok' : 'fail');
       if (!res.ok) {
-        showToast(`Server returned HTTP ${res.status}`, 'error');
+        showToast(t('collabServer.httpStatus', { status: res.status }), 'error');
       }
     } catch (err: any) {
       console.error('[SettingsPage] Test connection failed:', err);
       setConnectionStatus('fail');
       const msg = typeof err === 'string' ? err : (err?.message || String(err));
-      showToast(`Connection error: ${msg}`, 'error');
+      showToast(t('collabServer.connectionError', { error: msg }), 'error');
     }
     setTimeout(() => setConnectionStatus('idle'), 5000);
   };
@@ -208,7 +229,7 @@ const SettingsPage: React.FC = () => {
         // of issuing tokens. Hand off to the device-verification UI.
         setPendingChallenge({ challengeId: response.challengeId, email: loginEmail });
         setDeviceCode('');
-        showToast(response.message || 'Verification code emailed for this new device.', 'info');
+        showToast(response.message || t('auth.deviceCodeEmailed'), 'info');
         return;
       }
       handleAuthResponse(response);
@@ -216,14 +237,14 @@ const SettingsPage: React.FC = () => {
         if (rememberEmail) localStorage.setItem('opendraft:rememberedEmail', loginEmail);
         else localStorage.removeItem('opendraft:rememberedEmail');
       } catch { /* ignore quota/private-mode errors */ }
-      showToast('Logged in successfully', 'success');
+      showToast(t('auth.loggedIn'), 'success');
       setLoginEmail('');
       setLoginPassword('');
     } catch (err: any) {
-      const msg = err.message || 'Login failed';
+      const msg = err.message || t('auth.loginFailed');
       if (isDemoServer && (msg.toLowerCase().includes('user not found') || msg.includes('404'))) {
-        showToast('User not found', 'error');
-        showToast('Note: The demo server resets every hour — please create a new account.', 'info');
+        showToast(t('auth.userNotFound'), 'error');
+        showToast(t('auth.demoReset'), 'info');
       } else {
         showToast(msg, 'error');
       }
@@ -241,13 +262,13 @@ const SettingsPage: React.FC = () => {
       try {
         if (rememberEmail) localStorage.setItem('opendraft:rememberedEmail', pendingChallenge.email);
       } catch { /* ignore */ }
-      showToast('Device verified — you are signed in.', 'success');
+      showToast(t('auth.deviceVerified'), 'success');
       setPendingChallenge(null);
       setDeviceCode('');
       setLoginEmail('');
       setLoginPassword('');
     } catch (err: any) {
-      showToast(err.message || 'Verification failed', 'error');
+      showToast(err.message || t('auth.verificationFailed'), 'error');
     } finally {
       setVerifyingDevice(false);
     }
@@ -261,9 +282,9 @@ const SettingsPage: React.FC = () => {
       // Server invalidates the old code and returns a fresh challengeId.
       setPendingChallenge({ challengeId: r.challengeId, email: pendingChallenge.email });
       setDeviceCode('');
-      showToast(r.message || 'A new verification code was sent to your email.', 'success');
+      showToast(r.message || t('auth.newCodeSent'), 'success');
     } catch (err: any) {
-      showToast(err.message || 'Could not resend code', 'error');
+      showToast(err.message || t('auth.resendCodeFailed'), 'error');
     } finally {
       setVerifyingDevice(false);
     }
@@ -272,15 +293,15 @@ const SettingsPage: React.FC = () => {
   const handleRegister = async () => {
     if (!regEmail || !regPassword || !regName) return;
     if (regPassword !== regConfirm) {
-      showToast('Passwords do not match', 'error');
+      showToast(t('auth.passwordsMismatch'), 'error');
       return;
     }
     if (regPassword.length < 8) {
-      showToast('Password must be at least 8 characters', 'error');
+      showToast(t('auth.passwordTooShort'), 'error');
       return;
     }
     if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(regPassword)) {
-      showToast('Password must contain uppercase, lowercase, and a digit', 'error');
+      showToast(t('auth.passwordWeak'), 'error');
       return;
     }
     setAuthLoading(true);
@@ -293,8 +314,8 @@ const SettingsPage: React.FC = () => {
       } catch { /* ignore */ }
       showToast(
         response.user.emailVerified
-          ? 'Account created successfully!'
-          : 'Account created! Check your email for a verification code.',
+          ? t('auth.accountCreated')
+          : t('auth.accountCreatedVerify'),
         'success',
       );
       setRegEmail('');
@@ -302,7 +323,7 @@ const SettingsPage: React.FC = () => {
       setRegConfirm('');
       setRegName('');
     } catch (err: any) {
-      showToast(err.message || 'Registration failed', 'error');
+      showToast(err.message || t('auth.registrationFailed'), 'error');
     } finally {
       setAuthLoading(false);
     }
@@ -317,9 +338,9 @@ const SettingsPage: React.FC = () => {
       const idToken = await getGoogleIdToken();
       const response = await collabAuthApi.loginWithGoogle(idToken);
       handleAuthResponse(response);
-      showToast('Signed in with Google', 'success');
+      showToast(t('auth.googleSignedIn'), 'success');
     } catch (err: any) {
-      showToast(err.message || 'Google sign-in failed', 'error');
+      showToast(err.message || t('auth.googleFailed'), 'error');
     } finally {
       setGoogleLoading(false);
     }
@@ -336,10 +357,10 @@ const SettingsPage: React.FC = () => {
         ...collabAuth,
         user: user,
       });
-      showToast('Email verified!', 'success');
+      showToast(t('auth.emailVerified'), 'success');
       setVerifyCode('');
     } catch (err: any) {
-      showToast(err.message || 'Verification failed', 'error');
+      showToast(err.message || t('auth.verificationFailed'), 'error');
     } finally {
       setVerifying(false);
     }
@@ -348,26 +369,26 @@ const SettingsPage: React.FC = () => {
   const handleResendVerification = async () => {
     try {
       await collabAuthApi.resendVerification();
-      showToast('Verification email sent', 'success');
+      showToast(t('auth.verificationSent'), 'success');
     } catch (err: any) {
-      showToast(err.message || 'Failed to resend', 'error');
+      showToast(err.message || t('auth.resendFailed'), 'error');
     }
   };
 
   const handleLogout = async () => {
     await performLogout();
-    showToast('Signed out', 'success');
+    showToast(t('auth.signedOut'), 'success');
   };
 
   // ── Account: change password ──
   const handleChangePassword = async () => {
     if (!currentPassword || !newPassword || !newPasswordConfirm) return;
     if (newPassword !== newPasswordConfirm) {
-      showToast('New passwords do not match', 'error');
+      showToast(t('account.newPasswordsMismatch'), 'error');
       return;
     }
     if (newPassword.length < 8 || !/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(newPassword)) {
-      showToast('New password must be 8+ chars with upper, lower, and digit', 'error');
+      showToast(t('account.newPasswordWeak'), 'error');
       return;
     }
     setChangingPassword(true);
@@ -375,13 +396,13 @@ const SettingsPage: React.FC = () => {
       await collabAuthApi.changePassword(currentPassword, newPassword);
       // Server revokes every refresh token — sign the user out so they
       // re-authenticate with the new password.
-      showToast('Password changed. Please sign in again.', 'success');
+      showToast(t('account.passwordChanged'), 'success');
       setCurrentPassword('');
       setNewPassword('');
       setNewPasswordConfirm('');
       await performLogout();
     } catch (err: any) {
-      showToast(err.message || 'Could not change password', 'error');
+      showToast(err.message || t('account.changePasswordFailed'), 'error');
     } finally {
       setChangingPassword(false);
     }
@@ -398,12 +419,12 @@ const SettingsPage: React.FC = () => {
       });
       showToast(
         enabled
-          ? 'Two-factor verification turned on. New devices will need an emailed code.'
-          : 'Two-factor verification turned off. New sign-ins will only get a notification email.',
+          ? t('account.twoFactorOnToast')
+          : t('account.twoFactorOffToast'),
         'success',
       );
     } catch (err: any) {
-      showToast(err.message || 'Could not update 2FA setting', 'error');
+      showToast(err.message || t('account.twoFactorFailed'), 'error');
     } finally {
       setTwoFactorBusy(false);
     }
@@ -416,12 +437,12 @@ const SettingsPage: React.FC = () => {
       const list = await collabAuthApi.listDevices();
       setDevices(list);
     } catch (err: any) {
-      showToast(err.message || 'Could not load devices', 'error');
+      showToast(err.message || t('account.devices.loadFailed'), 'error');
       setDevices([]);
     } finally {
       setDevicesLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (showAccount && isLoggedIn && devices === null && !devicesLoading) {
@@ -432,16 +453,16 @@ const SettingsPage: React.FC = () => {
 
   const handleRevokeDevice = async (deviceId: string) => {
     if (deviceId === getDeviceId()) {
-      showToast('Use Sign Out to remove the current device.', 'error');
+      showToast(t('account.devices.useSignOut'), 'error');
       return;
     }
-    if (!confirm('Sign this device out and revoke its sessions?')) return;
+    if (!confirm(t('account.devices.revokeConfirm'))) return;
     try {
       await collabAuthApi.revokeDevice(deviceId);
-      showToast('Device revoked', 'success');
+      showToast(t('account.devices.revoked'), 'success');
       await refreshDevices();
     } catch (err: any) {
-      showToast(err.message || 'Could not revoke device', 'error');
+      showToast(err.message || t('account.devices.revokeFailed'), 'error');
     }
   };
 
@@ -490,8 +511,8 @@ const SettingsPage: React.FC = () => {
 
   const handleDeleteAccount = async () => {
     if (!collabAuth.user) return;
-    if (deleteConfirmation !== 'DELETE') {
-      showToast('Type DELETE to confirm.', 'error');
+    if (deleteConfirmation !== DELETE_WORD) {
+      showToast(t('account.delete.typeToConfirm', { word: DELETE_WORD }), 'error');
       return;
     }
     setDeleting(true);
@@ -504,16 +525,28 @@ const SettingsPage: React.FC = () => {
       };
       if (deletePassword) opts.password = deletePassword;
       await collabAuthApi.deleteAccount(opts);
-      showToast('Account deleted. We are sorry to see you go.', 'success');
+      showToast(t('account.delete.deleted'), 'success');
       setDeleteOpen(false);
       setDeletePassword('');
       setDeleteConfirmation('');
       // Clear local auth state — the access token now references a deleted user.
       useSettingsStore.getState().clearCollabAuth();
     } catch (err: any) {
-      showToast(err.message || 'Could not delete account', 'error');
+      showToast(err.message || t('account.delete.failed'), 'error');
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const handleLanguageChange = async (value: string) => {
+    try {
+      // The Select hands back a string; only a known preference reaches setLanguage.
+      const known = languageOptions.find((o) => o.value === value);
+      if (!known) return;
+      await setLanguage(known.value);
+    } catch (err) {
+      console.error('[SettingsPage] Changing the language failed:', err);
+      showToast(t('language.failed'), 'error');
     }
   };
 
@@ -524,23 +557,45 @@ const SettingsPage: React.FC = () => {
   return (
     <div className="settings-page">
       <div className="settings-header">
-        <button className="settings-back-btn" onClick={goBack} title="Go back">
+        <button className="settings-back-btn" onClick={goBack} title={t('page.back')}>
           &larr;
         </button>
-        <h1>System Settings</h1>
+        <h1>{t('page.title')}</h1>
       </div>
 
       <div className="settings-content">
+        {/* ── Interface language ── */}
+        <section className="settings-section">
+          <h2 className="settings-section-title">{t('language.title')}</h2>
+          <p className="settings-section-desc">{t('language.description')}</p>
+
+          <div className="settings-row">
+            <label htmlFor="settings-language">{t('language.title')}</label>
+            <Select
+              id="settings-language"
+              className="dialog-input settings-select"
+              value={languagePreference}
+              onChange={(e) => { void handleLanguageChange(e.target.value); }}
+            >
+              {languageOptions.map((opt) => (
+                // i18n-ignore: a language is listed under its own name, never translated
+                <option key={opt.value} value={opt.value} lang={opt.lang} dir={opt.dir}>
+                  {opt.label}
+                </option>
+              ))}
+            </Select>
+          </div>
+        </section>
+
         {/* ── Collaboration Server URL ── */}
         <section className="settings-section">
-          <h2 className="settings-section-title">Collaboration Server</h2>
+          <h2 className="settings-section-title">{t('collabServer.title')}</h2>
           <p className="settings-section-desc">
-            Configure the collaboration server URL. Use <code>wss://</code> for encrypted connections
-            or <code>ws://</code> for local networks.
+            <Trans ns="settings" i18nKey="collabServer.description" components={{ code: <code /> }} />
           </p>
 
           <div className="settings-row">
-            <label>Server URL</label>
+            <label>{t('collabServer.serverUrl')}</label>
             <div className="settings-url-row">
               <input
                 className="dialog-input settings-url-input"
@@ -550,47 +605,42 @@ const SettingsPage: React.FC = () => {
                 onKeyDown={(e) => handleKeyDown(e, handleSaveUrl)}
               />
               <button className="dialog-btn dialog-btn-primary" onClick={handleSaveUrl}>
-                Save
+                {t('common:save')}
               </button>
               <button
                 className="dialog-btn"
                 onClick={handleTestConnection}
                 disabled={connectionStatus === 'testing'}
               >
-                {connectionStatus === 'testing' ? 'Testing...' :
-                  connectionStatus === 'ok' ? 'Connected' :
-                    connectionStatus === 'fail' ? 'Failed' : 'Test'}
+                {connectionStatus === 'testing' ? t('collabServer.testing') :
+                  connectionStatus === 'ok' ? t('collabServer.connected') :
+                    connectionStatus === 'fail' ? t('collabServer.failed') : t('collabServer.test')}
               </button>
             </div>
             {connectionStatus === 'ok' && (
-              <div className="settings-status settings-status-ok">Server is reachable</div>
+              <div className="settings-status settings-status-ok">{t('collabServer.reachable')}</div>
             )}
             {connectionStatus === 'fail' && (
-              <div className="settings-status settings-status-fail">Cannot reach server</div>
+              <div className="settings-status settings-status-fail">{t('collabServer.unreachable')}</div>
             )}
             {urlInput.startsWith('wss://') && (
-              <div className="settings-hint">TLS/SSL encryption is active (wss://)</div>
+              <div className="settings-hint">{t('collabServer.tls')}</div>
             )}
             {urlInput.startsWith('ws://') && (
-              <div className="settings-hint">No encryption (ws://). Suitable for local networks only.</div>
+              <div className="settings-hint">{t('collabServer.noEncryption')}</div>
             )}
           </div>
         </section>
 
         {/* ── OpenDraft Cloud API URL ── */}
         <section className="settings-section">
-          <h2 className="settings-section-title">OpenDraft Cloud Server</h2>
+          <h2 className="settings-section-title">{t('cloud.title')}</h2>
           <p className="settings-section-desc">
-            HTTP backend used for sign-in, projects, and cloud saves. Leave blank
-            in the browser to use this site's <code>/api</code>. Required on the
-            desktop and mobile apps — defaults to <code>https://open-draft.com</code>;
-            override to point at a self-hosted backend like
-            <code> https://your-host.example.com</code> (the <code>/api</code> suffix
-            is added automatically if missing).
+            <Trans ns="settings" i18nKey="cloud.description" components={{ code: <code /> }} />
           </p>
 
           <div className="settings-row">
-            <label>Cloud API URL</label>
+            <label>{t('cloud.apiUrl')}</label>
             <div className="settings-url-row">
               <input
                 className="dialog-input settings-url-input"
@@ -600,23 +650,23 @@ const SettingsPage: React.FC = () => {
                 onKeyDown={(e) => handleKeyDown(e, handleSaveCloudApi)}
               />
               <button className="dialog-btn dialog-btn-primary" onClick={handleSaveCloudApi}>
-                Save
+                {t('common:save')}
               </button>
               <button
                 className="dialog-btn"
                 onClick={handleTestCloudApi}
                 disabled={cloudApiStatus === 'testing'}
               >
-                {cloudApiStatus === 'testing' ? 'Testing...' :
-                  cloudApiStatus === 'ok' ? 'Reachable' :
-                    cloudApiStatus === 'fail' ? 'Failed' : 'Test'}
+                {cloudApiStatus === 'testing' ? t('collabServer.testing') :
+                  cloudApiStatus === 'ok' ? t('cloud.reachable') :
+                    cloudApiStatus === 'fail' ? t('collabServer.failed') : t('collabServer.test')}
               </button>
             </div>
             {cloudApiStatus === 'ok' && (
-              <div className="settings-status settings-status-ok">Server is reachable</div>
+              <div className="settings-status settings-status-ok">{t('collabServer.reachable')}</div>
             )}
             {cloudApiStatus === 'fail' && (
-              <div className="settings-status settings-status-fail">Cannot reach server</div>
+              <div className="settings-status settings-status-fail">{t('collabServer.unreachable')}</div>
             )}
           </div>
         </section>
@@ -629,17 +679,14 @@ const SettingsPage: React.FC = () => {
 
         {/* ── Collab Account ── */}
         <section className="settings-section">
-          <h2 className="settings-section-title">Collaboration Account</h2>
+          <h2 className="settings-section-title">{t('auth.title')}</h2>
           <p className="settings-section-desc">
-            Sign in to the collaboration server to use real-time editing features.
-            An account is only required for collaboration — all other features work offline.
+            {t('auth.description')}
           </p>
 
           {isDemoServer && (
             <div className="settings-demo-notice">
-              <strong>Demo Server:</strong> This is a shared demo server. Registered accounts and
-              collaboration data are automatically removed every hour. For persistent use,
-              deploy your own collab server or upgrade to the paid version.
+              <Trans ns="settings" i18nKey="auth.demoNotice" components={{ strong: <strong /> }} />
             </div>
           )}
 
@@ -653,7 +700,7 @@ const SettingsPage: React.FC = () => {
                   <div className="settings-user-name">{collabAuth.user!.displayName}</div>
                   <div className="settings-user-email">{collabAuth.user!.email}</div>
                   {!collabAuth.user!.emailVerified && (
-                    <div className="settings-email-unverified">Email not verified</div>
+                    <div className="settings-email-unverified">{t('auth.emailNotVerified')}</div>
                   )}
                 </div>
                 <button
@@ -662,7 +709,7 @@ const SettingsPage: React.FC = () => {
                   disabled={signingOut}
                   aria-busy={signingOut}
                 >
-                  {signingOut ? 'Signing out…' : 'Sign Out'}
+                  {signingOut ? t('auth.signingOut') : t('auth.signOut')}
                 </button>
               </div>
 
@@ -670,7 +717,7 @@ const SettingsPage: React.FC = () => {
               {!collabAuth.user!.emailVerified && (
                 <div className="settings-verify-section">
                   <p className="settings-verify-text">
-                    Enter the 6-digit code sent to your email to verify your account.
+                    {t('auth.enterCode')}
                   </p>
                   <div className="settings-verify-row">
                     <input
@@ -686,10 +733,10 @@ const SettingsPage: React.FC = () => {
                       onClick={handleVerifyEmail}
                       disabled={verifyCode.length !== 6 || verifying}
                     >
-                      {verifying ? 'Verifying...' : 'Verify'}
+                      {verifying ? t('auth.verifying') : t('auth.verify')}
                     </button>
                     <button className="dialog-btn" onClick={handleResendVerification}>
-                      Resend
+                      {t('auth.resend')}
                     </button>
                   </div>
                 </div>
@@ -702,13 +749,13 @@ const SettingsPage: React.FC = () => {
                   className={`settings-auth-tab ${authTab === 'login' ? 'active' : ''}`}
                   onClick={() => setAuthTab('login')}
                 >
-                  Sign In
+                  {t('auth.signIn')}
                 </button>
                 <button
                   className={`settings-auth-tab ${authTab === 'register' ? 'active' : ''}`}
                   onClick={() => setAuthTab('register')}
                 >
-                  Create Account
+                  {t('auth.createAccount')}
                 </button>
               </div>
 
@@ -716,12 +763,15 @@ const SettingsPage: React.FC = () => {
                 pendingChallenge ? (
                   <div className="settings-auth-form">
                     <div className="settings-verify-text">
-                      A 6-digit verification code was emailed to{' '}
-                      <strong>{pendingChallenge.email}</strong> to confirm this is a
-                      device you trust. Enter it below to finish signing in.
+                      <Trans
+                        ns="settings"
+                        i18nKey="auth.deviceChallenge"
+                        values={{ email: pendingChallenge.email }}
+                        components={{ strong: <strong /> }}
+                      />
                     </div>
                     <div className="settings-field">
-                      <label>Verification Code</label>
+                      <label>{t('auth.verificationCode')}</label>
                       <input
                         className="dialog-input settings-verify-input"
                         value={deviceCode}
@@ -738,45 +788,45 @@ const SettingsPage: React.FC = () => {
                         onClick={handleVerifyDevice}
                         disabled={deviceCode.length !== 6 || verifyingDevice}
                       >
-                        {verifyingDevice ? 'Verifying...' : 'Verify Device'}
+                        {verifyingDevice ? t('auth.verifying') : t('auth.verifyDevice')}
                       </button>
                       <button
                         className="dialog-btn"
                         onClick={handleResendDeviceCode}
                         disabled={verifyingDevice}
                       >
-                        Resend code
+                        {t('auth.resendCode')}
                       </button>
                       <button
                         className="dialog-btn"
                         onClick={() => { setPendingChallenge(null); setDeviceCode(''); }}
                         disabled={verifyingDevice}
                       >
-                        Cancel
+                        {t('common:cancel')}
                       </button>
                     </div>
                   </div>
                 ) : (
                 <div className="settings-auth-form">
                   <div className="settings-field">
-                    <label>Email</label>
+                    <label>{t('auth.email')}</label>
                     <input
                       className="dialog-input"
                       type="email"
                       value={loginEmail}
                       onChange={(e) => setLoginEmail(e.target.value)}
-                      placeholder="you@example.com"
+                      placeholder={t('auth.emailPlaceholder')}
                       onKeyDown={(e) => handleKeyDown(e, handleLogin)}
                     />
                   </div>
                   <div className="settings-field">
-                    <label>Password</label>
+                    <label>{t('auth.password')}</label>
                     <input
                       className="dialog-input"
                       type="password"
                       value={loginPassword}
                       onChange={(e) => setLoginPassword(e.target.value)}
-                      placeholder="Password"
+                      placeholder={t('auth.password')}
                       onKeyDown={(e) => handleKeyDown(e, handleLogin)}
                     />
                   </div>
@@ -785,49 +835,49 @@ const SettingsPage: React.FC = () => {
                     onClick={handleLogin}
                     disabled={!loginEmail || !loginPassword || authLoading}
                   >
-                    {authLoading ? 'Signing in...' : 'Sign In'}
+                    {authLoading ? t('auth.signingIn') : t('auth.signIn')}
                   </button>
                 </div>
                 )
               ) : (
                 <div className="settings-auth-form">
                   <div className="settings-field">
-                    <label>Display Name</label>
+                    <label>{t('auth.displayName')}</label>
                     <input
                       className="dialog-input"
                       value={regName}
                       onChange={(e) => setRegName(e.target.value)}
-                      placeholder="Your name"
+                      placeholder={t('auth.namePlaceholder')}
                     />
                   </div>
                   <div className="settings-field">
-                    <label>Email</label>
+                    <label>{t('auth.email')}</label>
                     <input
                       className="dialog-input"
                       type="email"
                       value={regEmail}
                       onChange={(e) => setRegEmail(e.target.value)}
-                      placeholder="you@example.com"
+                      placeholder={t('auth.emailPlaceholder')}
                     />
                   </div>
                   <div className="settings-field">
-                    <label>Password</label>
+                    <label>{t('auth.password')}</label>
                     <input
                       className="dialog-input"
                       type="password"
                       value={regPassword}
                       onChange={(e) => setRegPassword(e.target.value)}
-                      placeholder="At least 8 characters"
+                      placeholder={t('auth.passwordPlaceholder')}
                     />
                   </div>
                   <div className="settings-field">
-                    <label>Confirm Password</label>
+                    <label>{t('auth.confirmPassword')}</label>
                     <input
                       className="dialog-input"
                       type="password"
                       value={regConfirm}
                       onChange={(e) => setRegConfirm(e.target.value)}
-                      placeholder="Confirm password"
+                      placeholder={t('auth.confirmPasswordPlaceholder')}
                       onKeyDown={(e) => handleKeyDown(e, handleRegister)}
                     />
                   </div>
@@ -836,7 +886,7 @@ const SettingsPage: React.FC = () => {
                     onClick={handleRegister}
                     disabled={!regEmail || !regPassword || !regName || authLoading}
                   >
-                    {authLoading ? 'Creating account...' : 'Create Account'}
+                    {authLoading ? t('auth.creatingAccount') : t('auth.createAccount')}
                   </button>
                 </div>
               )}
@@ -853,11 +903,10 @@ const SettingsPage: React.FC = () => {
                       } catch { /* ignore */ }
                     }}
                   />
-                  Remember my email address
+                  {t('auth.rememberEmail')}
                 </label>
                 <p className="collab-remember-hint">
-                  You stay signed in for up to 7 days using a secure refresh token —
-                  no password is stored on this device.
+                  {t('auth.rememberHint')}
                 </p>
               </div>
 
@@ -865,7 +914,7 @@ const SettingsPage: React.FC = () => {
               {serverConfig?.googleEnabled && (
                 <div className="settings-google-section">
                   <div className="settings-divider">
-                    <span>or</span>
+                    <span>{t('auth.or')}</span>
                   </div>
                   <button
                     className="dialog-btn settings-google-btn"
@@ -878,7 +927,7 @@ const SettingsPage: React.FC = () => {
                       <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
                       <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                     </svg>
-                    {googleLoading ? 'Signing in...' : 'Sign in with Google'}
+                    {googleLoading ? t('auth.signingIn') : t('auth.signInWithGoogle')}
                   </button>
                 </div>
               )}
@@ -889,14 +938,14 @@ const SettingsPage: React.FC = () => {
         {/* ── Account & Security (signed-in users only) ── */}
         {isLoggedIn && (
           <section className="settings-section">
-            <h2 className="settings-section-title">Account &amp; Security</h2>
+            <h2 className="settings-section-title">{t('account.title')}</h2>
             <p className="settings-section-desc">
-              Manage your password, devices, two-factor verification, and account deletion.
+              {t('account.description')}
             </p>
 
             {!showAccount ? (
               <button className="dialog-btn" onClick={() => setShowAccount(true)}>
-                Open Account Settings
+                {t('account.open')}
               </button>
             ) : (
               <div className="settings-auth-card">
@@ -904,19 +953,16 @@ const SettingsPage: React.FC = () => {
                 <div className="settings-account-block">
                   <div className="settings-account-row">
                     <div>
-                      <div className="settings-account-title">Two-factor verification</div>
+                      <div className="settings-account-title">{t('account.twoFactor')}</div>
                       <div className="settings-account-hint">
-                        When on, signing in from a new device requires a 6-digit code emailed to
-                        you. When off, you'll only get a heads-up email so you can spot
-                        unauthorized sign-ins.
+                        {t('account.twoFactorHint')}
                       </div>
                       {serverConfig && serverConfig.smtpConfigured === false && (
                         <div
                           className="settings-account-hint"
                           style={{ color: 'var(--fd-warning, #b85c00)', marginTop: 4 }}
                         >
-                          Email is not configured on this server, so verification codes can't be
-                          sent. Two-factor verification is unavailable until SMTP is set up.
+                          {t('account.smtpMissing')}
                         </div>
                       )}
                     </div>
@@ -931,48 +977,47 @@ const SettingsPage: React.FC = () => {
                         }
                         onChange={(e) => handleToggleTwoFactor(e.target.checked)}
                       />
-                      <span>{collabAuth.user?.twoFactorEnabled ? 'On' : 'Off'}</span>
+                      <span>{collabAuth.user?.twoFactorEnabled ? t('common:on') : t('common:off')}</span>
                     </label>
                   </div>
                 </div>
 
                 {/* Change password */}
                 <div className="settings-account-block">
-                  <div className="settings-account-title">Change password</div>
+                  <div className="settings-account-title">{t('account.changePassword')}</div>
                   <div className="settings-account-hint">
-                    Updating your password will sign you out everywhere. You'll need to sign in
-                    again with the new password on each device.
+                    {t('account.changePasswordHint')}
                   </div>
                   <div className="settings-field">
-                    <label>Current Password</label>
+                    <label>{t('account.currentPassword')}</label>
                     <input
                       className="dialog-input"
                       type="password"
                       value={currentPassword}
                       onChange={(e) => setCurrentPassword(e.target.value)}
-                      placeholder="Current password"
+                      placeholder={t('account.currentPasswordPlaceholder')}
                       autoComplete="current-password"
                     />
                   </div>
                   <div className="settings-field">
-                    <label>New Password</label>
+                    <label>{t('account.newPassword')}</label>
                     <input
                       className="dialog-input"
                       type="password"
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
-                      placeholder="At least 8 characters"
+                      placeholder={t('auth.passwordPlaceholder')}
                       autoComplete="new-password"
                     />
                   </div>
                   <div className="settings-field">
-                    <label>Confirm New Password</label>
+                    <label>{t('account.confirmNewPassword')}</label>
                     <input
                       className="dialog-input"
                       type="password"
                       value={newPasswordConfirm}
                       onChange={(e) => setNewPasswordConfirm(e.target.value)}
-                      placeholder="Repeat new password"
+                      placeholder={t('account.repeatNewPassword')}
                       autoComplete="new-password"
                     />
                   </div>
@@ -981,7 +1026,7 @@ const SettingsPage: React.FC = () => {
                     onClick={handleChangePassword}
                     disabled={!currentPassword || !newPassword || !newPasswordConfirm || changingPassword}
                   >
-                    {changingPassword ? 'Updating...' : 'Update Password'}
+                    {changingPassword ? t('account.updating') : t('account.updatePassword')}
                   </button>
                 </div>
 
@@ -989,20 +1034,19 @@ const SettingsPage: React.FC = () => {
                 <div className="settings-account-block">
                   <div className="settings-account-row">
                     <div>
-                      <div className="settings-account-title">Active devices</div>
+                      <div className="settings-account-title">{t('account.devices.title')}</div>
                       <div className="settings-account-hint">
-                        These are the devices currently signed in to your account. Revoke any
-                        you don't recognise — that device will be signed out immediately.
+                        {t('account.devices.hint')}
                       </div>
                     </div>
                     <button className="dialog-btn" onClick={refreshDevices} disabled={devicesLoading}>
-                      {devicesLoading ? 'Loading...' : 'Refresh'}
+                      {devicesLoading ? t('account.devices.loading') : t('account.devices.refresh')}
                     </button>
                   </div>
                   {devicesLoading && devices === null ? (
-                    <div className="settings-account-hint">Loading devices…</div>
+                    <div className="settings-account-hint">{t('account.devices.loadingList')}</div>
                   ) : (devices || []).length === 0 ? (
-                    <div className="settings-account-hint">No registered devices yet.</div>
+                    <div className="settings-account-hint">{t('account.devices.none')}</div>
                   ) : (
                     <ul className="settings-device-list">
                       {(devices || []).map((d) => (
@@ -1010,14 +1054,14 @@ const SettingsPage: React.FC = () => {
                           <div className="settings-device-info">
                             <div className="settings-device-name">
                               {d.deviceName}
-                              {d.current && <span className="settings-device-current"> (this device)</span>}
+                              {d.current && <span className="settings-device-current"> {t('account.devices.thisDevice')}</span>}
                             </div>
                             <div className="settings-device-meta">
-                              {d.platform || 'Unknown platform'}
+                              {d.platform || t('account.devices.unknownPlatform')}
                               {d.ipAddress ? ` · ${d.ipAddress}` : ''}
                             </div>
                             <div className="settings-device-meta">
-                              Last seen {new Date(d.lastSeenAt).toLocaleString()}
+                              {t('account.devices.lastSeen', { date: formatDateTime(d.lastSeenAt, FULL_DATE_TIME) })}
                             </div>
                           </div>
                           {!d.current && (
@@ -1025,7 +1069,7 @@ const SettingsPage: React.FC = () => {
                               className="dialog-btn dialog-btn-danger"
                               onClick={() => handleRevokeDevice(d.deviceId)}
                             >
-                              Revoke
+                              {t('account.devices.revoke')}
                             </button>
                           )}
                         </li>
@@ -1036,75 +1080,70 @@ const SettingsPage: React.FC = () => {
 
                 {/* Delete account (Apple Guideline 5.1.1(v)) */}
                 <div className="settings-account-block settings-account-danger">
-                  <div className="settings-account-title">Delete account</div>
+                  <div className="settings-account-title">{t('account.delete.title')}</div>
                   <div className="settings-account-hint">
-                    Permanently deletes your account, password, devices, and any cloud
-                    screenplays stored under your account. This cannot be undone.
+                    {t('account.delete.hint')}
                   </div>
                   {!deleteOpen ? (
                     <button
                       className="dialog-btn dialog-btn-danger"
                       onClick={handleOpenDelete}
                     >
-                      Delete Account…
+                      {t('account.delete.open')}
                     </button>
                   ) : (
                     <div className="settings-delete-confirm">
                       <div className="settings-delete-warning">
-                        <strong>Before you continue:</strong>{' '}
+                        <strong>{t('account.delete.before')}</strong>{' '}
                         {inventoryLoading ? (
-                          <>checking your OpenDraft Cloud account for screenplays…</>
+                          t('account.delete.checking')
                         ) : cloudInventory && (cloudInventory.projects > 0 || cloudInventory.scripts > 0) ? (
-                          <>
-                            you have <strong>{cloudInventory.projects}</strong>{' '}
-                            project{cloudInventory.projects === 1 ? '' : 's'}
-                            {cloudInventory.scripts > 0 && (
-                              <>
-                                {' '}with at least <strong>{cloudInventory.scripts}</strong>{' '}
-                                screenplay{cloudInventory.scripts === 1 ? '' : 's'}
-                              </>
-                            )}{' '}
-                            stored in OpenDraft Cloud. They will be permanently deleted along
-                            with this account and cannot be recovered. Please open each one in
-                            OpenDraft and use <em>File → Save As / Export</em> to download a
-                            local copy before continuing.
-                          </>
+                          <Trans
+                            ns="settings"
+                            i18nKey="account.delete.found"
+                            values={{
+                              projects: t('account.delete.projects', { count: cloudInventory.projects }),
+                              screenplays: cloudInventory.scripts > 0
+                                ? `${t('account.delete.screenplays', { count: cloudInventory.scripts })} `
+                                : '',
+                            }}
+                            components={{ strong: <strong />, em: <em /> }}
+                          />
                         ) : (
-                          <>
-                            any screenplays stored in OpenDraft Cloud under this account will be
-                            deleted along with the account and cannot be recovered. Please make
-                            sure you have downloaded them first.
-                          </>
+                          t('account.delete.generic')
                         )}
                         {cloudPortalLink && (
                           <>
-                            {' '}You can review and download them from{' '}
-                            <a href={cloudPortalLink} target="_blank" rel="noreferrer">
-                              {cloudPortalLink}
-                            </a>.
+                            {' '}
+                            <Trans
+                              ns="settings"
+                              i18nKey="account.delete.portal"
+                              values={{ url: cloudPortalLink }}
+                              components={{ link: <a href={cloudPortalLink} target="_blank" rel="noreferrer" /> }}
+                            />
                           </>
                         )}
                       </div>
 
                       <div className="settings-field">
-                        <label>Current password (leave blank for Google-only accounts)</label>
+                        <label>{t('account.delete.passwordLabel')}</label>
                         <input
                           className="dialog-input"
                           type="password"
                           value={deletePassword}
                           onChange={(e) => setDeletePassword(e.target.value)}
-                          placeholder="Your password"
+                          placeholder={t('account.delete.passwordPlaceholder')}
                           autoComplete="current-password"
                         />
                       </div>
 
                       <div className="settings-field">
-                        <label>Type <strong>DELETE</strong> to confirm</label>
+                        <label><Trans ns="settings" i18nKey="account.delete.typeLabel" values={{ word: DELETE_WORD }} components={{ strong: <strong /> }} /></label>
                         <input
                           className="dialog-input"
                           value={deleteConfirmation}
                           onChange={(e) => setDeleteConfirmation(e.target.value)}
-                          placeholder="DELETE"
+                          placeholder={DELETE_WORD}
                         />
                       </div>
 
@@ -1112,9 +1151,9 @@ const SettingsPage: React.FC = () => {
                         <button
                           className="dialog-btn dialog-btn-danger"
                           onClick={handleDeleteAccount}
-                          disabled={deleting || deleteConfirmation !== 'DELETE'}
+                          disabled={deleting || deleteConfirmation !== DELETE_WORD}
                         >
-                          {deleting ? 'Deleting...' : 'Permanently delete my account'}
+                          {deleting ? t('account.delete.deleting') : t('account.delete.confirm')}
                         </button>
                         <button
                           className="dialog-btn"
@@ -1125,7 +1164,7 @@ const SettingsPage: React.FC = () => {
                           }}
                           disabled={deleting}
                         >
-                          Cancel
+                          {t('common:cancel')}
                         </button>
                       </div>
                     </div>
@@ -1143,9 +1182,9 @@ const SettingsPage: React.FC = () => {
             would be worse than no switch at all. */}
         {printRoute() === 'dialog' && (
         <section className="settings-section">
-          <h2 className="settings-section-title">Printing</h2>
+          <h2 className="settings-section-title">{t('printing.title')}</h2>
           <p className="settings-section-desc">
-            What File &rarr; Print sends to the printer.
+            {t('printing.description')}
           </p>
 
           <div className="settings-row">
@@ -1155,17 +1194,10 @@ const SettingsPage: React.FC = () => {
                 checked={printViaPdf}
                 onChange={(e) => setPrintViaPdf(e.target.checked)}
               />{' '}
-              Print the PDF, so the pages match the ones on screen
+              {t('printing.viaPdf')}
             </label>
             <div className="settings-hint">
-              The editor draws its page turns rather than making them, so
-              printing the page asks the browser to lay the script out a second
-              time &mdash; and it can end its pages somewhere else. Printing the
-              PDF gives the pages you have been looking at, and the same
-              document anyone you send the export to would read. Turn this off
-              to use the browser's own print dialog instead, which is quicker on
-              a long script and is what its margin and scaling controls apply
-              to.
+              {t('printing.viaPdfHint')}
             </div>
           </div>
         </section>
@@ -1173,20 +1205,18 @@ const SettingsPage: React.FC = () => {
 
         {/* ── Table Read (issue #131) ── */}
         <section className="settings-section">
-          <h2 className="settings-section-title">Table Read Voices</h2>
+          <h2 className="settings-section-title">{t('tableRead.title')}</h2>
           <p className="settings-section-desc">
-            The voices Tools &rarr; Table Read uses to read the script aloud: the ones
-            installed on this {isTauriApp() ? 'device' : 'computer'}, or an AI voice provider.
-            Each character&rsquo;s voice is chosen on their profile in the Characters panel.
+            {isTauriApp() ? t('tableRead.descriptionDevice') : t('tableRead.descriptionComputer')}
           </p>
           <VoiceProviderSettings />
         </section>
 
         {/* ── Editing ── */}
         <section className="settings-section">
-          <h2 className="settings-section-title">Editing</h2>
+          <h2 className="settings-section-title">{t('editing.title')}</h2>
           <p className="settings-section-desc">
-            How the editor responds while you write.
+            {t('editing.description')}
           </p>
 
           <div className="settings-row">
@@ -1196,27 +1226,22 @@ const SettingsPage: React.FC = () => {
                 checked={elementMenuOnEnter}
                 onChange={(e) => setElementMenuOnEnter(e.target.checked)}
               />{' '}
-              Offer the element menu when I press Enter on a blank line
+              {t('editing.menuOnEnter')}
             </label>
             <div className="settings-hint">
-              On a blank line, Enter opens a menu of element types. Press Enter
-              again — or choose Blank Line — to keep the blank line instead.
-              Turn this off to make Enter always insert a plain line.
+              {t('editing.menuOnEnterHint')}
             </div>
           </div>
 
           <div className="settings-row">
-            <label htmlFor="element-menu-shortcut">Element menu shortcut</label>
+            <label htmlFor="element-menu-shortcut">{t('editing.shortcut')}</label>
             <ShortcutField
               id="element-menu-shortcut"
               value={elementMenuShortcut}
               onChange={setElementMenuShortcut}
             />
             <div className="settings-hint">
-              Opens the element menu wherever the cursor is, on a blank line or
-              a line with text. This is the way to it if you turn the setting
-              above off. Click the box and press the keys you want; the
-              combination needs at least one of {isMacPlatform() ? '⌘, ⌥ or ⌃' : 'Ctrl or Alt'}.
+              {isMacPlatform() ? t('editing.shortcutHintMac') : t('editing.shortcutHintOther')}
             </div>
           </div>
         </section>
@@ -1225,13 +1250,13 @@ const SettingsPage: React.FC = () => {
 
         {/* ── Invite Defaults ── */}
         <section className="settings-section">
-          <h2 className="settings-section-title">Invite Defaults</h2>
+          <h2 className="settings-section-title">{t('invite.title')}</h2>
           <p className="settings-section-desc">
-            Default settings for new collaboration invites.
+            {t('invite.description')}
           </p>
 
           <div className="settings-row">
-            <label>Default Token Expiry</label>
+            <label>{t('invite.expiry')}</label>
             <Select
               className="dialog-input settings-select"
               value={defaultInviteExpiry}
@@ -1239,7 +1264,7 @@ const SettingsPage: React.FC = () => {
             >
               {EXPIRY_OPTIONS.map((opt) => (
                 <option key={opt.hours} value={opt.hours}>
-                  {opt.label}
+                  {expiryLabel(opt)}
                 </option>
               ))}
             </Select>
@@ -1261,7 +1286,7 @@ function loadGoogleScript(): Promise<void> {
     const script = document.createElement('script');
     script.src = 'https://accounts.google.com/gsi/client';
     script.onload = () => resolve();
-    script.onerror = () => reject(new Error('Failed to load Google Sign-In'));
+    script.onerror = () => reject(new Error(translate('settings:auth.googleScriptFailed')));
     document.head.appendChild(script);
   });
 }
@@ -1270,7 +1295,7 @@ function getGoogleIdToken(): Promise<string> {
   return new Promise((resolve, reject) => {
     const google = (window as any).google;
     if (!google?.accounts?.id) {
-      reject(new Error('Google Identity Services not loaded'));
+      reject(new Error(translate('settings:auth.googleNotLoaded')));
       return;
     }
 
@@ -1280,14 +1305,14 @@ function getGoogleIdToken(): Promise<string> {
         if (response.credential) {
           resolve(response.credential);
         } else {
-          reject(new Error('No credential returned'));
+          reject(new Error(translate('settings:auth.googleNoCredential')));
         }
       },
     });
 
     google.accounts.id.prompt((notification: any) => {
       if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-        reject(new Error('Google sign-in was cancelled or not available'));
+        reject(new Error(translate('settings:auth.googleCancelled')));
       }
     });
   });

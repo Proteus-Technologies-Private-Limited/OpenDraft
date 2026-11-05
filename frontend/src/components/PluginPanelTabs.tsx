@@ -21,8 +21,9 @@
  */
 
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
-import { pluginRegistry, type PluginPanelEntry } from '../plugins/registry';
+import { pluginRegistry, resolvePluginText, type PluginPanelEntry } from '../plugins/registry';
 import './PluginPanelTabs.css';
 
 export const PLUGIN_PANEL_OPEN_EVENT = 'plugin-panel:open';
@@ -45,6 +46,7 @@ export const PluginPanelTabs: React.FC<Props> = ({
   width,
   onResizePointerDown,
 }) => {
+  const { t } = useTranslation('menu');
   const [panels, setPanels] = useState<PluginPanelEntry[]>(() =>
     pluginRegistry.getPanels('right-sidebar'),
   );
@@ -88,6 +90,7 @@ export const PluginPanelTabs: React.FC<Props> = ({
   if (panels.length === 0) return null;
 
   const active = activeId ? panels.find((p) => p.id === activeId) ?? null : null;
+  const panelLabel = (p: PluginPanelEntry) => resolvePluginText(p.labelKey, p.label);
 
   return (
     <>
@@ -101,15 +104,15 @@ export const PluginPanelTabs: React.FC<Props> = ({
               className="plugin-panel-tabs__resize"
               onPointerDown={onResizePointerDown}
               style={{ touchAction: 'none' }}
-              aria-label="Resize panel"
+              aria-label={t('pluginPanels.resize')}
               role="separator"
             />
           )}
           <button
             className="plugin-panel-tabs__close"
             onClick={() => setActiveId(null)}
-            aria-label={`Close ${active.label}`}
-            title="Close panel"
+            aria-label={t('pluginPanels.closeNamed', { name: panelLabel(active) })}
+            title={t('pluginPanels.close')}
             type="button"
           >
             ×
@@ -117,7 +120,7 @@ export const PluginPanelTabs: React.FC<Props> = ({
           <active.component editor={editor} />
         </div>
       )}
-      <nav className="plugin-panel-tabs__strip" role="tablist" aria-label="Plugin panels">
+      <nav className="plugin-panel-tabs__strip" role="tablist" aria-label={t('pluginPanels.tabs')}>
         {panels.map((p) => {
           const isActive = p.id === activeId;
           return (
@@ -130,10 +133,10 @@ export const PluginPanelTabs: React.FC<Props> = ({
                 (isActive ? ' plugin-panel-tabs__tab--active' : '')
               }
               onClick={() => setActiveId(isActive ? null : p.id)}
-              title={p.label}
+              title={panelLabel(p)}
               type="button"
             >
-              <span className="plugin-panel-tabs__tab-label">{p.label}</span>
+              <span className="plugin-panel-tabs__tab-label">{panelLabel(p)}</span>
             </button>
           );
         })}

@@ -1,4 +1,5 @@
 import React, { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Transaction } from '@tiptap/pm/state';
 import {
   addAlternateTransaction,
@@ -19,7 +20,8 @@ import {
 import type { Editor } from '@tiptap/react';
 import { isOwn, resolveSuggestionTransaction, suggestionAt } from '../editor/suggestions';
 import { useSuggestModeStore, suggestionAuthor } from '../stores/suggestModeStore';
-import { ELEMENT_LABELS, NOTE_COLORS, type ElementType } from '../stores/editorStore';
+import { NOTE_COLORS, type ElementType } from '../stores/editorStore';
+import { elementLabel, revisionColorLabel } from '../editor/elementLabels';
 import { useEditorStore } from '../stores/editorStore';
 import { characterKey, singleLine } from '../utils/nodeText';
 import { spellChecker, PROJECT_DICT_TARGET } from '../editor/spellchecker';
@@ -175,6 +177,7 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
   onOpenFormatPanel,
   overrideSelection,
 }) => {
+  const { t } = useTranslation(['editor', 'common']);
   const setGrammarRuleEnabled = useEditorStore((s) => s.setGrammarRuleEnabled);
   const menuRef = useRef<HTMLDivElement>(null);
   // Only one submenu is open at a time.
@@ -702,7 +705,7 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
               </div>
             ))
           ) : (
-            <div className="ctx-item ctx-disabled">No suggestions</div>
+            <div className="ctx-item ctx-disabled">{t('contextMenu.noSuggestions')}</div>
           )}
           <div className="ctx-separator" />
         </>
@@ -725,11 +728,11 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
               </div>
             ))
           ) : (
-            <div className="ctx-item ctx-disabled">No automatic replacement</div>
+            <div className="ctx-item ctx-disabled">{t('contextMenu.noReplacement')}</div>
           )}
-          <div className="ctx-item" onClick={handleGrammarIgnoreOnce}>Ignore Once</div>
-          <div className="ctx-item" onClick={handleGrammarIgnoreRuleForDoc}>Ignore in Document</div>
-          <div className="ctx-item" onClick={handleGrammarDisableRule}>Disable Rule</div>
+          <div className="ctx-item" onClick={handleGrammarIgnoreOnce}>{t('contextMenu.ignoreOnce')}</div>
+          <div className="ctx-item" onClick={handleGrammarIgnoreRuleForDoc}>{t('contextMenu.ignoreInDocument')}</div>
+          <div className="ctx-item" onClick={handleGrammarDisableRule}>{t('contextMenu.disableRule')}</div>
           <div className="ctx-separator" />
         </>
       )}
@@ -737,15 +740,15 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
       {/* A suggestion here: an editor accepts or rejects it; a suggester can withdraw their own */}
       {suggestion && (!suggestLocked || isOwn(suggestion, suggestionAuthor())) && (
         <>
-          <div className="ctx-item ctx-disabled" style={{ fontSize: 11, opacity: 0.7 }}>Suggested by {suggestion.by}</div>
+          <div className="ctx-item ctx-disabled" style={{ fontSize: 11, opacity: 0.7 }}>{t('contextMenu.suggestedBy', { name: suggestion.by })}</div>
           {!suggestLocked && (
-            <div className="ctx-item" onClick={() => runSuggestion(true)}><span>Accept Suggestion</span></div>
+            <div className="ctx-item" onClick={() => runSuggestion(true)}><span>{t('contextMenu.acceptSuggestion')}</span></div>
           )}
           <div className="ctx-item" onClick={() => runSuggestion(false)}>
-            <span>{suggestLocked ? 'Withdraw My Suggestion' : 'Reject Suggestion'}</span>
+            <span>{suggestLocked ? t('contextMenu.withdrawMySuggestion') : t('contextMenu.rejectSuggestion')}</span>
           </div>
           <div className="ctx-item" onClick={() => { useSuggestModeStore.getState().setPanelOpen(true); onClose(); }}>
-            <span>All Suggestions…</span>
+            <span>{t('contextMenu.allSuggestions')}</span>
           </div>
           <div className="ctx-separator" />
         </>
@@ -753,51 +756,51 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
 
       {/* Undo / Redo */}
       <div className="ctx-item" onClick={handleUndo}>
-        <span>Undo</span>
+        <span>{t('contextMenu.undo')}</span>
         <span className="ctx-shortcut">{mod}Z</span>
       </div>
       <div className="ctx-item" onClick={handleRedo}>
-        <span>Redo</span>
+        <span>{t('contextMenu.redo')}</span>
         <span className="ctx-shortcut">{shift}{mod}Z</span>
       </div>
       <div className="ctx-separator" />
 
       {/* Clipboard */}
       <div className={`ctx-item${!hasSelection ? ' ctx-disabled' : ''}`} onClick={handleCut}>
-        <span>Cut</span>
+        <span>{t('common:cut')}</span>
         <span className="ctx-shortcut">{mod}X</span>
       </div>
       <div className={`ctx-item${!hasSelection ? ' ctx-disabled' : ''}`} onClick={handleCopy}>
-        <span>Copy</span>
+        <span>{t('common:copy')}</span>
         <span className="ctx-shortcut">{mod}C</span>
       </div>
       <div className="ctx-item" onClick={handlePaste}>
-        <span>Paste</span>
+        <span>{t('common:paste')}</span>
         <span className="ctx-shortcut">{mod}V</span>
       </div>
       <div className="ctx-item" onClick={handlePasteWithoutFormatting}>
-        <span>Paste Without Formatting</span>
+        <span>{t('contextMenu.pasteWithoutFormatting')}</span>
       </div>
       <div className="ctx-item" onClick={handlePasteAsFountain}>
-        <span>Paste as Fountain</span>
+        <span>{t('contextMenu.pasteAsFountain')}</span>
         <span className="ctx-shortcut">{shift}{mod}V</span>
       </div>
       {/* Handwriting — on an iPad this menu is opened with three fingers, which
           is the one gesture that works whether or not a keyboard is showing. */}
       {supportsApplePencil() && (
         <div className="ctx-item" onClick={handleHandwriting}>
-          <span>Handwriting&hellip;</span>
+          <span>{t('contextMenu.handwriting')}</span>
         </div>
       )}
       <div className="ctx-separator" />
 
       {/* Selection */}
       <div className="ctx-item" onClick={handleSelectAll}>
-        <span>Select All</span>
+        <span>{t('common:selectAll')}</span>
         <span className="ctx-shortcut">{mod}A</span>
       </div>
       <div className={`ctx-item${!hasSelection ? ' ctx-disabled' : ''}`} onClick={handleDelete}>
-        <span>Delete</span>
+        <span>{t('common:delete')}</span>
       </div>
       <div className="ctx-separator" />
 
@@ -809,7 +812,7 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
         onPointerLeave={(e) => { if (e.pointerType === 'mouse') setOpenSub(null); }}
       >
         <div className="ctx-item ctx-has-sub" onClick={() => setOpenSub('element')}>
-          <span>Element</span>
+          <span>{t('contextMenu.element')}</span>
           {elementMenuShortcut && <span className="ctx-shortcut">{formatShortcut(elementMenuShortcut)}</span>}
           <span className="ctx-arrow">&#9656;</span>
         </div>
@@ -826,7 +829,7 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
                 className={`ctx-item${currentNodeType === type ? ' ctx-active' : ''}`}
                 onClick={() => handleSetElement(type)}
               >
-                <span>{ELEMENT_LABELS[type]}</span>
+                <span>{elementLabel(type)}</span>
                 {shortcut && <span className="ctx-shortcut">{shortcut}</span>}
               </div>
             ))}
@@ -842,36 +845,36 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
         onPointerLeave={(e) => { if (e.pointerType === 'mouse') setOpenSub(null); }}
       >
         <div className="ctx-item ctx-has-sub" onClick={() => setOpenSub('style')}>
-          <span>Style</span>
+          <span>{t('contextMenu.style')}</span>
           <span className="ctx-arrow">&#9656;</span>
         </div>
         {openSub === 'style' && (
           <CtxSubmenu anchorRef={styleSubAnchor}>
             <div className={`ctx-item${locked.bold ? ' ctx-disabled' : ''}${editor.isActive('bold') ? ' ctx-active' : ''}`} onClick={() => { if (!locked.bold) handleBold(); }}>
-              <span>Bold</span>
+              <span>{t('contextMenu.bold')}</span>
               <span className="ctx-shortcut">{mod}B</span>
             </div>
             <div className={`ctx-item${locked.italic ? ' ctx-disabled' : ''}${editor.isActive('italic') ? ' ctx-active' : ''}`} onClick={() => { if (!locked.italic) handleItalic(); }}>
-              <span>Italic</span>
+              <span>{t('contextMenu.italic')}</span>
               <span className="ctx-shortcut">{mod}I</span>
             </div>
             <div className={`ctx-item${locked.underline ? ' ctx-disabled' : ''}${editor.isActive('underline') ? ' ctx-active' : ''}`} onClick={() => { if (!locked.underline) handleUnderline(); }}>
-              <span>Underline</span>
+              <span>{t('contextMenu.underline')}</span>
               <span className="ctx-shortcut">{mod}U</span>
             </div>
             <div className={`ctx-item${locked.strikethrough ? ' ctx-disabled' : ''}${editor.isActive('strike') ? ' ctx-active' : ''}`} onClick={() => { if (!locked.strikethrough) handleStrike(); }}>
-              <span>Strikethrough</span>
+              <span>{t('contextMenu.strikethrough')}</span>
             </div>
             <div className="ctx-separator" />
             <div className={`ctx-item${locked.subscript ? ' ctx-disabled' : ''}${editor.isActive('subscript') ? ' ctx-active' : ''}`} onClick={() => { if (!locked.subscript) handleSubscript(); }}>
-              <span>Subscript</span>
+              <span>{t('contextMenu.subscript')}</span>
             </div>
             <div className={`ctx-item${locked.superscript ? ' ctx-disabled' : ''}${editor.isActive('superscript') ? ' ctx-active' : ''}`} onClick={() => { if (!locked.superscript) handleSuperscript(); }}>
-              <span>Superscript</span>
+              <span>{t('contextMenu.superscript')}</span>
             </div>
             <div className="ctx-separator" />
             <div className={`ctx-item${locked.textTransform ? ' ctx-disabled' : ''}`} onClick={() => { if (!locked.textTransform) handleAllCaps(); }}>
-              <span>ALL CAPS</span>
+              <span>{t('contextMenu.allCaps')}</span>
             </div>
           </CtxSubmenu>
         )}
@@ -879,14 +882,14 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
 
       {/* Font & Formatting */}
       <div className={`ctx-item${locked.fontFamily ? ' ctx-disabled' : ''}`} onClick={() => { if (!locked.fontFamily) { onOpenFormatPanel(); onClose(); } }}>
-        <span>Font...</span>
+        <span>{t('contextMenu.font')}</span>
       </div>
       <div className="ctx-separator" />
 
       {/* Context-sensitive items */}
       {showSceneProps && (
         <div className="ctx-item ctx-disabled">
-          <span>Scene Properties...</span>
+          <span>{t('contextMenu.sceneProperties')}</span>
         </div>
       )}
       {/* Character submenu: profile, rename (on a cue) and the Dialogue Tuner */}
@@ -898,7 +901,7 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
           onPointerLeave={(e) => { if (e.pointerType === 'mouse') setOpenSub(null); }}
         >
           <div className="ctx-item ctx-has-sub" onClick={() => setOpenSub('character')}>
-            <span>Character</span>
+            <span>{t('contextMenu.character')}</span>
             <span className="ctx-arrow">&#9656;</span>
           </div>
           {openSub === 'character' && (
@@ -908,7 +911,7 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
                   if (!characterProfilesOpen) toggleCharacterProfiles();
                   onClose();
                 }}>
-                  <span>Character Profile...</span>
+                  <span>{t('contextMenu.characterProfile')}</span>
                 </div>
               )}
               {canRenameCharacter && (
@@ -916,7 +919,7 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
                   setRenamingCharacter($from.parent.textContent);
                   onClose();
                 }}>
-                  <span>Rename Character...</span>
+                  <span>{t('contextMenu.renameCharacter')}</span>
                 </div>
               )}
               {tunerSpeaker && (
@@ -924,7 +927,7 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
                   useEditorStore.getState().openDialogueTuner(tunerSpeaker);
                   onClose();
                 }}>
-                  <span>Dialogue Tuner...</span>
+                  <span>{t('contextMenu.dialogueTuner')}</span>
                 </div>
               )}
             </CtxSubmenu>
@@ -934,34 +937,34 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
       {bookmarkTarget && (bookmarkTarget.node.attrs.bookmark ? (
         <>
           <div className="ctx-item" onClick={() => { editBookmarkAtSelection(editor); onClose(); }}>
-            <span>Rename Bookmark...</span>
+            <span>{t('contextMenu.renameBookmark')}</span>
           </div>
           <div className="ctx-item" onClick={() => { removeBookmark(editor, bookmarkTarget.pos); onClose(); }}>
-            <span>Remove Bookmark</span>
+            <span>{t('contextMenu.removeBookmark')}</span>
           </div>
         </>
       ) : (
         <div className="ctx-item" onClick={() => { editBookmarkAtSelection(editor); onClose(); }}>
-          <span>Add Bookmark...</span>
+          <span>{t('contextMenu.addBookmark')}</span>
         </div>
       ))}
       {showDualDialogue && (
         <div className="ctx-item" onClick={() => { console.log('[CtxMenu] Dual Dialogue clicked, commands:', Object.keys(editor.commands).filter(k => k.includes('dual') || k.includes('Dual'))); const result = (editor as any).commands.toggleDualDialogue(); console.log('[CtxMenu] result:', result); onClose(); }}>
-          <span>Dual Dialogue</span>
+          <span>{t('contextMenu.dualDialogue')}</span>
           <span className="ctx-shortcut">{mod}D</span>
         </div>
       )}
       {showAvRow && (
         <>
           <div className="ctx-item" onClick={handleInsertAvRowBelow}>
-            <span>Insert AV Row Below</span>
+            <span>{t('contextMenu.insertAvRowBelow')}</span>
             <span className="ctx-shortcut">{mod}↵</span>
           </div>
           <div className="ctx-item" onClick={handleInsertAvRowAbove}>
-            <span>Insert AV Row Above</span>
+            <span>{t('contextMenu.insertAvRowAbove')}</span>
           </div>
           <div className="ctx-item" onClick={handleDeleteAvRow}>
-            <span>Delete AV Row</span>
+            <span>{t('contextMenu.deleteAvRow')}</span>
           </div>
         </>
       )}
@@ -969,7 +972,7 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
 
       {/* Revision */}
       <div className="ctx-item" onClick={() => { setRevisionMode(!revisionMode); onClose(); }}>
-        <span>{revisionMode ? '\u2713 ' : ''}Revision Mode</span>
+        <span>{revisionMode ? '\u2713 ' : ''}{t('contextMenu.revisionMode')}</span>
       </div>
       <div
         className="ctx-has-sub-wrap"
@@ -978,7 +981,7 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
         onPointerLeave={(e) => { if (e.pointerType === 'mouse') setOpenSub(null); }}
       >
         <div className="ctx-item ctx-has-sub" onClick={() => setOpenSub('revision')}>
-          <span>Revision Color</span>
+          <span>{t('contextMenu.revisionColor')}</span>
           <span className="ctx-arrow">&#9656;</span>
         </div>
         {openSub === 'revision' && (
@@ -990,7 +993,7 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
                 onClick={() => handleRevisionColor(name)}
               >
                 <span className="ctx-color-swatch" data-color={slug} />
-                <span>{name}</span>
+                <span>{revisionColorLabel(name)}</span>
               </div>
             ))}
           </CtxSubmenu>
@@ -1002,15 +1005,15 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
       {existingNoteId ? (
         <>
           <div className="ctx-item" onClick={handleEditScriptNote}>
-            <span>Edit Script Note</span>
+            <span>{t('contextMenu.editScriptNote')}</span>
           </div>
           <div className="ctx-item" onClick={handleDeleteScriptNote}>
-            <span>Delete Script Note</span>
+            <span>{t('contextMenu.deleteScriptNote')}</span>
           </div>
         </>
       ) : (
         <div className="ctx-item" onClick={handleAddScriptNote}>
-          <span>Add Script Note</span>
+          <span>{t('contextMenu.addScriptNote')}</span>
           <span className="ctx-shortcut">{shift}{mod}N</span>
         </div>
       )}
@@ -1027,52 +1030,52 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
             onPointerLeave={(e) => { if (e.pointerType === 'mouse') setOpenSub(null); }}
           >
             <div className="ctx-item ctx-has-sub" onClick={() => setOpenSub('alternates')}>
-              <span>Alternates{alternatesMenuCount > 1 ? ` (${alternatesMenuCount})` : ''}</span>
+              <span>{t('contextMenu.alternates')}{alternatesMenuCount > 1 ? ` (${alternatesMenuCount})` : ''}</span>
               <span className="ctx-arrow">&#9656;</span>
             </div>
             {openSub === 'alternates' && (
               <CtxSubmenu anchorRef={alternatesSubAnchor}>
                 {alternateTarget && (
                 <div className="ctx-item" onClick={() => runAlternate(addAlternateTransaction)}>
-                  <span>Add Alternate</span>
+                  <span>{t('contextMenu.addAlternate')}</span>
                 </div>
                 )}
                 {alternateCount > 1 && (
                   <>
                     <div className="ctx-item" onClick={() => runAlternate((st, p) => cycleAlternateTransaction(st, p, 1))}>
-                      <span>Next Alternate</span>
+                      <span>{t('contextMenu.nextAlternate')}</span>
                     </div>
                     <div className="ctx-item" onClick={() => runAlternate((st, p) => cycleAlternateTransaction(st, p, -1))}>
-                      <span>Previous Alternate</span>
+                      <span>{t('contextMenu.previousAlternate')}</span>
                     </div>
                     <div className="ctx-item" onClick={() => runAlternate(deleteShownAlternateTransaction)}>
-                      <span>Delete This Version</span>
+                      <span>{t('contextMenu.deleteThisVersion')}</span>
                     </div>
                     <div className="ctx-item" onClick={() => runAlternate(keepOnlyShownTransaction)}>
-                      <span>Keep Only This Version</span>
+                      <span>{t('contextMenu.keepOnlyThisVersion')}</span>
                     </div>
                   </>
                 )}
                 {alternateTarget && sceneAlternateTarget && <div className="ctx-separator" />}
                 {sceneAlternateTarget && (
                   <div className="ctx-item" onClick={() => runAlternate(addSceneAlternateTransaction)}>
-                    <span>Add Scene Alternate</span>
+                    <span>{t('contextMenu.addSceneAlternate')}</span>
                   </div>
                 )}
                 {sceneAlternateCount > 1 && (
                   <>
                     <div className="ctx-item" onClick={() => runAlternate((st, p) => cycleSceneAlternateTransaction(st, p, 1))}>
-                      <span>Next Scene Alternate</span>
-                      <span className="ctx-shortcut">{sceneAlternateTarget ? `${sceneAlternateCount} versions` : ''}</span>
+                      <span>{t('contextMenu.nextSceneAlternate')}</span>
+                      <span className="ctx-shortcut">{sceneAlternateTarget ? t('contextMenu.versions', { count: sceneAlternateCount }) : ''}</span>
                     </div>
                     <div className="ctx-item" onClick={() => runAlternate((st, p) => cycleSceneAlternateTransaction(st, p, -1))}>
-                      <span>Previous Scene Alternate</span>
+                      <span>{t('contextMenu.previousSceneAlternate')}</span>
                     </div>
                     <div className="ctx-item" onClick={() => runAlternate(deleteShownSceneAlternateTransaction)}>
-                      <span>Delete This Scene Version</span>
+                      <span>{t('contextMenu.deleteThisSceneVersion')}</span>
                     </div>
                     <div className="ctx-item" onClick={() => runAlternate(keepOnlyShownSceneTransaction)}>
-                      <span>Keep Only This Scene Version</span>
+                      <span>{t('contextMenu.keepOnlyThisSceneVersion')}</span>
                     </div>
                   </>
                 )}
@@ -1093,15 +1096,15 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
             if (!tagsPanelOpen) toggleTagsPanel();
             onClose();
           }}>
-            <span>Edit Tag...</span>
+            <span>{t('contextMenu.editTag')}</span>
           </div>
           <div className="ctx-item" onClick={handleRemoveTag}>
-            <span>Remove Tag</span>
+            <span>{t('contextMenu.removeTag')}</span>
           </div>
         </>
       ) : (
         <div className="ctx-item" onClick={handleTagAs}>
-          <span>Tag as...</span>
+          <span>{t('contextMenu.tagAs')}</span>
         </div>
       )}
       <div className="ctx-separator" />
@@ -1113,7 +1116,7 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
         return (
           <>
             <div className="ctx-item" onClick={handleSpellIgnore}>
-              <span>Ignore Spelling</span>
+              <span>{t('contextMenu.ignoreSpelling')}</span>
             </div>
             <div
               className="ctx-item"
@@ -1122,21 +1125,21 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
               onMouseLeave={() => multipleTargets && setAddDictSubOpen(false)}
               onClick={handleSpellAddDict}
             >
-              <span>Add to Dictionary{multipleTargets ? '…' : ''}</span>
+              <span>{multipleTargets ? t('contextMenu.addToDictionaryMore') : t('contextMenu.addToDictionary')}</span>
               {multipleTargets && (
                 <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--fd-text-muted)' }}>▸</span>
               )}
               {multipleTargets && addDictSubOpen && (
                 <CtxSubmenu anchorRef={addDictAnchor}>
-                  {activeAddTargets.map((t) => {
-                    const label = t === PROJECT_DICT_TARGET ? 'Project dictionary' : t;
+                  {activeAddTargets.map((target) => {
+                    const label = target === PROJECT_DICT_TARGET ? t('contextMenu.projectDictionary') : target;
                     return (
                       <div
-                        key={t}
+                        key={target}
                         className="ctx-item"
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleSpellAddDictTo(t);
+                          handleSpellAddDictTo(target);
                         }}
                       >
                         <span>{label}</span>

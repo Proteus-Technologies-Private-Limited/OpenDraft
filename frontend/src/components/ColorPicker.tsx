@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface ColorPickerProps {
   value: string;
@@ -14,6 +15,7 @@ const PRESET_COLORS = [
 ];
 
 const ColorPicker: React.FC<ColorPickerProps> = ({ value, onChange, onClose }) => {
+  const { t } = useTranslation('common');
   const ref = useRef<HTMLDivElement>(null);
   const [customColor, setCustomColor] = useState(value || '#000000');
 
@@ -59,14 +61,14 @@ const ColorPicker: React.FC<ColorPickerProps> = ({ value, onChange, onClose }) =
           className="color-picker-apply"
           onClick={() => onChange(customColor)}
         >
-          Apply
+          {t('apply')}
         </button>
       </div>
       <button
         className="color-picker-reset"
         onClick={() => onChange(null)}
       >
-        Reset to Default
+        {t('resetToDefault', { ns: 'toolbar' })}
       </button>
     </div>
   );

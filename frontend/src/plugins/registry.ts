@@ -12,6 +12,26 @@
 
 import type { Editor, JSONContent } from '@tiptap/core';
 import type { ReactNode } from 'react';
+import { i18next } from '../i18n';
+
+/**
+ * The words a plugin shows. A plugin that brought its own translations
+ * (`addPluginResources`) names a key such as `my-plugin:export.label`; a plugin
+ * without one — or a key with no entry — shows its plain English `label`.
+ * Call it when rendering, never at import time, so it follows the language.
+ */
+export function resolvePluginText(key: string | undefined, fallback: string): string {
+  if (!key) return fallback;
+  try {
+    // exists() first: the app's missing-key handler would otherwise hand back the key itself.
+    if (!i18next.isInitialized || !i18next.exists(key)) return fallback;
+    const out: unknown = i18next.t(key, { defaultValue: fallback });
+    return typeof out === 'string' && out ? out : fallback;
+  } catch (err) {
+    console.warn(`[plugins] could not translate "${key}"`, err);
+    return fallback;
+  }
+}
 
 // ── Plugin types ──
 
@@ -24,6 +44,8 @@ export interface PluginContext {
 export interface PluginMenuChildEntry {
   id: string;
   label: string;
+  /** Translation key, e.g. `my-plugin:menu.export`; `label` is the English default. */
+  labelKey?: string;
   action?: (ctx: PluginContext) => void;
   shortcut?: string;
   disabled?: boolean | ((ctx: PluginContext) => boolean);
@@ -35,6 +57,8 @@ export interface PluginMenuEntry {
   id: string;
   section: MenuSection;
   label: string;
+  /** Translation key, e.g. `my-plugin:menu.export`; `label` is the English default. */
+  labelKey?: string;
   action?: (ctx: PluginContext) => void;
   shortcut?: string;
   order?: number;
@@ -49,6 +73,8 @@ export interface PluginPanelEntry {
   slot: 'right-sidebar' | 'bottom-panel' | 'toolbar' | 'status-bar';
   component: React.ComponentType<any>;
   label: string;
+  /** Translation key; `label` is the English default. */
+  labelKey?: string;
   icon?: string;
   order?: number;
 }
@@ -88,6 +114,8 @@ export interface PluginImporter {
   id: string;
   /** Shown in the file dialog and in messages, e.g. "Movie Magic Screenwriter (.mmsw)". */
   label: string;
+  /** Translation key; `label` is the English default. */
+  labelKey?: string;
   /** Lower-case extensions without the dot. A built-in format always wins. */
   extensions: string[];
   /**
@@ -111,6 +139,8 @@ export interface PluginExporter {
   id: string;
   /** The File → Export menu label, e.g. "Movie Magic Scheduling (.sex)". */
   label: string;
+  /** Translation key; `label` is the English default. */
+  labelKey?: string;
   /** Extension of the file written, without the dot. */
   extension: string;
   /** Name of the file-dialog filter. Defaults to the label. */
@@ -130,6 +160,8 @@ export interface ReportTable {
 export interface PluginReport {
   id: string;
   label: string;
+  /** Translation key; `label` is the English default. */
+  labelKey?: string;
   /** One line shown under the label in the report list. */
   description?: string;
   build: (ctx: PluginDocumentContext) => ReportTable | Promise<ReportTable>;
@@ -168,9 +200,13 @@ export interface PluginDeactivateContext {
 export interface OpenDraftPlugin {
   id: string;
   name: string;
+  /** Translation key for `name`; `name` is the English default. */
+  nameKey?: string;
   version: string;
   /** One or two sentences, shown in Settings → Add-ons. */
   description?: string;
+  /** Translation key for `description`. */
+  descriptionKey?: string;
   /**
    * An add-on: off until the writer turns it on in Settings → Add-ons. Its
    * menu items, panels, editor extensions, importers, exporters and reports
@@ -184,6 +220,8 @@ export interface OpenDraftPlugin {
    * network, e.g. "Sends the text you ask about to the AI server you choose."
    */
   privacy?: string;
+  /** Translation key for `privacy`. */
+  privacyKey?: string;
   /** Settings screen, shown when the add-on is turned on and from Settings → Add-ons. */
   settings?: React.ComponentType<PluginSettingsProps>;
   /**

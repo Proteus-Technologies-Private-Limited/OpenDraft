@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
+import { formatNumber } from '../i18n/format';
 import { formatSceneDuration, getTimingColor } from '../utils/scriptTiming';
 
 // VIBGYOR + black + white + no color (rainbow order)
@@ -16,6 +18,7 @@ interface SynopsisModalProps {
 }
 
 const SynopsisModal: React.FC<SynopsisModalProps> = ({ sceneHeading, synopsis, sceneColor, pageLength, autoTimingSeconds, timingOverride: initialOverride, onSave, onClose }) => {
+  const { t } = useTranslation(['story', 'common']);
   const [text, setText] = useState(synopsis);
   const [color, setColor] = useState(sceneColor || '');
   const [timingMode, setTimingMode] = useState<'auto' | 'manual'>(initialOverride != null ? 'manual' : 'auto');
@@ -63,7 +66,7 @@ const SynopsisModal: React.FC<SynopsisModalProps> = ({ sceneHeading, synopsis, s
     <div className="dialog-overlay synopsis-modal-overlay" onClick={onClose}>
       <div className="synopsis-modal" onClick={(e) => e.stopPropagation()}>
         <div className="dialog-header synopsis-modal-header">
-          <span>Synopsis</span>
+          <span>{t('synopsis.title')}</span>
         </div>
         <div className="synopsis-modal-body">
           <div className="synopsis-modal-scene">{sceneHeading}</div>
@@ -71,13 +74,13 @@ const SynopsisModal: React.FC<SynopsisModalProps> = ({ sceneHeading, synopsis, s
             <div className="synopsis-modal-meta">
               {pageLength != null && pageLength > 0 && (
                 <span className="synopsis-meta-item">
-                  {Number(pageLength.toFixed(1))} {pageLength <= 1 ? 'page' : 'pages'}
+                  {t(pageLength <= 1 ? 'synopsis.pageSingular' : 'synopsis.pagePlural', { n: formatNumber(Number(pageLength.toFixed(1))) })}
                 </span>
               )}
               {finalSeconds > 0 && (
                 <span className="synopsis-meta-item" style={{ color: getTimingColor(finalSeconds) }}>
                   {formatSceneDuration(finalSeconds)}
-                  {timingMode === 'manual' && ' (manual)'}
+                  {timingMode === 'manual' && t('synopsis.manualSuffix')}
                 </span>
               )}
             </div>
@@ -87,15 +90,15 @@ const SynopsisModal: React.FC<SynopsisModalProps> = ({ sceneHeading, synopsis, s
             className="synopsis-modal-textarea"
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder="Write a synopsis for this scene..."
+            placeholder={t('synopsis.placeholder')}
           />
           {/* Timing editor */}
           <div className="synopsis-timing-section">
-            <span className="synopsis-color-label">Scene Duration</span>
+            <span className="synopsis-color-label">{t('synopsis.sceneDuration')}</span>
             <div className="synopsis-timing-controls">
               <label className="synopsis-timing-radio">
                 <input type="radio" name="timing" checked={timingMode === 'auto'} onChange={() => setTimingMode('auto')} />
-                Auto{autoTimingSeconds ? ` (${formatSceneDuration(autoTimingSeconds)})` : ''}
+                {autoTimingSeconds ? t('synopsis.autoWithDuration', { duration: formatSceneDuration(autoTimingSeconds) }) : t('synopsis.auto')}
               </label>
               <label className="synopsis-timing-radio">
                 <input type="radio" name="timing" checked={timingMode === 'manual'} onChange={() => {
@@ -105,7 +108,7 @@ const SynopsisModal: React.FC<SynopsisModalProps> = ({ sceneHeading, synopsis, s
                     setManualSeconds(String(Math.round(autoTimingSeconds % 60)));
                   }
                 }} />
-                Manual
+                {t('synopsis.manual')}
               </label>
               {timingMode === 'manual' && (
                 <div className="synopsis-timing-inputs">
@@ -135,7 +138,7 @@ const SynopsisModal: React.FC<SynopsisModalProps> = ({ sceneHeading, synopsis, s
           </div>
         </div>
         <div className="synopsis-color-picker">
-          <span className="synopsis-color-label">Scene Color</span>
+          <span className="synopsis-color-label">{t('synopsis.sceneColor')}</span>
           <div className="synopsis-color-swatches">
             {SCENE_COLORS.map((c) => (
               <button
@@ -143,10 +146,10 @@ const SynopsisModal: React.FC<SynopsisModalProps> = ({ sceneHeading, synopsis, s
                 className={`synopsis-color-swatch${color === c ? ' active' : ''}`}
                 style={c ? { background: c } : undefined}
                 onClick={() => setColor(c)}
-                title={c || 'None'}
+                title={c || t('common:none')}
               />
             ))}
-            <label className="synopsis-color-custom" title="Custom color">
+            <label className="synopsis-color-custom" title={t('synopsis.customColor')}>
               <input
                 type="color"
                 value={color || '#000000'}
@@ -157,8 +160,8 @@ const SynopsisModal: React.FC<SynopsisModalProps> = ({ sceneHeading, synopsis, s
           </div>
         </div>
         <div className="dialog-footer">
-          <button className="dialog-btn" onClick={onClose}>Cancel</button>
-          <button className="dialog-btn dialog-btn-primary" onClick={handleSave}>Save</button>
+          <button className="dialog-btn" onClick={onClose}>{t('common:cancel')}</button>
+          <button className="dialog-btn dialog-btn-primary" onClick={handleSave}>{t('common:save')}</button>
         </div>
       </div>
     </div>

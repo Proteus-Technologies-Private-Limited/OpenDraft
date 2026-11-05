@@ -1,0 +1,205 @@
+{
+  "system": {
+    "industryStandard": {
+      "name": "Film senaryosu",
+      "description": "Sektör standardı uzun metraj film senaryosu biçimlendirmesi (Final Draft uyumlu)."
+    },
+    "oneHourDrama": {
+      "name": "1 saatlik TV draması",
+      "description": "Saatlik diziler için tek kameralı televizyon senaryosu. TV perde yapısıyla (Teaser, Perde I–V) uzun metraj senaryo görünümünde.",
+      "tagline": "1 saatlik tek kameralı drama (Breaking Bad, Stranger Things)"
+    },
+    "multicamSitcom": {
+      "name": "Çok kameralı sitcom",
+      "description": "Çok kameralı televizyon senaryosu (seyirci karşısında sitcom'lar): çift aralıklı diyalog, büyük harfli altı çizili sahne yönergeleri, sahne karakter listesi, sayfa başına bir sahne.",
+      "tagline": "Seyirci karşısında sitcom (Big Bang Theory, Mom)"
+    },
+    "stagePlay": {
+      "name": "Tiyatro oyunu",
+      "description": "Tiyatro metni: ortalanmış karakter adları, italik parantez içi sahne yönergeleri, PERDE/SAHNE yapısı.",
+      "tagline": "Tiyatro metni (perdeler, sahneler, ortalanmış karakterler)"
+    },
+    "radioPlay": {
+      "name": "Radyo oyunu",
+      "description": "Sesli drama: numaralı sahneler, SOUND/MUSIC işaretleri, anlatıcı. Kamera veya görsel öğe yok.",
+      "tagline": "Radyo draması / sesli oyun (BBC, podcast kurgusu)"
+    },
+    "podcast": {
+      "name": "Podcast",
+      "description": "Senaryolu podcast ve sesli kurgu: her diyalog satırı kayıt oturumu için numaralanır; FX ve müzik işaretleri ayrı numaralanır.",
+      "tagline": "Senaryolu podcast / sesli kurgu, kayıt için numaralı satırlar"
+    },
+    "comic": {
+      "name": "Çizgi roman",
+      "description": "Çizgi roman ve grafik roman tam metni: sayfalar ve kareler otomatik numaralanır; alt yazılar ve balonlar her sayfada 1, 2, 3 diye sıralanır.",
+      "tagline": "Çizgi roman / grafik roman tam metni, numaralı sayfalar ve kareler"
+    },
+    "avScript": {
+      "name": "AV senaryo (iki sütunlu)",
+      "description": "İki sütunlu Ses | Görüntü senaryosu — reklam, kurumsal video, belgesel. Her satır bir görüntü çekimini sesiyle eşleştirir.",
+      "tagline": "İki sütunlu reklam / kurumsal / belgesel senaryosu"
+    }
+  },
+  "group": {
+    "tv": "TV",
+    "stage": "Sahne",
+    "audio": "Ses",
+    "comics": "Çizgi roman",
+    "av": "AV"
+  },
+  "picker": {
+    "title": "Senaryo biçimini seçin",
+    "empty": "Etkin biçim yok. En az birini seçmek için Biçim → Senaryo biçimi tercihleri'ni açın."
+  },
+  "format": {
+    "defaultBadge": "varsayılan",
+    "makeDefault": "Varsayılan yap",
+    "isDefault": "Varsayılan ✓",
+    "defaultTooltipClear": "Yeni senaryo seçici bu biçimde açılır. Temizlemek için tıklayın.",
+    "defaultTooltipSet": "Yeni senaryo seçiciyi bu biçimde aç"
+  },
+  "conflict": {
+    "title": "Şablon çakışmaları",
+    "intro": "<strong>{{name}}</strong> şablonunu uygulamak için belgenizdeki aşağıdaki çakışmaların çözülmesi gerekir.",
+    "disabled": {
+      "title": "Devre dışı öğe türleri",
+      "desc": "Bu öğe türleri şablonda devre dışı ama belgenizde var. Her biri için bir yedek seçin."
+    },
+    "elementCount_one": "{{label}} öğesi",
+    "elementCount_other": "{{label}} öğesi",
+    "replaceWith": "Şununla değiştir:",
+    "formatting": {
+      "title": "Biçimlendirme çakışmaları",
+      "desc": "Bu öğelerde şablonun kilitli kurallarıyla çakışan satır içi biçimlendirme var. Çakışan işaretleri kaldırmak için işaretleyin.",
+      "detail_one": "{{marks}} içeren {{count}} öğe",
+      "detail_other": "{{marks}} içeren {{count}} öğe"
+    },
+    "applyWithout": "Çözmeden uygula",
+    "resolveApply": "Çöz ve uygula"
+  },
+  "prefs": {
+    "title": "Senaryo biçimi tercihleri",
+    "titleFirstRun": "Hoş geldiniz — senaryo biçimlerinizi seçin",
+    "hintFirstRun": "Sık yazdığınız biçimleri seçin. Yeni senaryo oluştururken OpenDraft yalnızca bu seçenekleri sunar. Bunu daha sonra Biçim menüsünden değiştirebilirsiniz.",
+    "hint": "Yeni senaryo seçicide hangi biçimlerin görüneceğini seçin. Birini varsayılan yaparsanız seçici onunla açılır ve kabul etmeye hazır olur — diğerleri bir tık uzaklıkta kalır. Yalnızca tek bir biçim seçerseniz yeni senaryolar hiç sormadan onu kullanır.",
+    "yourTemplates": "Şablonlarınız",
+    "noneYet": "Henüz yok. Biçim ▸ Biçimlendirme şablonu… bir şablon oluşturduğunuz yerdir; burada görünecektir.",
+    "saveContinue": "Kaydet ve devam et"
+  },
+  "editor": {
+    "title": "Şablonu düzenle",
+    "namePlaceholder": "Şablon adı",
+    "description": "Açıklama",
+    "descriptionPlaceholder": "İsteğe bağlı açıklama",
+    "mode": "Mod",
+    "modeEnforce": "Zorunlu",
+    "modeOverride": "Geçersiz kılınabilir",
+    "modeEnforceHint": "Biçimlendirme kilitli — kullanıcılar öğe düzeyindeki stili değiştiremez.",
+    "modeOverrideHint": "Biçimlendirme varsayılanları belirler — kullanıcılar tek tek geçersiz kılabilir.",
+    "elements": "Öğeler",
+    "addElementTitle": "Özel öğe ekle (örn. Ses efekti, Şarkı sözü, Ek çekim)",
+    "addElement": "Yeni",
+    "customBadge": "özel",
+    "removeElement": "Öğeyi kaldır",
+    "av": {
+      "inserts": "İki sütunlu Ses/Görüntü gövdesi ekler — solda Görüntü, sağda Ses, her çekim için bir satır.",
+      "noFormatting": "Kendi biçimlendirmesi yoktur. Bunun yerine sütunlarına girecek öğelerin stilini belirleyin ve her birinde hangi sütunun onu sunduğunu söylemek için <em>AV sütunlarında</em> seçeneğini kullanın.",
+      "untick": "Öğe menüsünün dışında tutmak için listede işaretini kaldırın; Biçim menüsünün kendi AV komutları etkilenmez.",
+      "inColumns": "AV sütunlarında",
+      "baseTitle": "Dört AV paragraf türü her belgede iki sütunda da sunulur — yalnızca biçimlendirmeleri şablonun tercihidir.",
+      "columnTitle": "İki sütunlu AV gövdesinin hangi sütununun bu öğeyi sunduğu.",
+      "notOffered": "Sunulmaz",
+      "video": "Görüntü sütunu",
+      "audio": "Ses sütunu",
+      "both": "İki sütun da"
+    },
+    "label": "Etiket",
+    "labelPlaceholder": "Öğe adı",
+    "fontFamily": "Yazı tipi ailesi",
+    "fontSize": "Yazı boyutu",
+    "textStyle": "Yazı stili",
+    "bold": "Kalın",
+    "italic": "İtalik",
+    "underline": "Altı çizili",
+    "strikethrough": "Üstü çizili",
+    "textTransform": "Harf dönüşümü",
+    "uppercase": "Büyük harf",
+    "lowercase": "Küçük harf",
+    "alignment": "Hizalama",
+    "textColor": "Yazı rengi",
+    "inherit": "devral",
+    "backgroundColor": "Arka plan rengi",
+    "transparent": "saydam",
+    "spaceBefore": "Önceki boşluk (satır)",
+    "leftIndent": "Sol girinti (inç)",
+    "rightIndent": "Sağ girinti (inç)",
+    "nextOnEnter": "Enter ile sonraki",
+    "nextOnTab": "Tab ile sonraki",
+    "placeholderText": "Yer tutucu metin",
+    "placeholderHint": "Öğe boşken gösterilir",
+    "newPage": "Yeni sayfada başlar",
+    "newPageOn": "Her “{{label}}” ekranda ve PDF/Word dışa aktarımlarında yeni bir sayfanın en üstünde başlar.",
+    "newPageOff": "Bu öğe sayfanın geri kalanıyla birlikte akar.",
+    "numbering": {
+      "enable": "Bu öğeyi numarala",
+      "prefix": "Önek",
+      "startAt": "Başlangıç numarası",
+      "style": "Stil",
+      "stylePlain": "Düz (3)",
+      "styleScene": "Sahne numarasıyla (12.3)",
+      "styleWords": "Yazıyla (ÜÇ)",
+      "show": "Numarayı göster",
+      "inMargin": "Kenar boşluğunda",
+      "inline": "Satır başında",
+      "countWith": "Şununla birlikte say",
+      "ownCount": "Kendi sayımı",
+      "restartAt": "Numaralandırmayı şurada yeniden başlat",
+      "hintOff": "Her “{{label}}” öğesini ekranda ve PDF, Word ile Final Draft dışa aktarımlarında kenar boşluğunda numaralar.",
+      "orJoiner": " veya ",
+      "summaryWhole": "{{sample}} … tüm senaryo boyunca sayar.",
+      "summaryWholeShared": "{{sample}} … tüm senaryo boyunca sayar, her “{{owner}}” ile tek bir sayımda.",
+      "summaryReset": "{{sample}} … her {{resets}} öğesinde yeniden başlar.",
+      "summaryResetShared": "{{sample}} … her {{resets}} öğesinde yeniden başlar, her “{{owner}}” ile tek bir sayımda.",
+      "summaryScene": "Gösterilecek sahne numarası olmayan yerlerde düz numaralar.",
+      "summaryInline": "Satırın başında, üzerine henüz bir şey yazılmamış olsa bile gösterilir."
+    },
+    "allowOverride": "Biçim geçersiz kılmaya izin ver",
+    "overrideOn": "Kullanıcılar bu öğe türünün biçimlendirmesini geçersiz kılabilir.",
+    "overrideOff": "Tüm biçimlendirme kilitli — kullanıcılar bu öğenin hiçbir stilini değiştiremez.",
+    "preview": "Önizleme",
+    "sampleText": "Örnek metin...",
+    "selectElement": "Biçimlendirmesini düzenlemek için listeden bir öğe seçin."
+  },
+  "select": {
+    "title": "Senaryo biçimi / şablon",
+    "hint": "Bir senaryo biçimi (film, sitcom, drama, tiyatro, radyo) veya özel bir biçimlendirme şablonu seçin. Şablon öğe düzeyindeki biçimlendirme kurallarını belirler; boş bir belgede bir senaryo türü seçmek ayrıca başlangıç içeriği de ekler.",
+    "unreadable": "Kayıtlı biçim bu sürümde okunamıyor. Kaydettiğinizde özgün verisi korunur. Kullanmak için OpenDraft'ı güncelleyin; başka bir biçim seçmek kayıtlı tanımın yerine geçer.",
+    "thisDocument": "Bu belge",
+    "currentBadge": "geçerli",
+    "modeEnforce": "zorunlu",
+    "modeOverride": "geçersiz kılınabilir",
+    "duplicate": "Çoğalt",
+    "duplicated": "Şablon çoğaltıldı",
+    "confirmDelete": "“{{name}}” şablonu silinsin mi?",
+    "deleted": "Şablon silindi",
+    "libraryNewer": "Kitaplık sürümü daha yeni. Şu an yerel kitaplık sürümü kullanılıyor. Geçerli biçimi düzenle o sürümden başlar; bu kayıtlı kopyayı uygulamak ayrı bir belge biçimi oluşturur.",
+    "savedNewer": "Kayıtlı kopya daha yeni. Şu an yerel kitaplık sürümü kullanılıyor. Geçerli biçimi düzenle o sürümden başlar; bu kayıtlı kopyayı uygulamak ayrı bir belge biçimi oluşturur.",
+    "libraryInUse": "Şu an yerel kitaplık sürümü kullanılıyor. Geçerli biçimi düzenle o sürümden başlar; bu kayıtlı kopyayı uygulamak ayrı bir belge biçimi oluşturur.",
+    "savedWithScript": "Bu senaryoyla birlikte kaydedildi. Bu biçimi düzenlemek ayrı bir belge biçimi oluşturur ve diğer şablonlarınıza dokunmaz.",
+    "editCurrent": "Geçerli biçimi düzenle",
+    "editDocument": "Belge biçimini düzenle",
+    "copied": "Biçim şablonlarınıza kopyalandı",
+    "copyFailed": "Biçim şablonlarınıza kaydedilemedi.",
+    "saveToMine": "Şablonlarıma kaydet",
+    "scriptFormats": "Senaryo biçimleri",
+    "userDefined": "Kullanıcı tanımlı",
+    "noCustom": "Henüz özel şablon yok.",
+    "create": "+ Şablon oluştur",
+    "invalidSettings": "Geçersiz şablon ayarları. Şablon kaydedilmedi.",
+    "invalidDocumentSaved": "Geçersiz belge biçimi. Şablon kaydedilmedi.",
+    "invalidDocumentApplied": "Geçersiz belge biçimi. Biçim uygulanmadı.",
+    "saved": "Şablon kaydedildi",
+    "noLongerDefault": "Artık yeni senaryolar için varsayılan biçim değil",
+    "nowDefault": "Yeni senaryolar “{{name}}” ile başlayacak"
+  }
+}

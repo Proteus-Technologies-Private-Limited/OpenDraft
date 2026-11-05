@@ -9,6 +9,7 @@
  * scheduler until the user changes a setting or backs up manually.
  */
 import { create } from 'zustand';
+import { t } from '../i18n';
 
 /** Consecutive failures after which automatic backups stop trying. */
 export const BACKUP_FAILURE_LIMIT = 3;
@@ -79,20 +80,20 @@ export const useBackupStatusStore = create<BackupStatusState>((set, get) => ({
 export function describeBackupError(raw: string): string {
   const s = raw.toLowerCase();
   if (s.includes('enoent') || s.includes('os error 2') || s.includes('no such file')) {
-    return 'The backup folder no longer exists.';
+    return t('messages:backup.error.missingFolder');
   }
   if (
     s.includes('eacces') || s.includes('eperm') ||
     s.includes('os error 13') || s.includes('os error 5') ||
     s.includes('permission denied') || s.includes('access is denied')
   ) {
-    return "OpenDraft doesn't have permission to write to the backup folder.";
+    return t('messages:backup.error.noPermission');
   }
   if (s.includes('enospc') || s.includes('os error 28') || s.includes('no space')) {
-    return 'The disk is full.';
+    return t('messages:backup.error.diskFull');
   }
   if (s.includes('timed out') || s.includes('timeout')) {
-    return 'The backup folder did not respond (is a network drive disconnected?).';
+    return t('messages:backup.error.noResponse');
   }
   return raw;
 }

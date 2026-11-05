@@ -56,6 +56,7 @@ const CLASS_TYPES: Record<string, string> = {
   parenthetical: 'parenthetical',
   transition: 'transition',
   shot: 'shot',
+  // i18n-ignore import-format data key, not UI text
   text: 'general',
   // Theatre
   act: 'newAct',

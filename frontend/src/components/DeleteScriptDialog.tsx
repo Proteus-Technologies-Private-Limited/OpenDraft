@@ -10,6 +10,8 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { FaCheck, FaChevronRight, FaCloud, FaDesktop, FaFileAlt, FaInfoCircle } from 'react-icons/fa';
+import { Trans, useTranslation } from 'react-i18next';
+import { formatDate as formatDateLocale } from '../i18n/format';
 import { confirmNameMatches, confirmTargetName } from '../utils/deleteConfirm';
 
 export interface DeleteScriptDialogProps {
@@ -36,7 +38,7 @@ function formatDate(iso: string | null | undefined): string | null {
   if (!iso) return null;
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return null;
-  return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+  return formatDateLocale(d, { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 const DeleteScriptDialog: React.FC<DeleteScriptDialogProps> = ({
@@ -50,6 +52,7 @@ const DeleteScriptDialog: React.FC<DeleteScriptDialogProps> = ({
   onCancel,
   onConfirm,
 }) => {
+  const { t } = useTranslation(['projects', 'common']);
   const [typed, setTyped] = useState('');
   const [deleteFile, setDeleteFile] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -88,10 +91,10 @@ const DeleteScriptDialog: React.FC<DeleteScriptDialogProps> = ({
   };
 
   const meta = [
-    isCloud ? 'OpenDraft Cloud' : 'This device',
+    isCloud ? 'OpenDraft Cloud' /* i18n-ignore: product name */ : t('deleteScript.thisDevice'),
     projectName,
-    pageCount ? `${pageCount} page${pageCount === 1 ? '' : 's'}` : null,
-    formatDate(updatedAt) ? `Modified ${formatDate(updatedAt)}` : null,
+    pageCount ? t('deleteScript.pages', { count: pageCount }) : null,
+    formatDate(updatedAt) ? t('deleteScript.modified', { date: formatDate(updatedAt) }) : null,
   ].filter(Boolean).join(' · ');
 
   return (
@@ -104,7 +107,7 @@ const DeleteScriptDialog: React.FC<DeleteScriptDialogProps> = ({
         onClick={(e) => e.stopPropagation()}
         onKeyDown={handleKeyDown}
       >
-        <div className="dialog-header" id="delete-script-title">Delete Script</div>
+        <div className="dialog-header" id="delete-script-title">{t('deleteScript.title')}</div>
 
         <div className="dialog-body delete-script-body">
           <div className="delete-script-card">
@@ -120,13 +123,13 @@ const DeleteScriptDialog: React.FC<DeleteScriptDialogProps> = ({
 
           <p className="delete-script-warning">
             {isCloud
-              ? 'This removes the script from your OpenDraft Cloud account, on every device you use. It can’t be undone.'
-              : 'This removes the script from OpenDraft. It can’t be undone.'}
+              ? t('deleteScript.warningCloud')
+              : t('deleteScript.warningLocal')}
           </p>
 
           <div className="delete-script-confirm">
             <label htmlFor="delete-script-name">
-              Type <strong>{target}</strong> to confirm
+              <Trans ns="projects" i18nKey="deleteScript.typeToConfirm" values={{ name: target }} components={{ strong: <strong /> }} />
             </label>
             <input
               id="delete-script-name"
@@ -134,7 +137,7 @@ const DeleteScriptDialog: React.FC<DeleteScriptDialogProps> = ({
               type="text"
               value={typed}
               onChange={(e) => setTyped(e.target.value)}
-              placeholder="Script name"
+              placeholder={t('deleteScript.namePlaceholder')}
               autoComplete="off"
               autoCorrect="off"
               autoCapitalize="off"
@@ -143,10 +146,10 @@ const DeleteScriptDialog: React.FC<DeleteScriptDialogProps> = ({
             />
             {matched ? (
               <span className="delete-script-hint delete-script-hint--ok">
-                <FaCheck aria-hidden="true" /> Name matches
+                <FaCheck aria-hidden="true" /> {t('deleteScript.nameMatches')}
               </span>
             ) : typed.trim() ? (
-              <span className="delete-script-hint">Doesn’t match the script name yet</span>
+              <span className="delete-script-hint">{t('deleteScript.nameMismatch')}</span>
             ) : null}
           </div>
 
@@ -159,8 +162,7 @@ const DeleteScriptDialog: React.FC<DeleteScriptDialogProps> = ({
                 disabled={busy}
               />
               <span>
-                Also delete <strong>{fileNameOf(linkedFilePath)}</strong> from disk. Otherwise
-                the file stays where it is.
+                <Trans ns="projects" i18nKey="deleteScript.alsoDeleteFile" values={{ file: fileNameOf(linkedFilePath) }} components={{ strong: <strong /> }} />
               </span>
             </label>
           )}
@@ -169,28 +171,26 @@ const DeleteScriptDialog: React.FC<DeleteScriptDialogProps> = ({
             <FaInfoCircle className="delete-script-tip-icon" aria-hidden="true" />
             <div className="delete-script-tip-text">
               <span>
-                Tidying up several drafts? In <strong>Manage Projects</strong>, every script and
-                project has a <strong>⋮</strong> menu with <strong>Delete</strong>, so you can
-                clear out a whole project from one screen.
+                <Trans ns="projects" i18nKey="deleteScript.tip" components={{ strong: <strong /> }} />
               </span>
               <button type="button" className="delete-script-link" onClick={onOpenProject} disabled={busy}>
-                Open {projectName} in Manage Projects <FaChevronRight aria-hidden="true" />
+                {t('deleteScript.openProject', { name: projectName })} <FaChevronRight aria-hidden="true" />
               </button>
             </div>
           </div>
 
-          {error && <div className="delete-script-error" role="alert">Delete failed: {error}</div>}
+          {error && <div className="delete-script-error" role="alert">{t('deleteScript.failed', { error })}</div>}
         </div>
 
         <div className="dialog-actions">
-          <button type="button" onClick={onCancel} disabled={busy}>Cancel</button>
+          <button type="button" onClick={onCancel} disabled={busy}>{t('common:cancel')}</button>
           <button
             type="button"
             className="dialog-danger"
             onClick={() => { void handleConfirm(); }}
             disabled={!matched || busy}
           >
-            {busy ? 'Deleting…' : 'Delete Script'}
+            {busy ? t('deleteScript.deleting') : t('deleteScript.deleteScript')}
           </button>
         </div>
       </div>

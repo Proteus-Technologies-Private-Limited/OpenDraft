@@ -1,0 +1,169 @@
+{
+  "dictation": {
+    "plugin": {
+      "name": "Ditado",
+      "menu": "Ditado…",
+      "description": "Dite uma frase curta, revise a transcrição e depois insira no seu roteiro. Comandos de voz opcionais em inglês iniciam novos elementos.",
+      "privacy": "O Whisper local mantém o áudio neste dispositivo. No primeiro uso, ele baixa recursos do modelo de huggingface.co, que vê seu endereço IP. O reconhecimento de fala do navegador pode enviar a voz gravada ao Google, à Apple ou à Microsoft. O reconhecimento do dispositivo pode enviar a voz gravada à Apple ou ao provedor de fala do Android (geralmente o Google). O reconhecimento no próprio dispositivo é solicitado onde há suporte; a preferência offline do Android não é uma garantia. Escolha o mecanismo abaixo antes de ativar o ditado. As preferências ficam neste dispositivo e podem ser excluídas quando o complemento for desativado."
+    },
+    "engine": {
+      "local": "Whisper local",
+      "browser": "Serviço de fala do navegador",
+      "device": "Serviço de fala do dispositivo"
+    },
+    "privacy": {
+      "local": "O áudio fica neste dispositivo. No primeiro uso, são baixados recursos do modelo de huggingface.co, que vê seu endereço IP.",
+      "browser": "Sua voz gravada pode ser enviada aos servidores de fala do fabricante do navegador (Google, Apple ou Microsoft).",
+      "device": "Sua voz gravada pode ser enviada à Apple ou ao seu provedor de fala do Android (geralmente o Google). O reconhecimento no próprio dispositivo é solicitado onde há suporte; uma preferência offline não é uma garantia."
+    },
+    "problem": {
+      "linux": "Esta versão para Linux não oferece captura de microfone compatível no WebKit. Use o OpenDraft em um navegador com suporte a microfone para usar o Whisper local.",
+      "noMicrophone": "A gravação do microfone não está disponível neste navegador. Use HTTPS ou localhost e ative o acesso ao microfone."
+    },
+    "permission": {
+      "macos": "O acesso ao microfone está bloqueado. Permita o OpenDraft em Ajustes do Sistema → Privacidade e Segurança → Microfone e tente novamente.",
+      "windows": "O acesso ao microfone está bloqueado. Permita o acesso ao microfone para o OpenDraft em Configurações do Windows → Privacidade e segurança → Microfone e tente novamente.",
+      "browser": "O acesso ao microfone ou ao reconhecimento de fala está bloqueado. Permita o acesso ao microfone para este site nas configurações do navegador e tente novamente."
+    },
+    "error": {
+      "recordingFailed": "Falha na gravação do microfone.",
+      "workerFailed": "O processo local de fala falhou.",
+      "localTimeout": "O reconhecimento local excedeu o tempo limite. Tente uma gravação mais curta ou verifique a conexão para baixar o modelo.",
+      "deviceNotFinished": "O reconhecimento do dispositivo não terminou. Tente novamente.",
+      "deviceFailed": "Falha no reconhecimento do dispositivo.",
+      "deviceTimeout": "O reconhecimento do dispositivo excedeu o tempo limite. Tente novamente.",
+      "browserUnavailable": "O reconhecimento de fala não está disponível neste navegador. Escolha o Whisper local.",
+      "recognition": "Reconhecimento de fala: {{error}}.",
+      "engineUnavailable": "Este mecanismo de reconhecimento não está disponível aqui. Escolha um mecanismo disponível em Configurações → Complementos → Ditado.",
+      "commandNotHere": "Este comando de voz não pode ser inserido aqui. Escolha um elemento compatível ou mova o cursor do roteiro.",
+      "placeCursor": "Coloque o cursor em um elemento de texto do roteiro antes de inserir."
+    },
+    "status": {
+      "preparing": "Preparando o áudio e carregando o modelo local…",
+      "downloading": "Baixando recursos do modelo: {{percent}}%",
+      "hidden": "A gravação foi interrompida porque o app ficou oculto.",
+      "listening": "Ouvindo…",
+      "review": "Revise a transcrição antes de inserir.",
+      "stopped": "Gravação interrompida. Revise a transcrição antes de inserir.",
+      "finishing": "Concluindo o reconhecimento…",
+      "cancelled": "Cancelado.",
+      "inserted": "Inserido."
+    },
+    "openEditable": "Abra um roteiro editável para usar o ditado.",
+    "title": "Ditado",
+    "intro": "Fale uma frase curta, revise e depois insira no cursor do roteiro.",
+    "localNote": "No primeiro uso, são baixados 39 MiB de pesos do modelo q8, mais o tokenizador e recursos de execução. As gravações param após 30 segundos; o primeiro reconhecimento pode levar alguns minutos.",
+    "androidNote": "Use a caixa de fala do sistema para concluir ou cancelar a gravação.",
+    "changeSettings": "Mude o mecanismo, o idioma ou os comandos de voz em Configurações → Complementos → Ditado.",
+    "commandsHelp": "Diga um comando completo: “new scene”, “character Sarah”, “action”, “dialogue”, “parenthetical”, “transition” ou “new paragraph”. Use o prefixo “literal” para ditar essas palavras em vez do comando.",
+    "start": "Iniciar gravação",
+    "stop": "Parar",
+    "cancel": "Cancelar gravação",
+    "transcript": "Transcrição",
+    "command": "Comando: iniciar {{type}}.",
+    "commandWithText": "Comando: iniciar {{type}}: {{text}}.",
+    "insert": "Inserir no roteiro",
+    "settings": {
+      "engine": "Mecanismo de reconhecimento",
+      "engineMayLeave": "{{name}} (a voz pode sair do dispositivo)",
+      "language": "Idioma",
+      "commands": "Interpretar comandos de voz em inglês",
+      "commandsHint": "Os comandos são opcionais. Revise cada transcrição antes de inseri-la. As configurações ficam neste dispositivo.",
+      "noEngine": "Nenhum mecanismo de reconhecimento compatível está disponível nesta plataforma.",
+      "noEngineBrowser": "Nenhum mecanismo de fala compatível está disponível neste navegador.",
+      "saveFailed": "Não foi possível salvar as configurações de ditado: {{error}}"
+    },
+    "languages": {
+      "en": "Inglês",
+      "pl": "Polonês",
+      "fr": "Francês",
+      "de": "Alemão",
+      "es": "Espanhol",
+      "it": "Italiano",
+      "pt": "Português",
+      "ja": "Japonês"
+    }
+  },
+  "assistant": {
+    "plugin": {
+      "name": "Assistente de IA",
+      "menu": "Assistente de IA…",
+      "panel": "Assistente",
+      "description": "Faça perguntas a um modelo de IA sobre seu roteiro e insira as sugestões dele depois de revisá-las. Funciona com um servidor local como Ollama, LM Studio ou Unsloth Studio.",
+      "privacy": "Envia sua pergunta, o contexto do roteiro de que ele precisa para responder e o texto que você selecionar ao servidor de IA que você escolher. Com um servidor local como Ollama, LM Studio ou Unsloth Studio no seu próprio computador, nada sai do seu dispositivo. O endereço do servidor, o nome do modelo e qualquer chave de API ficam guardados apenas neste dispositivo, nunca nos roteiros; a chave é mantida no armazenamento do app sem criptografia, então use uma chave criada para essa finalidade."
+    },
+    "examples": {
+      "line": "Escreva uma fala para o Ben: \"Olá, pessoal.\"",
+      "scene": "Adicione uma cena: INT. LAVANDERIA - NOITE, com uma ação de abertura.",
+      "say": "Faça a MARGO dizer \"Você não devia ter voltado\" (sussurrando)."
+    },
+    "preview": {
+      "element": "Elemento → {{label}}",
+      "replaceWith": "Substituir por: "
+    },
+    "couldNot": "Não foi possível: {{message}}",
+    "done": "Pronto.",
+    "discarded": "Proposta descartada.",
+    "proposalReady": "Proposta pronta - revise e confirme.",
+    "warning": "⚠️ {{message}}",
+    "title": "Assistente de IA",
+    "newConversation": "Nova conversa",
+    "empty": "Peça ao assistente que escreva no roteiro. Ele usa os comandos do app, então o texto chega já formatado.",
+    "hint": "O servidor e o modelo são definidos em Configurações → Complementos.",
+    "you": "Você",
+    "assistant": "Assistente",
+    "writing": "Escrevendo…",
+    "proposal": "Proposta",
+    "blockCount_one": "{{count}} bloco",
+    "blockCount_many": "{{count}} de blocos",
+    "blockCount_other": "{{count}} blocos",
+    "insert": "Inserir",
+    "discard": "Descartar",
+    "placeholder": "ex.: Escreva uma fala para o Ben: \"Olá, pessoal.\"",
+    "send": "Enviar (Enter)",
+    "openScreenplay": "Abra um roteiro para usar o assistente.",
+    "error": {
+      "scriptChanged": "O roteiro mudou enquanto a proposta esperava, então ela foi descartada. Peça novamente.",
+      "tooManyActions": "A proposta é grande demais (máx. 60 ações). Tente um pedido mais específico.",
+      "tooManyBlocks": "A proposta é grande demais (máx. 40 blocos). Tente um pedido mais específico.",
+      "notAllowed": "O assistente não tem permissão para executar {{name}}.",
+      "nothingToInsert": "A proposta não tinha nada para inserir.",
+      "readOnly": "Este documento é somente leitura, então o assistente não pode inserir nele.",
+      "replaceGone": "O texto que a proposta ia substituir não está mais lá. Peça novamente.",
+      "notApplied": "Algumas ações não foram aplicadas: {{details}}",
+      "prepareDialogue": "Não consegui preparar o diálogo.",
+      "prepareScene": "Não consegui preparar a cena.",
+      "notConfigured": "Defina primeiro o servidor de IA e o modelo em Configurações → Complementos.",
+      "noValidActionsNamed": "Nenhuma ação válida: {{names}}",
+      "noValidActions": "Nenhuma ação válida.",
+      "noValidAction": "O modelo não produziu uma ação válida. Tente reformular o pedido.",
+      "noJsonAction": "O modelo não retornou uma ação em JSON. Tente reformular ou use um modelo maior.",
+      "noActionReceived": "Nenhuma ação recebida.",
+      "stepLimit": "O limite de etapas foi atingido sem uma resposta final.",
+      "unreachableDesktop": "Não foi possível acessar {{base}}. O app para computador só permite conexões http simples com localhost ou 127.0.0.1, então um servidor na sua rede local é bloqueado pela política de segurança dele. Execute o servidor neste computador ou use o OpenDraft no navegador.",
+      "unreachable": "Não foi possível acessar {{base}}. Verifique se o servidor está em execução e se a origem do app é permitida (para o Ollama: OLLAMA_ORIGINS=*; para o Unsloth Studio: o servidor deve estar escutando em {{base}}).",
+      "model": "Erro do modelo: {{message}}",
+      "apiKeyRequired": "O servidor exige uma chave de API. Copie-a do Unsloth Studio (ou do seu servidor) e cole no campo \"Chave de API\" nas configurações do assistente."
+    },
+    "settings": {
+      "addressMissing": "Digite o endereço do servidor, ex.: http://localhost:11434",
+      "addressProtocol": "O endereço deve começar com http:// ou https://",
+      "modelMissing": "Digite o nome do modelo a usar.",
+      "reached": "Servidor acessado. Modelos: {{models}}",
+      "noModels": "O servidor foi acessado, mas não informou nenhum modelo. Carregue um primeiro.",
+      "serverType": "Tipo de servidor",
+      "ollama": "Ollama (API própria)",
+      "openai": "Compatível com OpenAI (Unsloth Studio, LM Studio, llama.cpp…)",
+      "addressExamples": "Ollama: http://localhost:11434 · Unsloth Studio: http://localhost:8080/v1 · LM Studio: http://localhost:1234/v1",
+      "serverAddress": "Endereço do servidor",
+      "desktopNote": "No app para computador, o servidor deve rodar neste computador (localhost ou 127.0.0.1); um servidor na sua rede local é bloqueado pela política de segurança do app.",
+      "model": "Modelo",
+      "modelHint": "Para resultados confiáveis, use um modelo instruct de 7B ou mais; modelos pequenos costumam atribuir uma fala à pessoa errada ou omitir ações.",
+      "apiKey": "Chave de API (somente se o seu servidor exigir)",
+      "optional": "opcional",
+      "testing": "Testando…",
+      "test": "Testar conexão",
+      "saveFailed": "Não foi possível salvar as configurações neste dispositivo: {{message}}"
+    }
+  }
+}

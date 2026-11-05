@@ -8,6 +8,7 @@
 // documents don't block the main thread.
 
 import type { GrammarIssue, GrammarSeverity } from '../../plugins/registry';
+import { t } from '../../i18n';
 
 // Stable category ids. These are harper's lint_kind() values, kept in a
 // closed set so the rules UI can render them and "Disable rule" persists
@@ -35,20 +36,76 @@ export const HARPER_CATEGORY_META: Record<
   HarperCategory,
   { label: string; severity: GrammarSeverity; description: string }
 > = {
-  Agreement: { label: 'Subject–verb agreement', severity: 'grammar', description: 'Verb form must match the subject ("she walk" → "she walks").' },
-  Grammar: { label: 'Grammar', severity: 'grammar', description: 'Tense, confusables (their/they\'re), pronoun case, and similar mistakes.' },
-  Capitalization: { label: 'Capitalization', severity: 'grammar', description: 'Proper nouns, sentence starts, the pronoun "I".' },
-  Repetition: { label: 'Repeated word', severity: 'grammar', description: 'Accidental "the the".' },
-  Punctuation: { label: 'Punctuation', severity: 'grammar', description: 'Missing commas, stray spaces around punctuation.' },
-  WordChoice: { label: 'Word choice', severity: 'style', description: 'Suggests a clearer or more idiomatic word.' },
-  Readability: { label: 'Readability', severity: 'style', description: 'Long or hard-to-parse sentences.' },
-  Typo: { label: 'Typo', severity: 'grammar', description: 'Likely typos detected from context (e.g. "teh" → "the").' },
-  Spelling: { label: 'Spelling', severity: 'grammar', description: 'Misspelled words (overlaps with the spell checker — disable one).' },
-  Style: { label: 'Style', severity: 'style', description: 'Stylistic suggestions (wordiness, weak phrasing).' },
-  Enhancement: { label: 'Enhancement', severity: 'style', description: 'Optional rewrites that often improve clarity.' },
-  Formatting: { label: 'Formatting', severity: 'style', description: 'Spacing, quotation marks, dashes.' },
-  Regionalism: { label: 'Regionalism', severity: 'style', description: 'Word usage that is unusual outside a particular region.' },
-  Miscellaneous: { label: 'Other', severity: 'grammar', description: 'Other grammar issues that don\'t fit the categories above.' },
+  Agreement: {
+    get label() { return t('messages:grammar.harper.Agreement.label'); },
+    severity: 'grammar',
+    get description() { return t('messages:grammar.harper.Agreement.description'); },
+  },
+  Grammar: {
+    get label() { return t('messages:grammar.harper.Grammar.label'); },
+    severity: 'grammar',
+    get description() { return t('messages:grammar.harper.Grammar.description'); },
+  },
+  Capitalization: {
+    get label() { return t('messages:grammar.harper.Capitalization.label'); },
+    severity: 'grammar',
+    get description() { return t('messages:grammar.harper.Capitalization.description'); },
+  },
+  Repetition: {
+    get label() { return t('messages:grammar.harper.Repetition.label'); },
+    severity: 'grammar',
+    get description() { return t('messages:grammar.harper.Repetition.description'); },
+  },
+  Punctuation: {
+    get label() { return t('messages:grammar.harper.Punctuation.label'); },
+    severity: 'grammar',
+    get description() { return t('messages:grammar.harper.Punctuation.description'); },
+  },
+  WordChoice: {
+    get label() { return t('messages:grammar.harper.WordChoice.label'); },
+    severity: 'style',
+    get description() { return t('messages:grammar.harper.WordChoice.description'); },
+  },
+  Readability: {
+    get label() { return t('messages:grammar.harper.Readability.label'); },
+    severity: 'style',
+    get description() { return t('messages:grammar.harper.Readability.description'); },
+  },
+  Typo: {
+    get label() { return t('messages:grammar.harper.Typo.label'); },
+    severity: 'grammar',
+    get description() { return t('messages:grammar.harper.Typo.description'); },
+  },
+  Spelling: {
+    get label() { return t('messages:grammar.harper.Spelling.label'); },
+    severity: 'grammar',
+    get description() { return t('messages:grammar.harper.Spelling.description'); },
+  },
+  Style: {
+    get label() { return t('messages:grammar.harper.Style.label'); },
+    severity: 'style',
+    get description() { return t('messages:grammar.harper.Style.description'); },
+  },
+  Enhancement: {
+    get label() { return t('messages:grammar.harper.Enhancement.label'); },
+    severity: 'style',
+    get description() { return t('messages:grammar.harper.Enhancement.description'); },
+  },
+  Formatting: {
+    get label() { return t('messages:grammar.harper.Formatting.label'); },
+    severity: 'style',
+    get description() { return t('messages:grammar.harper.Formatting.description'); },
+  },
+  Regionalism: {
+    get label() { return t('messages:grammar.harper.Regionalism.label'); },
+    severity: 'style',
+    get description() { return t('messages:grammar.harper.Regionalism.description'); },
+  },
+  Miscellaneous: {
+    get label() { return t('messages:grammar.harper.Miscellaneous.label'); },
+    severity: 'grammar',
+    get description() { return t('messages:grammar.harper.Miscellaneous.description'); },
+  },
 };
 
 const HARPER_CATEGORY_SET = new Set<string>(HARPER_CATEGORIES);

@@ -1,5 +1,6 @@
 import type { JSONContent } from '@tiptap/react';
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useEditorStore, ELEMENT_LABELS, type BuiltInElementType } from '../stores/editorStore';
 import { useProjectStore } from '../stores/projectStore';
 import { useLinkedFileStore } from '../stores/linkedFileStore';
@@ -12,13 +13,15 @@ import { jsonBlockText } from '../utils/nodeText';
 import { DEFAULT_PACING, pacingOption } from '../utils/scriptProfile';
 import WritingProgress from './WritingProgress';
 import { useSuggestModeStore } from '../stores/suggestModeStore';
+import { formatNumber } from '../i18n/format';
+import { elementLabel as translateElement } from '../editor/elementLabels';
 
-const SAVE_STATUS_DISPLAY: Record<string, { label: string; className: string }> = {
-  idle: { label: '', className: '' },
-  unsaved: { label: 'Unsaved changes', className: 'status-save-unsaved' },
-  saving: { label: 'Saving\u2026', className: 'status-save-saving' },
-  saved: { label: 'Saved', className: 'status-save-saved' },
-  error: { label: 'Save failed', className: 'status-save-error' },
+const SAVE_STATUS_CLASS: Record<string, string> = {
+  idle: '',
+  unsaved: 'status-save-unsaved',
+  saving: 'status-save-saving',
+  saved: 'status-save-saved',
+  error: 'status-save-error',
 };
 
 interface StatusBarProps {
@@ -26,6 +29,7 @@ interface StatusBarProps {
 }
 
 const StatusBar: React.FC<StatusBarProps> = ({ editorDoc = null }) => {
+  const { t } = useTranslation('toolbar');
   const {
     activeElement,
     pageCount,
@@ -55,9 +59,9 @@ const StatusBar: React.FC<StatusBarProps> = ({ editorDoc = null }) => {
     : null;
   const linkedName = linkedPath ? linkedPath.split(/[/\\]/).pop() || linkedPath : '';
   const linkedProblem =
-    linkedStatus?.state === 'pending' && linkedStatus.error ? 'not saved to file'
-    : linkedStatus?.state === 'missing' ? 'file not found'
-    : linkedStatus?.state === 'conflict' ? 'changed outside OpenDraft'
+    linkedStatus?.state === 'pending' && linkedStatus.error ? t('status.linked.notSaved')
+    : linkedStatus?.state === 'missing' ? t('status.linked.missing')
+    : linkedStatus?.state === 'conflict' ? t('status.linked.conflict')
     : '';
   const retryLinkedFile = () => {
     void import('../services/linkedFiles')
@@ -67,14 +71,19 @@ const StatusBar: React.FC<StatusBarProps> = ({ editorDoc = null }) => {
   const getActiveTemplate = useFormattingTemplateStore((s) => s.getActiveTemplate);
   const activeTemplateId = useFormattingTemplateStore((s) => s.activeTemplateId);
 
-  const saveDisplay = SAVE_STATUS_DISPLAY[saveStatus] || SAVE_STATUS_DISPLAY.idle;
+  const saveLabel =
+    saveStatus === 'unsaved' ? t('status.save.unsaved')
+    : saveStatus === 'saving' ? t('status.save.saving')
+    : saveStatus === 'saved' ? t('status.save.saved')
+    : saveStatus === 'error' ? t('status.save.error')
+    : '';
+  const saveDisplay = { label: saveLabel, className: SAVE_STATUS_CLASS[saveStatus] ?? '' };
 
   const elementLabel = useMemo(() => {
-    const builtIn = (ELEMENT_LABELS as Record<string, string>)[activeElement as BuiltInElementType];
-    if (builtIn) return builtIn;
+    if ((ELEMENT_LABELS as Record<string, string>)[activeElement as BuiltInElementType]) return translateElement(activeElement);
     try {
       const rule = getActiveTemplate().rules[activeElement];
-      if (rule?.label) return rule.label;
+      if (rule?.label) return translateElement(activeElement, rule.label);
     } catch (err) {
       console.warn('[StatusBar] element label lookup failed', err);
     }
@@ -82,10 +91,10 @@ const StatusBar: React.FC<StatusBarProps> = ({ editorDoc = null }) => {
     // fields) showed its internal id, "titlePage:blank".
     if (isTitlePageRuleId(activeElement)) {
       const field = TITLE_PAGE_ELEMENTS.find((f) => titlePageRuleId(f.field) === activeElement);
-      return field?.label ?? ELEMENT_LABELS.titlePage;
+      return field?.label ?? translateElement('titlePage');
     }
     return activeElement;
-  }, [activeElement, getActiveTemplate]);
+  }, [activeElement, getActiveTemplate, t]);
 
   const estimatedRuntime = useMemo(() => {
     if (!editorDoc) return '';
@@ -108,11 +117,11 @@ const StatusBar: React.FC<StatusBarProps> = ({ editorDoc = null }) => {
       const structure = computeScriptStructure(editorDoc as any);
       const realActs = structure.acts.filter((a) => a.actNumber > 0);
       if (realActs.length === 0) return '';
-      return `${realActs.length} act${realActs.length === 1 ? '' : 's'}`;
+      return t('status.acts', { count: realActs.length });
     } catch {
       return '';
     }
-  }, [editorDoc]);
+  }, [editorDoc, t]);
 
   /** Every word in the script, not just today's, which the goal ring counts. */
   const totalWords = useMemo(() => {
@@ -141,7 +150,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ editorDoc = null }) => {
             <span className="status-sep">&middot;</span>
             <span
               className="status-item status-origin"
-              title={`Save writes back to ${documentOrigin.name}`}
+              title={t('status.saveWritesBack', { name: documentOrigin.name })}
             >
               {documentOrigin.name}
             </span>
@@ -153,8 +162,8 @@ const StatusBar: React.FC<StatusBarProps> = ({ editorDoc = null }) => {
             <span
               className={`status-item status-origin${linkedProblem ? ' status-save-error' : ''}`}
               title={linkedProblem
-                ? `${linkedPath}\n${linkedStatus?.error || linkedProblem}${linkedStatus?.state === 'pending' ? '\nClick to try again.' : ''}`
-                : `Every save also writes ${linkedPath}`}
+                ? `${linkedPath}\n${linkedStatus?.error || linkedProblem}${linkedStatus?.state === 'pending' ? `\n${t('status.linked.retryHint')}` : ''}`
+                : t('status.linked.everySave', { path: linkedPath })}
               onClick={linkedStatus?.state === 'pending' ? retryLinkedFile : undefined}
               style={linkedStatus?.state === 'pending' ? { cursor: 'pointer' } : undefined}
             >
@@ -178,7 +187,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ editorDoc = null }) => {
         {/* Here rather than in the centre, which phones hide. */}
         <SuggestingPill />
         {currentAct && (
-          <span className="status-item status-acts" title="Act structure">
+          <span className="status-item status-acts" title={t('status.actStructure')}>
             {currentAct}
           </span>
         )}
@@ -186,30 +195,30 @@ const StatusBar: React.FC<StatusBarProps> = ({ editorDoc = null }) => {
           <button
             type="button"
             className="status-item status-timing"
-            title={`Estimated runtime at ${pacingOption(scriptProfile.pacing).label.toLowerCase()} pacing — click to set genre & pacing`}
+            title={t('status.runtime.title', { pacing: pacingOption(scriptProfile.pacing).label.toLowerCase() })}
             onClick={() => setScriptProfileOpen(true)}
           >
-            Est. {estimatedRuntime}
+            {t('status.runtime.est', { runtime: estimatedRuntime })}
             {scriptProfile.pacing !== DEFAULT_PACING && (
               <span className="status-timing-pacing"> · {pacingOption(scriptProfile.pacing).label.toLowerCase()}</span>
             )}
           </button>
         )}
         {totalWords > 0 && (
-          <span className="status-item status-words" title="Words in the script">
-            {totalWords.toLocaleString()} words
+          <span className="status-item status-words" title={t('status.wordsTitle')}>
+            {t('status.words', { count: totalWords, formatted: formatNumber(totalWords) })}
           </span>
         )}
         {revisionMode && (
           <span className="status-item status-revision">
-            Rev: {revisionColor}
+            {t('status.revision', { color: revisionColor })}
           </span>
         )}
         <WritingProgress />
         <span className="status-item status-page">
           {currentLabel
-            ? <>Page {currentLabel} <span className="status-locked" title="Pages are locked">(locked)</span></>
-            : <>Page {currentPage} of {pageCount}</>}
+            ? <>{t('status.page', { label: currentLabel })} <span className="status-locked" title={t('status.pagesLocked')}>{t('status.locked')}</span></>
+            : t('status.pageOf', { current: currentPage, total: pageCount })}
         </span>
       </div>
     </div>
@@ -220,6 +229,7 @@ export default StatusBar;
 
 /** "Suggesting" while edits become suggestions; click to stop, unless a Suggest invite holds it on. */
 function SuggestingPill() {
+  const { t } = useTranslation('toolbar');
   const suggesting = useSuggestModeStore((st) => st.suggesting);
   const locked = useSuggestModeStore((st) => st.locked);
   if (!suggesting) return null;
@@ -229,9 +239,9 @@ function SuggestingPill() {
       className="suggest-mode-pill"
       disabled={locked}
       onClick={() => useSuggestModeStore.getState().setSuggesting(false)}
-      title={locked ? 'You joined to suggest: the writer accepts or rejects your edits' : 'Your edits are suggestions. Click to edit directly again.'}
+      title={locked ? t('status.suggesting.lockedTitle') : t('status.suggesting.title')}
     >
-      &#9998; Suggesting
+      &#9998; {t('status.suggesting.label')}
     </button>
   );
 }

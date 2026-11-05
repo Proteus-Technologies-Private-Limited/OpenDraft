@@ -1,5 +1,8 @@
 import { readSourceFidelity } from '../utils/sourceFidelity';
 import React, { useEffect, useLayoutEffect, useCallback, useRef, useState, useMemo } from 'react';
+import { useTranslation, Trans } from 'react-i18next';
+import { t as tg } from '../i18n';
+import { templatePlaceholder } from '../editor/elementLabels';
 import { useEditor, EditorContent, type Editor } from '@tiptap/react';
 import Document from '@tiptap/extension-document';
 import Text from '@tiptap/extension-text';
@@ -46,7 +49,7 @@ import Subscript from '@tiptap/extension-subscript';
 import Superscript from '@tiptap/extension-superscript';
 import { PastedHighlight } from '../editor/extensions/PastedHighlight';
 import { useFormattingTemplateStore, subscribeActiveTemplate } from '../stores/formattingTemplateStore';
-import { generateTemplateCss, injectTemplateCss } from '../utils/templateCss';
+import { generateTemplateCss, generatePlaceholderLocaleCss, injectTemplateCss } from '../utils/templateCss';
 import { docHasAnyText } from '../utils/docText';
 import { getCurrentElementRule, getLockedFormatting } from '../utils/effectiveFormatting';
 import { createPaginationPlugin, getPageMetrics, activeTemplateHints } from '../editor/pagination';
@@ -184,14 +187,14 @@ function sayCannotBeSuggested(what: 'formatting' | 'lineBreak' | 'alternates' | 
   if (what !== 'alternates' && now - blockedToastAt < 8000) return;
   blockedToastAt = now;
   showToast(what === 'formatCompatibility'
-    ? 'Formatting suggestions need a compatible collaboration server and clients. Text suggestions are still available.'
+    ? tg('editor:blocked.formatCompatibility')
     : what === 'lineBreak'
-    ? 'A line break inside an element can’t be suggested — press Enter for a new line instead.'
+    ? tg('editor:blocked.lineBreak')
     : what === 'alternates'
-      ? 'Versions of a line or scene can’t be added or switched while suggesting. Turn off Tools → Suggest Changes to do that.'
+      ? tg('editor:blocked.alternates')
       : what === 'formatConflict'
-        ? 'This selection already has a formatting suggestion from someone else. Review it before changing the same style.'
-        : 'This formatting cannot be suggested yet. Bold, italic, underline, strikethrough, subscript and superscript are supported.', 'info');
+        ? tg('editor:blocked.formatConflict')
+        : tg('editor:blocked.formatting'), 'info');
 }
 import VersionHistory from './VersionHistory';
 import AssetManager from './AssetManager';
@@ -235,12 +238,13 @@ import { useIsTouchDevice, useSwipeEdge, usePinchZoom } from '../hooks/useTouch'
 import { useSettingsStore } from '../stores/settingsStore';
 import { useLinkedFileStore, autoSaveAppliesToOpenDocument } from '../stores/linkedFileStore';
 import { startCollabSync, stopCollabSync } from '../services/collabSync';
-import { collabAuthApi, setLogoutCollabTeardown, setLogoutEditorReset, ensureCollabAuthenticated, COLLAB_AUTH_UNAVAILABLE_MESSAGE } from '../services/collabAuth';
+import { collabAuthApi, setLogoutCollabTeardown, setLogoutEditorReset, ensureCollabAuthenticated, collabAuthUnavailableMessage } from '../services/collabAuth';
 import { platformFetch, isTauri, isDesktopTauri, needsSelectionHandles } from '../services/platform';
 import { reportSaveError } from '../stores/saveErrorStore';
 import { pluginRegistry } from '../plugins/registry';
 import { createTrackChangesPlugin, trackChangesPluginKey } from '../editor/trackChanges';
 import type { VersionInfo } from '../services/api';
+
 
 /**
  * Bring a linked script's library copy and its file on disk into agreement
@@ -265,22 +269,22 @@ async function syncLinkedFileBeforeOpen(
       case 'none':
         return null;
       case 'loaded-from-file':
-        showToast(`${name} was changed outside OpenDraft — opened that version.`, 'info');
+        showToast(tg('editor:toast.changedOutsideOpened', { name }), 'info');
         break;
       case 'kept-library':
         showToast(
           result.preservedAs
-            ? `Kept OpenDraft's version and saved it to ${name}. The other version was kept as ${lf.basenameOf(result.preservedAs)}.`
-            : `Kept OpenDraft's version and saved it to ${name}.`,
+            ? tg('editor:toast.keptLibraryWithOther', { name, other: lf.basenameOf(result.preservedAs) })
+            : tg('editor:toast.keptLibrary', { name }),
           'success',
         );
         break;
       case 'missing':
-        showToast(`${name} is no longer in its folder. Saving will create it again.`, 'error');
+        showToast(tg('editor:toast.linkedFileMissing', { name }), 'error');
         break;
       case 'unreachable':
         showToast(
-          `Could not reach ${name || 'the linked file'}: ${result.error}. Showing OpenDraft's copy — it will be saved to the file when the drive is back.`,
+          tg('editor:toast.linkedFileUnreachable', { name: name || tg('editor:toast.linkedFileFallback'), error: result.error }),
           'error',
         );
         break;
@@ -447,6 +451,7 @@ function resolveActiveElement(ed: Editor): ElementType | null {
   return null;
 }
 
+// i18n-ignore-start: sample screenplay text is document content, not interface
 const SAMPLE_CONTENT = {
   type: 'doc',
   content: [
@@ -515,6 +520,8 @@ const SAMPLE_CONTENT = {
   ],
 };
 
+// i18n-ignore-end
+
 /** Height of the divider that stands in for the gap between sheets in the
  *  phone view. Must match --phone-page-gap in screenplay.css. */
 const PHONE_PAGE_GAP_PX = 36;
@@ -530,6 +537,7 @@ interface OverlayInfo {
 
 
 const ScreenplayEditor: React.FC = () => {
+  const { t: tl, i18n: i18nInstance } = useTranslation(['editor', 'common']);
   const { projectId: urlProjectId, scriptId: urlScriptId, commitHash: urlCommitHash, collabToken: urlCollabToken } = useParams<{ projectId?: string; scriptId?: string; commitHash?: string; collabToken?: string }>();
   const navigate = useNavigate();
   const goBack = useGoBack();
@@ -688,7 +696,7 @@ const ScreenplayEditor: React.FC = () => {
   const handleSessionEnded = useCallback(() => {
     if (collabExitingRef.current) return;
     collabExitingRef.current = true;
-    showToast('The host has ended the collaboration session', 'info');
+    showToast(tg('editor:toast.hostEnded'), 'info');
     destroyCollab();
     setCollabMode(false);
     setIsCollabHost(false);
@@ -725,7 +733,7 @@ const ScreenplayEditor: React.FC = () => {
     const formatSuggesting = await reviewServerSupportsFormatting(wsUrl);
     if (setupEpoch !== collabSetupEpoch.current) return false;
     if (!formatSuggesting && hasPendingFormat(collabInitialContent.current)) {
-      showToast('Resolve pending formatting suggestions before sharing this script on a server without verified review support. Your script is unchanged.', 'error');
+      showToast(tg('editor:toast.resolvePendingFormat'), 'error');
       return false;
     }
     destroyCollab();
@@ -737,7 +745,7 @@ const ScreenplayEditor: React.FC = () => {
     useSuggestModeStore.getState().setUid(suggesterIdOf(inviteToken));
     setCollabConnectionState('connecting');
     setCollabActivityLog([]);
-    addCollabActivity('Starting collaboration session');
+    addCollabActivity(tg('editor:activity.starting'));
     const ydoc = new Y.Doc();
 
     // Build compound token: "jwt:<access>|invite:<invite>" when auth is available and valid
@@ -782,11 +790,11 @@ const ScreenplayEditor: React.FC = () => {
       const isSessionEnded = reason?.includes('expired') || reason?.includes('Invalid')
         || reason === 'permission-denied';
       const refusalMessage = source === 'authentication'
-        ? `Unable to join collaboration: ${reason}`
+        ? tg('editor:toast.unableToJoin', { reason })
         : reason;
       showToast(
         isSessionEnded
-          ? 'The collaboration session has ended'
+          ? tg('editor:toast.sessionHasEnded')
           : refusalMessage,
         isSessionEnded ? 'info' : 'error',
       );
@@ -835,12 +843,12 @@ const ScreenplayEditor: React.FC = () => {
       onConnect: () => {
         console.log(`[Collab] Connected to room "${docName}" (${isHost ? 'host' : 'guest'})`);
         setCollabConnectionState('connected');
-        addCollabActivity('Connected to collaboration server');
+        addCollabActivity(tg('editor:activity.connected'));
       },
       onClose: ({ event }) => {
         console.log(`[Collab] Connection closed for "${docName}": code=${event.code}`);
         setCollabConnectionState('disconnected');
-        addCollabActivity(`Connection lost (code ${event.code})`);
+        addCollabActivity(tg('editor:activity.connectionLost', { code: event.code }));
 
         // The server refused a change from a suggester that was not a
         // suggestion (collab-server/src/services/suggestionGuard). Reconnecting
@@ -855,7 +863,7 @@ const ScreenplayEditor: React.FC = () => {
 
         if ((event as { reason?: string }).reason === SUGGESTION_REFUSED_REASON) {
           provider.disconnect();
-          showToast('The collaboration server refused a change that was not a suggestion, and disconnected you. Open the invite link again to carry on.', 'error');
+          showToast(tg('editor:toast.serverRefusedChange'), 'error');
           return;
         }
 
@@ -897,7 +905,7 @@ const ScreenplayEditor: React.FC = () => {
         console.log(`[Collab] Synced for "${docName}": state=${state}, isHost=${isHost}`);
         if (state) {
           setCollabConnectionState('synced');
-          addCollabActivity('Document synced');
+          addCollabActivity(tg('editor:activity.synced'));
         }
         // After initial sync, if the Yjs doc is empty (fresh room) and we have
         // content to seed, force-set it via the editor.
@@ -941,10 +949,10 @@ const ScreenplayEditor: React.FC = () => {
           const prevNames = new Set(prev.map((u) => u.name));
           const newNames = new Set(users.map((u) => u.name));
           for (const u of users) {
-            if (!prevNames.has(u.name)) addCollabActivity(`${u.name} joined the session`);
+            if (!prevNames.has(u.name)) addCollabActivity(tg('editor:activity.joined', { name: u.name }));
           }
           for (const u of prev) {
-            if (!newNames.has(u.name)) addCollabActivity(`${u.name} left the session`);
+            if (!newNames.has(u.name)) addCollabActivity(tg('editor:activity.left', { name: u.name }));
           }
           return users;
         });
@@ -988,8 +996,8 @@ const ScreenplayEditor: React.FC = () => {
         if (err instanceof CollabInviteRefusedError || attempt === 2) {
           showToast(
             err instanceof CollabInviteRefusedError
-              ? `The host moved to ${named}, but its invite is no longer valid. Ask the host for a new link.`
-              : `Couldn't follow the host to ${named}. You're still in the previous script — check your connection or ask the host for a new link.`,
+              ? tg('editor:toast.hostMovedInvalid', { name: named })
+              : tg('editor:toast.cannotFollowRetry', { name: named }),
             'error',
           );
           return;
@@ -1024,10 +1032,10 @@ const ScreenplayEditor: React.FC = () => {
       setCurrentScriptId(scriptId);
       setDocumentTitle(docTitle);
       setEditorKey((k) => k + 1);
-      showToast(`Host switched to: ${docTitle}`, 'info');
+      showToast(tg('editor:toast.hostSwitched', { title: docTitle }), 'info');
     } catch (err) {
       console.error('[Collab] Could not open the document the host switched to:', err);
-      showToast(`Couldn't follow the host to ${named}. You're still in the previous script.`, 'error');
+      showToast(tg('editor:toast.cannotFollow', { name: named }), 'error');
     }
   }, [setupCollab, collabUserName, collabRole, setCurrentProject, setCurrentScriptId, setDocumentTitle]);
 
@@ -1268,13 +1276,13 @@ const ScreenplayEditor: React.FC = () => {
         setCollabLoading(false);
 
         if (session.role === 'suggester') {
-          showToast('Connected as a suggester: your edits are suggestions for the writer to accept', 'info');
+          showToast(tg('editor:toast.connectedSuggester'), 'info');
         }
         if (session.role === 'viewer') {
-          showToast('Connected as viewer (read-only)', 'info');
+          showToast(tg('editor:toast.connectedViewer'), 'info');
         }
       } catch (err) {
-        showToast('Invalid or expired collaboration link', 'error');
+        showToast(tg('editor:toast.invalidLink'), 'error');
         setCollabLoading(false);
         // replace: pushing here left the bad link one Back press away, and
         // returning to it just failed and pushed again.
@@ -1356,10 +1364,10 @@ const ScreenplayEditor: React.FC = () => {
       // Navigate to the project URL so the content-loading effect reloads the
       // saved file. replace: the collab route it came from is finished.
       navigate(`/project/${currentProject.id}/edit/${currentScriptId}`, { replace: true });
-      showToast('Collaboration session ended', 'success');
+      showToast(tg('editor:toast.sessionEnded'), 'success');
     } else if (isHost) {
       setEditorKey((k) => k + 1);
-      showToast('Collaboration session ended', 'success');
+      showToast(tg('editor:toast.sessionEnded'), 'success');
     } else {
       // Clear project context so sample content can't overwrite the real file
       setCurrentProject(null);
@@ -1384,7 +1392,7 @@ const ScreenplayEditor: React.FC = () => {
       scriptResp = await scriptApi.getScript(newProjectId, newScriptId);
     } catch (err) {
       console.error('[Collab] Could not load the document to switch to:', err);
-      showToast('Failed to switch collab document', 'error');
+      showToast(tg('editor:toast.switchDocFailed'), 'error');
       return;
     }
 
@@ -1397,7 +1405,7 @@ const ScreenplayEditor: React.FC = () => {
       sharedToken = invite.token;
       sharedNonce = invite.session_nonce || '';
     } catch {
-      showToast('Failed to create invite for new document', 'error');
+      showToast(tg('editor:toast.inviteNewDocFailed'), 'error');
       return;
     }
 
@@ -1435,7 +1443,7 @@ const ScreenplayEditor: React.FC = () => {
       setEditorKey((k) => k + 1);
     } catch (err) {
       console.error('[Collab] Could not switch the collab document:', err);
-      showToast('Failed to switch collab document', 'error');
+      showToast(tg('editor:toast.switchDocFailed'), 'error');
     }
   }, [collabColor, currentProject, currentScriptId, setupCollab, setCurrentProject, setCurrentScriptId, setDocumentTitle]);
 
@@ -1464,11 +1472,11 @@ const ScreenplayEditor: React.FC = () => {
       setDocumentTitle('Untitled');
 
       if (session.role === 'viewer') {
-        showToast('Connected as viewer (read-only)', 'info');
+        showToast(tg('editor:toast.connectedViewer'), 'info');
       } else if (session.role === 'suggester') {
-        showToast(`Joined as ${session.collaborator_name} to suggest: your edits are suggestions for the writer to accept`, 'success');
+        showToast(tg('editor:toast.joinedSuggest', { name: session.collaborator_name }), 'success');
       } else {
-        showToast(`Joined collaboration as ${session.collaborator_name}`, 'success');
+        showToast(tg('editor:toast.joinedCollab', { name: session.collaborator_name }), 'success');
       }
 
       // Try to load project metadata in the background (non-blocking).
@@ -1489,7 +1497,7 @@ const ScreenplayEditor: React.FC = () => {
       }
     } catch (err) {
       console.error('[Collab] handleJoinCollab failed:', err);
-      showToast(`Failed to join collaboration: ${err instanceof Error ? err.message : String(err)}`, 'error');
+      showToast(tg('editor:toast.joinFailed', { error: err instanceof Error ? err.message : String(err) }), 'error');
     }
   }, [setupCollab, setCurrentProject, setCurrentScriptId, setDocumentTitle]);
 
@@ -2136,23 +2144,26 @@ const ScreenplayEditor: React.FC = () => {
           if (node.type.name === 'customElement') {
             const customTypeId = node.attrs?.customTypeId;
             if (customTypeId && tpl.rules[customTypeId]) {
-              return tpl.rules[customTypeId].placeholder || '';
+              return templatePlaceholder(tpl.rules[customTypeId].placeholder || '');
             }
             return '';
           }
           // For built-in elements, check template rule
           if (tpl.rules[node.type.name]?.placeholder) {
-            return tpl.rules[node.type.name].placeholder;
+            return templatePlaceholder(tpl.rules[node.type.name].placeholder);
           }
           // Fallback defaults
           const m: Record<string, string> = {
-            sceneHeading: 'INT./EXT. LOCATION - TIME', action: 'Describe what happens...',
-            character: 'CHARACTER NAME', dialogue: 'Dialogue...',
+            // i18n-ignore-start: screenplay vocabulary hints (scene heading, cue, transition, act) stay English
+            sceneHeading: 'INT./EXT. LOCATION - TIME',
+            character: 'CHARACTER NAME',
             parenthetical: '(direction)', transition: 'CUT TO:',
-            general: 'Text...', shot: 'SHOT DESCRIPTION',
             newAct: 'ACT ONE', endOfAct: 'END OF ACT',
-            lyrics: 'Lyrics...', showEpisode: 'SHOW TITLE', castList: 'Cast...',
-            section: 'Section name (outline only)', note: 'Note (not printed)',
+            // i18n-ignore-end
+            action: tg('editor:placeholders.action'), dialogue: tg('editor:placeholders.dialogue'),
+            general: tg('editor:placeholders.general'), shot: tg('editor:placeholders.shot'),
+            lyrics: tg('editor:placeholders.lyrics'), showEpisode: tg('editor:placeholders.showEpisode'), castList: tg('editor:placeholders.castList'),
+            section: tg('editor:placeholders.section'), note: tg('editor:placeholders.note'),
           };
           return m[node.type.name] || '';
         },
@@ -2189,7 +2200,7 @@ const ScreenplayEditor: React.FC = () => {
       }),
       Alternates.configure({
         isCollaborating: () => alternatesCollabRef.current,
-        onBlocked: () => showToast('Alternate versions can\'t be added, switched or deleted during a live session. End the session (or leave it) first. You can still edit the version shown.', 'info'),
+        onBlocked: () => showToast(tg('editor:toast.alternatesBlockedLive'), 'info'),
       }),
       // While suggesting, edits become suggestions (editor/suggestions).
       Suggestions.configure({
@@ -2294,15 +2305,15 @@ const ScreenplayEditor: React.FC = () => {
     // most writers are using.
     if (template.id === '__industry_standard__') {
       const titlePageCss = generateTemplateCss(template, pageLayout, { titlePageOnly: true });
-      const combined = [titlePageCss, overrideCss].filter(Boolean).join('\n');
+      const combined = [titlePageCss, generatePlaceholderLocaleCss(template), overrideCss].filter(Boolean).join('\n');
       injectTemplateCss(combined || null);
       return () => { injectTemplateCss(null); };
     }
-    const css = generateTemplateCss(template, pageLayout);
+    const css = [generateTemplateCss(template, pageLayout), generatePlaceholderLocaleCss(template)].filter(Boolean).join('\n');
     injectTemplateCss(overrideCss ? `${css}\n${overrideCss}` : css);
 
     return () => { injectTemplateCss(null); };
-  }, [activeTemplateId, templatesLoaded, templates, documentTemplate, pageLayout, sceneHeadingSpaceBefore]);
+  }, [activeTemplateId, templatesLoaded, templates, documentTemplate, pageLayout, sceneHeadingSpaceBefore, i18nInstance.language]);
 
   // Element numbers follow the format and the scene numbers, neither of which
   // is in the document — so a change to either has to ask for a recount.
@@ -2332,7 +2343,7 @@ const ScreenplayEditor: React.FC = () => {
   useEffect(() => {
     if (!focusActive) return;
     void setAppFullscreen(true);
-    showToast(`Focus Mode — press Esc or ${formatShortcut(FOCUS_MODE_SHORTCUT)} to leave`, 'info');
+    showToast(tg('editor:toast.focusMode', { shortcut: formatShortcut(FOCUS_MODE_SHORTCUT) }), 'info');
     const stopListening = onBrowserFullscreenExit(() => setFocusMode(false));
     return () => {
       stopListening();
@@ -2427,7 +2438,7 @@ const ScreenplayEditor: React.FC = () => {
     const file = e.target.files?.[0];
     e.target.value = ''; // allow re-selecting the same file
     if (!file || !editor) return;
-    if (!file.type.startsWith('image/')) { showToast('Please choose an image file', 'error'); return; }
+    if (!file.type.startsWith('image/')) { showToast(tg('editor:toast.chooseImage'), 'error'); return; }
     // Insert at the captured cursor position (valid block position), not doc start.
     const pos = imageInsertPosRef.current ?? editor.state.selection.to;
     try {
@@ -2437,7 +2448,7 @@ const ScreenplayEditor: React.FC = () => {
       insertImageNode(editor, attrs, pos);
       warnIfImageDegraded(attrs);
     } catch (err) {
-      showToast(`Failed to insert image: ${err instanceof Error ? err.message : String(err)}`, 'error');
+      showToast(tg('editor:toast.insertImageFailed', { error: err instanceof Error ? err.message : String(err) }), 'error');
     }
   }, [editor]);
 
@@ -3204,7 +3215,7 @@ const ScreenplayEditor: React.FC = () => {
       // Reported, but this window still steps away: the other window has the
       // document either way, and two live copies is the outcome to avoid.
       showToast(
-        `Could not switch windows: ${err instanceof Error ? err.message : String(err)}`,
+        tg('editor:toast.switchWindowFailed', { error: err instanceof Error ? err.message : String(err) }),
         'error',
       );
     }
@@ -3286,7 +3297,7 @@ const ScreenplayEditor: React.FC = () => {
     setShowWelcome(false);
     useBackupStatusStore.getState().noteDocumentOpened();
     useEditorStore.getState().setSaveStatus('unsaved');
-    showToast('Unsaved changes restored from your last session.', 'success');
+    showToast(tg('editor:toast.unsavedRestored'), 'success');
 
     // A snapshot written by an older build can carry its images inline. Moving
     // them into the scratch store shrinks the payload immediately, so the
@@ -3448,7 +3459,7 @@ const ScreenplayEditor: React.FC = () => {
         const current = buildSaveContent();
         if (current) lastSavedJsonRef.current = JSON.stringify(current);
         useEditorStore.getState().setSaveStatus('idle');
-        showToast(`${lf.basenameOf(result.path)} was changed outside OpenDraft — loaded that version.`, 'info');
+        showToast(tg('editor:toast.changedOutsideLoaded', { name: lf.basenameOf(result.path) }), 'info');
         reload = true;
       } else if (result.kind === 'kept-library') {
         // What was on screen is now in the library and the file. Edits typed
@@ -3460,8 +3471,8 @@ const ScreenplayEditor: React.FC = () => {
         }
         showToast(
           result.preservedAs
-            ? `Kept OpenDraft's version in ${lf.basenameOf(result.path)}. The other version was kept as ${lf.basenameOf(result.preservedAs)}.`
-            : `Kept OpenDraft's version and saved it to ${lf.basenameOf(result.path)}.`,
+            ? tg('editor:toast.keptLibraryIn', { name: lf.basenameOf(result.path), other: lf.basenameOf(result.preservedAs) })
+            : tg('editor:toast.keptLibrary', { name: lf.basenameOf(result.path) }),
           'success',
         );
       }
@@ -3690,8 +3701,7 @@ const ScreenplayEditor: React.FC = () => {
             } catch (err) {
               const msg = err instanceof Error ? err.message : String(err);
               const proceed = window.confirm(
-                `Could not save your latest changes:\n\n${msg}\n\n` +
-                  'Close anyway and lose those changes?',
+                tg('editor:toast.closeConfirm', { error: msg }),
               );
               if (proceed) await win.destroy();
             }
@@ -3791,7 +3801,7 @@ const ScreenplayEditor: React.FC = () => {
       updateScenes();
     } catch (err) {
       console.error('Could not restore the open document:', err);
-      showToast('Could not restore the document you had open', 'error');
+      showToast(tg('editor:toast.restoreFailed'), 'error');
     }
   }, [editor, collabMode, isHistoryMode, urlScriptId, urlCommitHash, currentProject, currentScriptId, updateScenes]);
 
@@ -3959,7 +3969,7 @@ const ScreenplayEditor: React.FC = () => {
           }
         } catch (setErr) {
           console.error('setContent failed:', setErr);
-          showToast(`Failed to render content: ${setErr instanceof Error ? setErr.message : String(setErr)}`, 'error');
+          showToast(tg('editor:toast.renderFailed', { error: setErr instanceof Error ? setErr.message : String(setErr) }), 'error');
           editor.commands.setContent({ type: 'doc', content: [{ type: 'action', content: [] }] });
         }
         clearEditorHistory(editor);
@@ -4111,10 +4121,10 @@ const ScreenplayEditor: React.FC = () => {
         const errMsg = err instanceof Error ? err.message : String(err);
         // If the script doesn't exist (404), redirect to the project view
         if (errMsg.includes('404') && urlProjectId) {
-          showToast('Script not found. It may have been removed by a version restore.', 'error');
+          showToast(tg('editor:toast.scriptNotFound'), 'error');
           navigate(`/project/${urlProjectId}`, { replace: true });
         } else {
-          showToast(`Failed to load script: ${errMsg}`, 'error');
+          showToast(tg('editor:toast.loadScriptFailed', { error: errMsg }), 'error');
         }
       } finally {
         scriptSwitchingRef.current = false;
@@ -4498,7 +4508,7 @@ const ScreenplayEditor: React.FC = () => {
           }
         } catch (setErr) {
           console.error('setContent failed, using blank doc:', setErr);
-          showToast(`Failed to render content: ${setErr instanceof Error ? setErr.message : String(setErr)}`, 'error');
+          showToast(tg('editor:toast.renderFailed', { error: setErr instanceof Error ? setErr.message : String(setErr) }), 'error');
           editor.commands.setContent({ type: 'doc', content: [{ type: 'action', content: [] }] });
         }
         clearEditorHistory(editor);
@@ -4618,7 +4628,7 @@ const ScreenplayEditor: React.FC = () => {
         useBackupStatusStore.getState().noteDocumentOpened();
       } catch (err) {
         console.error('Failed to open script:', err);
-        showToast('Failed to open script. Make sure the backend server is running on port 8000.', 'error');
+        showToast(tg('editor:toast.openScriptFailed'), 'error');
       } finally {
         scriptSwitchingRef.current = false;
       }
@@ -4699,7 +4709,7 @@ const ScreenplayEditor: React.FC = () => {
       } catch (err) {
         if (isImportCancelled(err)) return;
         console.error('Import failed:', err);
-        showToast(`Import failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
+        showToast(tg('editor:toast.importFailed', { error: err instanceof Error ? err.message : String(err) }), 'error');
       }
     }
     // 'blank' — editor already has empty content, nothing to do
@@ -4709,7 +4719,7 @@ const ScreenplayEditor: React.FC = () => {
   const handleExternalFile = useCallback(async (filePath: string) => {
     if (!editor) {
       console.warn('[file-assoc] editor not ready, ignoring:', filePath);
-      showToast('Editor not ready — please try again', 'error');
+      showToast(tg('editor:toast.editorNotReady'), 'error');
       return;
     }
     console.log('[file-assoc] opening:', filePath);
@@ -4789,7 +4799,7 @@ const ScreenplayEditor: React.FC = () => {
           format,
         });
         if (format === 'odraft') {
-          showToast(`Editing ${filename} — Save writes back to this file.`, 'success');
+          showToast(tg('editor:toast.editingFile', { name: filename }), 'success');
         } else {
           // Same explanation the menu's own open gives: this file is in another
           // application's format, Save rewrites it, and the library is where
@@ -4808,7 +4818,7 @@ const ScreenplayEditor: React.FC = () => {
       if (isImportCancelled(err)) return;
       const detail = err instanceof Error ? err.message : String(err);
       console.error('Failed to open external file:', filePath, detail, err);
-      showToast(`Failed to open file: ${detail}`, 'error');
+      showToast(tg('editor:toast.openFileFailed', { error: detail }), 'error');
     }
   }, [editor, setDocumentTitle, setCurrentProject, setCurrentScriptId]);
 
@@ -4893,7 +4903,7 @@ const ScreenplayEditor: React.FC = () => {
             }
           } catch (err) {
             console.error('[file-assoc] android_check_new_intent failed:', err);
-            showToast(`Open with failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
+            showToast(tg('editor:toast.openWithFailed', { error: err instanceof Error ? err.message : String(err) }), 'error');
           }
         }
         // Fallback: check pending file state (works on all platforms)
@@ -4948,7 +4958,7 @@ const ScreenplayEditor: React.FC = () => {
     } catch (err) {
       if (isImportCancelled(err)) return;
       console.error('Failed to import dropped file:', err);
-      showToast(`Failed to import file: ${err instanceof Error ? err.message : String(err)}`, 'error');
+      showToast(tg('editor:toast.importFileFailed', { error: err instanceof Error ? err.message : String(err) }), 'error');
     }
   }, [editor, setDocumentTitle, setCurrentProject, setCurrentScriptId]);
 
@@ -4974,7 +4984,7 @@ const ScreenplayEditor: React.FC = () => {
 
     if (!isImportableExtension(extensionOf(file.name))) {
       showToast(
-        `Unsupported file type. Drop a ${importExtensions().map((e) => `.${e}`).join(', ')} file.`,
+        tg('editor:toast.unsupportedType', { types: importExtensions().map((e) => `.${e}`).join(', ') }),
         'error',
       );
       return;
@@ -4998,7 +5008,7 @@ const ScreenplayEditor: React.FC = () => {
           lastSavedJsonRef.current = JSON.stringify(content);
         } catch (err) {
           if (!(err as any)?.handled) {
-            showToast(`Save failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
+            showToast(tg('editor:toast.saveFailed', { error: err instanceof Error ? err.message : String(err) }), 'error');
           }
         }
       }
@@ -5078,7 +5088,7 @@ const ScreenplayEditor: React.FC = () => {
             const filePath = paths[0];
             if (!isImportableExtension(extensionOf(filePath))) {
               showToast(
-                `Unsupported file type. Drop a ${importExtensions().map((e) => `.${e}`).join(', ')} file.`,
+                tg('editor:toast.unsupportedType', { types: importExtensions().map((e) => `.${e}`).join(', ') }),
                 'error',
               );
               return;
@@ -5107,7 +5117,7 @@ const ScreenplayEditor: React.FC = () => {
                 }
               } catch (err) {
                 console.error('Failed to read dropped file:', err);
-                showToast(`Failed to read file: ${err instanceof Error ? err.message : String(err)}`, 'error');
+                showToast(tg('editor:toast.readFileFailed', { error: err instanceof Error ? err.message : String(err) }), 'error');
               }
             };
             importTauriFile(filePath);
@@ -5146,7 +5156,7 @@ const ScreenplayEditor: React.FC = () => {
       );
       if (result.failed > 0) {
         showToast(
-          `${result.failed} image${result.failed === 1 ? '' : 's'} could not be moved into the project and may not open on another device.`,
+          tg('editor:toast.imagesNotMoved', { count: result.failed }),
           'error',
         );
       }
@@ -5207,7 +5217,7 @@ const ScreenplayEditor: React.FC = () => {
         if (!hasDeferredAction) {
           navigate(`/project/${projectId}/edit/${scriptId}`, { replace: true });
         }
-        showToast(destination === 'cloud' ? 'Saved to cloud' : 'Saved', 'success');
+        showToast(destination === 'cloud' ? tg('editor:toast.savedToCloud') : tg('editor:toast.saved'), 'success');
         // Save As is how a recovered or imported document becomes a real
         // script, so it is the point at which there is nothing left to recover.
         clearRecoverySnapshot();
@@ -5247,9 +5257,9 @@ const ScreenplayEditor: React.FC = () => {
       } catch (err) {
         const msg = err instanceof Error ? err.message : '';
         if (msg.includes('404')) {
-          showToast('This script did not exist in that version', 'info');
+          showToast(tg('editor:toast.versionMissing'), 'info');
         } else {
-          showToast('Failed to load version for comparison', 'error');
+          showToast(tg('editor:toast.versionLoadFailed'), 'error');
         }
       }
     },
@@ -5495,8 +5505,8 @@ const ScreenplayEditor: React.FC = () => {
     return (
       <div className="app-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
         <div style={{ textAlign: 'center', color: 'var(--fd-text-secondary, #888)' }}>
-          <div style={{ fontSize: 18, marginBottom: 8 }}>Joining collaboration session...</div>
-          <div style={{ fontSize: 13 }}>Loading document</div>
+          <div style={{ fontSize: 18, marginBottom: 8 }}>{tl('collab.joining')}</div>
+          <div style={{ fontSize: 13 }}>{tl('collab.loadingDocument')}</div>
         </div>
       </div>
     );
@@ -5508,13 +5518,13 @@ const ScreenplayEditor: React.FC = () => {
         <div className="history-banner">
           <span className="history-banner-icon">&#128337;</span>
           <span className="history-banner-text">
-            Viewing version <strong>{historyVersionLabel}</strong> — Read Only
+            <Trans i18nKey="history.viewingVersion" ns="editor" values={{ version: historyVersionLabel }} components={{ strong: <strong /> }} />
           </span>
           <button
             className="history-banner-back"
             onClick={urlProjectId && urlScriptId ? leaveHistoryMode : goBack}
           >
-            Back to Current Version
+            {tl('history.backToCurrent')}
           </button>
         </div>
       )}
@@ -5522,9 +5532,11 @@ const ScreenplayEditor: React.FC = () => {
         <div className="collab-banner">
           <span className={`collab-dot${collabConnectionState === 'disconnected' ? ' collab-dot-disconnected' : collabConnectionState === 'connecting' || collabConnectionState === 'connected' ? ' collab-dot-connecting' : ''}`} />
           <span className="collab-banner-text">
-            Live Collaboration{collabConnectionState === 'synced' ? '' : collabConnectionState === 'disconnected' ? ' — Reconnecting\u2026' : ' — Connecting\u2026'}
-            {collabConnectionState === 'synced' && <> — {collabRole === 'viewer' ? 'Read Only' : collabRole === 'suggester' ? 'Suggesting' : 'Editing'} as <strong>{collabUserName}</strong></>}
-            {collabConnectionState === 'synced' && collabUsers.length > 0 && ` — ${collabUsers.length} user${collabUsers.length !== 1 ? 's' : ''} connected`}
+            {collabConnectionState !== 'synced'
+              ? (collabConnectionState === 'disconnected' ? tl('collab.bannerReconnecting') : tl('collab.bannerConnecting'))
+              : collabUsers.length > 0
+                ? <Trans i18nKey="collab.bannerSyncedUsers" ns="editor" count={collabUsers.length} values={{ role: collabRole === 'viewer' ? tl('collab.roleViewer') : collabRole === 'suggester' ? tl('collab.roleSuggester') : tl('collab.roleEditor'), name: collabUserName }} components={{ strong: <strong /> }} />
+                : <Trans i18nKey="collab.bannerSynced" ns="editor" values={{ role: collabRole === 'viewer' ? tl('collab.roleViewer') : collabRole === 'suggester' ? tl('collab.roleSuggester') : tl('collab.roleEditor'), name: collabUserName }} components={{ strong: <strong /> }} />}
           </span>
           <div className="collab-avatars">
             {collabUsers.map((u, i) => (
@@ -5532,7 +5544,7 @@ const ScreenplayEditor: React.FC = () => {
                 key={i}
                 className="collab-avatar"
                 style={{ backgroundColor: u.color, cursor: 'pointer' }}
-                title={`Click to jump to ${u.name}'s cursor`}
+                title={tl('collab.jumpToCursor', { name: u.name })}
                 onClick={() => {
                   // Find the collaboration cursor label matching this user and scroll to it
                   const labels = document.querySelectorAll('.collaboration-cursor__label');
@@ -5557,7 +5569,7 @@ const ScreenplayEditor: React.FC = () => {
               setCollabLoginOpen(false);
               const authStatus = await ensureCollabAuthenticated();
               if (authStatus === 'unavailable') {
-                showToast(COLLAB_AUTH_UNAVAILABLE_MESSAGE, 'error');
+                showToast(collabAuthUnavailableMessage(), 'error');
                 return;
               }
               if (authStatus === 'signed-out') {
@@ -5566,22 +5578,22 @@ const ScreenplayEditor: React.FC = () => {
               }
               setShareDialogOpen(true);
             }}>
-              Invite
+              {tl('collab.invite')}
             </button>
           )}
           <div className="collab-activity-wrapper">
-            <button className="collab-banner-btn collab-activity-btn" onClick={() => setCollabActivityOpen((v) => !v)} title="Activity Log">
-              <span className="collab-activity-label">Activity</span>
+            <button className="collab-banner-btn collab-activity-btn" onClick={() => setCollabActivityOpen((v) => !v)} title={tl('collab.activityLog')}>
+              <span className="collab-activity-label">{tl('collab.activity')}</span>
               <svg className="collab-activity-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
             </button>
             {collabActivityOpen && (
               <div className="collab-activity-dropdown">
                 <div className="collab-activity-header">
-                  <strong>Activity Log</strong>
+                  <strong>{tl('collab.activityLog')}</strong>
                   <button className="collab-activity-close" onClick={() => setCollabActivityOpen(false)}>&times;</button>
                 </div>
                 <div className="collab-activity-list">
-                  {collabActivityLog.length === 0 && <div className="collab-activity-empty">No events yet</div>}
+                  {collabActivityLog.length === 0 && <div className="collab-activity-empty">{tl('collab.noEvents')}</div>}
                   {[...collabActivityLog].reverse().map((entry, i) => (
                     <div key={i} className="collab-activity-item">
                       <span className="collab-activity-time">{entry.time.toLocaleTimeString()}</span>
@@ -5593,7 +5605,7 @@ const ScreenplayEditor: React.FC = () => {
             )}
           </div>
           <button className="collab-banner-btn collab-banner-btn-stop" onClick={handleStopCollab}>
-            {isCollabHost ? 'End Session' : 'Disconnect'}
+            {isCollabHost ? tl('collab.endSession') : tl('collab.disconnect')}
           </button>
         </div>
       )}
@@ -5601,7 +5613,7 @@ const ScreenplayEditor: React.FC = () => {
         <div className="save-failure-banner">
           <span className="save-failure-icon">&#9888;</span>
           <span className="save-failure-text">
-            Auto-save failed{saveError ? `: ${saveError}` : ''}. Your changes may not be saved.
+            {tl('saveFailure.message', { detail: saveError ? `: ${saveError}` : '' })}
           </span>
           <button className="save-failure-btn" onClick={() => {
             const content = buildSaveContent();
@@ -5610,18 +5622,18 @@ const ScreenplayEditor: React.FC = () => {
             scriptApi.saveScript(currentProject.id, currentScriptId, { content }).then(() => {
               lastSavedJsonRef.current = JSON.stringify(content);
               setSaveStatus('saved');
-              showToast('Saved successfully', 'success');
+              showToast(tg('editor:toast.savedSuccessfully'), 'success');
             }).catch((err) => {
               const msg = err instanceof Error ? err.message : String(err);
               setSaveStatus('error', msg);
             });
           }}>
-            Retry
+            {tl('common:retry')}
           </button>
           <button className="save-failure-btn" onClick={() => {
             useEditorStore.getState().setSaveAsOpen(true);
           }}>
-            Save As
+            {tl('saveFailure.saveAs')}
           </button>
           <button className="save-failure-btn" onClick={() => {
             // Goes through downloadOdraft so the file gets the .odraft envelope
@@ -5645,13 +5657,13 @@ const ScreenplayEditor: React.FC = () => {
                 projectId: currentProject?.id ?? null,
                 scriptId: currentScriptId ?? null,
               },
-            ).then(() => showToast('Backup exported', 'success'))
+            ).then(() => showToast(tg('editor:toast.backupExported'), 'success'))
               .catch((err) => showToast(
-                `Backup export failed: ${err instanceof Error ? err.message : String(err)}`,
+                tg('editor:toast.backupFailed', { error: err instanceof Error ? err.message : String(err) }),
                 'error',
               ));
           }}>
-            Export Backup
+            {tl('saveFailure.exportBackup')}
           </button>
           <button className="save-failure-dismiss" onClick={() => setSaveStatus('unsaved')}>
             &times;
@@ -5660,7 +5672,7 @@ const ScreenplayEditor: React.FC = () => {
       )}
       {!isHistoryMode && <MenuBar editor={editor} onDocumentSaved={(json) => { lastSavedJsonRef.current = json; }} onCollaborate={async () => {
         if (!currentProject || !currentScriptId) {
-          showToast('Save your screenplay to a project first — opening Save As...', 'info');
+          showToast(tg('editor:toast.saveAsFirst'), 'info');
           useEditorStore.getState().setSaveAsOpen(true);
           return;
         }
@@ -5669,7 +5681,7 @@ const ScreenplayEditor: React.FC = () => {
         // session — say so instead of showing the sign-in form.
         const authStatus = await ensureCollabAuthenticated();
         if (authStatus === 'unavailable') {
-          showToast(COLLAB_AUTH_UNAVAILABLE_MESSAGE, 'error');
+          showToast(collabAuthUnavailableMessage(), 'error');
           return;
         }
         if (authStatus === 'signed-out') {
@@ -5733,7 +5745,12 @@ const ScreenplayEditor: React.FC = () => {
                 }}
               >
                 {resolvedNoteCss && <style>{resolvedNoteCss}</style>}
+                {/* The page keeps its own language, whatever the interface speaks: the app
+                    sets <html lang> to the interface language, and CSS `text-transform:
+                    uppercase` follows `lang` — in Turkish it turns an English "i" into "İ".
+                    A paragraph in another language carries its own `lang`, as it always has. */}
                 <div
+                  lang="en"
                   className={`page${phoneView ? ' phone-view' : ''}${!tagsVisible ? ' tags-hidden' : ''}${!notesVisible ? ' notes-hidden' : ''}${isHistoryMode ? ' history-readonly' : ''}${sceneNumbersVisible ? ' show-scene-numbers' : ''}${elementNumbersVisible ? ' show-element-numbers' : ''}${includeTitlePageInOutput ? '' : ' print-skip-title-page'}${showRevisionColors ? ' show-revision-colors' : ''}`}
                   ref={pageRef}
                   style={{
@@ -5778,7 +5795,7 @@ const ScreenplayEditor: React.FC = () => {
                       <span className="phone-page-break-label">
                         {/* Counted as the status bar counts — script pages,
                             the title page aside — or a locked page's label. */}
-                        Page {lockedLabel(ov.pageNumber) ?? ov.pageNumber}
+                        {tl('phonePage', { page: lockedLabel(ov.pageNumber) ?? ov.pageNumber })}
                       </span>
                     </div>
                   ))}
@@ -6165,23 +6182,23 @@ const ScreenplayEditor: React.FC = () => {
             boxShadow: '0 8px 32px rgba(0,0,0,.3)', fontSize: 16, fontWeight: 600,
             color: 'var(--fd-text)',
           }}>
-            Drop screenplay file to open
+            {tl('drop.title')}
           </div>
         </div>
       )}
       {dropConfirmOpen && (
         <div className="dialog-overlay" onClick={handleDropConfirmCancel}>
           <div className="dialog-box" onClick={(e) => e.stopPropagation()}>
-            <div className="dialog-header">Unsaved Changes</div>
+            <div className="dialog-header">{tl('drop.unsavedTitle')}</div>
             <div className="dialog-body">
               <p style={{ margin: 0, fontSize: 14, color: 'var(--fd-text)' }}>
-                You have unsaved changes. Would you like to save before opening the new file?
+                {tl('drop.unsavedBody')}
               </p>
             </div>
             <div className="dialog-actions">
-              <button onClick={handleDropConfirmCancel}>Cancel</button>
-              <button onClick={handleDropConfirmDiscard}>Discard</button>
-              <button className="dialog-primary" onClick={handleDropConfirmSave}>Save &amp; Open</button>
+              <button onClick={handleDropConfirmCancel}>{tl('common:cancel')}</button>
+              <button onClick={handleDropConfirmDiscard}>{tl('drop.discard')}</button>
+              <button className="dialog-primary" onClick={handleDropConfirmSave}>{tl('drop.saveAndOpen')}</button>
             </div>
           </div>
         </div>

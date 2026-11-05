@@ -147,6 +147,7 @@ export function createFallbackStorage() {
         if (s.project_id === id) delete data.scripts[sid];
       }
       saveData(data);
+      // i18n-ignore status payload returned by the storage layer, never shown
       return { message: 'Deleted' };
     },
 
@@ -156,6 +157,7 @@ export function createFallbackStorage() {
         if (data.projects[item.id]) data.projects[item.id].sort_order = item.sort_order;
       }
       saveData(data);
+      // i18n-ignore status payload returned by the storage layer, never shown
       return { message: 'Reordered' };
     },
 
@@ -222,6 +224,7 @@ export function createFallbackStorage() {
         if (data.scripts[item.id]) data.scripts[item.id].meta.sort_order = item.sort_order;
       }
       saveData(data);
+      // i18n-ignore status payload returned by the storage layer, never shown
       return { message: 'Reordered' };
     },
 
@@ -241,6 +244,7 @@ export function createFallbackStorage() {
       const data = loadData();
       delete data.scripts[scriptId];
       saveData(data);
+      // i18n-ignore status payload returned by the storage layer, never shown
       return { message: 'Deleted' };
     },
 
@@ -260,7 +264,9 @@ export function createFallbackStorage() {
     createCollabInvite: async (): Promise<CollabSession> => { throw new Error('Collaboration requires network access'); },
     validateCollabSession: async (): Promise<CollabSession> => { throw new Error('Not available'); },
     listCollabSessions: async (): Promise<CollabSession[]> => [],
+    // i18n-ignore status payload returned by the storage layer, never shown
     revokeCollabSession: async (): Promise<{ message: string }> => ({ message: 'ok' }),
+    // i18n-ignore status payload returned by the storage layer, never shown
     revokeAllCollabSessions: async (): Promise<{ message: string }> => ({ message: 'ok' }),
 
     // ── Assets (not supported in fallback) ───────────────────────────
@@ -297,6 +303,7 @@ export function createFallbackStorage() {
       const data = loadData();
       delete data.templates[id];
       saveData(data);
+      // i18n-ignore status payload returned by the storage layer, never shown
       return { message: 'Deleted' };
     },
   };

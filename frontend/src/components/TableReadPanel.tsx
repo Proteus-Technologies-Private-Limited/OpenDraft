@@ -8,6 +8,8 @@
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Editor } from '@tiptap/react';
+import type { TFunction } from 'i18next';
+import { Trans, useTranslation } from 'react-i18next';
 import {
   FaPlay, FaPause, FaStop, FaStepBackward, FaStepForward, FaFastBackward, FaFastForward,
   FaCog, FaTimes, FaMicrophoneAlt,
@@ -22,30 +24,38 @@ import * as player from '../services/tts/player';
 import type { ReadLine } from '../services/tts/script';
 import VoicePicker from './VoicePicker';
 
-const KIND_LABEL: Record<ReadLine['kind'], string> = {
-  sceneHeading: 'Scene heading',
-  heading: 'Heading',
-  action: 'Action',
-  character: 'Character',
-  dialogue: 'Dialogue',
-  parenthetical: 'Parenthetical',
-  transition: 'Transition',
-  lyrics: 'Lyrics',
-};
+/** The label shown for a kind of line. Looked up by kind, at render time. */
+function kindLabel(kind: ReadLine['kind'], t: TFunction<'tools'>): string {
+  switch (kind) {
+    case 'sceneHeading': return t('tableRead.kinds.sceneHeading');
+    case 'heading': return t('tableRead.kinds.heading');
+    case 'action': return t('tableRead.kinds.action');
+    case 'character': return t('tableRead.kinds.character');
+    case 'dialogue': return t('tableRead.kinds.dialogue');
+    case 'parenthetical': return t('tableRead.kinds.parenthetical');
+    case 'transition': return t('tableRead.kinds.transition');
+    case 'lyrics': return t('tableRead.kinds.lyrics');
+    default: return kind;
+  }
+}
 
-const READ_TOGGLES: { key: keyof TableReadOptions; label: string }[] = [
-  { key: 'readSceneHeadings', label: 'Scene headings' },
-  { key: 'readAction', label: 'Action' },
-  { key: 'readParentheticals', label: 'Parentheticals' },
-  { key: 'readTransitions', label: 'Transitions' },
-  { key: 'announceCharacters', label: 'Character names' },
-];
+/** The "Read aloud" switches, built when rendered so the labels follow the language. */
+function readToggles(t: TFunction<'tools'>): { key: keyof TableReadOptions; label: string }[] {
+  return [
+    { key: 'readSceneHeadings', label: t('tableRead.toggles.sceneHeadings') },
+    { key: 'readAction', label: t('tableRead.toggles.action') },
+    { key: 'readParentheticals', label: t('tableRead.toggles.parentheticals') },
+    { key: 'readTransitions', label: t('tableRead.toggles.transitions') },
+    { key: 'announceCharacters', label: t('tableRead.toggles.characterNames') },
+  ];
+}
 
 function titleCase(name: string): string {
   return name.toLowerCase().replace(/(^|[\s'-])(\p{L})/gu, (_, sep: string, ch: string) => sep + ch.toUpperCase());
 }
 
 const TableReadPanel: React.FC<{ editor: Editor }> = ({ editor }) => {
+  const { t } = useTranslation('tools');
   const {
     lines, current, word, status, error, engineLabel, voices, casting,
   } = useTableReadStore();
@@ -113,8 +123,8 @@ const TableReadPanel: React.FC<{ editor: Editor }> = ({ editor }) => {
 
   const remoteProvider = engineKind === 'ai' && providerIsRemote(voiceSettings.aiProvider)
     ? (voiceSettings.aiProvider === 'openai-compatible'
-        ? 'your speech server'
-        : AI_PROVIDERS.find((p) => p.id === voiceSettings.aiProvider)?.label ?? 'the provider')
+        ? t('tableRead.yourSpeechServer')
+        : AI_PROVIDERS.find((p) => p.id === voiceSettings.aiProvider)?.label ?? t('tableRead.theProvider'))
     : null;
 
   /** Switch voice source from the panel; AI with no provider set up opens the setup dialog. */
@@ -159,7 +169,7 @@ const TableReadPanel: React.FC<{ editor: Editor }> = ({ editor }) => {
 
   const speakerLabel = (l: ReadLine) => {
     if (l.speaker && (l.kind === 'dialogue' || l.kind === 'lyrics' || l.kind === 'parenthetical')) return l.cue || l.speaker;
-    return KIND_LABEL[l.kind];
+    return kindLabel(l.kind, t);
   };
 
   const readerOf = (l: ReadLine) => {
@@ -175,15 +185,15 @@ const TableReadPanel: React.FC<{ editor: Editor }> = ({ editor }) => {
       className="table-read-panel"
       ref={panelRef}
       role="region"
-      aria-label="Table Read"
+      aria-label={t('tableRead.title')}
       onKeyDown={onKeyDown}
       tabIndex={-1}
     >
       <div className="table-read-header">
         <FaMicrophoneAlt className="table-read-icon" aria-hidden="true" />
-        <span className="table-read-title">Table Read</span>
+        <span className="table-read-title">{t('tableRead.title')}</span>
         {availableEngineKinds().length > 1 ? (
-          <div className="table-read-source" role="radiogroup" aria-label="Voice source">
+          <div className="table-read-source" role="radiogroup" aria-label={t('tableRead.voiceSource')}>
             {(['system', 'ai'] as const).map((k) => (
               <button
                 key={k}
@@ -191,9 +201,9 @@ const TableReadPanel: React.FC<{ editor: Editor }> = ({ editor }) => {
                 aria-checked={selectedSource === k}
                 className={selectedSource === k ? 'active' : ''}
                 onClick={() => chooseSource(k)}
-                title={k === 'system' ? 'Read with the voices installed on this device' : 'Read with an AI voice provider'}
+                title={k === 'system' ? t('tableRead.systemVoicesTitle') : t('tableRead.aiVoicesTitle')}
               >
-                {k === 'system' ? 'System voices' : 'AI voices'}
+                {k === 'system' ? t('tableRead.systemVoices') : t('tableRead.aiVoices')}
               </button>
             ))}
           </div>
@@ -201,37 +211,36 @@ const TableReadPanel: React.FC<{ editor: Editor }> = ({ editor }) => {
           engineLabel && <span className="table-read-engine">{engineLabel}</span>
         )}
         <span className="table-read-progress">
-          {lines.length ? `Line ${current + 1} of ${lines.length}` : 'No lines'}
-          {line && line.sceneIndex >= 0 ? ` · Scene ${line.sceneIndex + 1} of ${sceneTotal}` : ''}
+          {lines.length ? t('tableRead.lineOf', { current: current + 1, total: lines.length }) : t('tableRead.noLines')}
+          {line && line.sceneIndex >= 0 ? ` · ${t('tableRead.sceneOf', { current: line.sceneIndex + 1, total: sceneTotal })}` : ''}
         </span>
         <button
           className={`table-read-icon-btn${showSettings ? ' active' : ''}`}
           onClick={() => setShowSettings((v) => !v)}
-          title="Voices and reading options"
-          aria-label="Voices and reading options"
+          title={t('tableRead.options')}
+          aria-label={t('tableRead.options')}
           aria-expanded={showSettings}
         >
           <FaCog />
         </button>
-        <button className="table-read-icon-btn" onClick={close} title="Close Table Read" aria-label="Close Table Read">
+        <button className="table-read-icon-btn" onClick={close} title={t('tableRead.close')} aria-label={t('tableRead.close')}>
           <FaTimes />
         </button>
       </div>
 
       {remoteProvider && (
         <div className="table-read-notice table-read-notice-warn" role="note">
-          AI voices send your script&rsquo;s text to {remoteProvider}. This may breach your data security
-          or confidentiality obligations; OpenDraft does not guarantee confidentiality.
+          {t('tableRead.remoteWarning', { provider: remoteProvider })}
         </div>
       )}
       {engineKind === 'ai' && voiceSettings.aiProvider === 'kokoro' && kokoro.fraction === null && kokoro.busy > 0 && status === 'playing' && !word && (
         <div className="table-read-notice" role="status">
-          Kokoro is preparing this line on the {kokoro.device === 'webgpu' ? 'graphics chip' : 'processor'}…
+          {t('tableRead.kokoroPreparing', { device: kokoro.device === 'webgpu' ? t('tableRead.graphicsChip') : t('tableRead.processor') })}
         </div>
       )}
       {kokoro.fraction !== null && (
         <div className="table-read-notice" role="status">
-          Downloading the Kokoro voice model (first use only)… {Math.round(kokoro.fraction * 100)}%
+          {t('tableRead.kokoroDownloading', { percent: Math.round(kokoro.fraction * 100) })}
           <progress max={1} value={kokoro.fraction} />
         </div>
       )}
@@ -240,8 +249,7 @@ const TableReadPanel: React.FC<{ editor: Editor }> = ({ editor }) => {
         <div className="table-read-preview" aria-live="off">
           {lines.length === 0 ? (
             <div className="table-read-empty">
-              Nothing to read yet. Write some scenes, or turn on more of the elements in
-              the options (<FaCog aria-hidden="true" />).
+              <Trans ns="tools" i18nKey="tableRead.empty" components={{ icon: <FaCog aria-hidden="true" /> }} />
             </div>
           ) : (
             <>
@@ -258,7 +266,7 @@ const TableReadPanel: React.FC<{ editor: Editor }> = ({ editor }) => {
                 >
                   <div className="table-read-who">
                     <span style={colorOf(line.speaker) ? { color: colorOf(line.speaker) } : undefined}>{speakerLabel(line)}</span>
-                    {readerOf(line) && <span className="table-read-voice">voice: {readerOf(line)}</span>}
+                    {readerOf(line) && <span className="table-read-voice">{t('tableRead.voice', { name: readerOf(line) })}</span>}
                   </div>
                   <div className="table-read-text">{renderCurrent(line)}</div>
                 </div>
@@ -281,15 +289,15 @@ const TableReadPanel: React.FC<{ editor: Editor }> = ({ editor }) => {
         {showSettings && (
           <div className="table-read-settings">
             <div className="table-read-settings-group">
-              <div className="table-read-settings-title">Read aloud</div>
-              {READ_TOGGLES.map((t) => (
-                <label key={t.key} className="table-read-check">
+              <div className="table-read-settings-title">{t('tableRead.readAloud')}</div>
+              {readToggles(t).map((toggle) => (
+                <label key={toggle.key} className="table-read-check">
                   <input
                     type="checkbox"
-                    checked={!!options[t.key]}
-                    onChange={(e) => setOption({ [t.key]: e.target.checked }, true)}
+                    checked={!!options[toggle.key]}
+                    onChange={(e) => setOption({ [toggle.key]: e.target.checked }, true)}
                   />
-                  {t.label}
+                  {toggle.label}
                 </label>
               ))}
               <label className="table-read-check">
@@ -298,22 +306,22 @@ const TableReadPanel: React.FC<{ editor: Editor }> = ({ editor }) => {
                   checked={options.followScript}
                   onChange={(e) => setOption({ followScript: e.target.checked }, false)}
                 />
-                Follow along in the script
+                {t('tableRead.followAlong')}
               </label>
               <button className="table-read-link" onClick={() => useTableReadStore.getState().setNeedsProvider(true)}>
-                Voice source…
+                {t('tableRead.voiceSourceLink')}
               </button>
             </div>
 
             <div className="table-read-settings-group table-read-cast">
-              <div className="table-read-settings-title">Cast</div>
+              <div className="table-read-settings-title">{t('tableRead.cast')}</div>
               <div className="table-read-cast-row">
-                <span className="table-read-cast-name">Narrator</span>
+                <span className="table-read-cast-name">{t('tableRead.narrator')}</span>
                 <VoicePicker
                   compact
                   value={narratorVoice}
                   onChange={(slot, id) => { setNarratorVoice(slot, id); player.restartCurrentLine(); }}
-                  sample="Interior. Kitchen. Night. Rain hammers the windows."
+                  sample="Interior. Kitchen. Night. Rain hammers the windows." /* i18n-ignore: sample spoken aloud by the voice, in English */
                   automaticVoiceId={casting[NARRATOR_KEY]}
                 />
               </div>
@@ -334,33 +342,33 @@ const TableReadPanel: React.FC<{ editor: Editor }> = ({ editor }) => {
                         upsertCharacterProfile(name, { voice });
                         player.restartCurrentLine();
                       }}
-                      sample={`Hello, I'm ${titleCase(name)}.`}
+                      sample={`Hello, I'm ${titleCase(name)}.`} /* i18n-ignore: sample spoken aloud by the voice */
                       automaticVoiceId={casting[name]}
                     />
                   </div>
                 );
               })}
-              {speakers.length === 0 && <div className="table-read-hint">No speaking characters yet.</div>}
+              {speakers.length === 0 && <div className="table-read-hint">{t('tableRead.noSpeakers')}</div>}
             </div>
           </div>
         )}
       </div>
 
       <div className="table-read-controls">
-        <button onClick={() => player.stepScene(-1)} disabled={!lines.length} title="Previous scene" aria-label="Previous scene"><FaFastBackward /></button>
-        <button onClick={() => player.step(-1)} disabled={!lines.length || current === 0} title="Previous line" aria-label="Previous line"><FaStepBackward /></button>
+        <button onClick={() => player.stepScene(-1)} disabled={!lines.length} title={t('tableRead.previousScene')} aria-label={t('tableRead.previousScene')}><FaFastBackward /></button>
+        <button onClick={() => player.step(-1)} disabled={!lines.length || current === 0} title={t('tableRead.previousLine')} aria-label={t('tableRead.previousLine')}><FaStepBackward /></button>
         <button
           className="table-read-play"
           onClick={togglePlay}
           disabled={!lines.length}
-          title={playing ? 'Pause (Space)' : status === 'paused' ? 'Resume (Space)' : 'Play from this line (Space)'}
-          aria-label={playing ? 'Pause' : 'Play'}
+          title={playing ? t('tableRead.pauseTitle') : status === 'paused' ? t('tableRead.resumeTitle') : t('tableRead.playTitle')}
+          aria-label={playing ? t('tableRead.pause') : t('tableRead.play')}
         >
           {status === 'loading' ? <span className="table-read-spinner" aria-hidden="true" /> : playing ? <FaPause /> : <FaPlay />}
         </button>
-        <button onClick={() => player.step(1)} disabled={!lines.length || current >= lines.length - 1} title="Next line" aria-label="Next line"><FaStepForward /></button>
-        <button onClick={() => player.stepScene(1)} disabled={!lines.length} title="Next scene" aria-label="Next scene"><FaFastForward /></button>
-        <button onClick={() => player.stop()} disabled={status === 'idle' || status === 'error'} title="Stop" aria-label="Stop"><FaStop /></button>
+        <button onClick={() => player.step(1)} disabled={!lines.length || current >= lines.length - 1} title={t('tableRead.nextLine')} aria-label={t('tableRead.nextLine')}><FaStepForward /></button>
+        <button onClick={() => player.stepScene(1)} disabled={!lines.length} title={t('tableRead.nextScene')} aria-label={t('tableRead.nextScene')}><FaFastForward /></button>
+        <button onClick={() => player.stop()} disabled={status === 'idle' || status === 'error'} title={t('tableRead.stop')} aria-label={t('tableRead.stop')}><FaStop /></button>
         <button
           className="table-read-from-cursor"
           onClick={() => {
@@ -368,12 +376,12 @@ const TableReadPanel: React.FC<{ editor: Editor }> = ({ editor }) => {
             player.play(editor);
           }}
           disabled={!lines.length}
-          title="Read from where the cursor is in the script"
+          title={t('tableRead.fromCursorTitle')}
         >
-          From cursor
+          {t('tableRead.fromCursor')}
         </button>
         <label className="table-read-speed">
-          <span>Speed {options.rate.toFixed(2).replace(/0$/, '')}×</span>
+          <span>{t('tableRead.speed', { value: options.rate.toFixed(2).replace(/0$/, '') })}</span>
           <input
             type="range"
             min={0.5}
@@ -383,7 +391,7 @@ const TableReadPanel: React.FC<{ editor: Editor }> = ({ editor }) => {
             onChange={(e) => setOptions({ rate: Number(e.target.value) })}
             onPointerUp={() => player.restartCurrentLine()}
             onKeyUp={() => player.restartCurrentLine()}
-            aria-label="Reading speed"
+            aria-label={t('tableRead.readingSpeed')}
           />
         </label>
       </div>

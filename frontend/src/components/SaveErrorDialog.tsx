@@ -5,23 +5,29 @@
  */
 
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSaveErrorStore } from '../stores/saveErrorStore';
-
-const SOURCE_LABELS: Record<string, string> = {
-  'auto-save': 'Auto-save failed',
-  'metadata-save': 'Save failed',
-  'manual-save': 'Save failed',
-  'save-on-close': 'Could not save before closing',
-};
+import { formatTime } from '../i18n/format';
 
 const SaveErrorDialog: React.FC = () => {
+  const { t } = useTranslation('dialogs');
   const error = useSaveErrorStore((s) => s.error);
   const clearError = useSaveErrorStore((s) => s.clearError);
 
   if (!error) return null;
 
-  const heading = SOURCE_LABELS[error.source] || 'Save failed';
-  const localTime = new Date(error.at).toLocaleTimeString();
+  let heading: string;
+  switch (error.source) {
+    case 'auto-save':
+      heading = t('saveError.heading.autoSave');
+      break;
+    case 'save-on-close':
+      heading = t('saveError.heading.beforeClose');
+      break;
+    default:
+      heading = t('saveError.heading.saveFailed');
+  }
+  const localTime = formatTime(error.at, { timeStyle: 'medium' });
 
   return (
     <div className="dialog-overlay" onClick={clearError}>
@@ -35,12 +41,10 @@ const SaveErrorDialog: React.FC = () => {
         <div className="dialog-header">{heading}</div>
         <div className="dialog-body">
           <p style={{ margin: '0 0 12px' }}>
-            OpenDraft could not save your changes. Your work is still in the
-            editor — please copy anything important before closing the app or
-            reloading the window.
+            {t('saveError.body')}
           </p>
           <p style={{ margin: '0 0 6px', fontSize: 13, color: 'var(--fd-text-muted)' }}>
-            Failure at {localTime}:
+            {t('saveError.failureAt', { time: localTime })}
           </p>
           <pre
             style={{
@@ -67,7 +71,7 @@ const SaveErrorDialog: React.FC = () => {
             onClick={clearError}
             autoFocus
           >
-            I understand
+            {t('saveError.acknowledge')}
           </button>
         </div>
       </div>

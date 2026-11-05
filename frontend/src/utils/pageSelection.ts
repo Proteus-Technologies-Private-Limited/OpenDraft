@@ -12,6 +12,7 @@ import { jsonBlockText, singleLine } from './nodeText';
 import { parseHeading } from './scriptStatistics';
 import { cueName } from './scriptReports';
 import type { PdfPageSelection } from './pdfExporter';
+import { t } from '../i18n';
 
 export interface SceneRange {
   /** Position among the scenes, from 0. */
@@ -149,7 +150,7 @@ export function buildPageSelection(
           selection: {
             keep: keepScenes(doc, choice.scenes),
             crossOutOthers: choice.crossOut,
-            emptyMessage: 'The chosen scenes are empty.',
+            emptyMessage: t('messages:sides.emptyScenes'),
           },
           suffix: `Sides (Sc. ${numbers.join(', ')})`,
         };
@@ -157,19 +158,19 @@ export function buildPageSelection(
       case 'character':
         if (!choice.character) return null;
         return {
-          selection: { keep: keepCharacter(doc, choice.character), emptyMessage: `${choice.character} has no lines in this script.` },
+          selection: { keep: keepCharacter(doc, choice.character), emptyMessage: t('messages:sides.noLines', { name: choice.character }) },
           suffix: `Pages with ${choice.character}`,
         };
       case 'location':
         if (!choice.location) return null;
         return {
-          selection: { keep: keepLocation(doc, choice.location), emptyMessage: `No scene is set at ${choice.location}.` },
+          selection: { keep: keepLocation(doc, choice.location), emptyMessage: t('messages:sides.noSceneAt', { location: choice.location }) },
           suffix: `Pages at ${choice.location}`,
         };
       case 'tag':
         if (!choice.label || choice.tagIds.length === 0) return null;
         return {
-          selection: { keep: keepTags(doc, choice.tagIds), emptyMessage: `Nothing in the script is tagged ${choice.label}.` },
+          selection: { keep: keepTags(doc, choice.tagIds), emptyMessage: t('messages:sides.notTagged', { label: choice.label }) },
           suffix: `Pages with ${choice.label.replace(/:/g, ' -')}`,
         };
     }

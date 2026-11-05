@@ -14,6 +14,7 @@ import type { EditorState, Transaction } from '@tiptap/pm/state';
 import { TextSelection } from '@tiptap/pm/state';
 import type { Node as PMNode, Schema } from '@tiptap/pm/model';
 import { parseShortcut } from './shortcuts';
+import { t } from '../i18n';
 
 export interface Macro {
   id: string;
@@ -102,14 +103,14 @@ export function parseMacrosFile(json: string): Macro[] {
   try {
     data = JSON.parse(json);
   } catch {
-    throw new Error('This file is not valid JSON.');
+    throw new Error(t('messages:macros.notJson'));
   }
   const list = Array.isArray(data)
     ? data
     : data && typeof data === 'object' && (data as Record<string, unknown>).format === MACROS_FILE_FORMAT
       ? (data as Record<string, unknown>).macros
       : null;
-  if (!Array.isArray(list)) throw new Error('This file does not contain OpenDraft macros.');
+  if (!Array.isArray(list)) throw new Error(t('messages:macros.notMacros'));
   return normalizeMacros(list).map((m) => ({ ...m, id: newId() })).filter((m) => m.text);
 }
 

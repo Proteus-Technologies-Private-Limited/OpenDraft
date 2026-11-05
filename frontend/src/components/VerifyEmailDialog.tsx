@@ -5,6 +5,7 @@
  */
 
 import React, { useState } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { collabAuthApi, handleAuthResponse } from '../services/collabAuth';
 import { useSettingsStore } from '../stores/settingsStore';
 import { showToast } from './Toast';
@@ -15,6 +16,7 @@ interface VerifyEmailDialogProps {
 }
 
 const VerifyEmailDialog: React.FC<VerifyEmailDialogProps> = ({ onClose, onSuccess }) => {
+  const { t } = useTranslation(['collab', 'common']);
   const user = useSettingsStore((s) => s.collabAuth.user);
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
@@ -22,7 +24,7 @@ const VerifyEmailDialog: React.FC<VerifyEmailDialogProps> = ({ onClose, onSucces
 
   const handleVerify = async () => {
     if (code.trim().length !== 6) {
-      showToast('Enter the 6-digit code from your email', 'error');
+      showToast(t('verifyEmail.toast.enterCode'), 'error');
       return;
     }
     setLoading(true);
@@ -38,17 +40,17 @@ const VerifyEmailDialog: React.FC<VerifyEmailDialogProps> = ({ onClose, onSucces
         useSettingsStore.getState().setCollabAuth({ ...current, user: refreshed });
       } else {
         if (!user?.email) {
-          showToast('No account in progress. Please sign up again.', 'error');
+          showToast(t('verifyEmail.toast.noAccount'), 'error');
           return;
         }
         const resp = await collabAuthApi.verifyEmailLink(user.email, code.trim());
         handleAuthResponse(resp);
       }
-      showToast('Email verified — you can now save files', 'success');
+      showToast(t('verifyEmail.toast.verified'), 'success');
       onSuccess?.();
       onClose();
     } catch (err: any) {
-      showToast(err.message || 'Verification failed', 'error');
+      showToast(err.message || t('verifyEmail.toast.failed'), 'error');
     } finally {
       setLoading(false);
     }
@@ -58,9 +60,9 @@ const VerifyEmailDialog: React.FC<VerifyEmailDialogProps> = ({ onClose, onSucces
     setResendLoading(true);
     try {
       await collabAuthApi.resendVerification();
-      showToast('Verification email sent', 'success');
+      showToast(t('verifyEmail.toast.sent'), 'success');
     } catch (err: any) {
-      showToast(err.message || 'Could not resend', 'error');
+      showToast(err.message || t('verifyEmail.toast.resendFailed'), 'error');
     } finally {
       setResendLoading(false);
     }
@@ -77,11 +79,14 @@ const VerifyEmailDialog: React.FC<VerifyEmailDialogProps> = ({ onClose, onSucces
           else if (e.key === 'Escape') onClose();
         }}
       >
-        <div className="dialog-header">Verify your email</div>
+        <div className="dialog-header">{t('verifyEmail.title')}</div>
         <div className="dialog-body">
           <p style={{ margin: '0 0 12px', fontSize: 14, color: 'var(--fd-text-muted)' }}>
-            We sent a 6-digit code to {user?.email ? <strong>{user.email}</strong> : 'your email'}.
-            Enter it below, or click the activation link in the email.
+            {user?.email ? (
+              <Trans ns="collab" i18nKey="verifyEmail.bodyWithEmail" values={{ email: user.email }} components={{ strong: <strong /> }} />
+            ) : (
+              t('verifyEmail.bodyNoEmail')
+            )}
           </p>
           <input
             className="dialog-input"
@@ -100,7 +105,7 @@ const VerifyEmailDialog: React.FC<VerifyEmailDialogProps> = ({ onClose, onSucces
             disabled={loading || code.length !== 6}
             style={{ marginTop: 12 }}
           >
-            {loading ? 'Verifying…' : 'Verify'}
+            {loading ? t('verifyEmail.verifying') : t('verifyEmail.verify')}
           </button>
           <div style={{ textAlign: 'center', marginTop: 12 }}>
             <button
@@ -109,13 +114,13 @@ const VerifyEmailDialog: React.FC<VerifyEmailDialogProps> = ({ onClose, onSucces
               disabled={resendLoading || !useSettingsStore.getState().collabAuth.accessToken}
               style={{ fontSize: 13 }}
             >
-              {resendLoading ? 'Sending…' : 'Resend code'}
+              {resendLoading ? t('verifyEmail.sending') : t('verifyEmail.resendCode')}
             </button>
           </div>
         </div>
         <div className="dialog-footer">
           <div style={{ flex: 1 }} />
-          <button className="dialog-btn" onClick={onClose}>Cancel</button>
+          <button className="dialog-btn" onClick={onClose}>{t('common:cancel')}</button>
         </div>
       </div>
     </div>

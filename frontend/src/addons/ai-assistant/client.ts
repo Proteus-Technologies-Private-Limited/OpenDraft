@@ -17,6 +17,7 @@
  */
 import type { ToolDefinition } from './commands/types';
 import { isTauri } from '../../services/platform';
+import { t } from '../../i18n';
 
 export type AiProviderKind = 'ollama' | 'openai';
 
@@ -78,15 +79,11 @@ export function describeNetworkError(settings: AiSettings, err: unknown): string
   const message = err instanceof Error ? err.message : String(err);
   if (/failed to fetch|networkerror|load failed/i.test(message)) {
     if (isTauri() && !isLocalHost(base)) {
-      return `Could not reach ${base}. The desktop app only allows plain-http connections to localhost or `
-        + '127.0.0.1, so a server on your local network is blocked by its security policy. Run the server '
-        + 'on this computer, or use OpenDraft in the browser.';
+      return t('addons:assistant.error.unreachableDesktop', { base });
     }
-    return `Could not reach ${base}. Check that the server is running and that the app's origin `
-      + `is allowed (for Ollama: OLLAMA_ORIGINS=*; for Unsloth Studio: the server must be `
-      + `listening on ${base}).`;
+    return t('addons:assistant.error.unreachable', { base });
   }
-  return `Model error: ${message}`;
+  return t('addons:assistant.error.model', { message });
 }
 
 async function readError(response: Response): Promise<string> {
@@ -102,10 +99,7 @@ async function readError(response: Response): Promise<string> {
 /** A readable error; 401/403 get the one instruction that fixes them. */
 async function httpError(response: Response): Promise<Error> {
   if (response.status === 401 || response.status === 403) {
-    return new Error(
-      'The server requires an API key. Copy it from Unsloth Studio (or your server) and '
-      + 'paste it into the "API key" field in the assistant settings.',
-    );
+    return new Error(t('addons:assistant.error.apiKeyRequired'));
   }
   return new Error(await readError(response));
 }

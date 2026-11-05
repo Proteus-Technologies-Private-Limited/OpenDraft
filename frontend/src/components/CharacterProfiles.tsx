@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { Editor } from '@tiptap/react';
 import DOMPurify from 'dompurify';
+import { useTranslation } from 'react-i18next';
+import { compareText } from '../i18n/format';
 import { useDelayedUnmount, useSwipeDismiss } from '../hooks/useTouch';
 import { useEditorStore, type CharacterProfile, type CharacterRelationship } from '../stores/editorStore';
 import { useProjectStore } from '../stores/projectStore';
@@ -9,7 +11,7 @@ import { useAssetStore } from '../stores/assetStore';
 import { api } from '../services/api';
 import { showToast } from './Toast';
 import MiniRichText from './MiniRichText';
-import { RelationshipMap } from './RelationshipMap';
+import { RelationshipMap, relTypeLabel, relDynamicLabel, characterRoleLabel } from './RelationshipMap';
 import VoicePicker from './VoicePicker';
 import { useTableReadStore } from '../stores/tableReadStore';
 import Select from './Select';
@@ -39,6 +41,7 @@ const InlineRelForm: React.FC<{
   onSave: (rel: CharacterRelationship) => void;
   onCancel: () => void;
 }> = ({ characterName, allCharacters, onSave, onCancel }) => {
+  const { t } = useTranslation(['story', 'common']);
   const [otherChar, setOtherChar] = useState('');
   const [relType, setRelType] = useState('allies');
   const [dynamic, setDynamic] = useState('Stable');
@@ -50,25 +53,25 @@ const InlineRelForm: React.FC<{
     <div className="char-profile-rel-form">
       <div className="char-profile-rel-form-row">
         <Select value={otherChar} onChange={(e) => setOtherChar(e.target.value)}>
-          <option value="">Select character...</option>
+          <option value="">{t('characters.selectCharacter')}</option>
           {others.map((c) => <option key={c} value={c}>{c}</option>)}
         </Select>
         <Select value={relType} onChange={(e) => setRelType(e.target.value)}>
-          {REL_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+          {REL_TYPES.map((rt) => <option key={rt} value={rt}>{relTypeLabel(t, rt)}</option>)}
         </Select>
         <Select value={dynamic} onChange={(e) => setDynamic(e.target.value)}>
-          {REL_DYNAMICS.map((d) => <option key={d} value={d}>{d}</option>)}
+          {REL_DYNAMICS.map((d) => <option key={d} value={d}>{relDynamicLabel(t, d)}</option>)}
         </Select>
       </div>
       <textarea
         value={desc}
         onChange={(e) => setDesc(e.target.value)}
-        placeholder="Describe the relationship..."
+        placeholder={t('characters.placeholder.relationship')}
         rows={2}
         className="char-profile-rel-form-desc"
       />
       <div className="char-profile-rel-form-actions">
-        <button className="char-profile-rel-form-btn" onClick={onCancel}>Cancel</button>
+        <button className="char-profile-rel-form-btn" onClick={onCancel}>{t('common:cancel')}</button>
         <button
           className="char-profile-rel-form-btn char-profile-rel-form-btn-primary"
           disabled={!otherChar}
@@ -81,7 +84,7 @@ const InlineRelForm: React.FC<{
             dynamic,
           })}
         >
-          Add
+          {t('common:add')}
         </button>
       </div>
     </div>
@@ -95,6 +98,7 @@ interface CharacterProfilesProps {
 }
 
 const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId, style }) => {
+  const { t } = useTranslation(['story', 'common']);
   const {
     characters,
     characterProfiles,
@@ -470,7 +474,7 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
       const sb = charStats.get(b);
       switch (sortBy) {
         case 'name':
-          return a.localeCompare(b);
+          return compareText(a, b);
         case 'importance':
           // scenes + dialogues descending
           return ((sb?.sceneCount ?? 0) + (sb?.dialogueCount ?? 0))
@@ -504,7 +508,7 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
   /** The Table Read voice for a character (issue #131). */
   const renderTableReadVoice = (charName: string, prof: CharacterProfile) => (
     <div className="char-profile-tts-voice">
-      <label className="char-profile-label" htmlFor={`tts-voice-${charName}`}>Table Read Voice</label>
+      <label className="char-profile-label" htmlFor={`tts-voice-${charName}`}>{t('characters.tableReadVoice')}</label>
       <VoicePicker
         id={`tts-voice-${charName}`}
         value={prof.voice}
@@ -514,7 +518,7 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
           else delete voice[slot];
           upsertCharacterProfile(charName, { voice });
         }}
-        sample={singleLine(prof.sampleDialogue ? stripHtml(prof.sampleDialogue) : '').slice(0, 160) || `Hello, I'm ${charName.charAt(0) + charName.slice(1).toLowerCase()}.`}
+        sample={singleLine(prof.sampleDialogue ? stripHtml(prof.sampleDialogue) : '').slice(0, 160) || /* i18n-ignore: spoken sample text for the English voice engine */ `Hello, I'm ${charName.charAt(0) + charName.slice(1).toLowerCase()}.`}
         automaticVoiceId={tableReadCasting[charName]}
       />
     </div>
@@ -523,21 +527,21 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
   /** Calculate profile completeness as percentage + field breakdown */
   const getProfileCompleteness = useCallback((profile: CharacterProfile) => {
     const fields: { label: string; filled: boolean }[] = [
-      { label: 'Description', filled: !!stripHtml(profile.description || '').trim() },
-      { label: 'Gender', filled: !!profile.gender },
-      { label: 'Age', filled: !!profile.age },
-      { label: 'Role', filled: !!profile.role },
-      { label: 'Backstory', filled: !!stripHtml(profile.backstory || '').trim() },
-      { label: 'Character Arc', filled: !!stripHtml(profile.arc || '').trim() },
-      { label: 'Speech Pattern', filled: !!stripHtml(profile.speechPattern || '').trim() },
-      { label: 'Vocabulary', filled: !!stripHtml(profile.vocabulary || '').trim() },
-      { label: 'Verbal Tics', filled: !!stripHtml(profile.verbalTics || '').trim() },
-      { label: 'Image', filled: (profile.images?.length || 0) > 0 },
+      { label: t('characters.field.description'), filled: !!stripHtml(profile.description || '').trim() },
+      { label: t('characters.field.gender'), filled: !!profile.gender },
+      { label: t('characters.field.age'), filled: !!profile.age },
+      { label: t('characters.field.role'), filled: !!profile.role },
+      { label: t('characters.field.backstory'), filled: !!stripHtml(profile.backstory || '').trim() },
+      { label: t('characters.field.arc'), filled: !!stripHtml(profile.arc || '').trim() },
+      { label: t('characters.field.speechPattern'), filled: !!stripHtml(profile.speechPattern || '').trim() },
+      { label: t('characters.field.vocabulary'), filled: !!stripHtml(profile.vocabulary || '').trim() },
+      { label: t('characters.field.verbalTics'), filled: !!stripHtml(profile.verbalTics || '').trim() },
+      { label: t('characters.field.image'), filled: (profile.images?.length || 0) > 0 },
     ];
     const filled = fields.filter((f) => f.filled).length;
     const pct = Math.round((filled / fields.length) * 100);
     return { pct, filled, total: fields.length, fields };
-  }, []);
+  }, [t]);
 
   // Image helpers
   const getAssetUrl = useCallback((assetId: string) => {
@@ -560,13 +564,13 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
         upsertCharacterProfile(charName, { images: [...currentImages, assetId] });
       }
       await fetchAssets();
-      showToast('Image uploaded', 'success');
+      showToast(t('characters.imageUploaded'), 'success');
     } catch (err) {
-      showToast(`Image upload failed: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
+      showToast(t('characters.imageUploadFailed', { message: err instanceof Error ? err.message : t('characters.unknownError') }), 'error');
     } finally {
       setUploading(false);
     }
-  }, [projectId, characterProfiles, upsertCharacterProfile, fetchAssets]);
+  }, [projectId, characterProfiles, upsertCharacterProfile, fetchAssets, t]);
 
   const handleAssociateAsset = useCallback((charName: string, assetId: string) => {
     const profile = characterProfiles.find((p) => p.name === charName);
@@ -612,46 +616,46 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
     return (
       <>
         {/* Description */}
-        <label className="char-profile-label">Description</label>
+        <label className="char-profile-label">{t('characters.field.description')}</label>
         <MiniRichText
           value={prof.description}
           onChange={(html) => upsertCharacterProfile(charName, { description: html })}
-          placeholder="A weary detective in his 50s, haunted by a cold case..."
+          placeholder={t('characters.placeholder.description')}
           minHeight={isModal ? 80 : 50}
         />
 
         {/* Role / Gender / Age */}
         <div className="char-profile-meta-row char-profile-meta-row-3">
           <div className="char-profile-meta-field">
-            <label className="char-profile-label">Role</label>
+            <label className="char-profile-label">{t('characters.field.role')}</label>
             <Select
               className="char-profile-select"
               value={prof.role}
               onChange={(e) => upsertCharacterProfile(charName, { role: e.target.value })}
             >
               {CHARACTER_ROLES.map((r) => (
-                <option key={r} value={r}>{r || '—'}</option>
+                <option key={r} value={r}>{r ? characterRoleLabel(t, r) : '—'}</option>
               ))}
             </Select>
           </div>
           <div className="char-profile-meta-field">
-            <label className="char-profile-label">Gender</label>
+            <label className="char-profile-label">{t('characters.field.gender')}</label>
             <input
               type="text"
               className="char-profile-input"
               value={prof.gender}
               onChange={(e) => upsertCharacterProfile(charName, { gender: e.target.value })}
-              placeholder="e.g. Male"
+              placeholder={t('characters.placeholder.gender')}
             />
           </div>
           <div className="char-profile-meta-field">
-            <label className="char-profile-label">Age</label>
+            <label className="char-profile-label">{t('characters.field.age')}</label>
             <input
               type="text"
               className="char-profile-input"
               value={prof.age}
               onChange={(e) => upsertCharacterProfile(charName, { age: e.target.value })}
-              placeholder="e.g. 30s"
+              placeholder={t('characters.placeholder.age')}
             />
           </div>
         </div>
@@ -681,7 +685,7 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
                       <button
                         className="char-profile-thumb-primary"
                         onClick={() => handleSetPrimaryImage(charName, imgId)}
-                        title="Set as primary image"
+                        title={t('characters.setPrimaryImage')}
                       >
                         &#9733;
                       </button>
@@ -689,7 +693,7 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
                     <button
                       className="char-profile-thumb-remove"
                       onClick={() => handleRemoveImage(charName, imgId)}
-                      title="Remove image"
+                      title={t('characters.removeImage')}
                     >
                       &times;
                     </button>
@@ -706,35 +710,35 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
               className="char-profile-img-btn"
               onClick={() => triggerUpload(charName)}
               disabled={uploading}
-              title="Upload a new image for this character"
+              title={t('characters.uploadImageTitle')}
             >
-              {uploading ? 'Uploading...' : 'Upload Image'}
+              {uploading ? t('characters.uploading') : t('characters.uploadImage')}
             </button>
             <button
               className="char-profile-img-btn"
               onClick={() => { setImagePickerFor(charName); setImagePickerFilter(''); }}
-              title="Associate an existing project asset"
+              title={t('characters.fromAssetsTitle')}
             >
-              From Assets
+              {t('characters.fromAssets')}
             </button>
           </div>
         )}
 
         {/* Backstory */}
-        <label className="char-profile-label">Backstory</label>
+        <label className="char-profile-label">{t('characters.field.backstory')}</label>
         <MiniRichText
           value={prof.backstory}
           onChange={(html) => upsertCharacterProfile(charName, { backstory: html })}
-          placeholder="Character history, motivations, secrets..."
+          placeholder={t('characters.placeholder.backstory')}
           minHeight={isModal ? 100 : 60}
         />
 
         {/* Character Arc */}
-        <label className="char-profile-label">Character Arc</label>
+        <label className="char-profile-label">{t('characters.field.arc')}</label>
         <MiniRichText
           value={prof.arc || ''}
           onChange={(html) => upsertCharacterProfile(charName, { arc: html })}
-          placeholder="How does this character change through the story..."
+          placeholder={t('characters.placeholder.arc')}
           minHeight={isModal ? 80 : 50}
         />
 
@@ -742,34 +746,34 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
 
         {/* Voice Profile (collapsible) */}
         <details className="char-profile-voice-section">
-          <summary className="char-profile-label char-profile-voice-toggle">Voice Profile</summary>
+          <summary className="char-profile-label char-profile-voice-toggle">{t('characters.field.voiceProfile')}</summary>
           <div className="char-profile-voice-fields">
-            <label className="char-profile-label">Speech Pattern</label>
+            <label className="char-profile-label">{t('characters.field.speechPattern')}</label>
             <MiniRichText
               value={prof.speechPattern || ''}
               onChange={(html) => upsertCharacterProfile(charName, { speechPattern: html })}
-              placeholder="Short sentences, formal tone, uses contractions..."
+              placeholder={t('characters.placeholder.speechPattern')}
               minHeight={40}
             />
-            <label className="char-profile-label">Vocabulary</label>
+            <label className="char-profile-label">{t('characters.field.vocabulary')}</label>
             <MiniRichText
               value={prof.vocabulary || ''}
               onChange={(html) => upsertCharacterProfile(charName, { vocabulary: html })}
-              placeholder="Educated, uses legal terms, street slang..."
+              placeholder={t('characters.placeholder.vocabulary')}
               minHeight={40}
             />
-            <label className="char-profile-label">Verbal Tics</label>
+            <label className="char-profile-label">{t('characters.field.verbalTics')}</label>
             <MiniRichText
               value={prof.verbalTics || ''}
               onChange={(html) => upsertCharacterProfile(charName, { verbalTics: html })}
-              placeholder="Says 'you see' often, clears throat before lying..."
+              placeholder={t('characters.placeholder.verbalTics')}
               minHeight={40}
             />
-            <label className="char-profile-label">Sample Dialogue</label>
+            <label className="char-profile-label">{t('characters.field.sampleDialogue')}</label>
             <MiniRichText
               value={prof.sampleDialogue || ''}
               onChange={(html) => upsertCharacterProfile(charName, { sampleDialogue: html })}
-              placeholder="3-5 representative lines from the script..."
+              placeholder={t('characters.placeholder.sampleDialogue')}
               minHeight={40}
             />
           </div>
@@ -777,24 +781,24 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
 
         {/* Color + Highlight */}
         <div className="char-profile-color-highlight">
-          <label className="char-profile-label">Color</label>
+          <label className="char-profile-label">{t('characters.field.color')}</label>
           <div className="char-color-swatches">
             {['#8b5cf6','#4f46e5','#2563eb','#059669','#eab308','#f97316','#ef4444','#000000','#ffffff'].map(c => (
               <button key={c} className={`synopsis-color-swatch${(prof.color || '') === c ? ' active' : ''}`} style={{ background: c }} onClick={() => upsertCharacterProfile(charName, { color: c })} />
             ))}
-            <label className="synopsis-color-custom" title="Custom color">
+            <label className="synopsis-color-custom" title={t('characters.customColor')}>
               <input type="color" value={prof.color || '#999999'} onChange={(e) => upsertCharacterProfile(charName, { color: e.target.value })} />
               <span>+</span>
             </label>
           </div>
           <div className="char-profile-highlight-inline">
-            <label className="char-profile-label" style={{ marginBottom: 0 }}>Highlight</label>
+            <label className="char-profile-label" style={{ marginBottom: 0 }}>{t('characters.field.highlight')}</label>
             <button
               className={`char-profile-highlight-btn${prof.highlighted ? ' active' : ''}`}
               onClick={() => upsertCharacterProfile(charName, { highlighted: !prof.highlighted })}
               style={prof.highlighted ? { background: prof.color || '#999', borderColor: prof.color || '#999' } : undefined}
             >
-              {prof.highlighted ? 'On' : 'Off'}
+              {prof.highlighted ? t('common:on') : t('common:off')}
             </button>
           </div>
         </div>
@@ -809,9 +813,9 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
           return (
             <div className="char-profile-relationships">
               <div className="char-profile-rel-header-row">
-                <label className="char-profile-label" style={{ marginBottom: 0 }}>Relationships</label>
+                <label className="char-profile-label" style={{ marginBottom: 0 }}>{t('characters.field.relationships')}</label>
                 {!isAdding && (
-                  <button className="char-profile-rel-add-btn" onClick={() => setAddRelFor(nameUpper)}>+ Add</button>
+                  <button className="char-profile-rel-add-btn" onClick={() => setAddRelFor(nameUpper)}>{t('characters.addRelationship')}</button>
                 )}
               </div>
               {rels.map((r) => {
@@ -820,12 +824,12 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
                   <div key={r.id} className="char-profile-rel-item">
                     <div className="char-profile-rel-header">
                       <span className="char-profile-rel-other">{other}</span>
-                      <span className="char-profile-rel-type">{r.type}</span>
-                      {r.dynamic && <span className="char-profile-rel-dynamic">{r.dynamic}</span>}
+                      <span className="char-profile-rel-type">{relTypeLabel(t, r.type)}</span>
+                      {r.dynamic && <span className="char-profile-rel-dynamic">{relDynamicLabel(t, r.dynamic)}</span>}
                       <button
                         className="char-profile-rel-remove"
                         onClick={() => deleteCharacterRelationship(r.id)}
-                        title="Remove relationship"
+                        title={t('characters.removeRelationship')}
                       >&times;</button>
                     </div>
                     {r.description && <div className="char-profile-rel-desc">{r.description}</div>}
@@ -833,7 +837,7 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
                 );
               })}
               {rels.length === 0 && !isAdding && (
-                <div className="char-profile-rel-empty">No relationships defined yet</div>
+                <div className="char-profile-rel-empty">{t('characters.noRelationships')}</div>
               )}
               {isAdding && (
                 <InlineRelForm
@@ -854,11 +858,11 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
         {st && st.scenes.length > 0 && (
           <details className="char-profile-scenes-collapsible">
             <summary className="char-profile-label char-profile-scenes-toggle">
-              Appears in ({st.scenes.length} scenes)
+              {t('characters.appearsIn', { count: st.scenes.length })}
             </summary>
             <div className="char-profile-scene-chips">
               {st.scenes.map((s, i) => (
-                <span key={i} className="char-profile-scene-chip" onClick={() => handleNavigateToScene(s)} title={`Go to: ${s}`}>{s}</span>
+                <span key={i} className="char-profile-scene-chip" onClick={() => handleNavigateToScene(s)} title={t('characters.goTo', { scene: s })}>{s}</span>
               ))}
             </div>
           </details>
@@ -888,12 +892,12 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
       />
 
       <div className="char-profiles-header">
-        <span className="char-profiles-title">Characters</span>
+        <span className="char-profiles-title">{t('characters.title')}</span>
         <span className="char-profiles-count">{allCharacters.length}</span>
         <button
           className="char-profiles-fullscreen-btn"
           onClick={() => setIsFullscreen(!isFullscreen)}
-          title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+          title={isFullscreen ? t('characters.exitFullscreen') : t('characters.fullscreen')}
         >
           {isFullscreen ? '\u2716' : '\u26F6'}
         </button>
@@ -903,17 +907,17 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
               className={`char-fs-view-btn${fsViewMode === 'cards' ? ' active' : ''}`}
               onClick={() => setFsViewMode('cards')}
             >
-              Cards
+              {t('characters.viewCards')}
             </button>
             <button
               className={`char-fs-view-btn${fsViewMode === 'list' ? ' active' : ''}`}
               onClick={() => setFsViewMode('list')}
             >
-              List
+              {t('characters.viewList')}
             </button>
           </div>
         )}
-        <button className="char-profiles-close" onClick={() => { setIsFullscreen(false); toggleCharacterProfiles(); }} title="Close">
+        <button className="char-profiles-close" onClick={() => { setIsFullscreen(false); toggleCharacterProfiles(); }} title={t('common:close')}>
           &times;
         </button>
       </div>
@@ -924,13 +928,13 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
           className={`char-profiles-tab${activeTab === 'profiles' ? ' active' : ''}`}
           onClick={() => setActiveTab('profiles')}
         >
-          Profiles
+          {t('characters.tabProfiles')}
         </button>
         <button
           className={`char-profiles-tab${activeTab === 'map' ? ' active' : ''}`}
           onClick={() => setActiveTab('map')}
         >
-          Relationship Map
+          {t('characters.tabMap')}
         </button>
       </div>
 
@@ -955,7 +959,7 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
       <div className="char-profiles-toolbar">
         <input
           type="text"
-          placeholder="Search characters..."
+          placeholder={t('characters.placeholder.search')}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="char-profiles-search-input"
@@ -963,24 +967,24 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
         <button
           className="char-profiles-build-btn"
           onClick={handleBuildFromScript}
-          title="Scan the screenplay for characters and extract descriptions from action lines"
+          title={t('characters.buildFromScriptTitle')}
         >
-          Build from Script
+          {t('characters.buildFromScript')}
         </button>
       </div>
       {/* Sort bar */}
       <div className="char-profiles-sort">
-        <span className="char-sort-label">Sort</span>
+        <span className="char-sort-label">{t('characters.sort.label')}</span>
         <Select
           className="char-sort-select"
           value={sortBy}
           onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
         >
-          <option value="name">Name</option>
-          <option value="importance">Importance</option>
-          <option value="scenes">Scenes</option>
-          <option value="dialogues">Dialogues</option>
-          <option value="appearance">Appearance</option>
+          <option value="name">{t('characters.sort.name')}</option>
+          <option value="importance">{t('characters.sort.importance')}</option>
+          <option value="scenes">{t('characters.sort.scenes')}</option>
+          <option value="dialogues">{t('characters.sort.dialogues')}</option>
+          <option value="appearance">{t('characters.sort.appearance')}</option>
         </Select>
       </div>
 
@@ -989,8 +993,8 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
         {allCharacters.length === 0 ? (
           <div className="char-profiles-empty">
             {searchQuery
-              ? 'No characters match your search.'
-              : 'No characters detected. Add character elements to your screenplay.'}
+              ? t('characters.noMatch')
+              : t('characters.noneDetected')}
           </div>
         ) : (
           allCharacters.map((name) => {
@@ -1005,12 +1009,12 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
                 {/* Orphaned banner */}
                 {isOrphaned && (
                   <div className="char-orphaned-banner">
-                    <span>Not in script</span>
+                    <span>{t('characters.notInScript')}</span>
                     <button
                       className="char-orphaned-remove"
                       onClick={() => setPendingRemoveChar(name)}
                     >
-                      Remove
+                      {t('common:remove')}
                     </button>
                   </div>
                 )}
@@ -1034,14 +1038,14 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
                       value={profile.color || '#999999'}
                       onClick={(e) => e.stopPropagation()}
                       onChange={(e) => upsertCharacterProfile(name, { color: e.target.value })}
-                      title="Highlight color"
+                      title={t('characters.highlightColor')}
                     />
                   )}
                   <div className="char-profile-name-col">
                     <span
                       className="char-profile-name"
                       onClick={(e) => { e.stopPropagation(); handleNavigateToCharacter(name); }}
-                      title="Click to navigate to first appearance"
+                      title={t('characters.navigateToFirst')}
                     >
                       {name}
                     </span>
@@ -1057,8 +1061,8 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
                   <div className="char-profile-stats">
                     {stats && (
                       <>
-                        <span title={`${stats.dialogueCount} dialogue lines`}>{stats.dialogueCount} lines</span>
-                        <span title={`In ${stats.sceneCount} scenes`}>{stats.sceneCount} scenes</span>
+                        <span title={t('characters.dialogueLines', { count: stats.dialogueCount })}>{t('characters.linesShort', { count: stats.dialogueCount })}</span>
+                        <span title={t('characters.inScenes', { count: stats.sceneCount })}>{t('characters.scenesShort', { count: stats.sceneCount })}</span>
                       </>
                     )}
                   </div>
@@ -1086,7 +1090,7 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
                           {comp.pct}%
                         </span>
                         <div className="char-completeness-tooltip">
-                          <div className="char-completeness-tooltip-title">Profile: {comp.filled}/{comp.total}</div>
+                          <div className="char-completeness-tooltip-title">{t('characters.profileCompleteness', { filled: comp.filled, total: comp.total })}</div>
                           {comp.fields.map((f) => (
                             <div key={f.label} className={`char-completeness-tooltip-row${f.filled ? ' filled' : ''}`}>
                               <span>{f.filled ? '\u2713' : '\u2717'}</span> {f.label}
@@ -1099,15 +1103,15 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
                   <button
                     className="char-profile-enlarge-btn"
                     onClick={(e) => { e.stopPropagation(); setRenamingCharacter(name); }}
-                    title="Rename character everywhere"
-                    aria-label={`Rename ${name}`}
+                    title={t('characters.renameEverywhere')}
+                    aria-label={t('characters.renameNamed', { name })}
                   >
                     &#x270E;
                   </button>
                   <button
                     className="char-profile-enlarge-btn"
                     onClick={(e) => { e.stopPropagation(); setModalChar(name); }}
-                    title="View enlarged"
+                    title={t('characters.viewEnlarged')}
                   >
                     &#x26F6;
                   </button>
@@ -1121,46 +1125,46 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
                     <div className="char-profile-detail-top">
                       <div className="char-profile-detail-info">
                         {/* Description */}
-                        <label className="char-profile-label">Description</label>
+                        <label className="char-profile-label">{t('characters.field.description')}</label>
                         <MiniRichText
                           value={profile.description}
                           onChange={(html) => upsertCharacterProfile(name, { description: html })}
-                          placeholder="A weary detective in his 50s, haunted by a cold case..."
+                          placeholder={t('characters.placeholder.description')}
                           minHeight={50}
                         />
 
                         {/* Role / Gender / Age */}
                         <div className="char-profile-meta-row char-profile-meta-row-3">
                           <div className="char-profile-meta-field">
-                            <label className="char-profile-label">Role</label>
+                            <label className="char-profile-label">{t('characters.field.role')}</label>
                             <Select
                               className="char-profile-select"
                               value={profile.role}
                               onChange={(e) => upsertCharacterProfile(name, { role: e.target.value })}
                             >
                               {CHARACTER_ROLES.map((r) => (
-                                <option key={r} value={r}>{r || '—'}</option>
+                                <option key={r} value={r}>{r ? characterRoleLabel(t, r) : '—'}</option>
                               ))}
                             </Select>
                           </div>
                           <div className="char-profile-meta-field">
-                            <label className="char-profile-label">Gender</label>
+                            <label className="char-profile-label">{t('characters.field.gender')}</label>
                             <input
                               type="text"
                               className="char-profile-input"
                               value={profile.gender}
                               onChange={(e) => upsertCharacterProfile(name, { gender: e.target.value })}
-                              placeholder="e.g. Male"
+                              placeholder={t('characters.placeholder.gender')}
                             />
                           </div>
                           <div className="char-profile-meta-field">
-                            <label className="char-profile-label">Age</label>
+                            <label className="char-profile-label">{t('characters.field.age')}</label>
                             <input
                               type="text"
                               className="char-profile-input"
                               value={profile.age}
                               onChange={(e) => upsertCharacterProfile(name, { age: e.target.value })}
-                              placeholder="e.g. 30s"
+                              placeholder={t('characters.placeholder.age')}
                             />
                           </div>
                         </div>
@@ -1192,7 +1196,7 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
                                       <button
                                         className="char-profile-thumb-primary"
                                         onClick={() => handleSetPrimaryImage(name, imgId)}
-                                        title="Set as primary image"
+                                        title={t('characters.setPrimaryImage')}
                                       >
                                         &#9733;
                                       </button>
@@ -1200,7 +1204,7 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
                                     <button
                                       className="char-profile-thumb-remove"
                                       onClick={() => handleRemoveImage(name, imgId)}
-                                      title="Remove image"
+                                      title={t('characters.removeImage')}
                                     >
                                       &times;
                                     </button>
@@ -1217,16 +1221,16 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
                               className="char-profile-img-btn"
                               onClick={() => triggerUpload(name)}
                               disabled={uploading}
-                              title="Upload a new image for this character"
+                              title={t('characters.uploadImageTitle')}
                             >
-                              {uploading ? 'Uploading...' : 'Upload Image'}
+                              {uploading ? t('characters.uploading') : t('characters.uploadImage')}
                             </button>
                             <button
                               className="char-profile-img-btn"
                               onClick={() => { setImagePickerFor(name); setImagePickerFilter(''); }}
-                              title="Associate an existing project asset"
+                              title={t('characters.fromAssetsTitle')}
                             >
-                              From Assets
+                              {t('characters.fromAssets')}
                             </button>
                           </div>
                         )}
@@ -1235,19 +1239,19 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
 
                     {/* Bottom section: Backstory, Arc, Color/Highlight, Scenes */}
                     <div className="char-profile-detail-bottom">
-                      <label className="char-profile-label">Backstory</label>
+                      <label className="char-profile-label">{t('characters.field.backstory')}</label>
                       <MiniRichText
                         value={profile.backstory}
                         onChange={(html) => upsertCharacterProfile(name, { backstory: html })}
-                        placeholder="Character history, motivations, secrets..."
+                        placeholder={t('characters.placeholder.backstory')}
                         minHeight={60}
                       />
 
-                      <label className="char-profile-label">Character Arc</label>
+                      <label className="char-profile-label">{t('characters.field.arc')}</label>
                       <MiniRichText
                         value={profile.arc || ''}
                         onChange={(html) => upsertCharacterProfile(name, { arc: html })}
-                        placeholder="How does this character change through the story..."
+                        placeholder={t('characters.placeholder.arc')}
                         minHeight={50}
                       />
 
@@ -1255,58 +1259,58 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
 
                       {/* Voice Profile (collapsible) */}
                       <details className="char-profile-voice-section">
-                        <summary className="char-profile-label char-profile-voice-toggle">Voice Profile</summary>
+                        <summary className="char-profile-label char-profile-voice-toggle">{t('characters.field.voiceProfile')}</summary>
                         <div className="char-profile-voice-fields">
-                          <label className="char-profile-label">Speech Pattern</label>
+                          <label className="char-profile-label">{t('characters.field.speechPattern')}</label>
                           <MiniRichText
                             value={profile.speechPattern || ''}
                             onChange={(html) => upsertCharacterProfile(name, { speechPattern: html })}
-                            placeholder="Short sentences, formal tone..."
+                            placeholder={t('characters.placeholder.speechPatternShort')}
                             minHeight={40}
                           />
-                          <label className="char-profile-label">Vocabulary</label>
+                          <label className="char-profile-label">{t('characters.field.vocabulary')}</label>
                           <MiniRichText
                             value={profile.vocabulary || ''}
                             onChange={(html) => upsertCharacterProfile(name, { vocabulary: html })}
-                            placeholder="Educated, uses legal terms..."
+                            placeholder={t('characters.placeholder.vocabularyShort')}
                             minHeight={40}
                           />
-                          <label className="char-profile-label">Verbal Tics</label>
+                          <label className="char-profile-label">{t('characters.field.verbalTics')}</label>
                           <MiniRichText
                             value={profile.verbalTics || ''}
                             onChange={(html) => upsertCharacterProfile(name, { verbalTics: html })}
-                            placeholder="Says 'you see' often..."
+                            placeholder={t('characters.placeholder.verbalTicsShort')}
                             minHeight={40}
                           />
-                          <label className="char-profile-label">Sample Dialogue</label>
+                          <label className="char-profile-label">{t('characters.field.sampleDialogue')}</label>
                           <MiniRichText
                             value={profile.sampleDialogue || ''}
                             onChange={(html) => upsertCharacterProfile(name, { sampleDialogue: html })}
-                            placeholder="3-5 representative lines..."
+                            placeholder={t('characters.placeholder.sampleDialogueShort')}
                             minHeight={40}
                           />
                         </div>
                       </details>
 
                       <div className="char-profile-color-highlight">
-                        <label className="char-profile-label">Color</label>
+                        <label className="char-profile-label">{t('characters.field.color')}</label>
                         <div className="char-color-swatches">
                           {['#8b5cf6','#4f46e5','#2563eb','#059669','#eab308','#f97316','#ef4444','#000000','#ffffff'].map(c => (
                             <button key={c} className={`synopsis-color-swatch${(profile.color || '') === c ? ' active' : ''}`} style={{ background: c }} onClick={() => upsertCharacterProfile(name, { color: c })} />
                           ))}
-                          <label className="synopsis-color-custom" title="Custom color">
+                          <label className="synopsis-color-custom" title={t('characters.customColor')}>
                             <input type="color" value={profile.color || '#999999'} onChange={(e) => upsertCharacterProfile(name, { color: e.target.value })} />
                             <span>+</span>
                           </label>
                         </div>
                         <div className="char-profile-highlight-inline">
-                          <label className="char-profile-label" style={{ marginBottom: 0 }}>Highlight</label>
+                          <label className="char-profile-label" style={{ marginBottom: 0 }}>{t('characters.field.highlight')}</label>
                           <button
                             className={`char-profile-highlight-btn${profile.highlighted ? ' active' : ''}`}
                             onClick={() => upsertCharacterProfile(name, { highlighted: !profile.highlighted })}
                             style={profile.highlighted ? { background: profile.color || '#999', borderColor: profile.color || '#999' } : undefined}
                           >
-                            {profile.highlighted ? 'On' : 'Off'}
+                            {profile.highlighted ? t('common:on') : t('common:off')}
                           </button>
                         </div>
                       </div>
@@ -1320,9 +1324,9 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
                         return (
                           <div className="char-profile-relationships">
                             <div className="char-profile-rel-header-row">
-                              <label className="char-profile-label" style={{ marginBottom: 0 }}>Relationships</label>
+                              <label className="char-profile-label" style={{ marginBottom: 0 }}>{t('characters.field.relationships')}</label>
                               {!isAdding && (
-                                <button className="char-profile-rel-add-btn" onClick={() => setAddRelFor(name)}>+ Add</button>
+                                <button className="char-profile-rel-add-btn" onClick={() => setAddRelFor(name)}>{t('characters.addRelationship')}</button>
                               )}
                             </div>
                             {rels.map((r) => {
@@ -1331,12 +1335,12 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
                                 <div key={r.id} className="char-profile-rel-item">
                                   <div className="char-profile-rel-header">
                                     <span className="char-profile-rel-other">{other}</span>
-                                    <span className="char-profile-rel-type">{r.type}</span>
-                                    {r.dynamic && <span className="char-profile-rel-dynamic">{r.dynamic}</span>}
+                                    <span className="char-profile-rel-type">{relTypeLabel(t, r.type)}</span>
+                                    {r.dynamic && <span className="char-profile-rel-dynamic">{relDynamicLabel(t, r.dynamic)}</span>}
                                     <button
                                       className="char-profile-rel-remove"
                                       onClick={() => deleteCharacterRelationship(r.id)}
-                                      title="Remove relationship"
+                                      title={t('characters.removeRelationship')}
                                     >&times;</button>
                                   </div>
                                   {r.description && <div className="char-profile-rel-desc">{r.description}</div>}
@@ -1344,7 +1348,7 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
                               );
                             })}
                             {rels.length === 0 && !isAdding && (
-                              <div className="char-profile-rel-empty">No relationships defined yet</div>
+                              <div className="char-profile-rel-empty">{t('characters.noRelationships')}</div>
                             )}
                             {isAdding && (
                               <InlineRelForm
@@ -1365,11 +1369,11 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
                       {stats && stats.scenes.length > 0 && (
                         <details className="char-profile-scenes-collapsible">
                           <summary className="char-profile-label char-profile-scenes-toggle">
-                            Appears in ({stats.scenes.length} scenes)
+                            {t('characters.appearsIn', { count: stats.scenes.length })}
                           </summary>
                           <div className="char-profile-scene-chips">
                             {stats.scenes.map((s, i) => (
-                              <span key={i} className="char-profile-scene-chip" onClick={() => handleNavigateToScene(s)} title={`Go to: ${s}`}>{s}</span>
+                              <span key={i} className="char-profile-scene-chip" onClick={() => handleNavigateToScene(s)} title={t('characters.goTo', { scene: s })}>{s}</span>
                             ))}
                           </div>
                         </details>
@@ -1390,7 +1394,7 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
           className="char-referred-btn"
           onClick={() => setShowReferred(true)}
         >
-          Referred in Script ({unmatchedNames.length})
+          {t('characters.referredButton', { n: unmatchedNames.length })}
         </button>
       )}
 
@@ -1399,11 +1403,11 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
         <div className="char-referred-overlay">
           <div className="char-referred-panel">
             <div className="char-referred-header">
-              <span>Referred in Script</span>
+              <span>{t('characters.referredTitle')}</span>
               <button className="char-profiles-close" onClick={() => setShowReferred(false)}>&times;</button>
             </div>
             <div className="char-referred-desc">
-              Names found in ALL CAPS in action lines that are not yet in the character list.
+              {t('characters.referredHelp')}
             </div>
             <div className="char-referred-list">
               {unmatchedNames.map((name) => (
@@ -1412,9 +1416,9 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
                   <button
                     className="char-unmatched-add"
                     onClick={() => handleAddUnmatched(name)}
-                    title="Add to character list"
+                    title={t('characters.addToList')}
                   >
-                    + Add
+                    {t('characters.addRelationship')}
                   </button>
                 </div>
               ))}
@@ -1431,13 +1435,13 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
         <div className="dialog-overlay" onClick={() => { setImagePickerFor(null); setImagePickerFilter(''); }}>
           <div className="dialog-box char-image-picker-dialog" onClick={(e) => e.stopPropagation()}>
             <div className="dialog-header">
-              Select Image for {imagePickerFor}
+              {t('characters.selectImageFor', { name: imagePickerFor })}
               <button className="char-profiles-close" onClick={() => { setImagePickerFor(null); setImagePickerFilter(''); }}>&times;</button>
             </div>
             <div className="char-image-picker-search">
               <input
                 type="text"
-                placeholder="Filter by name..."
+                placeholder={t('characters.placeholder.filterImages')}
                 value={imagePickerFilter}
                 onChange={(e) => setImagePickerFilter(e.target.value)}
                 className="char-profiles-search-input"
@@ -1446,7 +1450,7 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
             </div>
             <div className="char-image-picker-grid">
               {imageAssets.length === 0 ? (
-                <div className="char-profiles-empty">No image assets in this project. Upload images via the Asset Manager or the Upload button on a character.</div>
+                <div className="char-profiles-empty">{t('characters.noImageAssets')}</div>
               ) : (
                 imageAssets
                   .filter((a) => !imagePickerFilter || a.original_name.toLowerCase().includes(imagePickerFilter.toLowerCase()))
@@ -1457,11 +1461,11 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
                         key={asset.id}
                         className={`char-image-picker-item${alreadyLinked ? ' linked' : ''}`}
                         onClick={() => !alreadyLinked && handleAssociateAsset(imagePickerFor, asset.id)}
-                        title={alreadyLinked ? 'Already associated' : `Associate ${asset.original_name}`}
+                        title={alreadyLinked ? t('characters.alreadyAssociated') : t('characters.associateNamed', { name: asset.original_name })}
                       >
                         <img src={getAssetUrl(asset.id)} alt={asset.original_name} />
                         <span className="char-image-picker-name">{asset.original_name}</span>
-                        {alreadyLinked && <span className="char-image-picker-linked">Linked</span>}
+                        {alreadyLinked && <span className="char-image-picker-linked">{t('characters.linked')}</span>}
                       </div>
                     );
                   })
@@ -1499,12 +1503,12 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
       {pendingRemoveChar && (
         <div className="dialog-overlay" onClick={() => setPendingRemoveChar(null)}>
           <div className="dialog-box" onClick={(e) => e.stopPropagation()}>
-            <div className="dialog-header">Remove Character</div>
+            <div className="dialog-header">{t('characters.removeTitle')}</div>
             <div className="dialog-body">
-              <p style={{ margin: 0 }}>Remove &ldquo;{pendingRemoveChar}&rdquo; from the character list?</p>
+              <p style={{ margin: 0 }}>{t('characters.removeConfirm', { name: pendingRemoveChar })}</p>
             </div>
             <div className="dialog-actions">
-              <button onClick={() => setPendingRemoveChar(null)}>Cancel</button>
+              <button onClick={() => setPendingRemoveChar(null)}>{t('common:cancel')}</button>
               <button
                 className="dialog-primary"
                 style={{ background: '#c0392b' }}
@@ -1513,7 +1517,7 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
                   setPendingRemoveChar(null);
                 }}
               >
-                Remove
+                {t('common:remove')}
               </button>
             </div>
           </div>

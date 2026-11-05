@@ -1,0 +1,107 @@
+{
+  "status": {
+    "save": {
+      "unsaved": "Kaydedilmemiş değişiklikler",
+      "saving": "Kaydediliyor…",
+      "saved": "Kaydedildi",
+      "error": "Kayıt başarısız"
+    },
+    "linked": {
+      "notSaved": "dosyaya kaydedilmedi",
+      "missing": "dosya bulunamadı",
+      "conflict": "OpenDraft dışında değiştirildi",
+      "retryHint": "Yeniden denemek için tıklayın.",
+      "everySave": "Her kayıt ayrıca şuraya da yazılır: {{path}}"
+    },
+    "acts_one": "{{count}} perde",
+    "acts_other": "{{count}} perde",
+    "saveWritesBack": "Kayıt şu dosyaya geri yazılır: {{name}}",
+    "actStructure": "Perde yapısı",
+    "runtime": {
+      "title": "{{pacing}} tempoya göre tahmini süre — tür ve tempoyu ayarlamak için tıklayın",
+      "est": "Tahmini {{runtime}}"
+    },
+    "wordsTitle": "Senaryodaki sözcükler",
+    "words_one": "{{formatted}} sözcük",
+    "words_other": "{{formatted}} sözcük",
+    "revision": "Revizyon: {{color}}",
+    "page": "Sayfa {{label}}",
+    "pageOf": "Sayfa {{current}} / {{total}}",
+    "pagesLocked": "Sayfalar kilitli",
+    "locked": "(kilitli)",
+    "suggesting": {
+      "lockedTitle": "Öneri vermek için katıldınız: yazar düzenlemelerinizi kabul eder veya reddeder",
+      "title": "Düzenlemeleriniz öneri olarak kaydedilir. Doğrudan düzenlemeye dönmek için tıklayın.",
+      "label": "Öneri modu"
+    }
+  },
+  "resetToDefault": "Varsayılana sıfırla",
+  "richText": {
+    "bold": "Kalın",
+    "italic": "İtalik",
+    "underline": "Altı çizili",
+    "bulletList": "Madde işaretli liste"
+  },
+  "fontPicker": {
+    "fontFamily": "Yazı tipi ailesi",
+    "search": "Yazı tiplerinde ara…",
+    "searchLabel": "Yazı tiplerinde ara",
+    "noMatch": "“{{query}}” ile eşleşen yazı tipi yok.",
+    "notInstalledTitle": "{{name}} bu cihazda yüklü değil — yerine benzer bir yazı tipi gösteriliyor",
+    "notInstalled": "yüklü değil",
+    "manage": "Yazı tipi ekle veya yönet…",
+    "group": {
+      "document": "Bu belgeden",
+      "custom": "Özel yazı tipleri",
+      "screenplay": "Senaryo standardı",
+      "typewriter": "Daktilo",
+      "serif": "Serifli",
+      "sansSerif": "Serifsiz",
+      "monospace": "Tek aralıklı",
+      "display": "Başlık ve vurgu",
+      "handwriting": "El yazısı",
+      "latinExtended": "Genişletilmiş Latin",
+      "indic": "Hint dilleri",
+      "arabicHebrew": "Arapça ve İbranice",
+      "cjk": "CJK",
+      "other": "Diğer",
+      "device": "Bu cihazda"
+    }
+  },
+  "languageSelector": {
+    "title": "Diyalog dili"
+  },
+  "toolbar": {
+    "fontSize": "Yazı boyutu",
+    "pt": "{{size}} pt",
+    "bold": "Kalın ({{shortcut}})",
+    "italic": "İtalik ({{shortcut}})",
+    "underline": "Altı çizili ({{shortcut}})",
+    "strikethrough": "Üstü çizili",
+    "subscript": "Alt simge",
+    "superscript": "Üst simge",
+    "textColor": "Yazı rengi",
+    "highlightColor": "Vurgu rengi",
+    "alignLeft": "Sola hizala",
+    "alignCenter": "Ortala",
+    "alignRight": "Sağa hizala",
+    "justify": "İki yana yasla",
+    "findReplace": "Bul ve değiştir ({{shortcut}})",
+    "goToPage": "Sayfaya git ({{shortcut}})",
+    "scriptNotes": "Senaryo notları",
+    "productionTags": "Yapım etiketleri",
+    "zoomOut": "Uzaklaştır",
+    "editZoom": "Yakınlaştırmayı düzenlemek için tıklayın",
+    "zoomIn": "Yakınlaştır",
+    "undo": "Geri al ({{shortcut}})",
+    "redo": "Yinele ({{shortcut}})",
+    "addAvRow": "Aşağıya AV satırı ekle (ses hücresinde Tab veya {{shortcut}})",
+    "row": "Satır",
+    "deleteAvRow": "Bu AV satırını sil",
+    "moreFormatting": "Diğer biçimlendirme seçenekleri",
+    "zoom": "Yakınlaştırma",
+    "elementType": "Öğe türü",
+    "elementTypeTitlePage": "Kapak sayfası öğeleri Kapak sayfası düzenleyicisinde belirlenir; biçimlendirmeleri şablonda bulunur",
+    "titlePage": "Kapak sayfası"
+  }
+}

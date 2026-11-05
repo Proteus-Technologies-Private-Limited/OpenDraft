@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 /**
  * Reading a font file well enough to name it.
  *
@@ -147,14 +148,14 @@ export function readFontFileInfo(bytes: ArrayBuffer, fileName: string): FontFile
     return { family, subfamily: italic || weight !== 400 ? 'Derived' : 'Regular', weight, italic, fromFile: false };
   };
 
-  if (bytes.byteLength < 12) throw new FontFileError('That file is too small to be a font.');
+  if (bytes.byteLength < 12) throw new FontFileError(t('messages:fonts.tooSmall'));
   const view = new DataView(bytes);
   const tag = view.getUint32(0);
 
   // wOFF / wOF2 — compressed, so the name table is out of reach here.
   if (tag === 0x774f4646 || tag === 0x774f4632) return fallback();
   if (tag !== SFNT_TTF && tag !== SFNT_OTTO && tag !== SFNT_TRUE && tag !== SFNT_TTCF) {
-    throw new FontFileError('That file is not a TrueType or OpenType font.');
+    throw new FontFileError(t('messages:fonts.notFont'));
   }
 
   try {

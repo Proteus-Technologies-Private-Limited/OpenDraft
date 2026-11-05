@@ -12,6 +12,7 @@ import { useEditorStore } from './stores/editorStore';
 import { initCustomFonts } from './services/customFonts';
 import { detectDeviceFonts } from './utils/deviceFonts';
 import { applyAppearance, applyNativeTheme, readAppearance } from './utils/appearance';
+import { initI18n } from './i18n';
 
 /**
  * Keep the `ios-windowed` class in sync with whether the app is running in an
@@ -170,6 +171,15 @@ async function init() {
   window.addEventListener('resize', updateViewportHeight);
   window.addEventListener('scroll', pinDocument, { passive: true });
   updateViewportHeight();
+
+  // The interface language, before anything can show text. English is bundled;
+  // the writer's own language is one small chunk away. A failure leaves the
+  // app in English rather than stopping it.
+  try {
+    await initI18n();
+  } catch (err) {
+    console.error('[i18n] could not start; the app will stay in English', err);
+  }
 
   // On Tauri (desktop + mobile) this swaps the HTTP api with local SQLite.
   // On web it is a no-op — the Python backend is used as-is.

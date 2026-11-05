@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
 import { collabAuthApi, handleAuthResponse, isDeviceChallenge } from '../services/collabAuth';
 import type { CollabServerConfig } from '../services/collabAuth';
 import { initDemoInfo, isDemoMode } from '../services/demoInfo';
 import { showToast } from './Toast';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
+import { t as tr } from '../i18n';
 
 interface CollabLoginDialogProps {
   onClose: () => void;
@@ -29,6 +31,7 @@ function clearRememberedEmail() {
 }
 
 const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSuccess }) => {
+  const { t } = useTranslation(['collab', 'common']);
   const savedEmail = loadRememberedEmail();
 
   const [tab, setTab] = useState<'login' | 'register'>('login');
@@ -83,19 +86,19 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
       if (isDeviceChallenge(response)) {
         setPendingChallenge({ challengeId: response.challengeId, email: loginEmail });
         setDeviceCode('');
-        showToast(response.message || 'Verification code emailed for this new device.', 'info');
+        showToast(response.message || t('login.toast.deviceCodeSent'), 'info');
         return;
       }
       handleAuthResponse(response);
       if (rememberEmail) saveRememberedEmail(loginEmail);
       else clearRememberedEmail();
-      showToast('Signed in', 'success');
+      showToast(t('login.toast.signedIn'), 'success');
       onSuccess();
     } catch (err: any) {
-      const msg = err.message || 'Login failed';
+      const msg = err.message || t('login.toast.loginFailed');
       if (isDemoServer && (msg.toLowerCase().includes('user not found') || msg.includes('404'))) {
-        showToast('User not found', 'error');
-        showToast('Note: The demo server resets every hour — please create a new account.', 'info');
+        showToast(t('login.toast.userNotFound'), 'error');
+        showToast(t('login.toast.demoReset'), 'info');
       } else {
         showToast(msg, 'error');
       }
@@ -111,12 +114,12 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
       const response = await collabAuthApi.verifyDevice(pendingChallenge.challengeId, deviceCode);
       handleAuthResponse(response);
       if (rememberEmail) saveRememberedEmail(pendingChallenge.email);
-      showToast('Device verified — signed in.', 'success');
+      showToast(t('login.toast.deviceVerified'), 'success');
       setPendingChallenge(null);
       setDeviceCode('');
       onSuccess();
     } catch (err: any) {
-      showToast(err.message || 'Verification failed', 'error');
+      showToast(err.message || t('login.toast.verificationFailed'), 'error');
     } finally {
       setLoading(false);
     }
@@ -130,9 +133,9 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
       // Server invalidates the old code and returns a fresh challengeId.
       setPendingChallenge({ challengeId: r.challengeId, email: pendingChallenge.email });
       setDeviceCode('');
-      showToast(r.message || 'A new verification code was sent to your email.', 'success');
+      showToast(r.message || t('login.toast.newCodeSent'), 'success');
     } catch (err: any) {
-      showToast(err.message || 'Could not resend code', 'error');
+      showToast(err.message || t('login.toast.resendFailed'), 'error');
     } finally {
       setLoading(false);
     }
@@ -141,15 +144,15 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
   const handleRegister = async () => {
     if (!regEmail || !regPassword || !regName) return;
     if (regPassword !== regConfirm) {
-      showToast('Passwords do not match', 'error');
+      showToast(t('login.toast.passwordMismatch'), 'error');
       return;
     }
     if (regPassword.length < 8) {
-      showToast('Password must be at least 8 characters', 'error');
+      showToast(t('login.toast.passwordShort'), 'error');
       return;
     }
     if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(regPassword)) {
-      showToast('Password must contain uppercase, lowercase, and a digit', 'error');
+      showToast(t('login.toast.passwordWeak'), 'error');
       return;
     }
     setLoading(true);
@@ -158,10 +161,10 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
       handleAuthResponse(response);
       if (rememberEmail) saveRememberedEmail(regEmail);
       else clearRememberedEmail();
-      showToast('Account created!', 'success');
+      showToast(t('login.toast.accountCreated'), 'success');
       onSuccess();
     } catch (err: any) {
-      showToast(err.message || 'Registration failed', 'error');
+      showToast(err.message || t('login.toast.registrationFailed'), 'error');
     } finally {
       setLoading(false);
     }
@@ -174,10 +177,10 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
       const r = await collabAuthApi.forgotPassword(forgotEmail);
       // Server returns the generic message regardless of whether the email
       // is registered. Show its message verbatim — don't second-guess it.
-      showToast(r.message || 'If an account exists, a reset link was sent.', 'success');
+      showToast(r.message || t('login.toast.resetSent'), 'success');
       setForgotMode('sent');
     } catch (err: any) {
-      showToast(err.message || 'Could not send reset email', 'error');
+      showToast(err.message || t('login.toast.resetFailed'), 'error');
     } finally {
       setLoading(false);
     }
@@ -190,10 +193,10 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
       const idToken = await getGoogleIdToken();
       const response = await collabAuthApi.loginWithGoogle(idToken);
       handleAuthResponse(response);
-      showToast('Signed in with Google', 'success');
+      showToast(t('login.toast.googleSignedIn'), 'success');
       onSuccess();
     } catch (err: any) {
-      showToast(err.message || 'Google sign-in failed', 'error');
+      showToast(err.message || t('login.toast.googleFailed'), 'error');
     } finally {
       setLoading(false);
     }
@@ -223,20 +226,17 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
         onKeyDown={handleKeyDown}
       >
         <div className="dialog-header">
-          Sign in to Collaborate
+          {t('login.title')}
         </div>
 
         <div className="dialog-body">
           <p style={{ margin: '0 0 16px', fontSize: 14, color: 'var(--fd-text-muted)' }}>
-            A collaboration account is required to use real-time editing.
-            You can manage your account in System Settings.
+            {t('login.intro')}
           </p>
 
           {isDemoServer && (
             <div className="settings-demo-notice" style={{ marginBottom: 16 }}>
-              <strong>Demo Server:</strong> This is a shared demo server. Registered accounts and
-              collaboration data are automatically removed every hour. For persistent use,
-              deploy your own collab server or upgrade to the paid version.
+              <Trans ns="collab" i18nKey="login.demoNotice" components={{ strong: <strong /> }} />
             </div>
           )}
 
@@ -245,13 +245,13 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
               className={`settings-auth-tab ${tab === 'login' ? 'active' : ''}`}
               onClick={() => { setTab('login'); setForgotMode(null); }}
             >
-              Sign In
+              {t('login.signIn')}
             </button>
             <button
               className={`settings-auth-tab ${tab === 'register' ? 'active' : ''}`}
               onClick={() => { setTab('register'); setForgotMode(null); }}
             >
-              Create Account
+              {t('login.createAccount')}
             </button>
           </div>
 
@@ -259,17 +259,16 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
             forgotMode === 'form' ? (
               <div className="settings-auth-form">
                 <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--fd-text-muted)' }}>
-                  Enter the email address you used to sign up. We'll email you
-                  a link to choose a new password. The link expires in 30 minutes.
+                  {t('login.forgotIntro')}
                 </p>
                 <div className="settings-field">
-                  <label>Email</label>
+                  <label>{t('login.email')}</label>
                   <input
                     className="dialog-input"
                     type="email"
                     value={forgotEmail}
                     onChange={(e) => setForgotEmail(e.target.value)}
-                    placeholder="you@example.com"
+                    placeholder={t('login.emailPlaceholder')}
                     autoFocus
                   />
                 </div>
@@ -279,42 +278,39 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
                     onClick={handleForgotPassword}
                     disabled={!forgotEmail || loading}
                   >
-                    {loading ? 'Sending...' : 'Send reset link'}
+                    {loading ? t('login.sending') : t('login.sendResetLink')}
                   </button>
                   <button
                     className="dialog-btn"
                     onClick={() => setForgotMode(null)}
                     disabled={loading}
                   >
-                    Back to sign in
+                    {t('login.backToSignIn')}
                   </button>
                 </div>
               </div>
             ) : forgotMode === 'sent' ? (
               <div className="settings-auth-form">
                 <p style={{ margin: '0 0 12px', fontSize: 13 }}>
-                  If an account with <strong>{forgotEmail}</strong> exists, we've
-                  emailed it a link to choose a new password. Check your inbox
-                  (and the spam folder).
+                  <Trans ns="collab" i18nKey="login.resetSent" values={{ email: forgotEmail }} components={{ strong: <strong /> }} />
                 </p>
                 <p style={{ margin: '0 0 16px', fontSize: 13, color: 'var(--fd-text-muted)' }}>
-                  The link expires in 30 minutes. You can request a new one at any time.
+                  {t('login.resetSentHint')}
                 </p>
                 <button
                   className="dialog-btn dialog-btn-primary settings-auth-submit"
                   onClick={() => setForgotMode(null)}
                 >
-                  Back to sign in
+                  {t('login.backToSignIn')}
                 </button>
               </div>
             ) : pendingChallenge ? (
               <div className="settings-auth-form">
                 <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--fd-text-muted)' }}>
-                  A 6-digit verification code was emailed to <strong>{pendingChallenge.email}</strong>{' '}
-                  to confirm this new device. Enter it below to finish signing in.
+                  <Trans ns="collab" i18nKey="login.deviceIntro" values={{ email: pendingChallenge.email }} components={{ strong: <strong /> }} />
                 </p>
                 <div className="settings-field">
-                  <label>Verification Code</label>
+                  <label>{t('login.verificationCode')}</label>
                   <input
                     className="dialog-input settings-verify-input"
                     value={deviceCode}
@@ -330,53 +326,53 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
                     onClick={handleVerifyDevice}
                     disabled={deviceCode.length !== 6 || loading}
                   >
-                    {loading ? 'Verifying...' : 'Verify Device'}
+                    {loading ? t('login.verifying') : t('login.verifyDevice')}
                   </button>
                   <button
                     className="dialog-btn"
                     onClick={handleResendDeviceCode}
                     disabled={loading}
                   >
-                    Resend code
+                    {t('login.resendCode')}
                   </button>
                   <button
                     className="dialog-btn"
                     onClick={() => { setPendingChallenge(null); setDeviceCode(''); }}
                     disabled={loading}
                   >
-                    Cancel
+                    {t('common:cancel')}
                   </button>
                 </div>
               </div>
             ) : (
             <div className="settings-auth-form">
               <div className="settings-field">
-                <label>Email</label>
+                <label>{t('login.email')}</label>
                 <input
                   className="dialog-input"
                   type="email"
                   value={loginEmail}
                   onChange={(e) => setLoginEmail(e.target.value)}
-                  placeholder="you@example.com"
+                  placeholder={t('login.emailPlaceholder')}
                   autoFocus
                 />
               </div>
               <div className="settings-field">
-                <label>Password</label>
+                <label>{t('login.password')}</label>
                 <div className="password-input-wrapper">
                   <input
                     className="dialog-input"
                     type={showLoginPw ? 'text' : 'password'}
                     value={loginPassword}
                     onChange={(e) => setLoginPassword(e.target.value)}
-                    placeholder="Password"
+                    placeholder={t('login.passwordPlaceholder')}
                   />
                   <button
                     type="button"
                     className="password-toggle-btn"
                     onClick={() => setShowLoginPw(!showLoginPw)}
                     tabIndex={-1}
-                    aria-label={showLoginPw ? 'Hide password' : 'Show password'}
+                    aria-label={showLoginPw ? t('login.hidePassword') : t('login.showPassword')}
                   >
                     {showLoginPw ? <FaEyeSlash /> : <FaEye />}
                   </button>
@@ -392,7 +388,7 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
                     setForgotMode('form');
                   }}
                 >
-                  Forgot password?
+                  {t('login.forgotPassword')}
                 </button>
               </div>
               <button
@@ -400,69 +396,69 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
                 onClick={handleLogin}
                 disabled={!loginEmail || !loginPassword || loading}
               >
-                {loading ? 'Signing in...' : 'Sign In'}
+                {loading ? t('login.signingIn') : t('login.signIn')}
               </button>
             </div>
             )
           ) : (
             <div className="settings-auth-form">
               <div className="settings-field">
-                <label>Display Name</label>
+                <label>{t('login.displayName')}</label>
                 <input
                   className="dialog-input"
                   value={regName}
                   onChange={(e) => setRegName(e.target.value)}
-                  placeholder="Your name"
+                  placeholder={t('login.namePlaceholder')}
                   autoFocus
                 />
               </div>
               <div className="settings-field">
-                <label>Email</label>
+                <label>{t('login.email')}</label>
                 <input
                   className="dialog-input"
                   type="email"
                   value={regEmail}
                   onChange={(e) => setRegEmail(e.target.value)}
-                  placeholder="you@example.com"
+                  placeholder={t('login.emailPlaceholder')}
                 />
               </div>
               <div className="settings-field">
-                <label>Password</label>
+                <label>{t('login.password')}</label>
                 <div className="password-input-wrapper">
                   <input
                     className="dialog-input"
                     type={showRegPw ? 'text' : 'password'}
                     value={regPassword}
                     onChange={(e) => setRegPassword(e.target.value)}
-                    placeholder="Min 8 chars, upper + lower + digit"
+                    placeholder={t('login.passwordHint')}
                   />
                   <button
                     type="button"
                     className="password-toggle-btn"
                     onClick={() => setShowRegPw(!showRegPw)}
                     tabIndex={-1}
-                    aria-label={showRegPw ? 'Hide password' : 'Show password'}
+                    aria-label={showRegPw ? t('login.hidePassword') : t('login.showPassword')}
                   >
                     {showRegPw ? <FaEyeSlash /> : <FaEye />}
                   </button>
                 </div>
               </div>
               <div className="settings-field">
-                <label>Confirm Password</label>
+                <label>{t('login.confirmPassword')}</label>
                 <div className="password-input-wrapper">
                   <input
                     className="dialog-input"
                     type={showRegConfirm ? 'text' : 'password'}
                     value={regConfirm}
                     onChange={(e) => setRegConfirm(e.target.value)}
-                    placeholder="Confirm password"
+                    placeholder={t('login.confirmPlaceholder')}
                   />
                   <button
                     type="button"
                     className="password-toggle-btn"
                     onClick={() => setShowRegConfirm(!showRegConfirm)}
                     tabIndex={-1}
-                    aria-label={showRegConfirm ? 'Hide password' : 'Show password'}
+                    aria-label={showRegConfirm ? t('login.hidePassword') : t('login.showPassword')}
                   >
                     {showRegConfirm ? <FaEyeSlash /> : <FaEye />}
                   </button>
@@ -473,7 +469,7 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
                 onClick={handleRegister}
                 disabled={!regEmail || !regPassword || !regName || loading}
               >
-                {loading ? 'Creating account...' : 'Create Account'}
+                {loading ? t('login.creatingAccount') : t('login.createAccount')}
               </button>
             </div>
           )}
@@ -488,17 +484,16 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
                   if (!e.target.checked) clearRememberedEmail();
                 }}
               />
-              Remember my email address
+              {t('login.rememberEmail')}
             </label>
             <p className="collab-remember-hint">
-              You stay signed in for up to 7 days using a secure refresh token —
-              no password is stored on this device.
+              {t('login.rememberHint')}
             </p>
           </div>
 
           {serverConfig?.googleEnabled && (
             <div className="settings-google-section">
-              <div className="settings-divider"><span>or</span></div>
+              <div className="settings-divider"><span>{t('login.or')}</span></div>
               <button
                 className="dialog-btn settings-google-btn"
                 onClick={handleGoogleLogin}
@@ -510,7 +505,7 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
                   <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
                   <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                 </svg>
-                {loading ? 'Signing in...' : 'Sign in with Google'}
+                {loading ? t('login.signingIn') : t('login.signInWithGoogle')}
               </button>
             </div>
           )}
@@ -518,7 +513,7 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
 
         <div className="dialog-footer">
           <div style={{ flex: 1 }} />
-          <button className="dialog-btn" onClick={onClose}>Cancel</button>
+          <button className="dialog-btn" onClick={onClose}>{t('common:cancel')}</button>
         </div>
       </div>
     </div>,
@@ -534,7 +529,7 @@ function loadGoogleScript(): Promise<void> {
     const script = document.createElement('script');
     script.src = 'https://accounts.google.com/gsi/client';
     script.onload = () => resolve();
-    script.onerror = () => reject(new Error('Failed to load Google Sign-In'));
+    script.onerror = () => reject(new Error(tr('collab:login.google.loadFailed')));
     document.head.appendChild(script);
   });
 }
@@ -542,17 +537,17 @@ function loadGoogleScript(): Promise<void> {
 function getGoogleIdToken(): Promise<string> {
   return new Promise((resolve, reject) => {
     const google = (window as any).google;
-    if (!google?.accounts?.id) { reject(new Error('Google not loaded')); return; }
+    if (!google?.accounts?.id) { reject(new Error(tr('collab:login.google.notLoaded'))); return; }
     google.accounts.id.initialize({
       client_id: '',
       callback: (response: any) => {
         if (response.credential) resolve(response.credential);
-        else reject(new Error('No credential'));
+        else reject(new Error(tr('collab:login.google.noCredential')));
       },
     });
     google.accounts.id.prompt((n: any) => {
       if (n.isNotDisplayed() || n.isSkippedMoment()) {
-        reject(new Error('Google sign-in cancelled'));
+        reject(new Error(tr('collab:login.google.cancelled')));
       }
     });
   });

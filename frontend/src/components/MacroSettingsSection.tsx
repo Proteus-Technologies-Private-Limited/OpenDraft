@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSettingsStore } from '../stores/settingsStore';
 import { ELEMENT_LABELS } from '../stores/editorStore';
 import {
@@ -10,14 +11,17 @@ import { isMacPlatform } from '../utils/shortcuts';
 import ShortcutField from './ShortcutField';
 import Select from './Select';
 import { showToast } from './Toast';
+import { elementLabel } from '../editor/elementLabels';
 
 /** Element types a macro can be inserted as. The title page is not a script line. */
-const MACRO_ELEMENTS = Object.entries(ELEMENT_LABELS).filter(([id]) => id !== 'titlePage');
+const MACRO_ELEMENT_IDS = Object.keys(ELEMENT_LABELS).filter((id) => id !== 'titlePage');
 
+// i18n-ignore: file-dialog filter name written by the OS dialog; a file kind, not UI wording
 const JSON_FILTER = [{ name: 'OpenDraft macros', extensions: ['json'] }];
 
 /** Settings → Macros: add, edit, remove, export and import the writer's macros. */
 const MacroSettingsSection: React.FC = () => {
+  const { t } = useTranslation(['settings', 'common']);
   const macros = useSettingsStore((s) => s.macros);
   const setMacros = useSettingsStore((s) => s.setMacros);
   const elementMenuShortcut = useSettingsStore((s) => s.elementMenuShortcut);
@@ -44,7 +48,7 @@ const MacroSettingsSection: React.FC = () => {
     try {
       await saveFile(serializeMacros(macros), 'OpenDraft Macros.json', JSON_FILTER);
     } catch (err) {
-      showToast(`Could not export macros: ${err instanceof Error ? err.message : String(err)}`, 'error');
+      showToast(t('macros.exportFailed', { error: err instanceof Error ? err.message : String(err) }), 'error');
     }
   };
 
@@ -54,57 +58,55 @@ const MacroSettingsSection: React.FC = () => {
       if (!file) return;
       const { macros: merged, added } = mergeMacros(macros, parseMacrosFile(file.content));
       setMacros(merged);
-      showToast(added ? `Imported ${added} macro${added === 1 ? '' : 's'}.` : 'No new macros in that file.', added ? 'success' : 'info');
+      showToast(added ? t('macros.imported', { count: added }) : t('macros.noneNew'), added ? 'success' : 'info');
     } catch (err) {
-      showToast(`Could not import macros: ${err instanceof Error ? err.message : String(err)}`, 'error');
+      showToast(t('macros.importFailed', { error: err instanceof Error ? err.message : String(err) }), 'error');
     }
   };
 
   return (
     <section className="settings-section" id="macros" ref={sectionRef}>
-      <h2 className="settings-section-title">Macros</h2>
+      <h2 className="settings-section-title">{t('macros.title')}</h2>
       <p className="settings-section-desc">
-        Text you type often &mdash; CONTINUOUS, LATER, a location you keep coming back to &mdash;
-        inserted with a shortcut or from Edit &rarr; Insert Macro. With an element type, a macro
-        turns an empty line into that element, or adds a new one after the current line.
+        {t('macros.description')}
       </p>
 
-      {macros.length === 0 && <p className="settings-hint">No macros yet.</p>}
+      {macros.length === 0 && <p className="settings-hint">{t('macros.empty')}</p>}
 
       <ul className="macro-list">
         {macros.map((m, i) => (
           <li key={m.id} className="macro-row">
             <div className="macro-row-fields">
               <label className="macro-field">
-                <span>Name</span>
+                <span>{t('common:name')}</span>
                 <input
                   className="dialog-input"
                   value={m.name}
                   maxLength={MAX_MACRO_NAME}
-                  placeholder="Shown in the menu"
+                  placeholder={t('macros.namePlaceholder')}
                   onChange={(e) => update(m.id, { name: e.target.value })}
                 />
               </label>
               <label className="macro-field macro-field-text">
-                <span>Text</span>
+                <span>{t('macros.text')}</span>
                 <textarea
                   className="dialog-input"
                   value={m.text}
                   maxLength={MAX_MACRO_TEXT}
                   rows={Math.min(4, Math.max(1, m.text.split('\n').length))}
-                  placeholder="What the macro inserts"
+                  placeholder={t('macros.textPlaceholder')}
                   onChange={(e) => update(m.id, { text: e.target.value })}
                 />
               </label>
               <label className="macro-field">
-                <span>Insert as</span>
+                <span>{t('macros.insertAs')}</span>
                 <Select value={m.elementType} onChange={(e) => update(m.id, { elementType: e.target.value })}>
-                  <option value="">Text at the cursor</option>
-                  {MACRO_ELEMENTS.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
+                  <option value="">{t('macros.textAtCursor')}</option>
+                  {MACRO_ELEMENT_IDS.map((id) => <option key={id} value={id}>{elementLabel(id)}</option>)}
                 </Select>
               </label>
               <div className="macro-field">
-                <span id={`macro-shortcut-label-${m.id}`}>Shortcut</span>
+                <span id={`macro-shortcut-label-${m.id}`}>{t('macros.shortcut')}</span>
                 <ShortcutField
                   id={`macro-shortcut-${m.id}`}
                   value={m.shortcut}
@@ -114,27 +116,25 @@ const MacroSettingsSection: React.FC = () => {
             </div>
             {clashes.has(m.id) && (
               <div className="settings-hint settings-hint-warning">
-                This shortcut is also used by {m.shortcut === elementMenuShortcut ? 'the element menu' : 'another macro'}; only the first one will run.
+                {m.shortcut === elementMenuShortcut ? t('macros.clashElementMenu') : t('macros.clashMacro')}
               </div>
             )}
             <div className="macro-row-actions">
-              <button className="dialog-btn" onClick={() => move(i, -1)} disabled={i === 0} aria-label="Move up">&uarr;</button>
-              <button className="dialog-btn" onClick={() => move(i, 1)} disabled={i === macros.length - 1} aria-label="Move down">&darr;</button>
-              <button className="dialog-btn" onClick={() => remove(m.id)}>Remove</button>
+              <button className="dialog-btn" onClick={() => move(i, -1)} disabled={i === 0} aria-label={t('macros.moveUp')}>&uarr;</button>
+              <button className="dialog-btn" onClick={() => move(i, 1)} disabled={i === macros.length - 1} aria-label={t('macros.moveDown')}>&darr;</button>
+              <button className="dialog-btn" onClick={() => remove(m.id)}>{t('common:remove')}</button>
             </div>
           </li>
         ))}
       </ul>
 
       <div className="macro-toolbar">
-        <button className="dialog-btn dialog-btn-primary" onClick={() => setMacros([...macros, createMacro()])}>Add Macro</button>
-        <button className="dialog-btn" onClick={() => void handleImport()}>Import&hellip;</button>
-        <button className="dialog-btn" onClick={() => void handleExport()} disabled={macros.length === 0}>Export&hellip;</button>
+        <button className="dialog-btn dialog-btn-primary" onClick={() => setMacros([...macros, createMacro()])}>{t('macros.add')}</button>
+        <button className="dialog-btn" onClick={() => void handleImport()}>{t('macros.import')}</button>
+        <button className="dialog-btn" onClick={() => void handleExport()} disabled={macros.length === 0}>{t('macros.export')}</button>
       </div>
       <div className="settings-hint">
-        Shortcuts need at least one of {isMacPlatform() ? '⌘, ⌥ or ⌃' : 'Ctrl or Alt'}. A shortcut the editor
-        already uses (bold, element types) keeps doing that instead. Macros are kept on this device;
-        use Export and Import to move them to another.
+        {isMacPlatform() ? t('macros.footerHintMac') : t('macros.footerHintOther')}
       </div>
     </section>
   );

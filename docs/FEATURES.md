@@ -102,6 +102,13 @@ A complete list of features in OpenDraft.
 - **Browser** -- Self-hosted web version with full functionality
 - **Offline** -- Everything works without an internet connection
 
+## Languages
+
+- **Interface in your language** -- English, Spanish, French, Brazilian Portuguese, Russian, Turkish, Arabic and Persian, on every platform. It follows your device's language by default; change it any time in Settings > Language
+- **Right-to-left** -- Arabic and Persian mirror the whole interface; the script page itself keeps the layout the format prescribes
+- **Your script is separate** -- the interface language never changes your script, its element vocabulary (INT./EXT., CONT'D, transitions) or any export
+- **Contributors** -- see [i18n.md](i18n.md) and the [translation glossary](i18n-glossary.md)
+
 ## Privacy
 
 - **100% Local Storage** -- All data stays on your machine

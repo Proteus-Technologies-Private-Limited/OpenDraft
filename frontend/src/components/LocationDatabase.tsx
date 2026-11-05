@@ -1,5 +1,7 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import type { Editor } from '@tiptap/react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { useEditorStore } from '../stores/editorStore';
 import { useProjectStore } from '../stores/projectStore';
 import { api, type LocationEntry } from '../services/api';
@@ -13,11 +15,15 @@ interface Props {
   style?: React.CSSProperties;
 }
 
-const TYPE_LABEL: Record<string, string> = {
-  interior: 'Interior',
-  exterior: 'Exterior',
-  both: 'Both',
-};
+/** The label shown for a stored location type (the stored value stays 'interior' etc.). */
+function typeLabel(t: TFunction<['story', 'common']>, type: string): string {
+  switch (type) {
+    case 'interior': return t('locations.type.interior');
+    case 'exterior': return t('locations.type.exterior');
+    case 'both': return t('locations.type.both');
+    default: return type;
+  }
+}
 
 /** Parse location name from a scene heading string. */
 const PREFIX_RE = /^(INT\.?\/?EXT\.?|EXT\.?\/?INT\.?|INT\.?|EXT\.?|I\/E\.?)\s+/i;
@@ -37,6 +43,7 @@ function parseLocationFromHeading(heading: string): string {
 }
 
 const LocationDatabase: React.FC<Props> = ({ editor, style }) => {
+  const { t } = useTranslation(['story', 'common']);
   const { locationDatabaseOpen, toggleLocationDatabase, scenes } = useEditorStore();
   const { currentProject } = useProjectStore();
   const [locations, setLocations] = useState<LocationEntry[]>([]);
@@ -59,11 +66,11 @@ const LocationDatabase: React.FC<Props> = ({ editor, style }) => {
     api.listLocations(currentProject.id)
       .then((list) => { if (!cancelled) setLocations(list); })
       .catch((err) => {
-        if (!cancelled) showToast(err instanceof Error ? err.message : 'Failed to load locations', 'error');
+        if (!cancelled) showToast(err instanceof Error ? err.message : t('locations.loadFailed'), 'error');
       })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [locationDatabaseOpen, currentProject]);
+  }, [locationDatabaseOpen, currentProject, t]);
 
   // Map location name → scenes referencing it, derived from current scenes store
   const locationSceneCounts = useMemo(() => {
@@ -90,16 +97,16 @@ const LocationDatabase: React.FC<Props> = ({ editor, style }) => {
       const result = await api.discoverLocations(currentProject.id);
       setLocations(result.locations);
       if (result.discovered > 0) {
-        showToast(`Discovered ${result.discovered} new location${result.discovered === 1 ? '' : 's'}`, 'success');
+        showToast(t('locations.discovered', { count: result.discovered }), 'success');
       } else {
-        showToast('No new locations found', 'success');
+        showToast(t('locations.noneFound'), 'success');
       }
     } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Discovery failed', 'error');
+      showToast(err instanceof Error ? err.message : t('locations.discoveryFailed'), 'error');
     } finally {
       setLoading(false);
     }
-  }, [currentProject]);
+  }, [currentProject, t]);
 
   const startEdit = useCallback((loc: LocationEntry) => {
     setEditingId(loc.id);
@@ -118,24 +125,24 @@ const LocationDatabase: React.FC<Props> = ({ editor, style }) => {
       setLocations((prev) => prev.map((l) => (l.id === editingId ? updated : l)));
       setEditingId(null);
       setDraft({});
-      showToast('Location updated', 'success');
+      showToast(t('locations.updated'), 'success');
     } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Save failed', 'error');
+      showToast(err instanceof Error ? err.message : t('locations.saveFailed'), 'error');
     }
-  }, [currentProject, editingId, draft]);
+  }, [currentProject, editingId, draft, t]);
 
   const handleDelete = useCallback(async (loc: LocationEntry) => {
     if (!currentProject) return;
-    if (!window.confirm(`Delete location "${loc.name}"? Scene headings will not be changed.`)) return;
+    if (!window.confirm(t('locations.confirmDelete', { name: loc.name }))) return;
     try {
       await api.deleteLocation(currentProject.id, loc.id);
       setLocations((prev) => prev.filter((l) => l.id !== loc.id));
       if (selectedId === loc.id) setSelectedId(null);
-      showToast('Location deleted', 'success');
+      showToast(t('locations.deleted'), 'success');
     } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Delete failed', 'error');
+      showToast(err instanceof Error ? err.message : t('locations.deleteFailed'), 'error');
     }
-  }, [currentProject, selectedId]);
+  }, [currentProject, selectedId, t]);
 
   const handleRenameInHeadings = useCallback((loc: LocationEntry, newName: string) => {
     if (!editor) return;
@@ -172,12 +179,12 @@ const LocationDatabase: React.FC<Props> = ({ editor, style }) => {
     if (changed > 0) editor.view.dispatch(tr);
     if (skippedBroken > 0) {
       showToast(
-        `Skipped ${skippedBroken} scene heading${skippedBroken === 1 ? '' : 's'} containing a line break`,
+        t('locations.skippedHeadings', { count: skippedBroken }),
         'info',
       );
     }
     return changed;
-  }, [editor]);
+  }, [editor, t]);
 
   const goToScene = useCallback((sceneIndex: number) => {
     if (!editor) return;
@@ -215,22 +222,22 @@ const LocationDatabase: React.FC<Props> = ({ editor, style }) => {
   return (
     <div ref={panelRef} className={`location-database ${panelClass}`} style={style}>
       <div className="location-db-header">
-        <span className="location-db-title">Locations</span>
+        <span className="location-db-title">{t('locations.title')}</span>
         <button
           className="location-db-discover"
           onClick={discovered}
           disabled={loading}
-          title="Scan scripts and auto-create location entries"
+          title={t('locations.discoverTitle')}
         >
-          {loading ? 'Scanning…' : '⟳ Discover'}
+          {loading ? t('locations.scanning') : t('locations.discover')}
         </button>
-        <button className="location-db-close" onClick={toggleLocationDatabase} title="Close">×</button>
+        <button className="location-db-close" onClick={toggleLocationDatabase} title={t('common:close')}>×</button>
       </div>
 
       <div className="location-db-search">
         <input
           type="text"
-          placeholder="Search locations…"
+          placeholder={t('locations.searchPlaceholder')}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -239,12 +246,12 @@ const LocationDatabase: React.FC<Props> = ({ editor, style }) => {
       <div className="location-db-body">
         <div className="location-db-list">
           {loading && locations.length === 0 ? (
-            <div className="location-db-empty">Loading…</div>
+            <div className="location-db-empty">{t('common:loading')}</div>
           ) : filteredLocations.length === 0 ? (
             <div className="location-db-empty">
               {locations.length === 0
-                ? 'No locations yet. Click Discover to auto-create from scene headings.'
-                : 'No locations match your search.'}
+                ? t('locations.emptyNone')
+                : t('locations.emptyNoMatch')}
             </div>
           ) : (
             filteredLocations.map((loc) => (
@@ -259,14 +266,14 @@ const LocationDatabase: React.FC<Props> = ({ editor, style }) => {
                 </div>
                 <div className="location-db-card-meta">
                   <span className={`location-db-type location-db-type-${loc.type}`}>
-                    {TYPE_LABEL[loc.type] || loc.type}
+                    {typeLabel(t, loc.type)}
                   </span>
                   {loc.address && <span className="location-db-card-address">{loc.address}</span>}
                 </div>
                 {loc.tags.length > 0 && (
                   <div className="location-db-card-tags">
-                    {loc.tags.map((t) => (
-                      <span key={t} className="location-db-tag">{t}</span>
+                    {loc.tags.map((tag) => (
+                      <span key={tag} className="location-db-tag">{tag}</span>
                     ))}
                   </div>
                 )}
@@ -286,7 +293,7 @@ const LocationDatabase: React.FC<Props> = ({ editor, style }) => {
                 originalName={selected.name}
                 onRenameHeadings={(newName) => {
                   const n = handleRenameInHeadings(selected, newName);
-                  if (n && n > 0) showToast(`Renamed ${n} scene heading${n === 1 ? '' : 's'}`, 'success');
+                  if (n && n > 0) showToast(t('locations.renamedHeadings', { count: n }), 'success');
                 }}
               />
             ) : (
@@ -320,35 +327,37 @@ interface DetailViewProps {
   onGoToScene: (sceneIndex: number) => void;
 }
 
-const LocationDetailView: React.FC<DetailViewProps> = ({ loc, sceneIndices, scenes, onEdit, onDelete, onGoToScene }) => (
+const LocationDetailView: React.FC<DetailViewProps> = ({ loc, sceneIndices, scenes, onEdit, onDelete, onGoToScene }) => {
+  const { t } = useTranslation(['story', 'common']);
+  return (
   <>
     <div className="location-db-detail-header">
       <h3>{loc.name}</h3>
       <div className="location-db-detail-actions">
-        <button onClick={onEdit}>Edit</button>
-        <button onClick={onDelete} className="location-db-danger">Delete</button>
+        <button onClick={onEdit}>{t('common:edit')}</button>
+        <button onClick={onDelete} className="location-db-danger">{t('common:delete')}</button>
       </div>
     </div>
-    {loc.fullName && <div className="location-db-field"><label>Full Name</label><div>{loc.fullName}</div></div>}
-    <div className="location-db-field"><label>Type</label><div>{TYPE_LABEL[loc.type]}</div></div>
-    {loc.address && <div className="location-db-field"><label>Address</label><div>{loc.address}</div></div>}
-    {loc.contact && <div className="location-db-field"><label>Contact</label><div>{loc.contact}</div></div>}
-    {loc.availability && <div className="location-db-field"><label>Availability</label><div>{loc.availability}</div></div>}
-    {loc.notes && <div className="location-db-field"><label>Notes</label><div style={{ whiteSpace: 'pre-wrap' }}>{loc.notes}</div></div>}
-    {loc.aliases.length > 0 && <div className="location-db-field"><label>Aliases</label><div>{loc.aliases.join(', ')}</div></div>}
+    {loc.fullName && <div className="location-db-field"><label>{t('locations.fullName')}</label><div>{loc.fullName}</div></div>}
+    <div className="location-db-field"><label>{t('locations.typeLabel')}</label><div>{typeLabel(t, loc.type)}</div></div>
+    {loc.address && <div className="location-db-field"><label>{t('locations.address')}</label><div>{loc.address}</div></div>}
+    {loc.contact && <div className="location-db-field"><label>{t('locations.contact')}</label><div>{loc.contact}</div></div>}
+    {loc.availability && <div className="location-db-field"><label>{t('locations.availability')}</label><div>{loc.availability}</div></div>}
+    {loc.notes && <div className="location-db-field"><label>{t('locations.notes')}</label><div style={{ whiteSpace: 'pre-wrap' }}>{loc.notes}</div></div>}
+    {loc.aliases.length > 0 && <div className="location-db-field"><label>{t('locations.aliases')}</label><div>{loc.aliases.join(', ')}</div></div>}
     {loc.tags.length > 0 && (
       <div className="location-db-field">
-        <label>Tags</label>
+        <label>{t('locations.tags')}</label>
         <div className="location-db-card-tags">
-          {loc.tags.map((t) => <span key={t} className="location-db-tag">{t}</span>)}
+          {loc.tags.map((tag) => <span key={tag} className="location-db-tag">{tag}</span>)}
         </div>
       </div>
     )}
     <div className="location-db-field">
-      <label>Scenes ({sceneIndices.length})</label>
+      <label>{t('locations.scenes', { count: sceneIndices.length })}</label>
       <div className="location-db-scenes">
         {sceneIndices.length === 0 ? (
-          <em>No scenes reference this location.</em>
+          <em>{t('locations.noScenes')}</em>
         ) : (
           sceneIndices.map((sceneIdx) => {
             const scene = scenes[sceneIdx];
@@ -364,7 +373,8 @@ const LocationDetailView: React.FC<DetailViewProps> = ({ loc, sceneIndices, scen
       </div>
     </div>
   </>
-);
+  );
+};
 
 interface EditorProps {
   draft: Partial<LocationEntry>;
@@ -376,6 +386,7 @@ interface EditorProps {
 }
 
 const LocationEditor: React.FC<EditorProps> = ({ draft, setDraft, onSave, onCancel, originalName, onRenameHeadings }) => {
+  const { t } = useTranslation(['story', 'common']);
   const set = (patch: Partial<LocationEntry>) => setDraft((d) => ({ ...d, ...patch }));
   const currentName = (draft.name || '').toUpperCase();
   const nameChanged = currentName !== originalName && currentName.length > 0;
@@ -383,14 +394,14 @@ const LocationEditor: React.FC<EditorProps> = ({ draft, setDraft, onSave, onCanc
   return (
     <>
       <div className="location-db-detail-header">
-        <h3>Edit Location</h3>
+        <h3>{t('locations.editTitle')}</h3>
         <div className="location-db-detail-actions">
-          <button onClick={onCancel}>Cancel</button>
-          <button onClick={onSave} className="location-db-primary">Save</button>
+          <button onClick={onCancel}>{t('common:cancel')}</button>
+          <button onClick={onSave} className="location-db-primary">{t('common:save')}</button>
         </div>
       </div>
       <div className="location-db-field">
-        <label>Name</label>
+        <label>{t('common:name')}</label>
         <input value={draft.name || ''} onChange={(e) => set({ name: e.target.value.toUpperCase() })} />
         {nameChanged && (
           <button
@@ -398,36 +409,36 @@ const LocationEditor: React.FC<EditorProps> = ({ draft, setDraft, onSave, onCanc
             style={{ marginTop: 4 }}
             onClick={() => onRenameHeadings(currentName)}
           >
-            Rename in all scene headings →
+            {t('locations.renameInHeadings')}
           </button>
         )}
       </div>
       <div className="location-db-field">
-        <label>Full Name</label>
+        <label>{t('locations.fullName')}</label>
         <input value={draft.fullName || ''} onChange={(e) => set({ fullName: e.target.value })} />
       </div>
       <div className="location-db-field">
-        <label>Type</label>
+        <label>{t('locations.typeLabel')}</label>
         <Select value={draft.type || 'interior'} onChange={(e) => set({ type: e.target.value as LocationEntry['type'] })}>
-          <option value="interior">Interior</option>
-          <option value="exterior">Exterior</option>
-          <option value="both">Both</option>
+          <option value="interior">{t('locations.type.interior')}</option>
+          <option value="exterior">{t('locations.type.exterior')}</option>
+          <option value="both">{t('locations.type.both')}</option>
         </Select>
       </div>
       <div className="location-db-field">
-        <label>Address</label>
+        <label>{t('locations.address')}</label>
         <input value={draft.address || ''} onChange={(e) => set({ address: e.target.value })} />
       </div>
       <div className="location-db-field">
-        <label>Contact</label>
+        <label>{t('locations.contact')}</label>
         <input value={draft.contact || ''} onChange={(e) => set({ contact: e.target.value })} />
       </div>
       <div className="location-db-field">
-        <label>Availability</label>
+        <label>{t('locations.availability')}</label>
         <input value={draft.availability || ''} onChange={(e) => set({ availability: e.target.value })} />
       </div>
       <div className="location-db-field">
-        <label>Notes</label>
+        <label>{t('locations.notes')}</label>
         <textarea
           value={draft.notes || ''}
           onChange={(e) => set({ notes: e.target.value })}
@@ -435,14 +446,14 @@ const LocationEditor: React.FC<EditorProps> = ({ draft, setDraft, onSave, onCanc
         />
       </div>
       <div className="location-db-field">
-        <label>Aliases (comma-separated)</label>
+        <label>{t('locations.aliasesInput')}</label>
         <input
           value={(draft.aliases || []).join(', ')}
           onChange={(e) => set({ aliases: e.target.value.split(',').map((s) => s.trim().toUpperCase()).filter(Boolean) })}
         />
       </div>
       <div className="location-db-field">
-        <label>Tags (comma-separated)</label>
+        <label>{t('locations.tagsInput')}</label>
         <input
           value={(draft.tags || []).join(', ')}
           onChange={(e) => set({ tags: e.target.value.split(',').map((s) => s.trim()).filter(Boolean) })}

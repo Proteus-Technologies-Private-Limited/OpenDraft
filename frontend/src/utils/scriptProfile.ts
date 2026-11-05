@@ -15,6 +15,8 @@
  * the number would only make the number worse.
  */
 
+import { t } from '../i18n';
+
 export type Pacing = 'brisk' | 'standard' | 'measured';
 
 export interface PacingOption {
@@ -28,21 +30,21 @@ export interface PacingOption {
 export const PACING_OPTIONS: readonly PacingOption[] = [
   {
     id: 'brisk',
-    label: 'Brisk',
+    get label() { return t('messages:pacing.brisk.label'); },
     multiplier: 0.85,
-    description: 'Fast-talking, quick cutting, overlapping dialogue — screen time runs shorter than the page.',
+    get description() { return t('messages:pacing.brisk.description'); },
   },
   {
     id: 'standard',
-    label: 'Standard',
+    get label() { return t('messages:pacing.standard.label'); },
     multiplier: 1,
-    description: 'One page ≈ one minute. Right for most scripts.',
+    get description() { return t('messages:pacing.standard.description'); },
   },
   {
     id: 'measured',
-    label: 'Measured',
+    get label() { return t('messages:pacing.measured.label'); },
     multiplier: 1.3,
-    description: 'Slow-burn or contemplative — long silences, lingering images, held moments that play longer than they read.',
+    get description() { return t('messages:pacing.measured.description'); },
   },
 ];
 

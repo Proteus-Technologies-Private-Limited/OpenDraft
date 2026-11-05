@@ -22,6 +22,7 @@
  */
 import type { JSONContent } from '@tiptap/react';
 import { buildTitlePageBlocks, type TitlePageFields } from './titlePageBlocks';
+import { t } from '../i18n';
 
 const PTS_PER_INCH = 72;
 
@@ -122,10 +123,10 @@ export async function extractPdfPages(data: ArrayBuffer): Promise<PdfPageText[]>
   } catch (err) {
     const name = (err as { name?: string } | null)?.name;
     if (name === 'PasswordException') {
-      throw new Error('This PDF is protected by a password. Open it in a PDF viewer, save a copy without the password, and import that.');
+      throw new Error(t('messages:import.pdfPassword'));
     }
     if (name === 'InvalidPDFException') {
-      throw new Error('This file is not a PDF that can be read — it may be damaged.');
+      throw new Error(t('messages:import.pdfUnreadable'));
     }
     throw err;
   }
@@ -535,7 +536,7 @@ export function screenplayFromPdfPages(pages: PdfPageText[]): ParsedPdfScreenpla
   const warnings: string[] = [];
   const total = pages.reduce((n, p) => n + p.lines.length, 0);
   if (total === 0) {
-    throw new Error('This PDF has no text to read — it may be a scan. Only PDFs with selectable text can be imported.');
+    throw new Error(t('messages:import.pdfNoText'));
   }
 
   const content: JSONContent[] = [];
@@ -702,7 +703,7 @@ export function screenplayFromPdfPages(pages: PdfPageText[]): ParsedPdfScreenpla
     layout.push(read?.layout ?? null);
   }
   if (!content.some((n) => n.type === 'sceneHeading' || n.type === 'character')) {
-    warnings.push('No scene headings or dialogue were recognised — the PDF may not be laid out as a screenplay.');
+    warnings.push(t('messages:import.pdfNothingRecognised'));
   }
   return { doc: { type: 'doc', content }, title, warnings, layout };
 }

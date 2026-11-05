@@ -17,6 +17,7 @@
 import { uuid } from '../utils/uuid';
 import { readFontFileInfo, FontFileError } from '../utils/fontFile';
 import { setDynamicFonts, genericFor, type FontEntry, type FontGeneric } from '../utils/fonts';
+import { t } from '../i18n';
 
 const IDB_NAME = 'opendraft-fonts';
 const IDB_STORE = 'fonts';
@@ -50,7 +51,7 @@ function idbAvailable(): boolean {
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     if (!idbAvailable()) {
-      reject(new Error('This browser has no local storage for fonts.'));
+      reject(new Error(t('messages:fonts.noStorage')));
       return;
     }
     const request = indexedDB.open(IDB_NAME, IDB_VERSION);
@@ -302,9 +303,9 @@ export async function installFontFiles(sources: FontSource[]): Promise<InstallRe
     const file = { name: source.name, size: source.bytes.byteLength };
     try {
       if (file.size > MAX_FONT_BYTES) {
-        throw new FontFileError(`Too large — fonts must be under ${Math.round(MAX_FONT_BYTES / 1024 / 1024)} MB.`);
+        throw new FontFileError(t('messages:fonts.tooLarge', { mb: Math.round(MAX_FONT_BYTES / 1024 / 1024) }));
       }
-      if (file.size === 0) throw new FontFileError('That file is empty.');
+      if (file.size === 0) throw new FontFileError(t('messages:fonts.empty'));
 
       const bytes = source.bytes;
       const info = readFontFileInfo(bytes, file.name);
@@ -334,7 +335,7 @@ export async function installFontFiles(sources: FontSource[]): Promise<InstallRe
     } catch (err) {
       const message = err instanceof FontFileError
         ? err.message
-        : `Could not install this font: ${(err as Error)?.message || String(err)}`;
+        : t('messages:fonts.installFailed', { message: (err as Error)?.message || String(err) });
       result.errors.push({ fileName: file.name, message });
       console.warn(`[customFonts] ${file.name}:`, err);
     }
@@ -350,7 +351,7 @@ export async function removeCustomFont(id: string): Promise<void> {
     await deleteOne(id);
   } catch (err) {
     console.warn('[customFonts] could not delete from the font store:', err);
-    throw new Error('The font was removed from this session but could not be deleted from storage.');
+    throw new Error(t('messages:fonts.deleteFailed'));
   } finally {
     publish();
   }

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { Editor } from '@tiptap/react';
+import { useTranslation } from 'react-i18next';
 import { TextSelection } from '@tiptap/pm/state';
 import { grammarPluginKey } from '../editor/extensions/Grammar';
 import { grammarIgnore, GrammarIgnore } from '../editor/grammar/grammarIgnore';
@@ -14,6 +15,7 @@ interface WritingSuggestionsModalProps {
 }
 
 const WritingSuggestionsModal: React.FC<WritingSuggestionsModalProps> = ({ editor, onClose }) => {
+  const { t } = useTranslation(['tools', 'common']);
   const [issues, setIssues] = useState<GrammarIssue[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const setGrammarRuleEnabled = useEditorStore((s) => s.setGrammarRuleEnabled);
@@ -195,16 +197,16 @@ const WritingSuggestionsModal: React.FC<WritingSuggestionsModalProps> = ({ edito
         style={{ left: position.x, top: position.y }}
       >
         <div className="spell-modal-header" onMouseDown={handlePointerDown} onTouchStart={handlePointerDown}>
-          <span>Writing Suggestions</span>
+          <span>{t('writingSuggestions.title')}</span>
         </div>
         <div style={{ textAlign: 'center', padding: '32px 24px' }}>
           <div style={{ fontSize: 36, marginBottom: 12 }}>&#10003;</div>
-          <div style={{ color: 'var(--fd-text)', fontSize: 14 }}>No writing suggestions found.</div>
+          <div style={{ color: 'var(--fd-text)', fontSize: 14 }}>{t('writingSuggestions.none')}</div>
         </div>
         <div className="spell-modal-actions">
           <div className="spell-modal-actions-col" />
           <div className="spell-modal-actions-col">
-            <button className="dialog-primary" onClick={onClose}>Close</button>
+            <button className="dialog-primary" onClick={onClose}>{t('common:close')}</button>
           </div>
         </div>
       </div>
@@ -241,7 +243,7 @@ const WritingSuggestionsModal: React.FC<WritingSuggestionsModalProps> = ({ edito
       style={{ left: position.x, top: position.y }}
     >
       <div className="spell-modal-header" onMouseDown={handlePointerDown} onTouchStart={handlePointerDown}>
-        <span>Writing Suggestions: {issues.length} issue{issues.length !== 1 ? 's' : ''}</span>
+        <span>{t('writingSuggestions.issues', { count: issues.length })}</span>
         <span style={{ fontSize: 11, color: 'var(--fd-text-muted)' }}>{currentIndex + 1} / {issues.length}</span>
       </div>
 
@@ -260,17 +262,17 @@ const WritingSuggestionsModal: React.FC<WritingSuggestionsModalProps> = ({ edito
         </div>
 
         <div className="spell-modal-section">
-          <label className="spell-modal-label">Why:</label>
+          <label className="spell-modal-label">{t('writingSuggestions.why')}</label>
           <div style={{ fontSize: 13, color: 'var(--fd-text)', lineHeight: 1.4 }}>
             {currentIssue?.message}
           </div>
         </div>
 
         <div className="spell-modal-section">
-          <label className="spell-modal-label">Suggestions:</label>
+          <label className="spell-modal-label">{t('writingSuggestions.suggestions')}</label>
           <div className="spell-modal-suggestions">
             {!currentIssue?.suggestions || currentIssue.suggestions.length === 0 ? (
-              <div className="spell-modal-no-suggestions">(no automatic replacement — edit manually or skip)</div>
+              <div className="spell-modal-no-suggestions">{t('writingSuggestions.noReplacement')}</div>
             ) : (
               currentIssue.suggestions.map((s, i) => (
                 <div
@@ -289,14 +291,14 @@ const WritingSuggestionsModal: React.FC<WritingSuggestionsModalProps> = ({ edito
 
       <div className="spell-modal-actions">
         <div className="spell-modal-actions-col">
-          <button onClick={handleIgnoreOnce}>Ignore Once</button>
-          <button onClick={handleIgnoreRuleForDoc}>Ignore in Document</button>
-          <button onClick={handleDisableRuleEverywhere}>Disable Rule</button>
+          <button onClick={handleIgnoreOnce}>{t('writingSuggestions.ignoreOnce')}</button>
+          <button onClick={handleIgnoreRuleForDoc}>{t('writingSuggestions.ignoreInDocument')}</button>
+          <button onClick={handleDisableRuleEverywhere}>{t('writingSuggestions.disableRule')}</button>
         </div>
         <div className="spell-modal-actions-col">
-          <button onClick={goPrev} disabled={currentIndex === 0}>Previous</button>
-          <button className="dialog-primary" onClick={goNext} disabled={currentIndex >= issues.length - 1}>Next</button>
-          <button onClick={onClose}>Close</button>
+          <button onClick={goPrev} disabled={currentIndex === 0}>{t('common:previous')}</button>
+          <button className="dialog-primary" onClick={goNext} disabled={currentIndex >= issues.length - 1}>{t('common:next')}</button>
+          <button onClick={onClose}>{t('common:close')}</button>
         </div>
       </div>
     </div>

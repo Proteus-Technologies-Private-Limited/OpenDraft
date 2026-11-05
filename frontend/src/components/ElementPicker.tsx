@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ELEMENT_LABELS, type ElementType } from '../stores/editorStore';
-import { ELEMENT_DESCRIPTIONS } from '../stores/formattingTypes';
+import { elementLabel, elementDescription } from '../editor/elementLabels';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { AV_SCRIPT_TEMPLATE } from '../stores/templates/avScriptTemplate';
 import { pickerElementTypes } from '../utils/elementPickerOrder';
@@ -33,6 +34,7 @@ interface ElementPickerProps {
 const ElementPicker: React.FC<ElementPickerProps> = ({
   position, defaultType, availableTypes, onSelect, onInsertBlankLine, onInsertAvRow, onDismiss,
 }) => {
+  const { t } = useTranslation('editor');
   const activeTemplate = useFormattingTemplateStore((s) => s.getActiveTemplate());
   const orderedTypes = useMemo<ElementType[]>(
     () => {
@@ -51,7 +53,7 @@ const ElementPicker: React.FC<ElementPickerProps> = ({
   // "avDirection", "avGraphic". `Insert AV Columns` works in any script, so
   // that was the ordinary case, not an exotic one.
   const labelFor = (type: ElementType): string =>
-    ELEMENT_LABELS[type]
+    (ELEMENT_LABELS[type] ? elementLabel(type) : '')
     || activeTemplate.rules[type]?.label
     || AV_SCRIPT_TEMPLATE.rules[type]?.label
     || String(type);
@@ -150,14 +152,14 @@ const ElementPicker: React.FC<ElementPickerProps> = ({
       ref={menuRef}
       style={{ top: adjustedPos.top, left: adjustedPos.left }}
     >
-      <div className="element-picker-header">Element Type</div>
+      <div className="element-picker-header">{t('elementPicker.header')}</div>
       {orderedTypes.map((type, i) => {
         // The menu only opens on a blank line, so the row the line is already
         // on cannot mean "convert" — it means one more line of this element.
         // Say so, rather than leaving it to be discovered (issue #100).
         const shortcut = elementShortcutSpec(type);
         const hint = [
-          type === defaultType && onInsertBlankLine ? 'blank line' : '',
+          type === defaultType && onInsertBlankLine ? t('elementPicker.blankLineHint') : '',
           hasNavigated && i === selectedIndex ? '\u23CE' : '',
         ].filter(Boolean).join(' ');
         return (
@@ -168,7 +170,7 @@ const ElementPicker: React.FC<ElementPickerProps> = ({
           onMouseDown={(e) => { e.preventDefault(); onSelect(type); }}
           onMouseEnter={() => setHoverIndex(i)}
           onMouseLeave={() => setHoverIndex(h => (h === i ? -1 : h))}
-          title={ELEMENT_DESCRIPTIONS[type]}
+          title={elementDescription(type)}
         >
           <span className="element-picker-label">{labelFor(type)}</span>
           {/* The shortcut has its own column: the hint column is reserved for
@@ -185,9 +187,9 @@ const ElementPicker: React.FC<ElementPickerProps> = ({
         <div
           className="element-picker-blank"
           onMouseDown={(e) => { e.preventDefault(); onInsertBlankLine(); }}
-          title="Add another blank line instead of changing the element type"
+          title={t('elementPicker.blankLineTitle')}
         >
-          <span className="element-picker-label">Blank Line</span>
+          <span className="element-picker-label">{t('elementPicker.blankLine')}</span>
           <span className="element-picker-hint">{hasNavigated ? '' : '\u23CE'}</span>
         </div>
       )}
@@ -195,9 +197,9 @@ const ElementPicker: React.FC<ElementPickerProps> = ({
         <div
           className="element-picker-blank"
           onMouseDown={(e) => { e.preventDefault(); onInsertAvRow(); }}
-          title="Start a new AV row instead of changing the element type"
+          title={t('elementPicker.newAvRowTitle')}
         >
-          <span className="element-picker-label">New AV Row</span>
+          <span className="element-picker-label">{t('elementPicker.newAvRow')}</span>
           <span className="element-picker-hint" />
         </div>
       )}

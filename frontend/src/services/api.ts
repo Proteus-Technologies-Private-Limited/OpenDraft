@@ -2,6 +2,7 @@ import { prepareScriptWrite } from '../utils/reviewSave';
 import { getApiBase, getCollabWsUrl } from '../config';
 import { useSettingsStore } from '../stores/settingsStore';
 import { authedFetch, sessionSurvivesUnauthorized } from './authedFetch';
+import { t } from '../i18n';
 
 /**
  * Custom events dispatched by the API client so UI components (AuthGate) can
@@ -71,7 +72,7 @@ export async function handleNonOkResponse(res: Response, label: string): Promise
       throw new ApiError(
         res.status,
         parsedBody,
-        'Could not renew your sign-in just now. Please try again in a moment.',
+        t('messages:auth.renewFailed'),
         false,
       );
     }
@@ -525,17 +526,17 @@ export async function initStorage(): Promise<void> {
         if (!result) return;
         const { showToast } = await import('../components/Toast');
         const counts = [
-          result.projects ? `${result.projects} project${result.projects === 1 ? '' : 's'}` : null,
-          result.scripts ? `${result.scripts} script${result.scripts === 1 ? '' : 's'}` : null,
-          result.assets ? `${result.assets} asset${result.assets === 1 ? '' : 's'}` : null,
-          result.templates ? `${result.templates} template${result.templates === 1 ? '' : 's'}` : null,
+          result.projects ? t('messages:fallbackImport.project', { count: result.projects }) : null,
+          result.scripts ? t('messages:fallbackImport.script', { count: result.scripts }) : null,
+          result.assets ? t('messages:fallbackImport.asset', { count: result.assets }) : null,
+          result.templates ? t('messages:fallbackImport.template', { count: result.templates }) : null,
         ].filter(Boolean).join(', ');
         if (result.errors.length === 0 && counts) {
-          showToast(`Imported ${counts} from file-based fallback storage`, 'success');
+          showToast(t('messages:fallbackImport.imported', { counts }), 'success');
         } else if (result.errors.length > 0) {
           console.error('[recovery] errors:', result.errors);
           showToast(
-            `Imported ${counts || 'nothing'} from fallback. ${result.errors.length} item(s) failed — check DevTools for details.`,
+            t('messages:fallbackImport.importedWithErrors', { counts: counts || t('messages:fallbackImport.nothing'), failed: result.errors.length }),
             'error',
           );
         }

@@ -15,6 +15,7 @@
  * the Location radio already does.
  */
 import React, { useCallback, useMemo, useState } from 'react';
+import { useTranslation, Trans } from 'react-i18next';
 import {
   useEditorStore,
   resolveFootnotes,
@@ -38,12 +39,15 @@ interface FootnoteDialogProps {
   onClose: () => void;
 }
 
+// i18n-ignore-start: sample bibliographic citations shown in the preview, not interface text
 const SAMPLE = [
   'Armstrong, N. (1969). Apollo 11 flight transcript. NASA.',
   'Didion, J. (1979). The White Album. Simon & Schuster.',
 ];
+// i18n-ignore-end
 
 const FootnoteDialog: React.FC<FootnoteDialogProps> = ({ onClose }) => {
+  const { t } = useTranslation(['format', 'common']);
   const { pageLayout, setPageLayout, notes } = useEditorStore();
   const ctx = useNoteRenderContext();
 
@@ -83,9 +87,9 @@ const FootnoteDialog: React.FC<FootnoteDialogProps> = ({ onClose }) => {
     return texts.map((text, i) => ({
       marker: noteMarkerText(fn.startAt + i, fn.numberFormat, fn.markerStyle),
       label: noteEntryLabel(fn.startAt + i, fn.numberFormat),
-      text: text || '(empty note)',
+      text: text || t('footnote.emptyNote'),
     }));
-  }, [printing, ctx, fn.startAt, fn.numberFormat, fn.markerStyle]);
+  }, [printing, ctx, fn.startAt, fn.numberFormat, fn.markerStyle, t]);
 
   const isEndnote = fn.placement === 'endnote';
 
@@ -95,9 +99,9 @@ const FootnoteDialog: React.FC<FootnoteDialogProps> = ({ onClose }) => {
         className="dialog-box fn-dialog"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
-        aria-label="Footnote and Endnote"
+        aria-label={t('footnote.title')}
       >
-        <div className="dialog-header">Footnote and Endnote</div>
+        <div className="dialog-header">{t('footnote.title')}</div>
         <div className="dialog-body">
 
           <div className="fn-section">
@@ -107,19 +111,17 @@ const FootnoteDialog: React.FC<FootnoteDialogProps> = ({ onClose }) => {
                 checked={fn.enabled}
                 onChange={(e) => set('enabled', e.target.checked)}
               />
-              <span>Print notes in the screenplay</span>
+              <span>{t('footnote.printNotes')}</span>
             </label>
             <div className="fn-hint">
-              While this is off, notes stay on screen only &mdash; nothing changes in the
-              script, the page count, or any export.
+              {t('footnote.printNotesHint')}
             </div>
           </div>
 
           <fieldset className="fn-section" disabled={!fn.enabled}>
-            <div className="fn-section-title">Location</div>
+            <div className="fn-section-title">{t('footnote.location')}</div>
             <div className="fn-hint" style={{ marginTop: 0, marginBottom: 8 }}>
-              Where notes go by default. Any note can be sent the other way from
-              its own dropdown in the Script Notes panel; the rest follow this.
+              {t('footnote.locationHint')}
             </div>
             <label className="fn-radio">
               <input
@@ -128,8 +130,8 @@ const FootnoteDialog: React.FC<FootnoteDialogProps> = ({ onClose }) => {
                 checked={!isEndnote}
                 onChange={() => set('placement', 'footnote')}
               />
-              <span className="fn-radio-label">Footnotes</span>
-              <span className="fn-radio-value">Bottom of page</span>
+              <span className="fn-radio-label">{t('footnote.footnotes')}</span>
+              <span className="fn-radio-value">{t('footnote.bottomOfPage')}</span>
             </label>
             <label className="fn-radio">
               <input
@@ -138,16 +140,16 @@ const FootnoteDialog: React.FC<FootnoteDialogProps> = ({ onClose }) => {
                 checked={isEndnote}
                 onChange={() => set('placement', 'endnote')}
               />
-              <span className="fn-radio-label">Endnotes</span>
-              <span className="fn-radio-value">End of script</span>
+              <span className="fn-radio-label">{t('footnote.endnotes')}</span>
+              <span className="fn-radio-value">{t('footnote.endOfScript')}</span>
             </label>
           </fieldset>
 
           <fieldset className="fn-section" disabled={!fn.enabled}>
-            <div className="fn-section-title">Format</div>
+            <div className="fn-section-title">{t('footnote.format')}</div>
 
             <div className="fn-row">
-              <label htmlFor="fn-format">Number format</label>
+              <label htmlFor="fn-format">{t('footnote.numberFormat')}</label>
               <Select
                 id="fn-format"
                 value={fn.numberFormat}
@@ -164,27 +166,27 @@ const FootnoteDialog: React.FC<FootnoteDialogProps> = ({ onClose }) => {
             </div>
 
             <div className="fn-row">
-              <label>Marker style</label>
+              <label>{t('footnote.markerStyle')}</label>
               <div className="fn-segmented">
                 <button
                   type="button"
                   className={fn.markerStyle === 'superscript' ? 'active' : ''}
                   onClick={() => set('markerStyle', 'superscript')}
                 >
-                  Superscript <sup>{formatNoteNumber(fn.startAt, fn.numberFormat)}</sup>
+                  <Trans ns="format" i18nKey="footnote.superscript" values={{ number: formatNoteNumber(fn.startAt, fn.numberFormat) }} components={{ sup: <sup /> }} />
                 </button>
                 <button
                   type="button"
                   className={fn.markerStyle === 'bracketed' ? 'active' : ''}
                   onClick={() => set('markerStyle', 'bracketed')}
                 >
-                  Bracketed [{formatNoteNumber(fn.startAt, fn.numberFormat)}]
+                  {t('footnote.bracketed', { number: formatNoteNumber(fn.startAt, fn.numberFormat) })}
                 </button>
               </div>
             </div>
 
             <div className="fn-row">
-              <label htmlFor="fn-start">Start at</label>
+              <label htmlFor="fn-start">{t('footnote.startAt')}</label>
               <input
                 id="fn-start"
                 type="number"
@@ -197,26 +199,24 @@ const FootnoteDialog: React.FC<FootnoteDialogProps> = ({ onClose }) => {
             </div>
 
             <div className="fn-row">
-              <label htmlFor="fn-numbering">Numbering</label>
+              <label htmlFor="fn-numbering">{t('footnote.numbering')}</label>
               <Select
                 id="fn-numbering"
                 value={fn.numbering}
                 disabled={isEndnote}
                 onChange={(e) => set('numbering', e.target.value as FootnoteSettings['numbering'])}
               >
-                <option value="continuous">Continuous</option>
-                <option value="restartEachPage">Restart each page</option>
+                <option value="continuous">{t('footnote.continuous')}</option>
+                <option value="restartEachPage">{t('footnote.restartEachPage')}</option>
               </Select>
             </div>
             {isEndnote && (
               <div className="fn-hint">
-                Endnotes are one list at the end of the script, so there is no page to
-                restart the numbering on.
+                {t('footnote.endnoteNumberingHint')}
               </div>
             )}
             <div className="fn-hint">
-              General notes are attached to the file rather than to a line of it, so
-              they always print at the end whatever this says.
+              {t('footnote.generalNotesHint')}
             </div>
 
             <label className="fn-check">
@@ -225,25 +225,27 @@ const FootnoteDialog: React.FC<FootnoteDialogProps> = ({ onClose }) => {
                 checked={fn.includeInExports}
                 onChange={(e) => set('includeInExports', e.target.checked)}
               />
-              <span>Include notes when exporting</span>
+              <span>{t('footnote.includeInExports')}</span>
             </label>
             <div className="fn-hint">
-              Applies to PDF, Word and Final Draft. Turn it off to send a clean script
-              without changing anything on screen.
+              {t('footnote.includeInExportsHint')}
             </div>
           </fieldset>
 
           <div className="fn-section">
-            <div className="fn-section-title">Preview</div>
+            <div className="fn-section-title">{t('footnote.preview')}</div>
             <div className="fn-preview">
               <div className="fn-preview-body">
+                {/* i18n-ignore: sample quotation in the preview */}
                 <span>&hellip;that was one small step</span>
                 {fn.markerStyle === 'superscript'
                   ? <sup className="fn-preview-marker">{previewEntries[0]?.marker}</sup>
                   : <span className="fn-preview-marker">{previewEntries[0]?.marker}</span>}
+                {/* i18n-ignore: sample quotation in the preview */}
                 <span> for a man.</span>
               </div>
               {!isEndnote && <div className="fn-preview-rule" />}
+              {/* i18n-ignore: the NOTES heading is script page content, as on the printed page */}
               {isEndnote && <div className="fn-preview-heading">NOTES</div>}
               {previewEntries.map((e, i) => (
                 <div className="fn-preview-entry" key={i}>
@@ -254,20 +256,20 @@ const FootnoteDialog: React.FC<FootnoteDialogProps> = ({ onClose }) => {
             </div>
             <div className="fn-hint">
               {printing.length > 0
-                ? `${printing.length} of ${notes.length} notes are set to print.`
-                : 'No notes are set to print yet — use the Print button on a note.'}
+                ? t('footnote.printCount', { count: notes.length, printing: printing.length })
+                : t('footnote.printNone')}
             </div>
           </div>
         </div>
 
         <div className="dialog-actions">
           <button className="page-setup-reset" onClick={handleReset}>
-            Reset Default
+            {t('footnote.resetDefault')}
           </button>
           <div className="page-setup-spacer" />
-          <button onClick={onClose}>Cancel</button>
+          <button onClick={onClose}>{t('common:cancel')}</button>
           <button className="dialog-primary" onClick={handleApply}>
-            Apply
+            {t('common:apply')}
           </button>
         </div>
       </div>

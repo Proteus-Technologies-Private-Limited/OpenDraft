@@ -1,3 +1,4 @@
+// i18n-ignore-start user manual body and chapter titles stay English in phase 1 (docs/i18n.md)
 /**
  * Offline user manual.
  *
@@ -511,3 +512,5 @@ export function formatBytes(bytes: number): string {
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
+
+// i18n-ignore-end

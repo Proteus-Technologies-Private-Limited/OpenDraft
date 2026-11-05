@@ -9,6 +9,7 @@ import { useEditorStore } from '../stores/editorStore';
 import { useWritingGoalsStore } from '../stores/writingGoalsStore';
 import { countWords } from '../utils/writingGoals';
 import { showToast } from '../components/Toast';
+import { t as translate } from '../i18n';
 
 /** How long after the last edit the script is counted. */
 const IDLE_MS = 3000;
@@ -68,7 +69,7 @@ export function useWritingTracker(editor: Editor | null, scriptKey: string, enab
         );
       }
       const done = useWritingGoalsStore.getState().endSprint();
-      if (done) showToast(`Sprint finished — ${done.words} word${done.words === 1 ? '' : 's'} written.`, 'success');
+      if (done) showToast(translate('messages:sprint.finished', { count: done.words }), 'success');
     };
     const t = setTimeout(finish, Math.max(0, sprint.endsAt - Date.now()));
     return () => clearTimeout(t);

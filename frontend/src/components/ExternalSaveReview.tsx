@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { useExternalSaveReview } from '../services/externalSave';
 export default function ExternalSaveReview() {
   const request = useExternalSaveReview((s) => s.queue[0]);
@@ -7,6 +8,7 @@ export default function ExternalSaveReview() {
   ) : null;
 }
 function Review({ name, warnings }: { name: string; warnings: string[] }) {
+  const { t } = useTranslation(['collab', 'common']);
   const dialog = useRef<HTMLDialogElement>(null);
   const copyButton = useRef<HTMLButtonElement>(null);
   const [acknowledged, setAcknowledged] = useState(false);
@@ -25,17 +27,13 @@ function Review({ name, warnings }: { name: string; warnings: string[] }) {
         answer('cancel');
       }}
     >
-      <h2 id="external-save-title">Protect your original screenplay</h2>
+      <h2 id="external-save-title">{t('externalSave.title')}</h2>
       <p>
-        OpenDraft cannot guarantee a lossless round trip for{' '}
-        <strong>{name}</strong>. Layout, unsupported source metadata, custom
-        styles and application-specific information may be changed or omitted.
-        Opening successfully does not mean every property can be saved
-        faithfully.
+        <Trans ns="collab" i18nKey="externalSave.intro" values={{ name }} components={{ strong: <strong /> }} />
       </p>
       {warnings.length > 0 && (
         <>
-          <p>Import findings:</p>
+          <p>{t('externalSave.findings')}</p>
           <ul>
             {warnings.map((warning, i) => (
               <li key={i}>{warning}</li>
@@ -44,11 +42,7 @@ function Review({ name, warnings }: { name: string; warnings: string[] }) {
         </>
       )}
       <p>
-        Save a Copy keeps the original untouched. Overwrite Original first
-        creates a verified recovery copy: in <code>.opendraft-originals</code>{' '}
-        beside desktop files, or OpenDraft&apos;s <code>source-backups</code>{' '}
-        application-data folder on mobile. If backup fails, the source is not
-        written.
+        <Trans ns="collab" i18nKey="externalSave.options" components={{ code: <code /> }} />
       </p>
       <label>
         <input
@@ -56,15 +50,15 @@ function Review({ name, warnings }: { name: string; warnings: string[] }) {
           checked={acknowledged}
           onChange={(e) => setAcknowledged(e.target.checked)}
         />{' '}
-        I understand that original information may be lost or changed.
+        {t('externalSave.acknowledge')}
       </label>
       <div className="dialog-actions">
         <button ref={copyButton} onClick={() => answer('copy')}>
-          Save a Copy
+          {t('externalSave.saveCopy')}
         </button>
-        <button onClick={() => answer('cancel')}>Cancel</button>
+        <button onClick={() => answer('cancel')}>{t('common:cancel')}</button>
         <button disabled={!acknowledged} onClick={() => answer('overwrite')}>
-          Overwrite Original
+          {t('externalSave.overwrite')}
         </button>
       </div>
     </dialog>

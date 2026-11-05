@@ -22,6 +22,7 @@
 import type { Editor } from '@tiptap/react';
 import { DOMSerializer } from '@tiptap/pm/model';
 import { getOS, isTauri } from '../services/platform';
+import { t } from '../i18n';
 
 export interface ClipboardResult {
   ok: boolean;
@@ -88,8 +89,8 @@ async function readNativeHtml(): Promise<string | null> {
 /** Said when the clipboard cannot be read, which on iOS is usually the prompt. */
 export function pasteFailureMessage(): string {
   return getOS() === 'ios'
-    ? 'Could not read the clipboard. iOS asks permission for every paste — tap “Paste” when it appears, or press and hold in the script and use Paste there.'
-    : 'Could not read the clipboard. Allow clipboard access for OpenDraft and try again.';
+    ? t('messages:clipboard.pasteDeniedIos')
+    : t('messages:clipboard.pasteDenied');
 }
 
 /**
@@ -168,10 +169,10 @@ export async function copySelection(editor: Editor | null): Promise<ClipboardRes
   if (!editor) return { ok: false };
 
   const payload = serializeSelection(editor);
-  if (!payload) return { ok: false, error: 'Select something to copy first.' };
+  if (!payload) return { ok: false, error: t('messages:clipboard.selectFirst') };
 
   const written = await writeClipboard(payload.html, payload.text);
-  return written ? { ok: true } : { ok: false, error: 'Could not copy to the clipboard.' };
+  return written ? { ok: true } : { ok: false, error: t('messages:clipboard.copyFailed') };
 }
 
 /**
@@ -232,7 +233,7 @@ export async function readClipboardText(): Promise<{ text?: string; error?: stri
   try {
     if (navigator.clipboard?.readText) {
       const text = await navigator.clipboard.readText();
-      return text ? { text } : { error: 'The clipboard is empty.' };
+      return text ? { text } : { error: t('messages:clipboard.empty') };
     }
   } catch (err) {
     console.error('[clipboard] readText failed:', err);
@@ -278,7 +279,7 @@ export async function pasteIntoEditor(editor: Editor | null): Promise<ClipboardR
           if (editor.view.pasteText(text)) return { ok: true };
         }
       }
-      return { ok: false, error: 'The clipboard is empty.' };
+      return { ok: false, error: t('messages:clipboard.empty') };
     } catch (err) {
       // Denied outright on Android, where the web view grants `clipboard-read`
       // to nobody. Ask the platform before giving up — unformatted, but a paste.
@@ -300,7 +301,7 @@ export async function pasteIntoEditor(editor: Editor | null): Promise<ClipboardR
 
   try {
     const text = await navigator.clipboard.readText();
-    if (!text) return { ok: false, error: 'The clipboard is empty.' };
+    if (!text) return { ok: false, error: t('messages:clipboard.empty') };
     restoreCursor(editor, at);
     editor.view.pasteText(text);
     return { ok: true };
@@ -328,7 +329,7 @@ export async function pasteWithoutFormatting(editor: Editor | null): Promise<Cli
   const at = editor.state.selection;
   try {
     const text = await navigator.clipboard.readText();
-    if (!text) return { ok: false, error: 'The clipboard is empty.' };
+    if (!text) return { ok: false, error: t('messages:clipboard.empty') };
     restoreCursor(editor, at);
     editor.view.pasteText(text);
     return { ok: true };

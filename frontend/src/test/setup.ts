@@ -91,3 +91,10 @@ if (typeof globalThis.window === 'undefined') {
     configurable: true,
   });
 }
+
+// ── i18n ──────────────────────────────────────────────────────────────────
+// Modules outside React call `t()` at run time. Start i18next in English, as
+// the app does before anything renders, so those modules return their English
+// text (and the existing assertions on it keep holding).
+import { initI18n } from '../i18n';
+await initI18n();

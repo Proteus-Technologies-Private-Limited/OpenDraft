@@ -11,6 +11,7 @@
 
 import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { leaveEditor } from '../services/pendingSave';
 import { FaCloud, FaUserCircle } from 'react-icons/fa';
@@ -20,6 +21,7 @@ import { showToast } from './Toast';
 import CollabLoginDialog from './CollabLoginDialog';
 
 const AuthIndicator: React.FC = () => {
+  const { t } = useTranslation('collab');
   const collabAuth = useSettingsStore((s) => s.collabAuth);
   const authVerified = useSettingsStore((s) => s.authVerified);
   const signingOut = useSigningOut((s) => s.signingOut);
@@ -81,10 +83,10 @@ const AuthIndicator: React.FC = () => {
           type="button"
           className="auth-indicator auth-indicator--local"
           onClick={() => setLoginOpen(true)}
-          title="Working offline — click to sign in and save to the server"
+          title={t('auth.localOnlyTitle')}
         >
           <FaCloud style={{ opacity: 0.6 }} />
-          <span>Local only</span>
+          <span>{t('auth.localOnly')}</span>
         </button>
         {loginOpen && (
           <CollabLoginDialog
@@ -102,7 +104,7 @@ const AuthIndicator: React.FC = () => {
     return (
       <span className="auth-indicator auth-indicator--busy" role="status" aria-live="polite">
         <span className="auth-indicator__spinner" aria-hidden="true" />
-        <span>Signing out…</span>
+        <span>{t('auth.signingOut')}</span>
       </span>
     );
   }
@@ -116,11 +118,11 @@ const AuthIndicator: React.FC = () => {
         type="button"
         className={`auth-indicator auth-indicator--signed-in ${user.emailVerified ? '' : 'auth-indicator--unverified'}`}
         onClick={() => setMenuOpen((v) => !v)}
-        title={user.emailVerified ? `Signed in as ${user.displayName}` : 'Email not verified — saving disabled'}
+        title={user.emailVerified ? t('auth.signedInAs', { name: user.displayName }) : t('auth.unverifiedTitle')}
       >
         <span className="auth-indicator__avatar" aria-hidden="true">{initial}</span>
         <span className="auth-indicator__name">{user.displayName || user.email}</span>
-        {!user.emailVerified && <span className="auth-indicator__badge">verify</span>}
+        {!user.emailVerified && <span className="auth-indicator__badge">{t('auth.verifyBadge')}</span>}
       </button>
       {menuOpen && menuRect && createPortal(
         <div
@@ -141,7 +143,7 @@ const AuthIndicator: React.FC = () => {
               void leaveEditor(() => navigate('/settings'));
             }}
           >
-            <FaUserCircle /> Account settings
+            <FaUserCircle /> {t('auth.accountSettings')}
           </button>
           <button
             type="button"
@@ -149,10 +151,10 @@ const AuthIndicator: React.FC = () => {
             onClick={async () => {
               setMenuOpen(false);
               await performLogout();
-              showToast('Signed out', 'success');
+              showToast(t('auth.signedOut'), 'success');
             }}
           >
-            Sign out
+            {t('auth.signOut')}
           </button>
         </div>,
         document.body,

@@ -1,0 +1,458 @@
+{
+  "avFrame": {
+    "notImage": "لطفاً یک فایل تصویر انتخاب کنید",
+    "needRow": "ابتدا نشانگر را در یک ردیف صدا و تصویر بگذارید، سپس فریم را اضافه کنید",
+    "failed": "افزودن فریم ممکن نشد: {{message}}"
+  },
+  "image": {
+    "degraded": "این تصویر ناگزیر داخل خود سند ذخیره شد. برای اینکه مزاحم نباشد، فیلمنامه را در کتابخانهٔ خود ذخیره کنید.",
+    "couldNotAdd": "افزودن «{{name}}» ممکن نشد.",
+    "fileFallbackName": "تصویر"
+  },
+  "template": {
+    "unreadable": "این نسخه از OpenDraft نمی‌تواند قالب ذخیره‌شدهٔ این فیلمنامه را بخواند. برای نمایش از یک قالب محلی استفاده می‌شود؛ داده‌های قالب اصلی هنگام ذخیره حفظ می‌شود. برای استفاده از قالب ذخیره‌شده، OpenDraft را به‌روز کنید."
+  },
+  "pacing": {
+    "brisk": {
+      "label": "تند",
+      "description": "حرف زدن سریع، برش‌های تند، دیالوگ‌های همپوشان — زمان روی پرده از صفحه کوتاه‌تر است."
+    },
+    "standard": {
+      "label": "استاندارد",
+      "description": "هر صفحه ≈ یک دقیقه. مناسب بیشتر فیلمنامه‌ها."
+    },
+    "measured": {
+      "label": "آرام",
+      "description": "آرام‌سوز یا تأملی — سکوت‌های طولانی، تصویرهای ماندگار، لحظه‌هایی که بیش از آنچه خوانده می‌شوند طول می‌کشند."
+    }
+  },
+  "stats": {
+    "bucket": {
+      "under1": "کمتر از 1 صفحه",
+      "p1to2": "1 تا 2 صفحه",
+      "p2to3": "2 تا 3 صفحه",
+      "p3to5": "3 تا 5 صفحه",
+      "p5plus": "5+ صفحه"
+    }
+  },
+  "pdfFonts": {
+    "hebrew": "عبری",
+    "arabic": "عربی",
+    "thai": "تایلندی",
+    "cyrillic": "سیریلیک، یونانی، ارمنی و گرجی",
+    "chinese": "چینی",
+    "japanese": "ژاپنی",
+    "korean": "کره‌ای",
+    "chineseTraditional": "چینی (سنتی)",
+    "and": " و ",
+    "missing": "قلم {{fonts}} بارگذاری نشد، پس آن متن در PDF خالی است.",
+    "unsupported": "{{scripts}} هنوز در PDF نوشته نمی‌شود، پس آن متن نیست یا خراب است. بقیهٔ فیلمنامه عادی خروجی گرفته شد."
+  },
+  "grammar": {
+    "harper": {
+      "Agreement": {
+        "label": "مطابقت فاعل و فعل",
+        "description": "شکل فعل باید با فاعل جور باشد («she walk» ← «she walks»)."
+      },
+      "Grammar": {
+        "label": "دستور زبان",
+        "description": "زمان فعل، واژه‌های اشتباه‌گرفته‌شده (their/they're)، حالت ضمیر و اشتباه‌های مشابه."
+      },
+      "Capitalization": {
+        "label": "حروف بزرگ",
+        "description": "اسم‌های خاص، آغاز جمله‌ها، ضمیر «I»."
+      },
+      "Repetition": {
+        "label": "واژهٔ تکراری",
+        "description": "«the the» ناخواسته."
+      },
+      "Punctuation": {
+        "label": "نقطه‌گذاری",
+        "description": "ویرگول‌های جاافتاده، فاصله‌های اضافی اطراف علائم نگارشی."
+      },
+      "WordChoice": {
+        "label": "انتخاب واژه",
+        "description": "واژه‌ای روشن‌تر یا رایج‌تر پیشنهاد می‌دهد."
+      },
+      "Readability": {
+        "label": "خوانایی",
+        "description": "جمله‌های بلند یا دشوار برای تجزیه."
+      },
+      "Typo": {
+        "label": "غلط تایپی",
+        "description": "غلط‌های تایپی احتمالی که از زمینه تشخیص داده می‌شوند (مثلاً «teh» ← «the»)."
+      },
+      "Spelling": {
+        "label": "املا",
+        "description": "واژه‌های غلط‌نویسی‌شده (با بررسی‌گر املا هم‌پوشانی دارد — یکی را غیرفعال کنید)."
+      },
+      "Style": {
+        "label": "سبک",
+        "description": "پیشنهادهای سبکی (درازنویسی، عبارت‌های ضعیف)."
+      },
+      "Enhancement": {
+        "label": "بهبود",
+        "description": "بازنویسی‌های اختیاری که اغلب وضوح را بهتر می‌کنند."
+      },
+      "Formatting": {
+        "label": "قالب‌بندی",
+        "description": "فاصله‌گذاری، گیومه‌ها، خط تیره‌ها."
+      },
+      "Regionalism": {
+        "label": "گویش منطقه‌ای",
+        "description": "کاربرد واژه‌ای که بیرون از یک منطقهٔ خاص غیرمعمول است."
+      },
+      "Miscellaneous": {
+        "label": "سایر",
+        "description": "دیگر مشکلات دستوری که در دسته‌های بالا نمی‌گنجند."
+      }
+    },
+    "retext": {
+      "passive": {
+        "label": "جملهٔ مجهول",
+        "description": "ساختارهای مجهول را علامت می‌زند («was kicked»)."
+      },
+      "repeated": {
+        "label": "واژهٔ تکراری",
+        "description": "«the the» ناخواسته را می‌گیرد."
+      },
+      "indefiniteArticle": {
+        "label": "A / an",
+        "description": "«a hour» / «an university» را تشخیص می‌دهد."
+      },
+      "redundantAcronyms": {
+        "label": "مخفف‌های زائد",
+        "description": "مثلاً «ATM machine»."
+      },
+      "intensify": {
+        "label": "قید تأکیدی ضعیف",
+        "description": "جایگزین‌های قوی‌تر برای «very» و «really» پیشنهاد می‌دهد."
+      },
+      "simplify": {
+        "label": "عبارت پرگو",
+        "description": "«in order to» ← «to» را فشرده می‌کند."
+      }
+    }
+  },
+  "reports": {
+    "count": {
+      "scene_one": "{{count}} سکانس",
+      "scene_other": "{{count}} سکانس",
+      "speakingCharacter_one": "{{count}} شخصیت سخن‌گو",
+      "speakingCharacter_other": "{{count}} شخصیت سخن‌گو",
+      "location_one": "{{count}} لوکیشن",
+      "location_other": "{{count}} لوکیشن",
+      "castMember_one": "{{count}} بازیگر",
+      "castMember_other": "{{count}} بازیگر",
+      "taggedItem_one": "{{count}} مورد برچسب‌دار",
+      "taggedItem_other": "{{count}} مورد برچسب‌دار",
+      "category_one": "{{count}} دسته",
+      "category_other": "{{count}} دسته",
+      "openNote_one": "{{count}} یادداشت باز",
+      "openNote_other": "{{count}} یادداشت باز",
+      "note_one": "{{count}} یادداشت",
+      "note_other": "{{count}} یادداشت",
+      "reply_one": "{{count}} پاسخ",
+      "reply_other": "{{count}} پاسخ"
+    },
+    "scenes": {
+      "label": "گزارش سکانس‌ها",
+      "description": "هر سکانس با لوکیشن، طول، زمان روی پرده و افراد سخن‌گو",
+      "summary": "{{scenes}} · {{length}} صفحه",
+      "columns": {
+        "scene": "سکانس",
+        "heading": "عنوان",
+        "intExt": "داخلی/خارجی",
+        "location": "لوکیشن",
+        "time": "زمان",
+        "length": "طول",
+        "estTime": "زمان تخمینی",
+        "speaking": "شخصیت‌های سخن‌گو",
+        "words": "واژه‌ها"
+      }
+    },
+    "characters": {
+      "label": "گزارش شخصیت‌ها",
+      "description": "گفتارها، واژه‌ها و سکانس‌های هر شخصیت سخن‌گو",
+      "columns": {
+        "character": "شخصیت",
+        "role": "نقش",
+        "gender": "جنسیت",
+        "speeches": "گفتارها",
+        "words": "واژه‌ها",
+        "share": "سهم از دیالوگ",
+        "scenes": "سکانس‌ها",
+        "sceneNumbers": "شمارهٔ سکانس‌ها"
+      }
+    },
+    "locations": {
+      "label": "گزارش لوکیشن‌ها",
+      "description": "هر لوکیشن، تعداد دفعات استفاده و تعداد صفحه‌ها",
+      "columns": {
+        "location": "لوکیشن",
+        "intExt": "داخلی/خارجی",
+        "times": "وقت‌های روز",
+        "scenes": "سکانس‌ها",
+        "totalLength": "طول کل",
+        "sceneNumbers": "شمارهٔ سکانس‌ها"
+      }
+    },
+    "cast": {
+      "label": "گزارش بازیگران",
+      "description": "پروفایل شخصیت‌ها با نقش، جنسیت، سن و سکانس‌های سخن‌گو",
+      "columns": {
+        "character": "شخصیت",
+        "role": "نقش",
+        "gender": "جنسیت",
+        "age": "سن",
+        "speakingScenes": "سکانس‌های سخن‌گو",
+        "description": "توضیح"
+      }
+    },
+    "breakdown": {
+      "label": "گزارش برش‌بندی",
+      "description": "اکسسوار، لباس، وسایل نقلیه و بیشتر که برچسب خورده‌اند، همراه سکانس‌هایشان",
+      "summary": "{{items}} در {{categories}}",
+      "columns": {
+        "category": "دسته",
+        "item": "مورد",
+        "scenes": "سکانس‌ها",
+        "sceneNumbers": "شمارهٔ سکانس‌ها",
+        "notes": "یادداشت‌ها"
+      }
+    },
+    "notes": {
+      "label": "گزارش یادداشت‌ها",
+      "description": "هر یادداشت با پاسخ‌هایش، نویسنده‌اش، شخصی که به او واگذار شده و اینکه حل شده یا نه",
+      "title": "گزارش یادداشت‌ها",
+      "summary": "{{notes}} · {{open}} باز · {{resolved}} حل‌شده · {{replies}}",
+      "columns": {
+        "number": "#",
+        "scene": "سکانس",
+        "on": "روی",
+        "from": "از",
+        "comment": "نظر",
+        "status": "وضعیت",
+        "assignedTo": "واگذارشده به",
+        "date": "تاریخ"
+      },
+      "general": "عمومی",
+      "open": "باز",
+      "resolved": "حل‌شده",
+      "resolvedBy": "حل‌شده توسط {{name}}",
+      "resolvedAt": "{{status}} {{date}}"
+    },
+    "openNotes": {
+      "label": "یادداشت‌های باز",
+      "description": "فقط یادداشت‌هایی که هنوز حل نشده‌اند، با پاسخ‌هایشان — آنچه هنوز باید انجام شود",
+      "title": "یادداشت‌های باز",
+      "summary": "{{notes}} · {{replies}}"
+    },
+    "nothing": "چیزی برای گزارش نیست."
+  },
+  "backup": {
+    "error": {
+      "missingFolder": "پوشهٔ پشتیبان دیگر وجود ندارد.",
+      "noPermission": "OpenDraft اجازهٔ نوشتن در پوشهٔ پشتیبان را ندارد.",
+      "diskFull": "دیسک پر است.",
+      "noResponse": "پوشهٔ پشتیبان پاسخ نداد (آیا درایو شبکه قطع شده است؟)."
+    },
+    "failed": "پشتیبان‌گیری ناموفق بود — {{reason}}",
+    "paused": "پشتیبان‌گیری خودکار متوقف شد — {{reason}} برای ادامه، پوشه را در تنظیمات درست کنید.",
+    "notInBrowser": "پشتیبان‌گیری در مرورگر در دسترس نیست.",
+    "onlyInApp": "پشتیبان‌گیری فقط در برنامهٔ OpenDraft در دسترس است.",
+    "noFolder": "پوشهٔ پشتیبانی پیکربندی نشده است.",
+    "revealDesktopOnly": "نمایش پشتیبان در مدیر فایل فقط روی دسکتاپ در دسترس است.",
+    "chooseFolderBrowser": "انتخاب پوشهٔ پشتیبان در مرورگر در دسترس نیست."
+  },
+  "sprint": {
+    "finished_one": "اسپرینت تمام شد — {{count}} واژه نوشته شد.",
+    "finished_other": "اسپرینت تمام شد — {{count}} واژه نوشته شد."
+  },
+  "recovery": {
+    "tooLarge": "این سند برای محافظت در برابر خرابی برنامه بیش از حد بزرگ است. آن را در کتابخانهٔ خود ذخیره کنید تا ذخیرهٔ خودکار کار را به دست بگیرد.",
+    "noRoom": "محافظت در برابر خرابی در دسترس نیست — جایی برای نگه داشتن نسخهٔ بازیابی نیست. کار خود را در کتابخانه ذخیره کنید."
+  },
+  "fallbackImport": {
+    "project_one": "{{count}} پروژه",
+    "project_other": "{{count}} پروژه",
+    "script_one": "{{count}} فیلمنامه",
+    "script_other": "{{count}} فیلمنامه",
+    "asset_one": "{{count}} دارایی",
+    "asset_other": "{{count}} دارایی",
+    "template_one": "{{count}} الگو",
+    "template_other": "{{count}} الگو",
+    "imported": "{{counts}} از ذخیره‌سازی جایگزین مبتنی بر فایل درون‌ریزی شد",
+    "importedWithErrors": "{{counts}} از ذخیره‌سازی جایگزین درون‌ریزی شد. {{failed}} مورد ناموفق بود — جزئیات را در DevTools ببینید.",
+    "nothing": "هیچ چیز"
+  },
+  "dictionary": {
+    "unknownLanguage": "زبان ناشناخته: {{code}}",
+    "downloadFailed": "دانلود «{{label}}» ممکن نشد — ممکن است منبع موقتاً در دسترس نباشد یا شبکه آفلاین باشد.",
+    "codeRequired": "کد زبان لازم است.",
+    "urlsRequired": "هر دو نشانی .aff و .dic لازم است.",
+    "parseFailed": "دانلود یا تجزیه ناموفق بود. نشانی‌ها را بررسی کنید و ببینید فایل‌ها Hunspell .aff/.dic معتبر باشند."
+  },
+  "auth": {
+    "renewFailed": "همین الان نوسازی ورود شما ممکن نشد. لطفاً کمی بعد دوباره تلاش کنید."
+  },
+  "cloud": {
+    "notConfigured": "OpenDraft Cloud برای این برنامه پیکربندی نشده است. «تنظیمات ← تنظیمات سیستم» را باز کنید و نشانی سرور OpenDraft را تعیین کنید.",
+    "cannotReachNamed": "دسترسی به {{where}} ممکن نیست. بررسی کنید سرور در حال اجرا و در دسترس باشد.",
+    "cannotReach": "دسترسی به OpenDraft Cloud ممکن نیست ({{detail}}).",
+    "invalidResponse": "OpenDraft Cloud پاسخ نامعتبری برگرداند. ممکن است سرور درست پیکربندی نشده باشد.",
+    "renewUnavailable": "دسترسی به سرور OpenDraft برای نوسازی ورود شما ممکن نشد. لطفاً کمی بعد دوباره تلاش کنید."
+  },
+  "fonts": {
+    "tooLarge": "بیش از حد بزرگ — قلم‌ها باید کمتر از {{mb}} مگابایت باشند.",
+    "empty": "آن فایل خالی است.",
+    "tooSmall": "آن فایل برای یک قلم بسیار کوچک است.",
+    "notFont": "آن فایل قلم TrueType یا OpenType نیست.",
+    "installFailed": "نصب این قلم ممکن نشد: {{message}}",
+    "noStorage": "این مرورگر حافظهٔ محلی برای قلم‌ها ندارد.",
+    "deleteFailed": "قلم از این نشست برداشته شد اما حذف آن از حافظه ممکن نشد."
+  },
+  "linkedFiles": {
+    "unsupportedExtension": "OpenDraft می‌تواند فیلمنامه‌ها را در فایل‌های .odraft، .fountain، .fdx یا .osf نگه دارد، نه .{{ext}}.",
+    "noExtension": "(هیچ)",
+    "cannotWrite": "OpenDraft نمی‌تواند در {{folder}} بنویسد",
+    "cannotWriteReason": "OpenDraft نمی‌تواند در {{folder}} بنویسد — {{reason}}",
+    "notInFolder": "این پروژه در یک پوشه ذخیره نمی‌شود."
+  },
+  "elements": {
+    "sceneHeading": "عنوان سکانس",
+    "action": "توصیف",
+    "character": "شخصیت",
+    "parenthetical": "راهنمای بازی",
+    "dialogue": "دیالوگ",
+    "transition": "گذار",
+    "shot": "نما",
+    "general": "عمومی",
+    "dualDialogue": "دیالوگ همزمان",
+    "lyrics": "متن ترانه",
+    "newAct": "پردهٔ جدید",
+    "endOfAct": "پایان پرده"
+  },
+  "marks": {
+    "bold": "پررنگ",
+    "italic": "مورب",
+    "underline": "زیرخط",
+    "strike": "خط‌خورده",
+    "subscript": "زیرنویس",
+    "superscript": "بالانویس",
+    "textStyle": "قلم/اندازه",
+    "color": "رنگ متن",
+    "highlight": "هایلایت",
+    "formatOverride": "بازنویسی قالب"
+  },
+  "relativeTime": {
+    "justNow": "همین الان",
+    "minutes_one": "{{count}} دقیقه پیش",
+    "minutes_other": "{{count}} دقیقه پیش",
+    "hours_one": "{{count}} ساعت پیش",
+    "hours_other": "{{count}} ساعت پیش",
+    "days_one": "{{count}} روز پیش",
+    "days_other": "{{count}} روز پیش"
+  },
+  "suggestions": {
+    "insertedBy": "پیشنهاد {{name}}",
+    "insertedByAt": "پیشنهاد {{name}} · {{when}}",
+    "someone": "کسی",
+    "someoneCap": "کسی",
+    "deleteBy": "{{name}} حذف این را پیشنهاد کرد",
+    "deleteByAt": "{{name}} حذف این را پیشنهاد کرد · {{when}}",
+    "formatAdd": "{{name}} افزودن {{format}} را پیشنهاد کرد",
+    "formatRemove": "{{name}} برداشتن {{format}} را پیشنهاد کرد",
+    "joinLabel": "⤒ پیوستن",
+    "joinTitle": "{{name}} پیوستن این خط به خط قبل را پیشنهاد کرد",
+    "wasType": "قبلاً {{type}} بود",
+    "changeTitle": "{{name}} تغییر این را از {{from}} به {{to}} پیشنهاد کرد"
+  },
+  "clipboard": {
+    "pasteDeniedIos": "خواندن کلیپ‌بورد ممکن نشد. iOS برای هر چسباندن اجازه می‌خواهد — وقتی «Paste» ظاهر شد آن را لمس کنید، یا در فیلمنامه نگه دارید و از همان‌جا «چسباندن» را بزنید.",
+    "pasteDenied": "خواندن کلیپ‌بورد ممکن نشد. دسترسی به کلیپ‌بورد را برای OpenDraft مجاز کنید و دوباره تلاش کنید.",
+    "selectFirst": "ابتدا چیزی را برای کپی انتخاب کنید.",
+    "copyFailed": "کپی در کلیپ‌بورد ممکن نشد.",
+    "empty": "کلیپ‌بورد خالی است."
+  },
+  "import": {
+    "archiveNotOpenable": "فایل‌های {{format}} بایگانی فشرده هستند و روی این پلتفرم باز نمی‌شوند. فیلمنامه را از {{app}} به‌صورت .fdx، .fountain یا .osf خروجی بگیرید و آن را درون‌ریزی کنید.",
+    "expectedText": "برای یک فایل {{format}} محتوای متنی انتظار می‌رفت.",
+    "invalidOdraft": "فایل .odraft نامعتبر: {{message}}",
+    "archiveUnreadable": "خواندن فایل {{format}} ممکن نشد — بایگانی .{{ext}} معتبری نیست. ممکن است آسیب‌دیده، ناقص یا به قالب دیگری ذخیره شده باشد؛ دوباره از {{format}} خروجی بگیرید.",
+    "zipInvalid": "این فایل بایگانی zip معتبری نیست",
+    "zipSingleScript": "این zip یک فیلمنامه دارد، نه یک پروژه. آن را از داخل یک پروژه درون‌ریزی کنید.",
+    "zipNoProject": "بایگانی پروژهٔ نامعتبر: project.json وجود ندارد",
+    "zipNoneImported": "هیچ‌یک از {{count}} فیلمنامه درون‌ریزی نشد",
+    "pdfPassword": "این PDF با گذرواژه محافظت شده است. آن را در یک نمایشگر PDF باز کنید، نسخه‌ای بدون گذرواژه ذخیره کنید و آن را درون‌ریزی کنید.",
+    "pdfUnreadable": "این فایل PDF خواندنی نیست — ممکن است آسیب دیده باشد.",
+    "pdfNoText": "این PDF متنی برای خواندن ندارد — ممکن است اسکن باشد. فقط PDFهای دارای متن قابل‌انتخاب را می‌توان درون‌ریزی کرد.",
+    "pdfNothingRecognised": "هیچ عنوان سکانس یا دیالوگی شناسایی نشد — ممکن است PDF به شکل فیلمنامه صفحه‌آرایی نشده باشد.",
+    "docxTable": "به جدولی برخوردیم که چیدمان دیالوگ همزمان نیست — خانه‌ها در توصیف ادغام شدند.",
+    "docxNoDocument": "فایل .docx معتبر نیست: word/document.xml وجود ندارد",
+    "docxNoBody": "فایل .docx معتبر نیست: <w:body> وجود ندارد",
+    "highlandNoFountain": "فیلمنامهٔ Highland نیست: فایل متن ندارد.fountain{{contents}}.",
+    "highlandNotFountain": "این سند Highland به‌جای Fountain به‌صورت {{name}} ذخیره شده است، پس به‌عنوان متن Fountain خوانده شد؛ پس از درون‌ریزی نوع عناصر را بررسی کنید.",
+    "highlandImages": "تصاویر ذخیره‌شده در فایل Highland درون‌ریزی نشدند."
+  },
+  "export": {
+    "zipUnreadable_one": "خواندن فیلمنامه ممکن نشد: {{names}}",
+    "zipUnreadable_other": "خواندن فیلمنامه‌ها ممکن نشد: {{names}}",
+    "twoUpPageSize": "اندازهٔ صفحه معتبر نیست، پس نمی‌توان دو صفحه را در یک برگ گذاشت.",
+    "twoUpStructure": "گذاشتن دو صفحه در یک برگ ممکن نشد: ساختار PDF غیرمنتظره بود.",
+    "twoUpPageStructure": "گذاشتن دو صفحه در یک برگ ممکن نشد: صفحهٔ {{page}} ساختار غیرمنتظره داشت.",
+    "avEmpty": "این سند محتوای صدا و تصویر برای خروجی گرفتن ندارد.",
+    "cannotWrite": "OpenDraft نمی‌تواند فایل‌های .{{format}} بنویسد."
+  },
+  "file": {
+    "chooseDifferent": "برای «ذخیرهٔ نسخه» مقصد دیگری انتخاب کنید. فایل اصلی بدون تغییر ماند.",
+    "openBrowser": "باز کردن فایل در همان مکان در مرورگر در دسترس نیست.",
+    "saveBrowser": "ذخیرهٔ فایل در همان مکان در مرورگر در دسترس نیست."
+  },
+  "macros": {
+    "notJson": "این فایل JSON معتبر نیست.",
+    "notMacros": "این فایل ماکروهای OpenDraft ندارد."
+  },
+  "avYaml": {
+    "notYaml": "آن فایل YAML معتبر نیست.",
+    "notYamlLine": "آن فایل YAML معتبر نیست (خط {{line}}).",
+    "notAvDoc": "آن فایل سند صدا و تصویر OpenDraft نیست.",
+    "wrongFormat": "آن فایل سند صدا و تصویر OpenDraft نیست (قالب مورد انتظار: {{format}}).",
+    "noVersion": "آن فایل نمی‌گوید از کدام نسخهٔ طرح‌واره صدا و تصویر استفاده می‌کند.",
+    "tooNew": "آن فایل از نسخهٔ طرح‌واره {{version}} صدا و تصویر استفاده می‌کند، اما این نسخه از OpenDraft تا {{max}} را می‌خواند. برای باز کردن آن، OpenDraft را به‌روز کنید.",
+    "noSection": "آن فایل صدا و تصویر بخش `av:` برای درون‌ریزی ندارد.",
+    "noRows": "بخش {{n}} صدا و تصویر ردیفی ندارد."
+  },
+  "sides": {
+    "emptyScenes": "سکانس‌های انتخابی خالی‌اند.",
+    "noLines": "{{name}} در این فیلمنامه خطی ندارد.",
+    "noSceneAt": "هیچ سکانسی در {{location}} تعیین نشده است.",
+    "notTagged": "هیچ چیزی در فیلمنامه با {{label}} برچسب نخورده است."
+  },
+  "av": {
+    "durationLabel": "مدت نمای {{shot}}",
+    "durationInvalid": "زمان نیست — از 0:05، 1:30 یا 1:02:03 استفاده کنید",
+    "durationTitle": "مدت نما",
+    "resizeTitle": "برای تغییر اندازه بکشید · برای بازنشانی دوبار کلیک کنید"
+  },
+  "tts": {
+    "unreadable": "سرور گفتار پاسخی بدون محتوای خواندنی داد.",
+    "noProvider": "هیچ ارائه‌دهندهٔ صدای هوش مصنوعی راه‌اندازی نشده است.",
+    "needGeminiKey": "کلید API مربوط به Gemini را در «تنظیمات ← صداهای خوانش دورمیزی» اضافه کنید.",
+    "needElevenLabsKey": "کلید API مربوط به ElevenLabs را در «تنظیمات ← صداهای خوانش دورمیزی» اضافه کنید.",
+    "needAzureKey": "کلید و منطقهٔ Azure Speech را در «تنظیمات ← صداهای خوانش دورمیزی» اضافه کنید.",
+    "noKokoroVoice": "هیچ صدای Kokoro انتخاب نشده است.",
+    "noGeminiVoice": "هیچ صدای Gemini انتخاب نشده است.",
+    "noAzureVoice": "هیچ صدای Azure انتخاب نشده است.",
+    "noElevenLabsVoice": "هیچ صدای ElevenLabs انتخاب نشده است.",
+    "noVoice": "هیچ صدایی انتخاب نشده است.",
+    "geminiNoAudio": "Gemini برای این خط صدایی برنگرداند.",
+    "azureNoAudio": "Azure Speech صدایی برنگرداند.",
+    "audioNoStart": "پخش صدای {{provider}} شروع نشد. ممکن است این مرورگر از قالب آن پشتیبانی نکند.",
+    "audioNoPlay": "پخش صدای {{provider}} ممکن نشد.",
+    "audioNoDecode": "رمزگشایی صدای {{provider}} ممکن نشد: {{message}}",
+    "kokoroStopped": "موتور صدای Kokoro متوقف شد: {{message}}",
+    "kokoroUnknown": "خطای ناشناخته",
+    "systemStopped": "موتور گفتار سیستم دیگر پاسخ نمی‌دهد: {{message}}"
+  }
+}

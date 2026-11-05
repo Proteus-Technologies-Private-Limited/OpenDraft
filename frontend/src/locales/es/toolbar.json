@@ -1,0 +1,109 @@
+{
+  "status": {
+    "save": {
+      "unsaved": "Cambios sin guardar",
+      "saving": "Guardando…",
+      "saved": "Guardado",
+      "error": "Error al guardar"
+    },
+    "linked": {
+      "notSaved": "no guardado en el archivo",
+      "missing": "archivo no encontrado",
+      "conflict": "modificado fuera de OpenDraft",
+      "retryHint": "Haz clic para reintentar.",
+      "everySave": "Cada vez que guardas también se escribe {{path}}"
+    },
+    "acts_one": "{{count}} acto",
+    "acts_many": "{{count}} de actos",
+    "acts_other": "{{count}} actos",
+    "saveWritesBack": "Al guardar se actualiza {{name}}",
+    "actStructure": "Estructura de actos",
+    "runtime": {
+      "title": "Duración estimada con ritmo {{pacing}}: haz clic para definir género y ritmo",
+      "est": "Dur. est. {{runtime}}"
+    },
+    "wordsTitle": "Palabras del guion",
+    "words_one": "{{formatted}} palabra",
+    "words_many": "{{formatted}} de palabras",
+    "words_other": "{{formatted}} palabras",
+    "revision": "Rev.: {{color}}",
+    "page": "Página {{label}}",
+    "pageOf": "Página {{current}} de {{total}}",
+    "pagesLocked": "Las páginas están bloqueadas",
+    "locked": "(bloqueado)",
+    "suggesting": {
+      "lockedTitle": "Te uniste para sugerir: el autor acepta o rechaza tus cambios",
+      "title": "Tus cambios son sugerencias. Haz clic para volver a editar directamente.",
+      "label": "Sugiriendo"
+    }
+  },
+  "resetToDefault": "Restablecer valores predeterminados",
+  "richText": {
+    "bold": "Negrita",
+    "italic": "Cursiva",
+    "underline": "Subrayado",
+    "bulletList": "Lista con viñetas"
+  },
+  "fontPicker": {
+    "fontFamily": "Familia de fuente",
+    "search": "Buscar fuentes…",
+    "searchLabel": "Buscar fuentes",
+    "noMatch": "Ninguna fuente coincide con «{{query}}».",
+    "notInstalledTitle": "{{name}} no está instalada en este dispositivo: se muestra una fuente similar",
+    "notInstalled": "no instalada",
+    "manage": "Añadir o administrar fuentes…",
+    "group": {
+      "document": "De este documento",
+      "custom": "Fuentes personalizadas",
+      "screenplay": "Estándar de guion",
+      "typewriter": "Máquina de escribir",
+      "serif": "Con serifa",
+      "sansSerif": "Sin serifa",
+      "monospace": "Monoespaciada",
+      "display": "Display y títulos",
+      "handwriting": "Manuscrita",
+      "latinExtended": "Latín extendido",
+      "indic": "India / Índica",
+      "arabicHebrew": "Árabe y hebreo",
+      "cjk": "CJK",
+      "other": "Otras",
+      "device": "En este dispositivo"
+    }
+  },
+  "languageSelector": {
+    "title": "Idioma del diálogo"
+  },
+  "toolbar": {
+    "fontSize": "Tamaño de fuente",
+    "pt": "{{size}} pt",
+    "bold": "Negrita ({{shortcut}})",
+    "italic": "Cursiva ({{shortcut}})",
+    "underline": "Subrayado ({{shortcut}})",
+    "strikethrough": "Tachado",
+    "subscript": "Subíndice",
+    "superscript": "Superíndice",
+    "textColor": "Color del texto",
+    "highlightColor": "Color de resaltado",
+    "alignLeft": "Alinear a la izquierda",
+    "alignCenter": "Centrar",
+    "alignRight": "Alinear a la derecha",
+    "justify": "Justificar",
+    "findReplace": "Buscar y reemplazar ({{shortcut}})",
+    "goToPage": "Ir a la página ({{shortcut}})",
+    "scriptNotes": "Notas del guion",
+    "productionTags": "Etiquetas de producción",
+    "zoomOut": "Reducir",
+    "editZoom": "Haz clic para editar el zoom",
+    "zoomIn": "Ampliar",
+    "undo": "Deshacer ({{shortcut}})",
+    "redo": "Rehacer ({{shortcut}})",
+    "addAvRow": "Añadir fila AV debajo (Tab desde la celda de audio, o {{shortcut}})",
+    "row": "Fila",
+    "deleteAvRow": "Eliminar esta fila AV",
+    "moreFormatting": "Más opciones de formato",
+    "zoom": "Ampliación",
+    "elementType": "Tipo de elemento",
+    "elementTypeTitlePage": "Los elementos de la portada se definen en el editor de portada; su formato está en la plantilla",
+    "titlePage": "Portada"
+  }
+}

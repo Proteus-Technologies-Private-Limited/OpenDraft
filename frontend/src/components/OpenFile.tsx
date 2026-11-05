@@ -17,6 +17,8 @@
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { compareText, formatDate } from '../i18n/format';
 import { FaChevronRight, FaCloud, FaDesktop, FaSearch, FaThLarge } from 'react-icons/fa';
 import { api } from '../services/api';
 import { cloudApi } from '../services/cloudApi';
@@ -55,20 +57,14 @@ type SortKey =
   | 'name_asc'
   | 'name_desc';
 
-const SORT_LABELS: Record<SortKey, string> = {
-  updated_desc: 'Last modified (newest)',
-  updated_asc: 'Last modified (oldest)',
-  created_desc: 'Date created (newest)',
-  name_asc: 'Name (A → Z)',
-  name_desc: 'Name (Z → A)',
-};
+const SORT_KEYS: SortKey[] = ['updated_desc', 'updated_asc', 'created_desc', 'name_asc', 'name_desc'];
 
 function compareScripts(a: ScriptMeta, b: ScriptMeta, sort: SortKey): number {
   switch (sort) {
     case 'name_asc':
-      return a.title.localeCompare(b.title);
+      return compareText(a.title, b.title);
     case 'name_desc':
-      return b.title.localeCompare(a.title);
+      return compareText(b.title, a.title);
     case 'updated_asc':
       return (a.updated_at || '').localeCompare(b.updated_at || '');
     case 'created_desc':
@@ -83,6 +79,19 @@ function compareScripts(a: ScriptMeta, b: ScriptMeta, sort: SortKey): number {
 const WEB_ONLY_CLOUD = isWeb();
 
 const OpenFile: React.FC<OpenFileProps> = ({ onOpen, onClose, onManageProjects, onManageProject }) => {
+  const { t } = useTranslation(['projects', 'common']);
+
+  const sortLabel = (key: SortKey): string => {
+    switch (key) {
+      case 'updated_asc': return t('open.sort.updatedAsc');
+      case 'created_desc': return t('open.sort.createdDesc');
+      case 'name_asc': return t('open.sort.nameAsc');
+      case 'name_desc': return t('open.sort.nameDesc');
+      case 'updated_desc':
+      default: return t('open.sort.updatedDesc');
+    }
+  };
+
   // Only treat the user as signed in once the token has been verified against
   // the server this session. A stale localStorage token shouldn't let us hit
   // the cloud API — the request would fail anyway.
@@ -135,7 +144,7 @@ const OpenFile: React.FC<OpenFileProps> = ({ onOpen, onClose, onManageProjects, 
           setGroups(all.filter((g) => g.scripts.length > 0));
         }
       } catch (err: any) {
-        if (!cancelled) setError(err?.message || 'Could not load files');
+        if (!cancelled) setError(err?.message || t('open.loadFailed'));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -170,7 +179,7 @@ const OpenFile: React.FC<OpenFileProps> = ({ onOpen, onClose, onManageProjects, 
         onClick={(e) => e.stopPropagation()}
         onKeyDown={handleKeyDown}
       >
-        <div className="dialog-header">Open</div>
+        <div className="dialog-header">{t('common:open')}</div>
 
         <div className="open-file-controls">
           {!WEB_ONLY_CLOUD && (
@@ -182,7 +191,7 @@ const OpenFile: React.FC<OpenFileProps> = ({ onOpen, onClose, onManageProjects, 
                 className={`open-file-source-tab ${source === 'local' ? 'active' : ''}`}
                 onClick={() => setSource('local')}
               >
-                <FaDesktop /> This device
+                <FaDesktop /> {t('open.thisDevice')}
               </button>
               <button
                 type="button"
@@ -191,7 +200,7 @@ const OpenFile: React.FC<OpenFileProps> = ({ onOpen, onClose, onManageProjects, 
                 className={`open-file-source-tab ${source === 'cloud' ? 'active' : ''}`}
                 onClick={() => setSource('cloud')}
               >
-                <FaCloud /> OpenDraft Cloud
+                <FaCloud /> {/* i18n-ignore: product name */}OpenDraft Cloud
               </button>
             </div>
           )}
@@ -203,7 +212,7 @@ const OpenFile: React.FC<OpenFileProps> = ({ onOpen, onClose, onManageProjects, 
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search projects and scripts…"
+                placeholder={t('open.searchPlaceholder')}
                 autoFocus
               />
             </div>
@@ -211,10 +220,10 @@ const OpenFile: React.FC<OpenFileProps> = ({ onOpen, onClose, onManageProjects, 
               className="open-file-sort"
               value={sort}
               onChange={(e) => setSort(e.target.value as SortKey)}
-              aria-label="Sort"
+              aria-label={t('open.sortLabel')}
             >
-              {Object.entries(SORT_LABELS).map(([key, label]) => (
-                <option key={key} value={key}>{label}</option>
+              {SORT_KEYS.map((key) => (
+                <option key={key} value={key}>{sortLabel(key)}</option>
               ))}
             </Select>
           </div>
@@ -226,20 +235,19 @@ const OpenFile: React.FC<OpenFileProps> = ({ onOpen, onClose, onManageProjects, 
         >
           {source === 'cloud' && !signedIn ? (
             <div className="open-file-empty">
-              Sign in to access your OpenDraft Cloud files. Click the indicator in the
-              menu bar to sign in.
+              {t('open.signInPrompt')}
             </div>
           ) : loading ? (
-            <div className="open-file-empty">Loading…</div>
+            <div className="open-file-empty">{t('common:loading')}</div>
           ) : error ? (
             <div className="open-file-error">{error}</div>
           ) : visibleGroups.length === 0 ? (
             <div className="open-file-empty">
               {query
-                ? `No files match “${query}”.`
+                ? t('open.noMatch', { query })
                 : source === 'cloud'
-                  ? 'No cloud files yet. Use File › Save As… and pick OpenDraft Cloud to upload.'
-                  : 'No files yet. Use File › Import to create a project.'}
+                  ? t('open.emptyCloud')
+                  : t('open.emptyLocal')}
             </div>
           ) : (
             visibleGroups.map((g) => (
@@ -251,9 +259,9 @@ const OpenFile: React.FC<OpenFileProps> = ({ onOpen, onClose, onManageProjects, 
                       type="button"
                       className="open-project-manage"
                       onClick={() => onManageProject(g.project, source)}
-                      title={`Open ${g.project.name} in Manage Projects to rename or delete its scripts`}
+                      title={t('open.manageProjectTitle', { name: g.project.name })}
                     >
-                      Manage <FaChevronRight aria-hidden="true" />
+                      {t('open.manage')} <FaChevronRight aria-hidden="true" />
                     </button>
                   )}
                 </div>
@@ -265,7 +273,7 @@ const OpenFile: React.FC<OpenFileProps> = ({ onOpen, onClose, onManageProjects, 
                   >
                     <span className="open-project-name">{s.title}</span>
                     <span className="open-project-date">
-                      {new Date(s.updated_at).toLocaleDateString()}
+                      {formatDate(s.updated_at, { year: 'numeric', month: 'numeric', day: 'numeric' })}
                     </span>
                   </div>
                 ))}
@@ -277,17 +285,17 @@ const OpenFile: React.FC<OpenFileProps> = ({ onOpen, onClose, onManageProjects, 
         <div className={`dialog-actions${onManageProjects ? ' open-file-actions' : ''}`}>
           {onManageProjects && (
             <span className="open-file-manage-hint">
-              Rename or delete files:
+              {t('open.manageHint')}
               <button
                 type="button"
                 className="open-file-manage-link"
                 onClick={() => onManageProjects(source)}
               >
-                <FaThLarge aria-hidden="true" /> Manage Projects…
+                <FaThLarge aria-hidden="true" /> {t('open.manageProjects')}
               </button>
             </span>
           )}
-          <button onClick={onClose}>Cancel</button>
+          <button onClick={onClose}>{t('common:cancel')}</button>
         </div>
       </div>
     </div>

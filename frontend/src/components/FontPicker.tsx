@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 import {
   FONT_CATEGORIES, loadFont, getFontsByCategory, findFont, fontStack, subscribeFonts,
   getFontsVersion,
@@ -81,9 +82,32 @@ function matches(query: string, name: string, group: string): boolean {
 }
 
 const FontPicker: React.FC<FontPickerProps> = ({
-  value, onChange, extraFonts = [], className = 'font-selector', emptyLabel, title = 'Font Family',
+  value, onChange, extraFonts = [], className = 'font-selector', emptyLabel, title,
   onManageFonts,
 }) => {
+  const { t } = useTranslation('toolbar');
+  const triggerTitle = title ?? t('fontPicker.fontFamily');
+  // The group ids stay English (they are matched and stored); only the heading shown is translated.
+  const groupLabel = (id: string): string => {
+    switch (id) {
+      case DOCUMENT_GROUP: return t('fontPicker.group.document');
+      case 'Custom Fonts': return t('fontPicker.group.custom');
+      case 'Screenplay Standard': return t('fontPicker.group.screenplay');
+      case 'Typewriter': return t('fontPicker.group.typewriter');
+      case 'Serif': return t('fontPicker.group.serif');
+      case 'Sans Serif': return t('fontPicker.group.sansSerif');
+      case 'Monospace': return t('fontPicker.group.monospace');
+      case 'Display & Titles': return t('fontPicker.group.display');
+      case 'Handwriting': return t('fontPicker.group.handwriting');
+      case 'Latin Extended': return t('fontPicker.group.latinExtended');
+      case 'Indian / Indic': return t('fontPicker.group.indic');
+      case 'Arabic & Hebrew': return t('fontPicker.group.arabicHebrew');
+      case 'CJK': return t('fontPicker.group.cjk');
+      case 'Other': return t('fontPicker.group.other');
+      case 'On This Device': return t('fontPicker.group.device');
+      default: return id;
+    }
+  };
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
@@ -278,7 +302,7 @@ const FontPicker: React.FC<FontPickerProps> = ({
         ref={buttonRef}
         type="button"
         className={`${className} font-picker-trigger`}
-        title={title}
+        title={triggerTitle}
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={() => (open ? setOpen(false) : openList())}
@@ -309,7 +333,7 @@ const FontPicker: React.FC<FontPickerProps> = ({
               ref={searchRef}
               className="font-picker-search"
               type="text"
-              placeholder="Search fonts…"
+              placeholder={t('fontPicker.search')}
               value={query}
               onChange={(e) => {
                 // Move the highlight onto the first match as the writer types,
@@ -322,14 +346,14 @@ const FontPicker: React.FC<FontPickerProps> = ({
                 setQuery(search);
               }}
               onKeyDown={onKeyDown}
-              aria-label="Search fonts"
+              aria-label={t('fontPicker.searchLabel')}
             />
           </div>
           <div className="font-picker-list" ref={listRef} role="listbox" tabIndex={-1}>
-            {rows.length === 0 && <div className="font-picker-empty">No font matches “{query}”.</div>}
+            {rows.length === 0 && <div className="font-picker-empty">{t('fontPicker.noMatch', { query })}</div>}
             {rows.map((row, index) => {
               if (row.kind === 'header') {
-                return <div key={`h-${row.label}`} className="font-picker-group">{row.label}</div>;
+                return <div key={`h-${row.label}`} className="font-picker-group">{groupLabel(row.label)}</div>;
               }
               const entry = row.entry;
               // Only faces meant to come from the machine can be reported
@@ -354,10 +378,10 @@ const FontPicker: React.FC<FontPickerProps> = ({
                   onMouseEnter={() => setActiveIndex(index)}
                   onClick={() => commit(row)}
                   style={row.isEmpty ? undefined : { fontFamily: fontStack(row.label) }}
-                  title={missing ? `${row.label} is not installed on this device — a similar font is shown instead` : row.label}
+                  title={missing ? t('fontPicker.notInstalledTitle', { name: row.label }) : row.label}
                 >
                   <span className="font-picker-option-name">{row.label}</span>
-                  {missing && <span className="font-picker-missing-tag">not installed</span>}
+                  {missing && <span className="font-picker-missing-tag">{t('fontPicker.notInstalled')}</span>}
                 </div>
               );
             })}
@@ -368,7 +392,7 @@ const FontPicker: React.FC<FontPickerProps> = ({
               className="font-picker-manage"
               onClick={() => { setOpen(false); onManageFonts(); }}
             >
-              Add or manage fonts…
+              {t('fontPicker.manage')}
             </button>
           )}
         </div>,

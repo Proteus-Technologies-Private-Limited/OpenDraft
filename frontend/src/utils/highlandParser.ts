@@ -25,6 +25,7 @@ import {
   type ArchiveImportResult,
   type ImportNode,
 } from './importArchive';
+import { t } from '../i18n';
 
 /** Where a TextBundle keeps its text, preferring the screenplay flavour. */
 const TEXT_ENTRY_PATTERNS: RegExp[] = [
@@ -45,19 +46,18 @@ export async function parseHighland(data: ArrayBuffer): Promise<ArchiveImportRes
   }
   if (!entry) {
     throw new Error(
-      `Not a Highland screenplay: the file has no text.fountain${describeArchiveContents(zip)}.`,
+      t('messages:import.highlandNoFountain', { contents: describeArchiveContents(zip) }),
     );
   }
 
   const warnings: string[] = [];
   if (!/\.fountain$/i.test(entry.name)) {
     warnings.push(
-      `This Highland document is stored as ${entry.name.replace(/^.*\//, '')} rather than Fountain, ` +
-        'so it was read as Fountain text; check the element types after import.',
+      t('messages:import.highlandNotFountain', { name: entry.name.replace(/^.*\//, '') }),
     );
   }
   if (archiveFileNames(zip).some((name) => /(^|\/)assets\/[^/]+$/.test(name))) {
-    warnings.push('Images stored in the Highland file were not imported.');
+    warnings.push(t('messages:import.highlandImages'));
   }
 
   const text = await readArchiveText(entry);

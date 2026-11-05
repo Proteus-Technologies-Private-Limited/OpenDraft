@@ -1,0 +1,207 @@
+{
+  "system": {
+    "industryStandard": {
+      "name": "Guion de largometraje",
+      "description": "Formato estándar de la industria para guiones de largometraje (compatible con Final Draft)."
+    },
+    "oneHourDrama": {
+      "name": "Drama de TV de 1 hora",
+      "description": "Guion televisivo de cámara única para dramas de una hora. Mismo aspecto que un guion de largometraje, con estructura de actos de TV (Teaser, actos I–V).",
+      "tagline": "Drama de cámara única de 1 hora (Breaking Bad, Stranger Things)"
+    },
+    "multicamSitcom": {
+      "name": "Comedia multicámara",
+      "description": "Guion televisivo multicámara (comedias con público en vivo): diálogo a doble espacio, acotaciones en mayúsculas y subrayadas, lista de personajes por escena, una escena por página.",
+      "tagline": "Comedia con público en vivo (The Big Bang Theory, Mom)"
+    },
+    "stagePlay": {
+      "name": "Obra de teatro",
+      "description": "Guion teatral: nombres de personajes centrados, acotaciones escénicas en cursiva, estructura de ACTO/ESCENA.",
+      "tagline": "Guion de teatro (actos, escenas, personajes centrados)"
+    },
+    "radioPlay": {
+      "name": "Radioteatro",
+      "description": "Drama sonoro: escenas numeradas, indicaciones de SONIDO/MÚSICA, narrador. Sin elementos de cámara ni visuales.",
+      "tagline": "Radioteatro / obra sonora (BBC, ficción en pódcast)"
+    },
+    "podcast": {
+      "name": "Pódcast",
+      "description": "Pódcast guionizado y ficción sonora: cada línea de diálogo numerada para la sesión de grabación, y los efectos y la música numerados por separado.",
+      "tagline": "Pódcast guionizado / ficción sonora, con líneas numeradas para grabar"
+    },
+    "comic": {
+      "name": "Cómic",
+      "description": "Guion completo de cómic y novela gráfica: páginas y viñetas numeradas automáticamente, y textos y globos rotulados 1, 2, 3 en cada página.",
+      "tagline": "Guion completo de cómic / novela gráfica, con páginas y viñetas numeradas"
+    },
+    "avScript": {
+      "name": "Guion AV (dos columnas)",
+      "description": "Guion de audio | video a dos columnas: comerciales, video corporativo, documental. Cada fila une un plano de video con su audio.",
+      "tagline": "Guion de comercial / corporativo / documental a dos columnas"
+    }
+  },
+  "group": {
+    "tv": "TV",
+    "stage": "Teatro",
+    "audio": "Audio",
+    "comics": "Cómics",
+    "av": "AV"
+  },
+  "picker": {
+    "title": "Elegir formato de guion",
+    "empty": "No hay formatos activados. Abre Formato → Preferencias de formato de guion para elegir al menos uno."
+  },
+  "format": {
+    "defaultBadge": "predeterminado",
+    "makeDefault": "Hacer predeterminado",
+    "isDefault": "Predeterminado ✓",
+    "defaultTooltipClear": "El selector de Nuevo guion se abre en este formato. Haz clic para quitarlo.",
+    "defaultTooltipSet": "Abrir el selector de Nuevo guion en este formato"
+  },
+  "conflict": {
+    "title": "Conflictos de plantilla",
+    "intro": "Para aplicar <strong>{{name}}</strong> hay que resolver los siguientes conflictos de tu documento.",
+    "disabled": {
+      "title": "Tipos de elemento desactivados",
+      "desc": "Estos tipos de elemento están desactivados en la plantilla, pero existen en tu documento. Elige un reemplazo para cada uno."
+    },
+    "elementCount_one": "{{label}}: elemento",
+    "elementCount_many": "{{label}}: elementos",
+    "elementCount_other": "{{label}}: elementos",
+    "replaceWith": "Reemplazar por:",
+    "formatting": {
+      "title": "Conflictos de formato",
+      "desc": "Estos elementos tienen formato en línea que entra en conflicto con las reglas bloqueadas de la plantilla. Márcalos para quitar las marcas en conflicto.",
+      "detail_one": "{{count}} elemento con {{marks}}",
+      "detail_many": "{{count}} de elementos con {{marks}}",
+      "detail_other": "{{count}} elementos con {{marks}}"
+    },
+    "applyWithout": "Aplicar sin resolver",
+    "resolveApply": "Resolver y aplicar"
+  },
+  "prefs": {
+    "title": "Preferencias de formato de guion",
+    "titleFirstRun": "Te damos la bienvenida: elige tus formatos de guion",
+    "hintFirstRun": "Elige los formatos en los que escribes con más frecuencia. Cuando crees un guion nuevo, OpenDraft te ofrecerá solo esas opciones. Puedes cambiarlo después desde el menú Formato.",
+    "hint": "Elige qué formatos aparecen en el selector de Nuevo guion. Si haces uno predeterminado, el selector se abre en él, listo para aceptar; los demás siguen a un clic. Si seleccionas un solo formato, los guiones nuevos lo usan sin preguntar.",
+    "yourTemplates": "Tus plantillas",
+    "noneYet": "Todavía no hay ninguna. En Formato ▸ Plantilla de formato… puedes crear una; aparecerá aquí.",
+    "saveContinue": "Guardar y continuar"
+  },
+  "editor": {
+    "title": "Editar plantilla",
+    "namePlaceholder": "Nombre de la plantilla",
+    "description": "Descripción",
+    "descriptionPlaceholder": "Descripción opcional",
+    "mode": "Modo",
+    "modeEnforce": "Imponer",
+    "modeOverride": "Permitir cambios",
+    "modeEnforceHint": "El formato está bloqueado: los usuarios no pueden cambiar el estilo de los elementos.",
+    "modeOverrideHint": "El formato define valores predeterminados: los usuarios pueden cambiarlos en cada caso.",
+    "elements": "Elementos",
+    "addElementTitle": "Añadir un elemento personalizado (p. ej., efecto de sonido, letra, inserto)",
+    "addElement": "Nuevo",
+    "customBadge": "personalizado",
+    "removeElement": "Quitar elemento",
+    "av": {
+      "inserts": "Inserta un cuerpo de audio/video a dos columnas: video a la izquierda, audio a la derecha, una fila por plano.",
+      "noFormatting": "No tiene formato propio. Da estilo a los elementos que van en sus columnas y usa <em>En columnas AV</em> en cada uno para indicar qué columna lo ofrece.",
+      "untick": "Desmárcalo en la lista para que no aparezca en el menú de elementos; los comandos AV propios del menú Formato no se ven afectados.",
+      "inColumns": "En columnas AV",
+      "baseTitle": "Los cuatro tipos de párrafo AV se ofrecen en ambas columnas en todos los documentos; solo su formato depende de la plantilla.",
+      "columnTitle": "Qué columna de un cuerpo AV de dos columnas ofrece este elemento.",
+      "notOffered": "No se ofrece",
+      "video": "Columna de video",
+      "audio": "Columna de audio",
+      "both": "Ambas columnas"
+    },
+    "label": "Etiqueta",
+    "labelPlaceholder": "Nombre del elemento",
+    "fontFamily": "Familia de fuente",
+    "fontSize": "Tamaño de fuente",
+    "textStyle": "Estilo del texto",
+    "bold": "Negrita",
+    "italic": "Cursiva",
+    "underline": "Subrayado",
+    "strikethrough": "Tachado",
+    "textTransform": "Transformación del texto",
+    "uppercase": "Mayúsculas",
+    "lowercase": "Minúsculas",
+    "alignment": "Alineación",
+    "textColor": "Color del texto",
+    "inherit": "heredar",
+    "backgroundColor": "Color de fondo",
+    "transparent": "transparente",
+    "spaceBefore": "Espacio previo (líneas)",
+    "leftIndent": "Sangría izquierda (pulg.)",
+    "rightIndent": "Sangría derecha (pulg.)",
+    "nextOnEnter": "Siguiente con Intro",
+    "nextOnTab": "Siguiente con Tab",
+    "placeholderText": "Texto de ejemplo",
+    "placeholderHint": "Se muestra cuando el elemento está vacío",
+    "newPage": "Empieza en una página nueva",
+    "newPageOn": "Cada «{{label}}» empieza en la parte superior de una página nueva, en pantalla y en las exportaciones a PDF/Word.",
+    "newPageOff": "Este elemento fluye con el resto de la página.",
+    "numbering": {
+      "enable": "Numerar este elemento",
+      "prefix": "Prefijo",
+      "startAt": "Empezar en",
+      "style": "Estilo",
+      "stylePlain": "Simple (3)",
+      "styleScene": "Con número de escena (12.3)",
+      "styleWords": "En letras (TRES)",
+      "show": "Mostrar el número",
+      "inMargin": "En el margen",
+      "inline": "Al principio de la línea",
+      "countWith": "Contar con",
+      "ownCount": "Su propia cuenta",
+      "restartAt": "Reiniciar la numeración en",
+      "hintOff": "Numera cada «{{label}}» en el margen, en pantalla y en las exportaciones a PDF, Word y Final Draft.",
+      "orJoiner": " o ",
+      "summaryWhole": "{{sample}} … contando en todo el guion.",
+      "summaryWholeShared": "{{sample}} … contando en todo el guion, en una sola cuenta con cada «{{owner}}».",
+      "summaryReset": "{{sample}} … empezando de nuevo en cada {{resets}}.",
+      "summaryResetShared": "{{sample}} … empezando de nuevo en cada {{resets}}, en una sola cuenta con cada «{{owner}}».",
+      "summaryScene": "Números simples cuando no hay número de escena que mostrar.",
+      "summaryInline": "Se muestra al principio de la línea, incluso antes de escribir algo en ella."
+    },
+    "allowOverride": "Permitir cambiar el formato",
+    "overrideOn": "Los usuarios pueden cambiar el formato de este tipo de elemento.",
+    "overrideOff": "Todo el formato está bloqueado: los usuarios no pueden cambiar ningún estilo de este elemento.",
+    "preview": "Vista previa",
+    "sampleText": "Texto de ejemplo...",
+    "selectElement": "Selecciona un elemento de la lista para editar su formato."
+  },
+  "select": {
+    "title": "Formato de guion / plantilla",
+    "hint": "Elige un formato de guion (largometraje, comedia, drama, teatro, radio) o una plantilla de formato personalizada. La plantilla controla las reglas de formato de los elementos; en un documento vacío, elegir un tipo de guion también añade contenido inicial.",
+    "unreadable": "Esta versión no puede leer el formato guardado. Sus datos originales se conservan al guardar. Actualiza OpenDraft para usarlo; si eliges otro formato, se reemplaza la definición guardada.",
+    "thisDocument": "Este documento",
+    "currentBadge": "actual",
+    "modeEnforce": "imponer",
+    "modeOverride": "permitir cambios",
+    "duplicate": "Duplicar",
+    "duplicated": "Plantilla duplicada",
+    "confirmDelete": "¿Eliminar la plantilla «{{name}}»?",
+    "deleted": "Plantilla eliminada",
+    "libraryNewer": "La versión de la biblioteca es más reciente. Ahora se usa la versión local de la biblioteca. Editar formato actual parte de esa versión; aplicar esta copia guardada crea un formato de documento independiente.",
+    "savedNewer": "La copia guardada es más reciente. Ahora se usa la versión local de la biblioteca. Editar formato actual parte de esa versión; aplicar esta copia guardada crea un formato de documento independiente.",
+    "libraryInUse": "Ahora se usa la versión local de la biblioteca. Editar formato actual parte de esa versión; aplicar esta copia guardada crea un formato de documento independiente.",
+    "savedWithScript": "Guardado con este guion. Al editar este formato se crea un formato de documento independiente y tus otras plantillas no cambian.",
+    "editCurrent": "Editar formato actual",
+    "editDocument": "Editar formato del documento",
+    "copied": "Formato copiado a tus plantillas",
+    "copyFailed": "No se pudo guardar el formato en tus plantillas.",
+    "saveToMine": "Guardar en Mis plantillas",
+    "scriptFormats": "Formatos de guion",
+    "userDefined": "Definidos por el usuario",
+    "noCustom": "Todavía no hay plantillas personalizadas.",
+    "create": "+ Crear plantilla",
+    "invalidSettings": "Configuración de plantilla no válida. La plantilla no se guardó.",
+    "invalidDocumentSaved": "Formato de documento no válido. La plantilla no se guardó.",
+    "invalidDocumentApplied": "Formato de documento no válido. El formato no se aplicó.",
+    "saved": "Plantilla guardada",
+    "noLongerDefault": "Ya no es el formato predeterminado de los guiones nuevos",
+    "nowDefault": "Los guiones nuevos empezarán con «{{name}}»"
+  }
+}

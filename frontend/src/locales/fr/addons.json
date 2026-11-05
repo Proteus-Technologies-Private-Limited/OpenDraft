@@ -1,0 +1,169 @@
+{
+  "dictation": {
+    "plugin": {
+      "name": "Dictée",
+      "menu": "Dictée…",
+      "description": "Dictez une courte phrase, relisez la transcription, puis insérez-la dans votre scénario. Des commandes vocales facultatives en anglais créent de nouveaux éléments.",
+      "privacy": "Whisper local garde l’audio sur cet appareil. La première utilisation télécharge des ressources de modèle depuis huggingface.co, qui voit votre adresse IP. La reconnaissance vocale du navigateur peut envoyer la voix enregistrée à Google, Apple ou Microsoft. La reconnaissance de l’appareil peut envoyer la voix enregistrée à Apple ou au fournisseur vocal d’Android (généralement Google). La reconnaissance sur l’appareil est demandée lorsqu’elle est prise en charge ; la préférence hors ligne d’Android n’est pas une garantie. Choisissez le moteur ci-dessous avant d’activer la dictée. Les préférences restent sur cet appareil et peuvent être supprimées quand le module complémentaire est désactivé."
+    },
+    "engine": {
+      "local": "Whisper local",
+      "browser": "Service vocal du navigateur",
+      "device": "Service vocal de l’appareil"
+    },
+    "privacy": {
+      "local": "L’audio reste sur cet appareil. La première utilisation télécharge des ressources de modèle depuis huggingface.co, qui voit votre adresse IP.",
+      "browser": "Votre voix enregistrée peut être envoyée aux serveurs vocaux de l’éditeur du navigateur (Google, Apple ou Microsoft).",
+      "device": "Votre voix enregistrée peut être envoyée à Apple ou à votre fournisseur vocal Android (généralement Google). La reconnaissance sur l’appareil est demandée lorsqu’elle est prise en charge ; une préférence hors ligne n’est pas une garantie."
+    },
+    "problem": {
+      "linux": "Cette version de bureau pour Linux n’expose pas de capture de microphone WebKit prise en charge. Utilisez OpenDraft dans un navigateur compatible avec le microphone pour Whisper local.",
+      "noMicrophone": "L’enregistrement au microphone n’est pas disponible dans ce navigateur. Utilisez HTTPS ou localhost et activez l’accès au microphone."
+    },
+    "permission": {
+      "macos": "L’accès au microphone est bloqué. Autorisez OpenDraft dans Réglages Système → Confidentialité et sécurité → Microphone, puis réessayez.",
+      "windows": "L’accès au microphone est bloqué. Autorisez l’accès au microphone pour OpenDraft dans Paramètres Windows → Confidentialité et sécurité → Microphone, puis réessayez.",
+      "browser": "L’accès au microphone ou à la reconnaissance vocale est bloqué. Autorisez l’accès au microphone pour ce site dans les réglages de votre navigateur, puis réessayez."
+    },
+    "error": {
+      "recordingFailed": "L’enregistrement au microphone a échoué.",
+      "workerFailed": "Le processus vocal local a échoué.",
+      "localTimeout": "La reconnaissance locale a expiré. Essayez un enregistrement plus court ou vérifiez la connexion de téléchargement du modèle.",
+      "deviceNotFinished": "La reconnaissance de l’appareil ne s’est pas terminée. Veuillez réessayer.",
+      "deviceFailed": "La reconnaissance de l’appareil a échoué.",
+      "deviceTimeout": "La reconnaissance de l’appareil a expiré. Veuillez réessayer.",
+      "browserUnavailable": "La reconnaissance vocale n’est pas disponible dans ce navigateur. Choisissez Whisper local.",
+      "recognition": "Reconnaissance vocale : {{error}}.",
+      "engineUnavailable": "Ce moteur de reconnaissance n’est pas disponible ici. Choisissez un moteur disponible dans Réglages → Modules complémentaires → Dictée.",
+      "commandNotHere": "Cette commande vocale ne peut pas être insérée ici. Choisissez un élément compatible ou déplacez le curseur du scénario.",
+      "placeCursor": "Placez le curseur dans un élément de texte du scénario avant d’insérer."
+    },
+    "status": {
+      "preparing": "Préparation de l’audio et chargement du modèle local…",
+      "downloading": "Téléchargement des ressources du modèle : {{percent}} %",
+      "hidden": "L’enregistrement s’est arrêté parce que l’application a été masquée.",
+      "listening": "Écoute…",
+      "review": "Relisez la transcription avant d’insérer.",
+      "stopped": "Enregistrement arrêté. Relisez la transcription avant d’insérer.",
+      "finishing": "Fin de la reconnaissance…",
+      "cancelled": "Annulé.",
+      "inserted": "Inséré."
+    },
+    "openEditable": "Ouvrez un scénario modifiable pour utiliser la dictée.",
+    "title": "Dictée",
+    "intro": "Dites une courte phrase, relisez-la, puis insérez-la au niveau du curseur du scénario.",
+    "localNote": "La première utilisation télécharge 39 Mio de poids de modèle q8, plus le tokenizer et les ressources d’exécution. Les enregistrements s’arrêtent après 30 secondes ; la première reconnaissance peut prendre quelques minutes.",
+    "androidNote": "Utilisez la boîte de dialogue vocale du système pour terminer ou annuler l’enregistrement.",
+    "changeSettings": "Modifiez le moteur, la langue ou les commandes vocales dans Réglages → Modules complémentaires → Dictée.",
+    "commandsHelp": "Dites une commande complète, en anglais : « new scene », « character Sarah », « action », « dialogue », « parenthetical », « transition » ou « new paragraph ». Faites précéder de « literal » pour dicter ces mots tels quels.",
+    "start": "Démarrer l’enregistrement",
+    "stop": "Arrêter",
+    "cancel": "Annuler l’enregistrement",
+    "transcript": "Transcription",
+    "command": "Commande : commencer {{type}}.",
+    "commandWithText": "Commande : commencer {{type}} : {{text}}.",
+    "insert": "Insérer dans le scénario",
+    "settings": {
+      "engine": "Moteur de reconnaissance",
+      "engineMayLeave": "{{name}} (la voix peut quitter l’appareil)",
+      "language": "Langue",
+      "commands": "Interpréter les commandes vocales en anglais",
+      "commandsHint": "Les commandes sont facultatives. Relisez chaque transcription avant de l’insérer. Les réglages restent sur cet appareil.",
+      "noEngine": "Aucun moteur de reconnaissance pris en charge n’est disponible sur cette plateforme.",
+      "noEngineBrowser": "Aucun moteur vocal pris en charge n’est disponible dans ce navigateur.",
+      "saveFailed": "Impossible d’enregistrer les réglages de dictée : {{error}}"
+    },
+    "languages": {
+      "en": "Anglais",
+      "pl": "Polonais",
+      "fr": "Français",
+      "de": "Allemand",
+      "es": "Espagnol",
+      "it": "Italien",
+      "pt": "Portugais",
+      "ja": "Japonais"
+    }
+  },
+  "assistant": {
+    "plugin": {
+      "name": "Assistant IA",
+      "menu": "Assistant IA…",
+      "panel": "Assistant",
+      "description": "Posez des questions à un modèle d’IA sur votre scénario et insérez ses suggestions après les avoir relues. Fonctionne avec un serveur local comme Ollama, LM Studio ou Unsloth Studio.",
+      "privacy": "Envoie votre question, le contexte du scénario nécessaire pour y répondre et le texte que vous sélectionnez au serveur d’IA que vous choisissez. Avec un serveur local comme Ollama, LM Studio ou Unsloth Studio sur votre propre ordinateur, rien ne quitte votre appareil. L’adresse du serveur, le nom du modèle et toute clé d’API sont stockés uniquement sur cet appareil, jamais dans les scénarios ; la clé est conservée non chiffrée dans le stockage de l’application, utilisez donc une clé créée à cet effet."
+    },
+    "examples": {
+      "line": "Écris une réplique pour Ben : « Bonjour tout le monde. »",
+      "scene": "Ajoute une scène : INT. LAVERIE - NUIT, avec une action d’ouverture.",
+      "say": "Fais dire à MARGO « Tu n’aurais pas dû revenir » (en chuchotant)."
+    },
+    "preview": {
+      "element": "Élément → {{label}}",
+      "replaceWith": "Remplacer par : "
+    },
+    "couldNot": "Impossible : {{message}}",
+    "done": "Terminé.",
+    "discarded": "Proposition abandonnée.",
+    "proposalReady": "Proposition prête – relisez et confirmez.",
+    "warning": "⚠️ {{message}}",
+    "title": "Assistant IA",
+    "newConversation": "Nouvelle conversation",
+    "empty": "Demandez à l’assistant d’écrire dans le scénario. Il utilise les commandes de l’application ; le texte arrive donc déjà mis en forme.",
+    "hint": "Le serveur et le modèle se règlent dans Réglages → Modules complémentaires.",
+    "you": "Vous",
+    "assistant": "Assistant",
+    "writing": "Écriture…",
+    "proposal": "Proposition",
+    "blockCount_one": "{{count}} bloc",
+    "blockCount_many": "{{count}} de blocs",
+    "blockCount_other": "{{count}} blocs",
+    "insert": "Insérer",
+    "discard": "Abandonner",
+    "placeholder": "p. ex. Écris une réplique pour Ben : « Bonjour tout le monde. »",
+    "send": "Envoyer (Entrée)",
+    "openScreenplay": "Ouvrez un scénario pour utiliser l’assistant.",
+    "error": {
+      "scriptChanged": "Le scénario a changé pendant que la proposition attendait ; elle a donc été abandonnée. Demandez à nouveau.",
+      "tooManyActions": "La proposition est trop volumineuse (60 actions maximum). Essayez une demande plus précise.",
+      "tooManyBlocks": "La proposition est trop volumineuse (40 blocs maximum). Essayez une demande plus précise.",
+      "notAllowed": "L’assistant n’est pas autorisé à exécuter {{name}}.",
+      "nothingToInsert": "La proposition ne contenait rien à insérer.",
+      "readOnly": "Ce document est en lecture seule ; l’assistant ne peut donc pas y insérer de texte.",
+      "replaceGone": "Le texte que la proposition devait remplacer n’est plus là. Demandez à nouveau.",
+      "notApplied": "Certaines actions n’ont pas été appliquées : {{details}}",
+      "prepareDialogue": "Je n’ai pas pu préparer le dialogue.",
+      "prepareScene": "Je n’ai pas pu préparer la scène.",
+      "notConfigured": "Définissez d’abord le serveur d’IA et le modèle dans Réglages → Modules complémentaires.",
+      "noValidActionsNamed": "Aucune action valide : {{names}}",
+      "noValidActions": "Aucune action valide.",
+      "noValidAction": "Le modèle n’a produit aucune action valide. Essayez de reformuler la demande.",
+      "noJsonAction": "Le modèle n’a pas renvoyé d’action JSON. Essayez de reformuler ou utilisez un modèle plus grand.",
+      "noActionReceived": "Aucune action reçue.",
+      "stepLimit": "Limite d’étapes atteinte sans réponse finale.",
+      "unreachableDesktop": "Impossible de joindre {{base}}. L’application de bureau n’autorise que les connexions http simples vers localhost ou 127.0.0.1 ; un serveur de votre réseau local est donc bloqué par sa politique de sécurité. Exécutez le serveur sur cet ordinateur, ou utilisez OpenDraft dans le navigateur.",
+      "unreachable": "Impossible de joindre {{base}}. Vérifiez que le serveur est en cours d’exécution et que l’origine de l’application est autorisée (pour Ollama : OLLAMA_ORIGINS=* ; pour Unsloth Studio : le serveur doit écouter sur {{base}}).",
+      "model": "Erreur du modèle : {{message}}",
+      "apiKeyRequired": "Le serveur exige une clé d’API. Copiez-la depuis Unsloth Studio (ou votre serveur) et collez-la dans le champ « Clé d’API » des réglages de l’assistant."
+    },
+    "settings": {
+      "addressMissing": "Saisissez l’adresse du serveur, p. ex. http://localhost:11434",
+      "addressProtocol": "L’adresse doit commencer par http:// ou https://",
+      "modelMissing": "Saisissez le nom du modèle à utiliser.",
+      "reached": "Serveur joint. Modèles : {{models}}",
+      "noModels": "Serveur joint, mais il n’a signalé aucun modèle. Chargez-en un d’abord.",
+      "serverType": "Type de serveur",
+      "ollama": "Ollama (son propre API)",
+      "openai": "Compatible OpenAI (Unsloth Studio, LM Studio, llama.cpp…)",
+      "addressExamples": "Ollama : http://localhost:11434 · Unsloth Studio : http://localhost:8080/v1 · LM Studio : http://localhost:1234/v1",
+      "serverAddress": "Adresse du serveur",
+      "desktopNote": "Dans l’application de bureau, le serveur doit s’exécuter sur cet ordinateur (localhost ou 127.0.0.1) ; un serveur de votre réseau local est bloqué par la politique de sécurité de l’application.",
+      "model": "Modèle",
+      "modelHint": "Pour des résultats fiables, utilisez un modèle « instruct » de 7B ou plus ; les petits modèles attribuent souvent mal une réplique ou oublient des actions.",
+      "apiKey": "Clé d’API (uniquement si votre serveur en exige une)",
+      "optional": "facultatif",
+      "testing": "Test en cours…",
+      "test": "Tester la connexion",
+      "saveFailed": "Impossible d’enregistrer les réglages sur cet appareil : {{message}}"
+    }
+  }
+}

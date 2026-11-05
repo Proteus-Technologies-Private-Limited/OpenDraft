@@ -30,6 +30,7 @@ import {
 import { showToast } from '../components/Toast';
 import { docHasAnyText } from '../utils/docText';
 import { useEditorStore } from '../stores/editorStore';
+import { t } from '../i18n';
 
 /** Backstop sweep, for changes the debounce does not observe. */
 const SNAPSHOT_INTERVAL_MS = 10_000;
@@ -250,8 +251,8 @@ export function useRecoverySnapshot(opts: RecoverySnapshotOptions): void {
       // auto-save, which has no such ceiling.
       showToast(
         reason === 'too-large'
-          ? 'This document is too large to protect against a crash. Save it to your library so auto-save takes over.'
-          : 'Crash protection is unavailable — there is no room to store a recovery copy. Save your work to your library.',
+          ? t('messages:recovery.tooLarge')
+          : t('messages:recovery.noRoom'),
         'error',
       );
     });

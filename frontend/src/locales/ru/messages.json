@@ -1,0 +1,494 @@
+{
+  "avFrame": {
+    "notImage": "Выберите файл изображения",
+    "needRow": "Сначала поставьте курсор в AV-строку, затем добавьте кадр",
+    "failed": "Не удалось добавить кадр: {{message}}"
+  },
+  "image": {
+    "degraded": "Это изображение пришлось сохранить внутри документа. Сохраните в библиотеку, чтобы оно не мешало.",
+    "couldNotAdd": "Не удалось добавить «{{name}}».",
+    "fileFallbackName": "изображение"
+  },
+  "template": {
+    "unreadable": "Сохранённый формат этого сценария нельзя прочитать в этой версии OpenDraft. Для показа используется локальный формат; исходные данные формата сохранятся при сохранении. Обновите OpenDraft, чтобы использовать сохранённый формат."
+  },
+  "pacing": {
+    "brisk": {
+      "label": "Быстрый",
+      "description": "Быстрая речь, резкий монтаж, перебивающие друг друга реплики — экранное время короче страничного."
+    },
+    "standard": {
+      "label": "Стандартный",
+      "description": "Одна страница ≈ одна минута. Подходит для большинства сценариев."
+    },
+    "measured": {
+      "label": "Размеренный",
+      "description": "Неспешный или созерцательный — долгие паузы, затянутые образы, удерживаемые моменты, которые на экране длятся дольше, чем читаются."
+    }
+  },
+  "stats": {
+    "bucket": {
+      "under1": "< 1 стр.",
+      "p1to2": "1–2 стр.",
+      "p2to3": "2–3 стр.",
+      "p3to5": "3–5 стр.",
+      "p5plus": "5+ стр."
+    }
+  },
+  "pdfFonts": {
+    "hebrew": "иврит",
+    "arabic": "арабский",
+    "thai": "тайский",
+    "cyrillic": "кириллица, греческий, армянский и грузинский",
+    "chinese": "китайский",
+    "japanese": "японский",
+    "korean": "корейский",
+    "chineseTraditional": "китайский (традиционный)",
+    "and": " и ",
+    "missing": "Не удалось загрузить шрифт: {{fonts}}, поэтому этот текст в PDF пуст.",
+    "unsupported": "Письменность ({{scripts}}) пока нельзя записать в PDF, поэтому этот текст отсутствует или искажён. Остальная часть сценария экспортирована нормально."
+  },
+  "grammar": {
+    "harper": {
+      "Agreement": {
+        "label": "Согласование подлежащего и сказуемого",
+        "description": "Форма глагола должна совпадать с подлежащим («she walk» → «she walks»)."
+      },
+      "Grammar": {
+        "label": "Грамматика",
+        "description": "Время, похожие слова (their/they're), падеж местоимений и подобные ошибки."
+      },
+      "Capitalization": {
+        "label": "Заглавные буквы",
+        "description": "Имена собственные, начало предложений, местоимение «I»."
+      },
+      "Repetition": {
+        "label": "Повторяющееся слово",
+        "description": "Случайное «the the»."
+      },
+      "Punctuation": {
+        "label": "Пунктуация",
+        "description": "Пропущенные запятые, лишние пробелы вокруг знаков препинания."
+      },
+      "WordChoice": {
+        "label": "Выбор слова",
+        "description": "Предлагает более ясное или более идиоматичное слово."
+      },
+      "Readability": {
+        "label": "Читаемость",
+        "description": "Длинные или трудные для разбора предложения."
+      },
+      "Typo": {
+        "label": "Опечатка",
+        "description": "Вероятные опечатки, найденные по контексту (например, «teh» → «the»)."
+      },
+      "Spelling": {
+        "label": "Орфография",
+        "description": "Слова с ошибками (пересекается с проверкой орфографии — отключите одну из них)."
+      },
+      "Style": {
+        "label": "Стиль",
+        "description": "Стилистические подсказки (многословие, слабые формулировки)."
+      },
+      "Enhancement": {
+        "label": "Улучшение",
+        "description": "Необязательные правки, которые часто делают текст яснее."
+      },
+      "Formatting": {
+        "label": "Форматирование",
+        "description": "Пробелы, кавычки, тире."
+      },
+      "Regionalism": {
+        "label": "Региональные особенности",
+        "description": "Слова, необычные за пределами определённого региона."
+      },
+      "Miscellaneous": {
+        "label": "Другое",
+        "description": "Прочие грамматические замечания, не подходящие под категории выше."
+      }
+    },
+    "retext": {
+      "passive": {
+        "label": "Пассивный залог",
+        "description": "Отмечать пассивные конструкции («was kicked»)."
+      },
+      "repeated": {
+        "label": "Повторяющееся слово",
+        "description": "Находить случайное «the the»."
+      },
+      "indefiniteArticle": {
+        "label": "A / an",
+        "description": "Находить «a hour» / «an university»."
+      },
+      "redundantAcronyms": {
+        "label": "Избыточные аббревиатуры",
+        "description": "например, «ATM machine»."
+      },
+      "intensify": {
+        "label": "Слабое усиление",
+        "description": "Предлагать более сильные замены для «very», «really»."
+      },
+      "simplify": {
+        "label": "Многословная фраза",
+        "description": "Сокращать «in order to» → «to»."
+      }
+    }
+  },
+  "reports": {
+    "count": {
+      "scene_one": "{{count}} сцена",
+      "scene_few": "{{count}} сцены",
+      "scene_many": "{{count}} сцен",
+      "scene_other": "{{count}} сцены",
+      "speakingCharacter_one": "{{count}} говорящий персонаж",
+      "speakingCharacter_few": "{{count}} говорящих персонажа",
+      "speakingCharacter_many": "{{count}} говорящих персонажей",
+      "speakingCharacter_other": "{{count}} говорящего персонажа",
+      "location_one": "{{count}} локация",
+      "location_few": "{{count}} локации",
+      "location_many": "{{count}} локаций",
+      "location_other": "{{count}} локации",
+      "castMember_one": "{{count}} роль",
+      "castMember_few": "{{count}} роли",
+      "castMember_many": "{{count}} ролей",
+      "castMember_other": "{{count}} роли",
+      "taggedItem_one": "{{count}} помеченный элемент",
+      "taggedItem_few": "{{count}} помеченных элемента",
+      "taggedItem_many": "{{count}} помеченных элементов",
+      "taggedItem_other": "{{count}} помеченного элемента",
+      "category_one": "{{count}} категория",
+      "category_few": "{{count}} категории",
+      "category_many": "{{count}} категорий",
+      "category_other": "{{count}} категории",
+      "openNote_one": "{{count}} открытая заметка",
+      "openNote_few": "{{count}} открытые заметки",
+      "openNote_many": "{{count}} открытых заметок",
+      "openNote_other": "{{count}} открытой заметки",
+      "note_one": "{{count}} заметка",
+      "note_few": "{{count}} заметки",
+      "note_many": "{{count}} заметок",
+      "note_other": "{{count}} заметки",
+      "reply_one": "{{count}} ответ",
+      "reply_few": "{{count}} ответа",
+      "reply_many": "{{count}} ответов",
+      "reply_other": "{{count}} ответа"
+    },
+    "scenes": {
+      "label": "Отчёт по сценам",
+      "description": "Каждая сцена с локацией, длиной, экранным временем и говорящими",
+      "summary": "{{scenes}} · {{length}} стр.",
+      "columns": {
+        "scene": "Сцена",
+        "heading": "Заголовок",
+        "intExt": "INT/EXT",
+        "location": "Локация",
+        "time": "Время",
+        "length": "Длина",
+        "estTime": "Оценка времени",
+        "speaking": "Говорящие персонажи",
+        "words": "Слова"
+      }
+    },
+    "characters": {
+      "label": "Отчёт по персонажам",
+      "description": "Реплики, слова и сцены для каждого говорящего персонажа",
+      "columns": {
+        "character": "Персонаж",
+        "role": "Роль",
+        "gender": "Пол",
+        "speeches": "Реплики",
+        "words": "Слова",
+        "share": "Доля диалогов",
+        "scenes": "Сцены",
+        "sceneNumbers": "Номера сцен"
+      }
+    },
+    "locations": {
+      "label": "Отчёт по локациям",
+      "description": "Каждая локация, как часто она используется и на скольких страницах",
+      "columns": {
+        "location": "Локация",
+        "intExt": "INT/EXT",
+        "times": "Время суток",
+        "scenes": "Сцены",
+        "totalLength": "Общая длина",
+        "sceneNumbers": "Номера сцен"
+      }
+    },
+    "cast": {
+      "label": "Отчёт по ролям",
+      "description": "Досье персонажей с ролью, полом, возрастом и сценами с репликами",
+      "columns": {
+        "character": "Персонаж",
+        "role": "Роль",
+        "gender": "Пол",
+        "age": "Возраст",
+        "speakingScenes": "Сцены с репликами",
+        "description": "Описание"
+      }
+    },
+    "breakdown": {
+      "label": "Отчёт-разбивка",
+      "description": "Помеченный реквизит, костюмы, транспорт и многое другое — с их сценами",
+      "summary": "{{items}} в категориях: {{categories}}",
+      "columns": {
+        "category": "Категория",
+        "item": "Элемент",
+        "scenes": "Сцены",
+        "sceneNumbers": "Номера сцен",
+        "notes": "Заметки"
+      }
+    },
+    "notes": {
+      "label": "Отчёт по заметкам",
+      "description": "Каждая заметка с ответами, автором, исполнителем и статусом решения",
+      "title": "Отчёт по заметкам",
+      "summary": "{{notes}} · открыто: {{open}} · решено: {{resolved}} · {{replies}}",
+      "columns": {
+        "number": "№",
+        "scene": "Сцена",
+        "on": "К чему",
+        "from": "От кого",
+        "comment": "Комментарий",
+        "status": "Статус",
+        "assignedTo": "Назначено",
+        "date": "Дата"
+      },
+      "general": "Общая",
+      "open": "Открыта",
+      "resolved": "Решена",
+      "resolvedBy": "Решил(а): {{name}}",
+      "resolvedAt": "{{status}} {{date}}"
+    },
+    "openNotes": {
+      "label": "Открытые заметки",
+      "description": "Только нерешённые заметки с ответами — то, что ещё предстоит сделать",
+      "title": "Открытые заметки",
+      "summary": "{{notes}} · {{replies}}"
+    },
+    "nothing": "Нечего показывать в отчёте."
+  },
+  "backup": {
+    "error": {
+      "missingFolder": "Папки для копий больше не существует.",
+      "noPermission": "У OpenDraft нет разрешения на запись в папку для копий.",
+      "diskFull": "Диск заполнен.",
+      "noResponse": "Папка для копий не отвечает (не отключён ли сетевой диск?)."
+    },
+    "failed": "Не удалось создать копию — {{reason}}",
+    "paused": "Автоматические копии приостановлены — {{reason}} Исправьте папку в настройках, чтобы возобновить.",
+    "notInBrowser": "Резервные копии недоступны в браузере.",
+    "onlyInApp": "Резервные копии доступны только в приложении OpenDraft.",
+    "noFolder": "Папка для копий не настроена.",
+    "revealDesktopOnly": "Показать копию в файловом менеджере можно только на компьютере.",
+    "chooseFolderBrowser": "Выбор папки для копий недоступен в браузере."
+  },
+  "sprint": {
+    "finished_one": "Спринт завершён — написано {{count}} слово.",
+    "finished_few": "Спринт завершён — написано {{count}} слова.",
+    "finished_many": "Спринт завершён — написано {{count}} слов.",
+    "finished_other": "Спринт завершён — написано {{count}} слова."
+  },
+  "recovery": {
+    "tooLarge": "Этот документ слишком велик для защиты от сбоя. Сохраните его в библиотеку, чтобы подключилось автосохранение.",
+    "noRoom": "Защита от сбоев недоступна — нет места для копии восстановления. Сохраните работу в библиотеку."
+  },
+  "fallbackImport": {
+    "project_one": "{{count}} проект",
+    "project_few": "{{count}} проекта",
+    "project_many": "{{count}} проектов",
+    "project_other": "{{count}} проекта",
+    "script_one": "{{count}} сценарий",
+    "script_few": "{{count}} сценария",
+    "script_many": "{{count}} сценариев",
+    "script_other": "{{count}} сценария",
+    "asset_one": "{{count}} материал",
+    "asset_few": "{{count}} материала",
+    "asset_many": "{{count}} материалов",
+    "asset_other": "{{count}} материала",
+    "template_one": "{{count}} шаблон",
+    "template_few": "{{count}} шаблона",
+    "template_many": "{{count}} шаблонов",
+    "template_other": "{{count}} шаблона",
+    "imported": "Импортировано из запасного файлового хранилища: {{counts}}",
+    "importedWithErrors": "Импортировано из запасного хранилища: {{counts}}. Не удалось обработать элементов: {{failed}} — подробности в DevTools.",
+    "nothing": "ничего"
+  },
+  "dictionary": {
+    "unknownLanguage": "Неизвестный язык: {{code}}",
+    "downloadFailed": "Не удалось скачать «{{label}}» — источник может быть временно недоступен, либо нет сети.",
+    "codeRequired": "Нужен код языка.",
+    "urlsRequired": "Нужны оба URL — для .aff и .dic.",
+    "parseFailed": "Не удалось скачать или разобрать. Проверьте URL и что файлы — корректные Hunspell .aff/.dic."
+  },
+  "auth": {
+    "renewFailed": "Сейчас не удалось продлить вход. Повторите попытку чуть позже."
+  },
+  "cloud": {
+    "notConfigured": "OpenDraft Cloud не настроен для этого приложения. Откройте «Настройки → Системные настройки», чтобы указать URL сервера OpenDraft.",
+    "cannotReachNamed": "Не удаётся связаться с {{where}}. Проверьте, что сервер запущен и доступен.",
+    "cannotReach": "Не удаётся связаться с OpenDraft Cloud ({{detail}}).",
+    "invalidResponse": "OpenDraft Cloud вернул недопустимый ответ. Возможно, сервер настроен неверно.",
+    "renewUnavailable": "Не удалось связаться с сервером OpenDraft, чтобы продлить вход. Повторите попытку чуть позже."
+  },
+  "fonts": {
+    "tooLarge": "Слишком большой — шрифты должны быть меньше {{mb}} МБ.",
+    "empty": "Этот файл пуст.",
+    "tooSmall": "Этот файл слишком мал для шрифта.",
+    "notFont": "Этот файл — не шрифт TrueType или OpenType.",
+    "installFailed": "Не удалось установить этот шрифт: {{message}}",
+    "noStorage": "У этого браузера нет локального хранилища для шрифтов.",
+    "deleteFailed": "Шрифт удалён из этого сеанса, но не удалён из хранилища."
+  },
+  "linkedFiles": {
+    "unsupportedExtension": "OpenDraft может хранить сценарии в файлах .odraft, .fountain, .fdx или .osf, но не .{{ext}}.",
+    "noExtension": "(нет)",
+    "cannotWrite": "OpenDraft не может писать в {{folder}}",
+    "cannotWriteReason": "OpenDraft не может писать в {{folder}} — {{reason}}",
+    "notInFolder": "Этот проект не сохраняется в папку."
+  },
+  "elements": {
+    "sceneHeading": "Заголовок сцены",
+    "action": "Действие",
+    "character": "Персонаж",
+    "parenthetical": "Ремарка",
+    "dialogue": "Диалог",
+    "transition": "Переход",
+    "shot": "Кадр",
+    "general": "Общий",
+    "dualDialogue": "Параллельный диалог",
+    "lyrics": "Текст песни",
+    "newAct": "Новый акт",
+    "endOfAct": "Конец акта"
+  },
+  "marks": {
+    "bold": "Полужирный",
+    "italic": "Курсив",
+    "underline": "Подчёркнутый",
+    "strike": "Зачёркнутый",
+    "subscript": "Подстрочный",
+    "superscript": "Надстрочный",
+    "textStyle": "Шрифт/размер",
+    "color": "Цвет текста",
+    "highlight": "Выделение",
+    "formatOverride": "Переопределение формата"
+  },
+  "relativeTime": {
+    "justNow": "только что",
+    "minutes_one": "{{count}} минуту назад",
+    "minutes_few": "{{count}} минуты назад",
+    "minutes_many": "{{count}} минут назад",
+    "minutes_other": "{{count}} минуты назад",
+    "hours_one": "{{count}} час назад",
+    "hours_few": "{{count}} часа назад",
+    "hours_many": "{{count}} часов назад",
+    "hours_other": "{{count}} часа назад",
+    "days_one": "{{count}} день назад",
+    "days_few": "{{count}} дня назад",
+    "days_many": "{{count}} дней назад",
+    "days_other": "{{count}} дня назад"
+  },
+  "suggestions": {
+    "insertedBy": "Предложил(а): {{name}}",
+    "insertedByAt": "Предложил(а): {{name}} · {{when}}",
+    "someone": "кто-то",
+    "someoneCap": "Кто-то",
+    "deleteBy": "{{name}} предлагает удалить это",
+    "deleteByAt": "{{name}} предлагает удалить это · {{when}}",
+    "formatAdd": "{{name}} предлагает добавить: {{format}}",
+    "formatRemove": "{{name}} предлагает убрать: {{format}}",
+    "joinLabel": "⤒ слить",
+    "joinTitle": "{{name}} предлагает присоединить эту строку к предыдущей",
+    "wasType": "было: {{type}}",
+    "changeTitle": "{{name}} предлагает изменить тип: {{from}} → {{to}}"
+  },
+  "clipboard": {
+    "pasteDeniedIos": "Не удалось прочитать буфер обмена. iOS запрашивает разрешение при каждой вставке — нажмите «Вставить», когда оно появится, или нажмите и удерживайте в сценарии и выберите там «Вставить».",
+    "pasteDenied": "Не удалось прочитать буфер обмена. Разрешите OpenDraft доступ к буферу обмена и повторите попытку.",
+    "selectFirst": "Сначала выделите, что копировать.",
+    "copyFailed": "Не удалось скопировать в буфер обмена.",
+    "empty": "Буфер обмена пуст."
+  },
+  "import": {
+    "archiveNotOpenable": "Файлы {{format}} — сжатые архивы, и на этой платформе их нельзя открыть. Экспортируйте сценарий из {{app}} в .fdx, .fountain или .osf и импортируйте его.",
+    "expectedText": "Для файла {{format}} ожидалось текстовое содержимое.",
+    "invalidOdraft": "Недопустимый файл .odraft: {{message}}",
+    "archiveUnreadable": "Не удалось прочитать файл {{format}} — это не корректный архив .{{ext}}. Он может быть повреждён, неполон или сохранён в другом формате; попробуйте снова экспортировать его из {{format}}.",
+    "zipInvalid": "Этот файл — не корректный zip-архив",
+    "zipSingleScript": "В этом zip один сценарий, а не проект. Импортируйте его изнутри проекта.",
+    "zipNoProject": "Недопустимый архив проекта: нет project.json",
+    "zipNoneImported": "Не удалось импортировать ни один из сценариев ({{count}})",
+    "pdfPassword": "Этот PDF защищён паролем. Откройте его в программе просмотра PDF, сохраните копию без пароля и импортируйте её.",
+    "pdfUnreadable": "Этот файл — не читаемый PDF; возможно, он повреждён.",
+    "pdfNoText": "В этом PDF нет текста для чтения — возможно, это скан. Можно импортировать только PDF с выделяемым текстом.",
+    "pdfNothingRecognised": "Заголовки сцен и диалоги не распознаны — возможно, PDF не оформлен как сценарий.",
+    "docxTable": "Встретилась таблица, не являющаяся раскладкой параллельного диалога — ячейки преобразованы в действие.",
+    "docxNoDocument": "Недопустимый файл .docx: нет word/document.xml",
+    "docxNoBody": "Недопустимый файл .docx: нет <w:body>",
+    "highlandNoFountain": "Это не сценарий Highland: в файле нет text.fountain{{contents}}.",
+    "highlandNotFountain": "Этот документ Highland хранится как {{name}}, а не Fountain, поэтому он прочитан как текст Fountain; после импорта проверьте типы элементов.",
+    "highlandImages": "Изображения, сохранённые в файле Highland, не импортированы."
+  },
+  "export": {
+    "zipUnreadable_one": "Не удалось прочитать сценарий: {{names}}",
+    "zipUnreadable_few": "Не удалось прочитать сценарии: {{names}}",
+    "zipUnreadable_many": "Не удалось прочитать сценарии: {{names}}",
+    "zipUnreadable_other": "Не удалось прочитать сценарии: {{names}}",
+    "twoUpPageSize": "Недопустимый размер страницы, поэтому нельзя разместить по две страницы на листе.",
+    "twoUpStructure": "Не удалось разместить по две страницы на листе: у PDF неожиданная структура.",
+    "twoUpPageStructure": "Не удалось разместить по две страницы на листе: у страницы {{page}} неожиданная структура.",
+    "avEmpty": "В этом документе нет AV-содержимого для экспорта.",
+    "cannotWrite": "OpenDraft не умеет записывать файлы .{{format}}."
+  },
+  "file": {
+    "chooseDifferent": "Выберите другое место для «Сохранить копию». Оригинал остался без изменений.",
+    "openBrowser": "Открытие файла на месте недоступно в браузере.",
+    "saveBrowser": "Сохранение файла на месте недоступно в браузере."
+  },
+  "macros": {
+    "notJson": "Этот файл — не корректный JSON.",
+    "notMacros": "В этом файле нет макросов OpenDraft."
+  },
+  "avYaml": {
+    "notYaml": "Этот файл — не корректный YAML.",
+    "notYamlLine": "Этот файл — не корректный YAML (строка {{line}}).",
+    "notAvDoc": "Этот файл — не AV-документ OpenDraft.",
+    "wrongFormat": "Этот файл — не AV-документ OpenDraft (ожидаемый формат: {{format}}).",
+    "noVersion": "В этом файле не указана версия схемы AV.",
+    "tooNew": "Этот файл использует версию схемы AV {{version}}, а эта версия OpenDraft читает до {{max}}. Обновите OpenDraft, чтобы открыть его.",
+    "noSection": "В этом AV-файле нет раздела `av:` для импорта.",
+    "noRows": "В AV-разделе {{n}} нет строк."
+  },
+  "sides": {
+    "emptyScenes": "Выбранные сцены пусты.",
+    "noLines": "У персонажа {{name}} нет реплик в этом сценарии.",
+    "noSceneAt": "Нет сцены с локацией: {{location}}.",
+    "notTagged": "В сценарии ничто не помечено тегом: {{label}}."
+  },
+  "av": {
+    "durationLabel": "Длительность кадра {{shot}}",
+    "durationInvalid": "Это не время — используйте 0:05, 1:30 или 1:02:03",
+    "durationTitle": "Длительность кадра",
+    "resizeTitle": "Перетащите, чтобы изменить размер · дважды щёлкните, чтобы сбросить"
+  },
+  "tts": {
+    "unreadable": "Сервер озвучивания ответил чем-то нечитаемым.",
+    "noProvider": "ИИ-сервис озвучивания не настроен.",
+    "needGeminiKey": "Добавьте API-ключ Gemini в «Настройки → Голоса для читки».",
+    "needElevenLabsKey": "Добавьте API-ключ ElevenLabs в «Настройки → Голоса для читки».",
+    "needAzureKey": "Добавьте ключ и регион Azure Speech в «Настройки → Голоса для читки».",
+    "noKokoroVoice": "Голос Kokoro не выбран.",
+    "noGeminiVoice": "Голос Gemini не выбран.",
+    "noAzureVoice": "Голос Azure не выбран.",
+    "noElevenLabsVoice": "Голос ElevenLabs не выбран.",
+    "noVoice": "Голос не выбран.",
+    "geminiNoAudio": "Gemini не вернул звук для этой строки.",
+    "azureNoAudio": "Azure Speech не вернул звук.",
+    "audioNoStart": "Звук от {{provider}} не начал воспроизводиться. Возможно, этот браузер не поддерживает его формат.",
+    "audioNoPlay": "Не удалось воспроизвести звук от {{provider}}.",
+    "audioNoDecode": "Не удалось декодировать звук от {{provider}}: {{message}}",
+    "kokoroStopped": "Движок голоса Kokoro остановился: {{message}}",
+    "kokoroUnknown": "неизвестная ошибка",
+    "systemStopped": "Системный движок речи перестал отвечать: {{message}}"
+  }
+}

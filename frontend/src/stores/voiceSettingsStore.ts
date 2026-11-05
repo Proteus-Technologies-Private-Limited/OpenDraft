@@ -28,6 +28,7 @@ export interface AiProviderInfo {
   cost: string;
 }
 
+// i18n-ignore-start: English defaults. VoiceProviderSettings looks the shown label, cost and key hint up by provider id.
 export const AI_PROVIDERS: AiProviderInfo[] = [
   {
     id: 'kokoro', label: 'Kokoro — free, runs on this device', keyHint: '', local: true,
@@ -54,6 +55,7 @@ export const AI_PROVIDERS: AiProviderInfo[] = [
     cost: 'Whatever your server costs — free when it runs on your own machine.',
   },
 ];
+// i18n-ignore-end
 
 export const OPENAI_MODELS = ['gpt-4o-mini-tts', 'tts-1', 'tts-1-hd'] as const;
 export const ELEVENLABS_MODELS = ['eleven_multilingual_v2', 'eleven_flash_v2_5', 'eleven_turbo_v2_5'] as const;

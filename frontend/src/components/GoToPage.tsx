@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Editor } from '@tiptap/react';
 import { useEditorStore } from '../stores/editorStore';
 import { listBookmarks } from '../utils/bookmarks';
@@ -10,6 +11,7 @@ interface GoToPageProps {
 }
 
 const GoToPage: React.FC<GoToPageProps> = ({ editor, onGoToPage }) => {
+  const { t } = useTranslation(['editor', 'common']);
   const { goToPageOpen, setGoToPageOpen, pageCount } = useEditorStore();
   const [pageNum, setPageNum] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -54,10 +56,10 @@ const GoToPage: React.FC<GoToPageProps> = ({ editor, onGoToPage }) => {
   return (
     <div className="dialog-overlay" onClick={() => setGoToPageOpen(false)}>
       <div className="dialog-box" onClick={(e) => e.stopPropagation()}>
-        <div className="dialog-header">{bookmarks.length ? 'Go to Page or Bookmark' : 'Go to Page'}</div>
+        <div className="dialog-header">{bookmarks.length ? t('goToPage.titleWithBookmarks') : t('goToPage.title')}</div>
         <div className="dialog-body">
           <div className="dialog-row">
-            <label>Page number (1-{pageCount}):</label>
+            <label>{t('goToPage.pageNumber', { max: pageCount })}</label>
             <input
               ref={inputRef}
               type="number"
@@ -72,7 +74,7 @@ const GoToPage: React.FC<GoToPageProps> = ({ editor, onGoToPage }) => {
           </div>
           {bookmarks.length > 0 && editor && (
             <div className="dialog-row goto-bookmarks">
-              <label>Or go to a bookmark:</label>
+              <label>{t('goToPage.orBookmark')}</label>
               <ul className="goto-bookmark-list">
                 {bookmarks.map((b) => (
                   <li key={b.pos}>
@@ -90,9 +92,9 @@ const GoToPage: React.FC<GoToPageProps> = ({ editor, onGoToPage }) => {
           )}
         </div>
         <div className="dialog-actions">
-          <button onClick={() => setGoToPageOpen(false)}>Cancel</button>
+          <button onClick={() => setGoToPageOpen(false)}>{t('common:cancel')}</button>
           <button className="dialog-primary" onClick={handleGo}>
-            Go
+            {t('goToPage.go')}
           </button>
         </div>
       </div>

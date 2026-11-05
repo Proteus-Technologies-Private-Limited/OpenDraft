@@ -8,11 +8,13 @@
  */
 
 import React, { useEffect, useState } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { isDesktopTauri } from '../services/platform';
 
 const DISMISS_KEY = 'opendraft.oneDriveWarning.dismissed';
 
 const OneDriveWarningDialog: React.FC = () => {
+  const { t } = useTranslation(['dialogs', 'common']);
   const [show, setShow] = useState(false);
   const [path, setPath] = useState<string>('');
 
@@ -55,16 +57,13 @@ const OneDriveWarningDialog: React.FC = () => {
         role="dialog"
         aria-modal="true"
       >
-        <div className="dialog-header">OneDrive interference detected</div>
+        <div className="dialog-header">{t('oneDrive.title')}</div>
         <div className="dialog-body">
           <p style={{ margin: '0 0 12px' }}>
-            OpenDraft's data folder is inside a OneDrive-synced location. This
-            is a known cause of <strong>silent save failures</strong>: OneDrive
-            can grab the SQLite write-ahead log file in the middle of a save,
-            corrupting the database and losing your latest edits.
+            <Trans ns="dialogs" i18nKey="oneDrive.intro" components={{ strong: <strong /> }} />
           </p>
           <p style={{ margin: '0 0 6px', fontSize: 13, color: 'var(--fd-text-muted)' }}>
-            Affected folder:
+            {t('oneDrive.affectedFolder')}
           </p>
           <pre
             style={{
@@ -81,24 +80,20 @@ const OneDriveWarningDialog: React.FC = () => {
           >
             {path}
           </pre>
-          <p style={{ margin: '0 0 6px', fontWeight: 600 }}>How to fix:</p>
+          <p style={{ margin: '0 0 6px', fontWeight: 600 }}>{t('oneDrive.howToFix')}</p>
           <ol style={{ margin: '0 0 0 18px', paddingLeft: 0, fontSize: 13, lineHeight: 1.6 }}>
-            <li>Open OneDrive settings → Sync and backup → Manage backup.</li>
-            <li>
-              Turn off backup for the folder that contains the path above
-              (typically Documents or Desktop), or exclude OpenDraft's app
-              data folder explicitly.
-            </li>
-            <li>Restart OpenDraft.</li>
+            <li>{t('oneDrive.step1')}</li>
+            <li>{t('oneDrive.step2')}</li>
+            <li>{t('oneDrive.step3')}</li>
           </ol>
         </div>
         <div className="dialog-footer" style={{ display: 'flex', gap: 8 }}>
           <button className="dialog-btn" onClick={dismissForever}>
-            Don't show again
+            {t('oneDrive.dontShowAgain')}
           </button>
           <div style={{ flex: 1 }} />
           <button className="dialog-btn dialog-btn-primary" onClick={dismiss} autoFocus>
-            Continue
+            {t('common:continue')}
           </button>
         </div>
       </div>

@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
+import { t } from '../../../i18n';
 import type { RecognitionCallbacks, RecognitionSession } from './recognition';
 
 export async function startNativeRecognition(language: string, callbacks: RecognitionCallbacks, signal: AbortSignal): Promise<RecognitionSession> {
@@ -23,7 +24,7 @@ export async function startNativeRecognition(language: string, callbacks: Recogn
     if (!live || stopping) return;
     stopping = true;
     clearTimeout(deadline);
-    deadline = setTimeout(() => fail('Device recognition did not finish. Please try again.'), 10_000);
+    deadline = setTimeout(() => fail(t('addons:dictation.error.deviceNotFinished')), 10_000);
     void invoke('dictation_native_stop', { id }).catch(error => fail(String(error)));
   };
   signal.addEventListener('abort', cancel, { once: true });
@@ -44,13 +45,13 @@ export async function startNativeRecognition(language: string, callbacks: Recogn
           if (event.kind === 'interim') callbacks.interim(event.text ?? '');
           if (event.kind === 'result') callbacks.result(event.text ?? '');
           if (event.kind === 'notice') callbacks.notice?.(event.message ?? '');
-          if (event.kind === 'error') { fail(event.message ?? 'Device recognition failed.'); return; }
+          if (event.kind === 'error') { fail(event.message ?? t('addons:dictation.error.deviceFailed')); return; }
           if (event.kind === 'end') { cancel(); callbacks.end(); return; }
         }
         timer = setTimeout(() => void poll(), 200);
       } catch (error) { fail(String(error)); }
     };
-    deadline = setTimeout(() => fail('Device recognition timed out. Please try again.'), 60_000);
+    deadline = setTimeout(() => fail(t('addons:dictation.error.deviceTimeout')), 60_000);
     void poll();
     return { stop, cancel };
   } catch (error) { cancel(); throw error; }

@@ -6,6 +6,7 @@
 // the per-rule UI simple and makes ignore-state portable across retext upgrades.
 
 import type { GrammarIssue, GrammarSeverity } from '../../plugins/registry';
+import { t } from '../../i18n';
 
 export const RETEXT_CATEGORIES = [
   'passive',
@@ -19,12 +20,36 @@ export const RETEXT_CATEGORIES = [
 export type RetextCategory = (typeof RETEXT_CATEGORIES)[number];
 
 export const RETEXT_CATEGORY_META: Record<RetextCategory, { label: string; severity: GrammarSeverity; description: string }> = {
-  'passive': { label: 'Passive voice', severity: 'style', description: 'Flag passive constructions ("was kicked").' },
-  'repeated': { label: 'Repeated word', severity: 'grammar', description: 'Catch accidental "the the".' },
-  'indefinite-article': { label: 'A / an', severity: 'grammar', description: 'Detect "a hour" / "an university".' },
-  'redundant-acronyms': { label: 'Redundant acronyms', severity: 'style', description: 'e.g. "ATM machine".' },
-  'intensify': { label: 'Weak intensifier', severity: 'style', description: 'Suggest stronger alternatives to "very", "really".' },
-  'simplify': { label: 'Wordy phrase', severity: 'style', description: 'Tighten "in order to" → "to".' },
+  'passive': {
+    get label() { return t('messages:grammar.retext.passive.label'); },
+    severity: 'style',
+    get description() { return t('messages:grammar.retext.passive.description'); },
+  },
+  'repeated': {
+    get label() { return t('messages:grammar.retext.repeated.label'); },
+    severity: 'grammar',
+    get description() { return t('messages:grammar.retext.repeated.description'); },
+  },
+  'indefinite-article': {
+    get label() { return t('messages:grammar.retext.indefiniteArticle.label'); },
+    severity: 'grammar',
+    get description() { return t('messages:grammar.retext.indefiniteArticle.description'); },
+  },
+  'redundant-acronyms': {
+    get label() { return t('messages:grammar.retext.redundantAcronyms.label'); },
+    severity: 'style',
+    get description() { return t('messages:grammar.retext.redundantAcronyms.description'); },
+  },
+  'intensify': {
+    get label() { return t('messages:grammar.retext.intensify.label'); },
+    severity: 'style',
+    get description() { return t('messages:grammar.retext.intensify.description'); },
+  },
+  'simplify': {
+    get label() { return t('messages:grammar.retext.simplify.label'); },
+    severity: 'style',
+    get description() { return t('messages:grammar.retext.simplify.description'); },
+  },
 };
 
 let processorPromise: Promise<{

@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useEditorStore, resolveMoresContds, DEFAULT_MORES_CONTDS } from '../stores/editorStore';
 import Select from './Select';
 
@@ -20,6 +21,7 @@ const CUSTOM = '__custom__';
  * industry rule, so there is no setting for it.
  */
 const MoresContdsDialog: React.FC<Props> = ({ onClose }) => {
+  const { t } = useTranslation(['format', 'common']);
   const { pageLayout, setPageLayout } = useEditorStore();
   const initial = resolveMoresContds(pageLayout);
 
@@ -59,30 +61,27 @@ const MoresContdsDialog: React.FC<Props> = ({ onClose }) => {
   return (
     <div className="dialog-overlay" onClick={onClose}>
       <div className="tp-editor-dialog" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 540 }}>
-        <div className="dialog-header">Mores &amp; Continueds</div>
+        <div className="dialog-header">{t('moresContds.title')}</div>
         <div className="tp-editor-body" style={{ display: 'block', padding: 20 }}>
 
           <label style={checkboxRow}>
             <input type="checkbox" checked={characterContd} onChange={(e) => setCharacterContd(e.target.checked)} />
-            <span>Automatic character {contdText.trim() || DEFAULT_MORES_CONTDS.contdText}</span>
+            <span>{t('moresContds.autoContd', { marker: contdText.trim() || DEFAULT_MORES_CONTDS.contdText })}</span>
           </label>
           <p style={helpStyle}>
-            Adds the marker when a character speaks again after an action line within the
-            same scene. It is never added across a scene heading.
+            {t('moresContds.autoContdHelp')}
           </p>
 
           <label style={checkboxRow}>
             <input type="checkbox" checked={dialogueBreakContd} onChange={(e) => setDialogueBreakContd(e.target.checked)} />
-            <span>Show {moreText.trim() || DEFAULT_MORES_CONTDS.moreText} / {contdText.trim() || DEFAULT_MORES_CONTDS.contdText} when dialogue breaks across pages</span>
+            <span>{t('moresContds.pageBreak', { more: moreText.trim() || DEFAULT_MORES_CONTDS.moreText, contd: contdText.trim() || DEFAULT_MORES_CONTDS.contdText })}</span>
           </label>
           <p style={helpStyle}>
-            When a single speech splits over a page break, shows {moreText.trim() || DEFAULT_MORES_CONTDS.moreText} at
-            the bottom of the page and the character name with {contdText.trim() || DEFAULT_MORES_CONTDS.contdText} at
-            the top of the next.
+            {t('moresContds.pageBreakHelp', { more: moreText.trim() || DEFAULT_MORES_CONTDS.moreText, contd: contdText.trim() || DEFAULT_MORES_CONTDS.contdText })}
           </p>
 
           <div className="props-field props-field-wide">
-            <label className="props-label">Continued text</label>
+            <label className="props-label">{t('moresContds.continuedText')}</label>
             <Select
               className="props-input"
               value={contdCustom ? CUSTOM : contdText}
@@ -92,7 +91,7 @@ const MoresContdsDialog: React.FC<Props> = ({ onClose }) => {
               }}
             >
               {CONTD_PRESETS.map((p) => <option key={p} value={p}>{p}</option>)}
-              <option value={CUSTOM}>Custom…</option>
+              <option value={CUSTOM}>{t('moresContds.custom')}</option>
             </Select>
             {contdCustom && (
               <input
@@ -100,14 +99,14 @@ const MoresContdsDialog: React.FC<Props> = ({ onClose }) => {
                 style={{ marginTop: 6 }}
                 value={contdText}
                 onChange={(e) => setContdText(e.target.value)}
-                placeholder="(CONT'D)"
+                placeholder="(CONT'D)" // i18n-ignore: screenplay vocabulary
                 autoFocus
               />
             )}
           </div>
 
           <div className="props-field props-field-wide">
-            <label className="props-label">More text</label>
+            <label className="props-label">{t('moresContds.moreText')}</label>
             <Select
               className="props-input"
               value={moreCustom ? CUSTOM : moreText}
@@ -117,7 +116,7 @@ const MoresContdsDialog: React.FC<Props> = ({ onClose }) => {
               }}
             >
               {MORE_PRESETS.map((p) => <option key={p} value={p}>{p}</option>)}
-              <option value={CUSTOM}>Custom…</option>
+              <option value={CUSTOM}>{t('moresContds.custom')}</option>
             </Select>
             {moreCustom && (
               <input
@@ -125,15 +124,15 @@ const MoresContdsDialog: React.FC<Props> = ({ onClose }) => {
                 style={{ marginTop: 6 }}
                 value={moreText}
                 onChange={(e) => setMoreText(e.target.value)}
-                placeholder="(MORE)"
+                placeholder="(MORE)" // i18n-ignore: screenplay vocabulary
               />
             )}
           </div>
         </div>
         <div className="dialog-actions">
-          <button onClick={handleReset} style={{ marginRight: 'auto' }}>Reset to defaults</button>
-          <button onClick={onClose}>Cancel</button>
-          <button className="dialog-primary" onClick={handleApply}>Apply</button>
+          <button onClick={handleReset} style={{ marginRight: 'auto' }}>{t('moresContds.resetDefaults')}</button>
+          <button onClick={onClose}>{t('common:cancel')}</button>
+          <button className="dialog-primary" onClick={handleApply}>{t('common:apply')}</button>
         </div>
       </div>
     </div>

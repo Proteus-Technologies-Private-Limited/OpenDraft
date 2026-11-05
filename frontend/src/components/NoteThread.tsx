@@ -7,6 +7,7 @@
  * saving and collaboration treat a reply like any other edit to a note.
  */
 import React, { useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { FaCheck, FaUndo } from 'react-icons/fa';
 import type { Asset } from '../stores/assetStore';
 import {
@@ -164,6 +165,7 @@ interface NoteThreadProps {
 const NoteThread: React.FC<NoteThreadProps> = ({
   note, me, people, assets, onUpdate, renderContent, formatDate,
 }) => {
+  const { t } = useTranslation(['collab', 'common']);
   const replies = noteReplies(note);
   const resolved = isNoteResolved(note);
   const [composing, setComposing] = useState(false);
@@ -214,7 +216,7 @@ const NoteThread: React.FC<NoteThreadProps> = ({
   return (
     <div className="note-thread">
       {replies.length > 0 && (
-        <ul className="note-replies" aria-label="Replies">
+        <ul className="note-replies" aria-label={t('thread.replies')}>
           {replies.map((r) => (
             <li key={r.id} className="note-reply">
               <div className="note-reply-header">
@@ -223,7 +225,7 @@ const NoteThread: React.FC<NoteThreadProps> = ({
                 <span className="note-reply-author">{r.author}</span>
                 <span className="note-reply-date">
                   {r.createdAt ? formatDate(r.createdAt) : ''}
-                  {r.editedAt ? ' (edited)' : ''}
+                  {r.editedAt ? t('thread.edited') : ''}
                 </span>
               </div>
               {editingReplyId === r.id ? (
@@ -234,7 +236,7 @@ const NoteThread: React.FC<NoteThreadProps> = ({
                   people={people}
                   assets={assets}
                   autoFocus
-                  ariaLabel="Edit reply"
+                  ariaLabel={t('thread.editReply')}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitEdit(); }
                     if (e.key === 'Escape') { e.preventDefault(); cancelEdit(); }
@@ -250,13 +252,13 @@ const NoteThread: React.FC<NoteThreadProps> = ({
                     className="note-link-btn"
                     onClick={() => startEdit(r.id, r.content)}
                   >
-                    Edit
+                    {t('common:edit')}
                   </button>
                   <button
                     className="note-link-btn note-link-danger"
                     onClick={() => onUpdate(deleteNoteReply(note, r.id))}
                   >
-                    Delete
+                    {t('common:delete')}
                   </button>
                 </div>
               )}
@@ -274,17 +276,17 @@ const NoteThread: React.FC<NoteThreadProps> = ({
             people={people}
             assets={assets}
             autoFocus
-            ariaLabel="Reply"
-            placeholder="Reply… (@ to mention someone; Shift+Enter for a new line)"
+            ariaLabel={t('thread.reply')}
+            placeholder={t('thread.replyPlaceholder')}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitReply(); }
               if (e.key === 'Escape') { e.preventDefault(); setComposing(false); setDraft(''); }
             }}
           />
           <div className="note-reply-composer-actions">
-            <button className="note-link-btn" onClick={() => { setComposing(false); setDraft(''); }}>Cancel</button>
+            <button className="note-link-btn" onClick={() => { setComposing(false); setDraft(''); }}>{t('common:cancel')}</button>
             <button className="note-reply-submit" onClick={submitReply} disabled={!draft.trim()}>
-              {resolved ? 'Reply & reopen' : 'Reply'}
+              {resolved ? t('thread.replyAndReopen') : t('thread.reply')}
             </button>
           </div>
         </div>
@@ -293,7 +295,7 @@ const NoteThread: React.FC<NoteThreadProps> = ({
       <div className="note-thread-bar">
         {!composing && (
           <button className="note-link-btn" onClick={() => setComposing(true)}>
-            Reply{replies.length > 0 ? ` (${replies.length})` : ''}
+            {replies.length > 0 ? t('thread.replyWithCount', { n: replies.length }) : t('thread.reply')}
           </button>
         )}
         {assignable.length > 0 && (
@@ -301,13 +303,13 @@ const NoteThread: React.FC<NoteThreadProps> = ({
             className={`note-assign-select${note.assignee ? ' active' : ''}`}
             value={note.assignee ?? ''}
             onChange={(e) => onUpdate(assignNote(e.target.value))}
-            title="Assign this note to a collaborator"
-            aria-label="Assigned to"
+            title={t('thread.assignTitle')}
+            aria-label={t('thread.assignedTo')}
           >
-            <option value="">Unassigned</option>
+            <option value="">{t('thread.unassigned')}</option>
             {assignable.map((p) => (
               <option key={p} value={p}>
-                {p}{samePerson(p, me) ? ' (you)' : ''}
+                {samePerson(p, me) ? t('thread.you', { name: p }) : p}
               </option>
             ))}
           </Select>
@@ -315,15 +317,20 @@ const NoteThread: React.FC<NoteThreadProps> = ({
         <button
           className={`note-resolve-btn${resolved ? ' resolved' : ''}`}
           onClick={() => onUpdate(setNoteResolved(!resolved, me))}
-          title={resolved ? 'Reopen this note' : 'Mark this note as resolved'}
+          title={resolved ? t('thread.reopenTitle') : t('thread.resolveTitle')}
         >
-          {resolved ? <><FaUndo /> Reopen</> : <><FaCheck /> Resolve</>}
+          {resolved ? <><FaUndo /> {t('thread.reopen')}</> : <><FaCheck /> {t('thread.resolve')}</>}
         </button>
       </div>
       {resolved && (
         <div className="note-resolved-line">
-          Resolved{note.resolvedBy ? ` by ${note.resolvedBy}` : ''}
-          {note.resolvedAt ? ` · ${formatDate(note.resolvedAt)}` : ''}
+          {note.resolvedBy && note.resolvedAt
+            ? t('thread.resolvedByAt', { name: note.resolvedBy, date: formatDate(note.resolvedAt) })
+            : note.resolvedBy
+              ? t('thread.resolvedBy', { name: note.resolvedBy })
+              : note.resolvedAt
+                ? t('thread.resolvedAt', { date: formatDate(note.resolvedAt) })
+                : t('thread.resolved')}
         </div>
       )}
     </div>

@@ -24,6 +24,8 @@ import { insertMacro } from './macroActions';
 import { addScriptNoteAtSelection } from '../utils/addScriptNote';
 import { FOCUS_MODE_SHORTCUT } from '../editor/extensions/FocusMode';
 import { showToast } from './Toast';
+import { useTranslation, Trans } from 'react-i18next';
+import { t } from '../i18n';
 import { useSuggestModeStore } from '../stores/suggestModeStore';
 import { hasSuggestions, withoutSuggestionsJSON } from '../editor/suggestions';
 import type { Editor as TiptapEditor } from '@tiptap/react';
@@ -65,10 +67,10 @@ import { useFormattingTemplateStore, ensureTemplatesLoaded } from '../stores/for
 import { hasNumbering, numberingRulesOf, assignElementNumbers } from '../utils/elementNumbers';
 import { applyScriptFormat } from '../utils/applyScriptFormat';
 import { isTitlePageRuleId, AV_BLOCK_RULE_ID } from '../stores/formattingTypes';
-import { INDUSTRY_STANDARD_ID, ELEMENT_DESCRIPTIONS } from '../stores/formattingTypes';
+import { INDUSTRY_STANDARD_ID } from '../stores/formattingTypes';
 import { getCurrentElementRule, getLockedFormatting } from '../utils/effectiveFormatting';
 import { selectionStartsNewPage } from '../editor/extensions';
-import { pluginRegistry } from '../plugins/registry';
+import { pluginRegistry, resolvePluginText } from '../plugins/registry';
 import { useTableReadStore } from '../stores/tableReadStore';
 import { isAiProviderConfigured, useVoiceSettingsStore } from '../stores/voiceSettingsStore';
 import { activeEngineKind } from '../services/tts/engines';
@@ -263,6 +265,7 @@ import {
 } from '../editor/sceneAlternates';
 import type { EditorState, Transaction } from '@tiptap/pm/state';
 import { omitSceneTransaction, sceneOmittedAt } from '../editor/omitScene';
+import { elementLabel, elementDescription } from '../editor/elementLabels';
 
 /** What Fade In carries beyond the text: Revision Mode's colour and marks,
  *  and how scenes are numbered. */
@@ -274,6 +277,9 @@ function osfExtras(s: ReturnType<typeof useEditorStore.getState>) {
     sceneNumbers: { visible: s.sceneNumbersVisible, locked: s.sceneNumbersLocked },
   };
 }
+
+/** A menu label with the check mark that shows the option is on. */
+const check = (on: boolean, label: string): string => (on ? `\u2713 ${label}` : label);
 
 interface MenuBarProps {
   editor: Editor | null;
@@ -305,6 +311,8 @@ interface MenuItem {
 }
 
 interface MenuSection {
+  /** Stable English id: what the bar tracks and plugins target. `label` is only what is shown. */
+  id: string;
   label: string;
   items: MenuItem[];
 }
@@ -334,6 +342,9 @@ const MenuBar: React.FC<MenuBarProps> = ({
   canEditDocumentFormat = true,
   onDocumentSaved,
 }) => {
+  // Re-renders the bar when the language changes; the strings come from the module-level t,
+  // which also serves the handlers below at the moment they run.
+  useTranslation('menu');
   const navigate = useNavigate();
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [openSubmenu, setOpenSubmenu] = useState<string | null>(null);
@@ -449,7 +460,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
    */
   const serializeForOrigin = useCallback(
     async (format: string): Promise<string | Uint8Array> => {
-      if (!editor) throw new Error('No document is open.');
+      if (!editor) throw new Error(t('menu:errors.noDocument'));
       const s = useEditorStore.getState();
       // Fade In's archive is the one binary format; it stays here because
       // only a file opened in place is ever written in it.
@@ -461,7 +472,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
       // differently. It works from the saved payload, which carries the
       // notes, beats and profiles .odraft keeps and .fdx partly does.
       const content = buildSaveContent();
-      if (!content) throw new Error('No document is open.');
+      if (!content) throw new Error(t('menu:errors.noDocument'));
       return serializeContentForFormat(format, content, s.documentTitle, {
         font: { family: s.fontFamily, size: s.fontSize },
         meta: { page_count: s.pageCount },
@@ -514,7 +525,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
       // safe somewhere it is not.
       setSaveStatus('error', msg);
       if (!auto || before !== 'error') {
-        showToast(`Could not save to ${origin.name}: ${msg}`, 'error');
+        showToast(t('menu:toasts.saveToOriginFailed', { name: origin.name, message: msg }), 'error');
       }
       return false;
     }
@@ -555,7 +566,9 @@ const MenuBar: React.FC<MenuBarProps> = ({
       }
       if (fileStatus?.state === 'pending' && fileStatus.error) {
         const name = fileStatus.path.split(/[/\\]/).pop() || fileStatus.path;
-        showToast(`Saved in OpenDraft, but not to ${name}: ${fileStatus.error}. ${externalScreenplay(fileStatus.path) ? 'Use Save to review the external file again.' : 'OpenDraft will keep trying.'}`, 'error');
+        showToast(externalScreenplay(fileStatus.path)
+          ? t('menu:toasts.savedNotToFileReview', { name, error: fileStatus.error })
+          : t('menu:toasts.savedNotToFileRetry', { name, error: fileStatus.error }), 'error');
       }
       // The user's real copy now holds this text, so there is nothing left to
       // recover. Done here as well as in the snapshot hook because an explicit
@@ -633,7 +646,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
       const origin = s.documentOrigin;
       const ps = useProjectStore.getState();
       if (!origin && currentProject && currentScriptId && ps.isCloudScript(currentProject.id, currentScriptId)) {
-        showToast('A cloud script cannot be linked to a file on this computer. Use File ▸ Export to save a copy.', 'error');
+        showToast(t('menu:toasts.cloudScriptNoLink'), 'error');
         return;
       }
       const library = !origin && currentProject && currentScriptId
@@ -654,7 +667,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
         : normalizeLinkedFormat(useSettingsStore.getState().defaultFileFormat);
 
       const picked = await save({
-        title: 'Save to File',
+        title: t('menu:dialogs.saveToFileTitle'),
         defaultPath: lf.joinPath(defaultDir, linkedFileName(s.documentTitle || 'Untitled', preferred)),
         filters: [
           { name: 'OpenDraft', extensions: ['odraft'] },
@@ -675,13 +688,13 @@ const MenuBar: React.FC<MenuBarProps> = ({
       // each other on every save.
       const taken = await lf.findLinkByPath(path);
       if (taken && taken.scriptId !== library?.scriptId) {
-        showToast(`${name} is already where another script is saved. Choose a different name.`, 'error');
+        showToast(t('menu:toasts.fileAlreadyLinked', { name }), 'error');
         return;
       }
 
       if (library) {
         const content = buildSaveContent();
-        if (!content) throw new Error('No document is open.');
+        if (!content) throw new Error(t('menu:errors.noDocument'));
         s.setSaveStatus('saving');
         // The library first, so the file gets exactly what is on screen.
         await scriptApi.saveScript(library.projectId, library.scriptId, { content });
@@ -691,10 +704,12 @@ const MenuBar: React.FC<MenuBarProps> = ({
         onDocumentSaved?.(JSON.stringify(content));
         clearRecoverySnapshot();
         if (outcome === 'written') {
-          showToast(`Saved to ${name}. From now on, saving this script updates that file too.`, 'success');
+          showToast(t('menu:toasts.savedToFileLinked', { name }), 'success');
         } else {
           const err = useLinkedFileStore.getState().byScript[library.scriptId]?.error;
-          showToast(`Linked to ${name}, but it could not be written yet${err ? `: ${err}` : ''}. OpenDraft will keep trying.`, 'error');
+          showToast(err
+            ? t('menu:toasts.linkedNotWrittenWithError', { name, error: err })
+            : t('menu:toasts.linkedNotWritten', { name }), 'error');
         }
         return;
       }
@@ -713,12 +728,12 @@ const MenuBar: React.FC<MenuBarProps> = ({
       const saved = buildSaveContent();
       if (saved) onDocumentSaved?.(JSON.stringify(saved));
       clearRecoverySnapshot();
-      showToast(`Saved to ${name}. Save now writes to this file.`, 'success');
+      showToast(t('menu:toasts.savedToFile', { name }), 'success');
     } catch (err) {
       console.error('Save to File As failed:', err);
       const msg = err instanceof Error ? err.message : String(err);
       s.setSaveStatus('error', msg);
-      showToast(`Could not save to the file: ${msg}`, 'error');
+      showToast(t('menu:toasts.saveToFileFailed', { message: msg }), 'error');
     }
   }, [editor, currentProject, currentScriptId, buildSaveContent, serializeForOrigin, onDocumentSaved]);
 
@@ -730,7 +745,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
   const handleOpenFolderAsProject = useCallback(async () => {
     try {
       const lf = await import('../services/linkedFiles');
-      const folder = await lf.pickFolder('Open Folder as Project');
+      const folder = await lf.pickFolder(t('menu:dialogs.openFolderAsProjectTitle'));
       if (!folder) return;
 
       const existing = (await api.listProjects()).find((p) => {
@@ -738,7 +753,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
         return f !== null && lf.samePath(f, folder);
       });
       if (existing) {
-        showToast(`That folder is already the project "${existing.name}".`, 'info');
+        showToast(t('menu:toasts.folderAlreadyProject', { name: existing.name }), 'info');
         void leaveEditor(() => navigate(`/project/${existing.id}`, { state: { from: '/projects' } }));
         return;
       }
@@ -748,16 +763,15 @@ const MenuBar: React.FC<MenuBarProps> = ({
         folder,
         normalizeLinkedFormat(useSettingsStore.getState().defaultFileFormat),
       );
-      const found = `${scan.added} script${scan.added === 1 ? '' : 's'} found`;
       if (scan.failed.length > 0) {
-        showToast(`Opened ${project.name}: ${found}; could not read ${scan.failed.join(', ')}.`, 'info');
+        showToast(t('menu:toasts.folderOpenedWithFailures', { name: project.name, count: scan.added, failed: scan.failed.join(', ') }), 'info');
       } else {
-        showToast(`Opened ${project.name}: ${found}.`, 'success');
+        showToast(t('menu:toasts.folderOpened', { name: project.name, count: scan.added }), 'success');
       }
       void leaveEditor(() => navigate(`/project/${project.id}`, { state: { from: '/projects' } }));
     } catch (err) {
       console.error('Open folder as project failed:', err);
-      showToast(`Could not open the folder: ${err instanceof Error ? err.message : String(err)}`, 'error');
+      showToast(t('menu:toasts.openFolderFailed', { message: err instanceof Error ? err.message : String(err) }), 'error');
     }
   }, [leaveEditor, navigate]);
 
@@ -998,7 +1012,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
   const inAvRow = editor ? isInAvRow(editor.state) : false;
   const avRowHint = inAvRow
     ? undefined
-    : 'Put the cursor in an AV script\u2019s Video or Audio cell first';
+    : t('menu:format.avRowHint');
 
   /**
    * The AV body and row under the cursor, for the column and storyboard menus.
@@ -1171,7 +1185,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
       setDiagnosticsCopied(true);
       setTimeout(() => setDiagnosticsCopied(false), 2000);
     } catch (err) {
-      showToast('Could not copy to clipboard', 'error');
+      showToast(t('menu:toasts.copyFailed'), 'error');
     }
   }, [diagnosticsReport]);
 
@@ -1218,7 +1232,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
 
   const handleCheckinOpen = useCallback(() => {
     if (!currentProject) {
-      showToast('No project active. Save your file first.', 'error');
+      showToast(t('menu:toasts.noProject'), 'error');
       return;
     }
     setCheckinMessage('');
@@ -1246,12 +1260,12 @@ const MenuBar: React.FC<MenuBarProps> = ({
     try {
       const result = await api.checkin(currentProject.id, checkinMessage.trim());
       if (result.hash) {
-        showToast(`Version saved: ${result.short_hash}`, 'success');
+        showToast(t('menu:toasts.versionSaved', { hash: result.short_hash }), 'success');
       } else {
-        showToast(result.message || 'No changes to commit', 'success');
+        showToast(result.message || t('menu:toasts.noChangesToCommit'), 'success');
       }
     } catch (err) {
-      showToast(`Check in failed: ${err instanceof Error ? err.message : 'unknown error'}`, 'error');
+      showToast(t('menu:toasts.checkInFailed', { message: err instanceof Error ? err.message : t('menu:toasts.unknownError') }), 'error');
     } finally {
       setCheckinSaving(false);
       setCheckinOpen(false);
@@ -1277,14 +1291,14 @@ const MenuBar: React.FC<MenuBarProps> = ({
     }
 
     if (!currentProject || !currentScriptId) {
-      showToast('Save your script to a project first', 'error');
+      showToast(t('menu:toasts.saveToProjectFirst'), 'error');
       return;
     }
 
     try {
       const versions = await api.getVersions(currentProject.id);
       if (versions.length === 0) {
-        showToast('No versions yet — use File > Check In first', 'info');
+        showToast(t('menu:toasts.noVersions'), 'info');
         return;
       }
 
@@ -1300,9 +1314,9 @@ const MenuBar: React.FC<MenuBarProps> = ({
         // Script didn't exist at the last check-in (created after the last commit)
         const msg = innerErr instanceof Error ? innerErr.message : '';
         if (msg.includes('404')) {
-          showToast('This script has no checked-in version yet — use File > Check In first', 'info');
+          showToast(t('menu:toasts.noCheckedInVersion'), 'info');
         } else {
-          showToast('Could not load the checked-in version. Try checking in first.', 'error');
+          showToast(t('menu:toasts.loadCheckedInFailed'), 'error');
         }
         return;
       }
@@ -1319,7 +1333,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
         editor.view.dispatch(tr);
       }
     } catch (err) {
-      showToast('Could not load version history. Make sure the backend is running.', 'error');
+      showToast(t('menu:toasts.loadHistoryFailed'), 'error');
     }
   }, [
     editor,
@@ -1460,8 +1474,8 @@ const MenuBar: React.FC<MenuBarProps> = ({
         const ext = outcome.extension;
         showToast(
           ext
-            ? `OpenDraft cannot edit .${ext} files in place. Use File ▸ Import to bring a copy in.`
-            : 'OpenDraft cannot edit that kind of file. Use File ▸ Import to bring a copy in.',
+            ? t('menu:toasts.cannotEditExt', { ext })
+            : t('menu:toasts.cannotEditKind'),
           'error',
         );
         return;
@@ -1475,7 +1489,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
         const lf = await import('../services/linkedFiles');
         const link = await lf.findLinkByPath(opened.bookmark);
         if (link) {
-          showToast(`${opened.name} belongs to one of your projects — opened it there.`, 'info');
+          showToast(t('menu:toasts.belongsToProject', { name: opened.name }), 'info');
           navigate(`/project/${link.projectId}/edit/${link.scriptId}`);
           return;
         }
@@ -1494,7 +1508,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
       applyInPlaceDocument(opened);
     } catch (err) {
       console.error('Open in place failed:', err);
-      showToast(`Could not open the file: ${err instanceof Error ? err.message : String(err)}`, 'error');
+      showToast(t('menu:toasts.openFileFailed', { message: err instanceof Error ? err.message : String(err) }), 'error');
     }
   }, [editor, applyInPlaceDocument, navigate]);
 
@@ -1531,14 +1545,14 @@ const MenuBar: React.FC<MenuBarProps> = ({
       // and the writer should hear that when they open the file rather than
       // discover it later in a file that no longer has their notes.
       if (ext === 'odraft') {
-        showToast(`Editing ${opened.name} — Save writes back to this file.`, 'success');
+        showToast(t('menu:toasts.editingInPlace', { name: opened.name }), 'success');
       } else {
         setForeignFormatNotice({ name: opened.name, extension: ext });
       }
     } catch (err) {
       if (isImportCancelled(err)) return;
       console.error('Opening the document failed:', err);
-      showToast(`Could not open the file: ${err instanceof Error ? err.message : String(err)}`, 'error');
+      showToast(t('menu:toasts.openFileFailed', { message: err instanceof Error ? err.message : String(err) }), 'error');
     }
   }, [editor, clearTrackChanges, setCurrentProject, setCurrentScriptId, setScripts]);
 
@@ -1564,10 +1578,10 @@ const MenuBar: React.FC<MenuBarProps> = ({
     const target = kind === 'line' ? alternateTargetAt(editor.state, pos) : sceneAlternateTargetAt(editor.state, pos);
     showToast(
       target
-        ? `This ${kind} has no other versions yet.`
+        ? (kind === 'line' ? t('menu:toasts.noOtherVersionsLine') : t('menu:toasts.noOtherVersionsScene'))
         : kind === 'line'
-          ? 'Put the cursor in a line of dialogue or action first.'
-          : 'Put the cursor in a scene first.',
+          ? t('menu:toasts.cursorInLine')
+          : t('menu:toasts.cursorInScene'),
       'info',
     );
   };
@@ -1603,13 +1617,13 @@ const MenuBar: React.FC<MenuBarProps> = ({
       useBackupStatusStore.getState().noteDocumentOpened();
 
       if (imported.warnings.length > 0) {
-        showToast(`Imported with ${imported.warnings.length} note(s). See console for details.`, 'info');
+        showToast(t('menu:toasts.importedWithNotes', { notes: imported.warnings.length }), 'info');
         for (const w of imported.warnings) console.warn('[Import]', w);
       }
     } catch (err) {
       if (isImportCancelled(err)) return;
       console.error('Import failed:', err);
-      showToast(`Import failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
+      showToast(t('menu:toasts.importFailed', { message: err instanceof Error ? err.message : String(err) }), 'error');
     }
   }, [editor, clearTrackChanges, setCurrentProject, setCurrentScriptId, setScripts]);
 
@@ -1645,7 +1659,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
         const parsed = importAvYaml(result.text ?? '');
         blocks = parsed.blocks;
         rowCount = parsed.rowCount;
-        summary = `Imported ${rowCount} shot(s) from AV YAML`;
+        summary = t('menu:toasts.importedAvYaml', { rows: rowCount });
       } else {
         const { importAvCsv, importAvXlsx } = await import('../utils/avImport');
         const imported = isXlsx
@@ -1657,12 +1671,13 @@ const MenuBar: React.FC<MenuBarProps> = ({
         blocks = imported.blocks;
         rowCount = imported.rowCount;
         const mapped = imported.roles.filter(r => r !== 'ignore');
-        const bodies = imported.blocks.length > 1 ? ` across ${imported.blocks.length} bodies` : '';
-        summary = `Imported ${rowCount} shot(s)${bodies}; matched ${mapped.length} column(s): ${mapped.join(', ')}`;
+        summary = imported.blocks.length > 1
+          ? t('menu:toasts.importedAvSheetBodies', { rows: rowCount, bodies: imported.blocks.length, columns: mapped.length, roles: mapped.join(', ') })
+          : t('menu:toasts.importedAvSheet', { rows: rowCount, columns: mapped.length, roles: mapped.join(', ') });
       }
 
       if (rowCount === 0) {
-        showToast('That file had no AV rows to import.', 'error');
+        showToast(t('menu:toasts.noAvRows'), 'error');
         return;
       }
 
@@ -1689,7 +1704,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
       showToast(summary, 'info');
     } catch (err) {
       console.error('AV import failed:', err);
-      showToast(`Import failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
+      showToast(t('menu:toasts.importFailed', { message: err instanceof Error ? err.message : String(err) }), 'error');
     }
   }, [editor, clearTrackChanges, setCurrentProject, setCurrentScriptId, setScripts]);
 
@@ -1723,16 +1738,16 @@ const MenuBar: React.FC<MenuBarProps> = ({
 
       if (parsed.warnings.length > 0) {
         const summary = parsed.ambiguousCount > 0
-          ? `Imported with ${parsed.ambiguousCount} paragraph(s) auto-classified as Action — review the script.`
-          : `Imported with ${parsed.warnings.length} note(s). See console for details.`;
+          ? t('menu:toasts.importedAutoClassified', { paragraphs: parsed.ambiguousCount })
+          : t('menu:toasts.importedWithNotes', { notes: parsed.warnings.length });
         showToast(summary, 'info');
         for (const w of parsed.warnings) console.warn('[Word Import]', w);
       } else {
-        showToast('Word document imported.', 'info');
+        showToast(t('menu:toasts.wordImported'), 'info');
       }
     } catch (err) {
       console.error('Word import failed:', err);
-      showToast(`Word import failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
+      showToast(t('menu:toasts.wordImportFailed', { message: err instanceof Error ? err.message : String(err) }), 'error');
     }
   }, [editor, clearTrackChanges, setCurrentProject, setCurrentScriptId, setScripts]);
 
@@ -1807,7 +1822,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
       clearEditorHistory(editor);
       clearRecoverySnapshot();
       releaseOpenDocument();
-      showToast('Document closed', 'success');
+      showToast(t('menu:toasts.documentClosed'), 'success');
     });
   }, [confirmOrRun, editor, resetForNewScreenplay]);
 
@@ -2015,7 +2030,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
           { sceneNumbersVisible: s.sceneNumbersVisible, elementNumbersVisible: s.elementNumbersVisible });
     } catch (err) {
       console.error('FDX export failed:', err);
-      showToast(`Export failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
+      showToast(t('menu:toasts.exportFailed', { message: err instanceof Error ? err.message : String(err) }), 'error');
     }
   }, [editor, documentTitle]);
 
@@ -2030,7 +2045,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
       });
     } catch (err) {
       console.error('Fade In export failed:', err);
-      showToast(`Export failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
+      showToast(t('menu:toasts.exportFailed', { message: err instanceof Error ? err.message : String(err) }), 'error');
     }
   }, [editor, documentTitle]);
 
@@ -2043,7 +2058,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
       });
     } catch (err) {
       console.error('Fountain export failed:', err);
-      showToast(`Export failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
+      showToast(t('menu:toasts.exportFailed', { message: err instanceof Error ? err.message : String(err) }), 'error');
     }
   }, [editor, documentTitle]);
 
@@ -2104,7 +2119,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
       else await mod.downloadAvText(json, documentTitle);
     } catch (err) {
       console.error('AV export failed:', err);
-      showToast(`Export failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
+      showToast(t('menu:toasts.exportFailed', { message: err instanceof Error ? err.message : String(err) }), 'error');
     }
   }, [editor, documentTitle]);
 
@@ -2139,7 +2154,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
       if (warning) showToast(warning, 'error');
     } catch (err) {
       console.error('Revised-pages PDF export failed:', err);
-      showToast(`Export failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
+      showToast(t('menu:toasts.exportFailed', { message: err instanceof Error ? err.message : String(err) }), 'error');
     }
   }, [editor, documentTitle, pageLayout, pdfOptions]);
 
@@ -2166,8 +2181,8 @@ const MenuBar: React.FC<MenuBarProps> = ({
     if (!sidesDoc) return;
     const route = printRoute();
     showToast(route === 'ios-share-sheet'
-      ? 'Preparing the pages — choose Print in the share sheet.'
-      : 'Preparing the pages for printing…');
+      ? t('menu:toasts.preparingPagesShare')
+      : t('menu:toasts.preparingPages'));
     const { bytes, filename, warning } = await renderPDF(sidesDoc, `${documentTitle || 'Untitled'} - ${suffix}`, pageLayout, {
       ...pdfOptions(sidesDoc),
       includeTitlePage: false,
@@ -2176,7 +2191,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
     const { printPDFOnRoute } = await import('../utils/printPdf');
     const outcome = await printPDFOnRoute(bytes, filename, route, isDesktopTauri());
     if (warning) showToast(warning, 'error');
-    else if (outcome === 'opened-externally') showToast('Opened the pages as a PDF — print them from there.');
+    else if (outcome === 'opened-externally') showToast(t('menu:toasts.openedPagesAsPdf'));
   }, [sidesDoc, documentTitle, pageLayout, pdfOptions]);
 
   /**
@@ -2212,7 +2227,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
     const { saveFile } = await import('../utils/fileOps');
     const saved = await saveFile(bytes, `${sanitizeExportFilename(`${title} - Watermarked`)}.zip`, [{ name: 'ZIP archive', extensions: ['zip'] }]);
     if (warning) showToast(warning, 'error');
-    else if (saved) showToast(`${copies.length} watermarked copies saved`, 'success');
+    else if (saved) showToast(t('menu:toasts.watermarkedCopiesSaved', { count: copies.length }), 'success');
   }, [editor, documentTitle, pageLayout, pdfOptions]);
 
   /** File → Export → a format a plugin added. */
@@ -2224,11 +2239,11 @@ const MenuBar: React.FC<MenuBarProps> = ({
       const data = await exporter.export({ editor, doc: json, title });
       const { saveFile } = await import('../utils/fileOps');
       await saveFile(data, `${sanitizeExportFilename(title)}.${exporter.extension}`, [
-        { name: exporter.filterName ?? exporter.label, extensions: [exporter.extension] },
+        { name: exporter.filterName ?? resolvePluginText(exporter.labelKey, exporter.label), extensions: [exporter.extension] },
       ]);
     } catch (err) {
       console.error(`[plugins] export "${exporter.id}" failed:`, err);
-      showToast(`Export failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
+      showToast(t('menu:toasts.exportFailed', { message: err instanceof Error ? err.message : String(err) }), 'error');
     }
   }, [editor, documentTitle]);
 
@@ -2238,16 +2253,16 @@ const MenuBar: React.FC<MenuBarProps> = ({
     try {
       if (pagesLocked(editor.state.doc)) {
         editor.chain().focus().unlockPages().run();
-        showToast('Pages unlocked — page numbers flow freely again', 'info');
+        showToast(t('menu:toasts.pagesUnlocked'), 'info');
         return;
       }
       const start = resolveHeaderFooter(pageLayout).startingPageNumber;
       const ok = editor.chain().focus().lockPages((page) => String(printedPageNumber(page, start))).run();
-      if (ok) showToast('Pages locked — new text spills onto A pages instead of renumbering', 'success');
-      else showToast('Could not lock pages: the script has not been paginated yet', 'error');
+      if (ok) showToast(t('menu:toasts.pagesLocked'), 'success');
+      else showToast(t('menu:toasts.lockPagesFailed'), 'error');
     } catch (err) {
       console.error('[lockedPages] toggle failed', err);
-      showToast(`Could not change page locking: ${err instanceof Error ? err.message : String(err)}`, 'error');
+      showToast(t('menu:toasts.pageLockingFailed', { message: err instanceof Error ? err.message : String(err) }), 'error');
     }
   }, [editor, pageLayout]);
 
@@ -2258,20 +2273,20 @@ const MenuBar: React.FC<MenuBarProps> = ({
     try {
       const pos = editor.state.selection.from;
       if (sceneOmittedAt(editor.state, pos)) {
-        showToast('This scene is already omitted', 'info');
+        showToast(t('menu:toasts.sceneAlreadyOmitted'), 'info');
         return;
       }
       const tr = omitSceneTransaction(editor.state, pos);
       if (!tr) {
-        showToast('Put the cursor in the scene you want to omit', 'info');
+        showToast(t('menu:toasts.cursorInSceneToOmit'), 'info');
         return;
       }
       editor.view.dispatch(tr);
       editor.commands.focus();
-      showToast('Scene omitted — Edit → Undo brings it back', 'success');
+      showToast(t('menu:toasts.sceneOmitted'), 'success');
     } catch (err) {
       console.error('[omitScene] failed', err);
-      showToast(`Could not omit the scene: ${err instanceof Error ? err.message : String(err)}`, 'error');
+      showToast(t('menu:toasts.omitSceneFailed', { message: err instanceof Error ? err.message : String(err) }), 'error');
     }
   }, [editor]);
 
@@ -2328,7 +2343,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
       if (warning) showToast(warning, 'error');
     } catch (err) {
       console.error('PDF export failed:', err);
-      showToast(`Export failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
+      showToast(t('menu:toasts.exportFailed', { message: err instanceof Error ? err.message : String(err) }), 'error');
     }
   }, [editor, documentTitle, pageLayout, pdfOptions]);
 
@@ -2354,8 +2369,8 @@ const MenuBar: React.FC<MenuBarProps> = ({
     if (route === 'dialog' && (printViaPdf || pendingSuggestions) && editor) {
       try {
         showToast(pendingSuggestions
-          ? 'Printing the accepted script as a PDF to keep pending suggestions out of the printout.'
-          : 'Preparing your script for printing…');
+          ? t('menu:toasts.printingAccepted')
+          : t('menu:toasts.preparingScript'));
         const json = exportJSON(editor);
         const { renderPDF } = await import('../utils/pdfExporter');
         const { printPDFBytes } = await import('../utils/printPdf');
@@ -2365,7 +2380,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
         const outcome = await printPDFBytes(bytes, filename, isDesktopTauri());
         if (warning) showToast(warning, 'error');
         else if (outcome === 'opened-externally') {
-          showToast('Opened your script as a PDF — print it from there.');
+          showToast(t('menu:toasts.openedScriptAsPdf'));
         }
       } catch (err) {
         console.error('[print] could not print the PDF:', err);
@@ -2374,8 +2389,8 @@ const MenuBar: React.FC<MenuBarProps> = ({
         // on its own is what made the DOM print path so slow to diagnose.
         const reason = err instanceof Error ? err.message : String(err);
         showToast(pendingSuggestions
-          ? `Could not print the accepted PDF: ${reason}. Your suggestions are unchanged. Retry after fixing the error, or accept/reject suggestions before using the print dialog.`
-          : `Could not print the PDF: ${reason}. Turn off "Print the PDF" in Settings → Printing to use the print dialog instead.`);
+          ? t('menu:toasts.printAcceptedFailed', { reason })
+          : t('menu:toasts.printPdfFailed', { reason }));
       }
       return;
     }
@@ -2402,7 +2417,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
         await (window.print() as unknown as void | Promise<void>);
       } catch (err) {
         console.error('[print] the web view refused to print:', err);
-        showToast('Could not open the print dialog. Export to PDF and print that instead.');
+        showToast(t('menu:toasts.printDialogFailed'));
       }
       return;
     }
@@ -2411,8 +2426,8 @@ const MenuBar: React.FC<MenuBarProps> = ({
       // Laying out a feature-length script takes a moment, and nothing appears
       // until it is done — without this the tap looks like it was ignored.
       showToast(route === 'ios-share-sheet'
-        ? 'Preparing your script — choose Print in the share sheet.'
-        : 'Preparing your script for printing…');
+        ? t('menu:toasts.preparingScriptShare')
+        : t('menu:toasts.preparingScript'));
 
       const json = exportJSON(editor);
       if (route === 'ios-share-sheet') {
@@ -2426,7 +2441,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
       if (warning) showToast(warning, 'error');
     } catch (err) {
       console.error('Print failed:', err);
-      showToast(`Print failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
+      showToast(t('menu:toasts.printFailed', { message: err instanceof Error ? err.message : String(err) }), 'error');
     }
   }, [editor, documentTitle, pageLayout, pdfOptions, printViaPdf]);
 
@@ -2507,7 +2522,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
       });
     } catch (err) {
       console.error('Word export failed:', err);
-      showToast(`Export failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
+      showToast(t('menu:toasts.exportFailed', { message: err instanceof Error ? err.message : String(err) }), 'error');
     }
   }, [editor, documentTitle, pageLayout]);
 
@@ -2533,10 +2548,10 @@ const MenuBar: React.FC<MenuBarProps> = ({
       // A successful manual backup also clears a paused scheduler — the user
       // has just demonstrated the folder works.
       useBackupStatusStore.getState().resume();
-      showToast(`Backed up to ${result.filename}`, 'success');
+      showToast(t('menu:toasts.backedUp', { filename: result.filename }), 'success');
     } catch (err) {
       const reason = describeBackupError(err instanceof Error ? err.message : String(err));
-      showToast(`Backup failed — ${reason}`, 'error');
+      showToast(t('menu:toasts.backupFailed', { reason }), 'error');
     }
   }, [buildSaveContent, currentProject, currentScriptId]);
 
@@ -2561,7 +2576,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
       await revealSnapshot(folder);
     } catch (err) {
       console.error('[backup] could not open the backup folder:', err);
-      showToast(`Could not open the backup folder: ${err instanceof Error ? err.message : String(err)}`, 'error');
+      showToast(t('menu:toasts.openBackupFolderFailed', { message: err instanceof Error ? err.message : String(err) }), 'error');
     }
   }, []);
 
@@ -2601,7 +2616,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
       });
     } catch (err) {
       console.error('OpenDraft export failed:', err);
-      showToast(`Export failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
+      showToast(t('menu:toasts.exportFailed', { message: err instanceof Error ? err.message : String(err) }), 'error');
     }
   }, [editor, documentTitle, buildSaveContent, currentProject, currentScriptId]);
 
@@ -2786,7 +2801,8 @@ const MenuBar: React.FC<MenuBarProps> = ({
 
   const menus: MenuSection[] = [
     {
-      label: 'File',
+      id: 'File',
+      label: t('menu:file.file'),
       items: [
         {
           icon: <FaPlus />,
@@ -2795,33 +2811,33 @@ const MenuBar: React.FC<MenuBarProps> = ({
           // formats. Only one of the six is a screenplay. "Script" is already
           // the app's word for the general thing — Script Notes, Script
           // Statistics, Script Format Preferences.
-          label: 'New Script',
+          label: t('menu:file.newScript'),
           shortcut: `${mod}N`,
           disabled: isCollabGuest,
           action: handleNewScreenplay,
         },
         ...(canOpenWindow ? [{
           icon: <FaFile />,
-          label: 'New Window',
+          label: t('menu:file.newWindow'),
           action: async () => {
             try {
               const { invoke } = await import('@tauri-apps/api/core');
               await invoke('open_new_window');
             } catch (err) {
-              showToast(`Failed to open new window: ${err instanceof Error ? err.message : String(err)}`, 'error');
+              showToast(t('menu:toasts.newWindowFailed', { message: err instanceof Error ? err.message : String(err) }), 'error');
             }
           },
         }] : []),
         { separator: true, label: '' },
         {
-          icon: <FaFileImport />, label: 'Import',
+          icon: <FaFileImport />, label: t('menu:file.import'),
           children: [
             // Every format the picker takes, so Highland, WriterDuet and Celtx
             // are found here rather than guessed at.
-            { icon: <FaFileCode />, label: 'Script File (Final Draft, Fountain, Fade In, PDF, Highland, WriterDuet, Celtx, OpenDraft)…', action: () => confirmOrRun(handleImport), disabled: isCollabGuest },
-            { icon: <FaFileWord />, label: 'Microsoft Word (.docx)…', action: handleImportDocx, disabled: isCollabGuest },
+            { icon: <FaFileCode />, label: t('menu:file.scriptFile'), action: () => confirmOrRun(handleImport), disabled: isCollabGuest },
+            { icon: <FaFileWord />, label: 'Microsoft Word (.docx)…', action: handleImportDocx, disabled: isCollabGuest }, // i18n-ignore: format / brand name
             { separator: true, label: '' },
-            { icon: <FaFileExcel />, label: 'AV Document (.yaml / .xlsx / .csv)…', action: () => confirmOrRun(handleImportAvSheet), disabled: isCollabGuest },
+            { icon: <FaFileExcel />, label: t('menu:file.avDocument'), action: () => confirmOrRun(handleImportAvSheet), disabled: isCollabGuest },
           ],
         },
         // Opens the library — projects and scripts held by OpenDraft, on this
@@ -2829,7 +2845,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
         // directly above "Open from Files…" and claim the very thing that item
         // does. Naming the object rather than the source keeps the common action
         // short and lets the qualified one below carry the explanation.
-        { icon: <FaFolderOpen />, label: 'Open Script…', action: () => confirmOrRun(() => setOpenFileOpen(true)), disabled: isCollabGuest },
+        { icon: <FaFolderOpen />, label: t('menu:file.openScript'), action: () => confirmOrRun(() => setOpenFileOpen(true)), disabled: isCollabGuest },
         // Mobile only: edit a screenplay where it lives — Files/iCloud/Dropbox
         // on iOS, the Storage Access Framework on Android — instead of
         // importing a copy and exporting it back afterwards.
@@ -2837,7 +2853,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
           icon: <FaFolderOpen />,
           // "Files" is the app on iOS and Android; on desktop the same action
           // is just opening a file from disk.
-          label: isDesktopTauri() ? 'Open File from Disk…' : 'Open from Files…',
+          label: isDesktopTauri() ? t('menu:file.openFileFromDisk') : t('menu:file.openFromFiles'),
           action: () => confirmOrRun(handleOpenInPlace),
           disabled: isCollabGuest,
         }] : []),
@@ -2845,13 +2861,13 @@ const MenuBar: React.FC<MenuBarProps> = ({
         // saving to them (issue #135).
         ...(isDesktopTauri() ? [{
           icon: <FaFolderOpen />,
-          label: 'Open Folder as Project…',
+          label: t('menu:file.openFolderAsProject'),
           action: () => { void handleOpenFolderAsProject(); },
           disabled: isCollabGuest,
         }] : []),
         // Also under Tools, where it has always been — but File is where people
         // look for their files, and a reviewer could not find delete at all.
-        { icon: <FaProjectDiagram />, label: 'Manage Projects…', action: goToProjects, disabled: isCollabGuest },
+        { icon: <FaProjectDiagram />, label: t('menu:file.manageProjects'), action: goToProjects, disabled: isCollabGuest },
         {
           // "Close Script", not "Close": the menu bar lives inside the window on
           // touch platforms, with no window chrome around it to make plain
@@ -2860,7 +2876,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
           // every platform — one label set is easier to document and support
           // than one that changes per device.
           icon: <FaTimes />,
-          label: 'Close Script',
+          label: t('menu:file.closeScript'),
           action: handleCloseDocument,
           disabled: isCollabGuest,
         },
@@ -2871,14 +2887,14 @@ const MenuBar: React.FC<MenuBarProps> = ({
         // origin both go to the library, so the qualifier would be noise.
         {
           icon: <FaSave />,
-          label: hasFileOrigin ? 'Save to File' : 'Save Script',
+          label: hasFileOrigin ? t('menu:file.saveToFile') : t('menu:file.saveScript'),
           shortcut: `${mod}S`,
           action: handleSave,
           disabled: isCollabGuest,
         },
         {
           icon: <FaSave />,
-          label: hasFileOrigin ? 'Save to Library As…' : 'Save Script As…',
+          label: hasFileOrigin ? t('menu:file.saveToLibraryAs') : t('menu:file.saveScriptAs'),
           shortcut: `⇧${mod}S`,
           action: handleSaveAs,
           disabled: isCollabGuest,
@@ -2887,7 +2903,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
         // RAID, a network share, a project's own folder (issue #135).
         ...(isDesktopTauri() ? [{
           icon: <FaSave />,
-          label: 'Save to File As…',
+          label: t('menu:file.saveToFileAs'),
           action: () => { void handleSaveToFileAs(); },
           disabled: isCollabGuest,
         }] : []),
@@ -2896,47 +2912,47 @@ const MenuBar: React.FC<MenuBarProps> = ({
         // script's name.
         {
           icon: <FaTrashAlt />,
-          label: 'Delete Script…',
+          label: t('menu:file.deleteScript'),
           action: () => { void handleOpenDeleteScript(); },
           disabled: !canDeleteScript,
           title: canDeleteScript ? undefined : hasFileOrigin
-            ? 'This file was opened from disk, not from a project'
-            : 'Save the script to a project first',
+            ? t('menu:file.deleteScriptTipFromDisk')
+            : t('menu:file.deleteScriptTipUnsaved'),
         },
         { separator: true, label: '' },
         {
-          icon: <FaFileExport />, label: 'Export',
+          icon: <FaFileExport />, label: t('menu:file.export'),
           children: [
-            { icon: <FaFileCode />, label: 'Final Draft (.fdx)', action: handleExportFDX, disabled: isCollabGuest },
-            { icon: <FaFileAlt />, label: 'Fountain (.fountain)', action: handleExportFountain, disabled: isCollabGuest },
-            { icon: <FaFileCode />, label: 'Fade In (.fadein)', action: handleExportFadeIn, disabled: isCollabGuest },
-            { icon: <FaFilePdf />, label: 'PDF…', action: handleExportPDF },
+            { icon: <FaFileCode />, label: 'Final Draft (.fdx)', action: handleExportFDX, disabled: isCollabGuest }, // i18n-ignore: format / brand name
+            { icon: <FaFileAlt />, label: 'Fountain (.fountain)', action: handleExportFountain, disabled: isCollabGuest }, // i18n-ignore: format / brand name
+            { icon: <FaFileCode />, label: 'Fade In (.fadein)', action: handleExportFadeIn, disabled: isCollabGuest }, // i18n-ignore: format / brand name
+            { icon: <FaFilePdf />, label: 'PDF…', action: handleExportPDF }, // i18n-ignore: format / brand name
             {
-              icon: <FaFilePdf />, label: 'PDF (Revised Pages Only)', action: handleExportRevisedPDF,
-              title: 'Only the pages that carry a revision mark',
+              icon: <FaFilePdf />, label: t('menu:file.pdfRevisedPagesOnly'), action: handleExportRevisedPDF,
+              title: t('menu:file.pdfRevisedPagesOnlyTip'),
             },
             {
-              icon: <FaUserShield />, label: 'PDF with Watermark or Password\u2026', action: () => setPdfSecurityOpen(true),
-              title: 'A watermark on every page — one copy per recipient — and an optional password',
+              icon: <FaUserShield />, label: t('menu:file.pdfWithWatermarkOrPassword'), action: () => setPdfSecurityOpen(true),
+              title: t('menu:file.pdfWithWatermarkOrPasswordTip'),
               disabled: !editor,
             },
             {
-              icon: <FaFileContract />, label: 'Sides & Selected Pages\u2026',
-              title: 'Chosen scenes, or every page with a character, location or tag, keeping their page numbers',
+              icon: <FaFileContract />, label: t('menu:file.sidesSelectedPages'),
+              title: t('menu:file.sidesSelectedPagesTip'),
               action: () => { if (editor) { setSidesIntent('export'); setSidesDoc(exportJSON(editor)); } },
               disabled: !editor,
             },
-            { icon: <FaFileWord />, label: 'Microsoft Word (.docx)', action: handleExportDocx },
-            { icon: <FaFile />, label: 'OpenDraft (.odraft)', action: handleExportOdraft, disabled: isCollabGuest },
+            { icon: <FaFileWord />, label: 'Microsoft Word (.docx)', action: handleExportDocx }, // i18n-ignore: format / brand name
+            { icon: <FaFile />, label: 'OpenDraft (.odraft)', action: handleExportOdraft, disabled: isCollabGuest }, // i18n-ignore: format / brand name
             // AV formats are offered only for documents that have an AV body —
             // a spreadsheet of a screenplay would be meaningless.
             ...(hasAv
               ? [
                   { separator: true, label: '' },
-                  { icon: <FaFileCode />, label: 'AV YAML (.yaml)', action: () => handleExportAv('yaml') },
-                  { icon: <FaFileExcel />, label: 'AV Spreadsheet (.xlsx)', action: () => handleExportAv('xlsx') },
-                  { icon: <FaFileCsv />, label: 'AV Spreadsheet (.csv)', action: () => handleExportAv('csv') },
-                  { icon: <FaFileAlt />, label: 'AV Plain Text (.txt)', action: () => handleExportAv('txt') },
+                  { icon: <FaFileCode />, label: 'AV YAML (.yaml)', action: () => handleExportAv('yaml') }, // i18n-ignore: format / brand name
+                  { icon: <FaFileExcel />, label: t('menu:file.avSpreadsheetXlsx'), action: () => handleExportAv('xlsx') },
+                  { icon: <FaFileCsv />, label: t('menu:file.avSpreadsheetCsv'), action: () => handleExportAv('csv') },
+                  { icon: <FaFileAlt />, label: t('menu:file.avPlainText'), action: () => handleExportAv('txt') },
                 ]
               : []),
             // Formats plugins add, after the built-in ones.
@@ -2945,7 +2961,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
                   { separator: true, label: '' },
                   ...pluginRegistry.getExporters().map((exporter) => ({
                     icon: <FaPuzzlePiece />,
-                    label: exporter.label,
+                    label: resolvePluginText(exporter.labelKey, exporter.label),
                     action: () => { void handlePluginExport(exporter); },
                     disabled: !editor,
                   })),
@@ -2955,103 +2971,104 @@ const MenuBar: React.FC<MenuBarProps> = ({
         },
         { separator: true, label: '' },
         {
-          icon: <FaCodeBranch />, label: 'Versions',
+          icon: <FaCodeBranch />, label: t('menu:file.versions'),
           disabled: isCollabGuest,
           children: [
-            { icon: <FaUpload />, label: 'Check In…', action: handleCheckinOpen, disabled: isCollabGuest },
-            { icon: <FaHistory />, label: 'Version History', action: () => setVersionHistoryOpen(true), disabled: isCollabGuest },
+            { icon: <FaUpload />, label: t('menu:file.checkIn'), action: handleCheckinOpen, disabled: isCollabGuest },
+            { icon: <FaHistory />, label: t('menu:file.versionHistory'), action: () => setVersionHistoryOpen(true), disabled: isCollabGuest },
             { separator: true, label: '' },
             {
               icon: <FaExchangeAlt />,
               label: trackChangesEnabled
-                ? '\u2713 Track Changes'
-                : 'Track Changes Since Last Check-In',
+                ? `\u2713 ${t('menu:file.trackChanges')}`
+                : t('menu:file.trackChangesSinceCheckIn'),
               action: handleTrackChangesToggle,
             },
-            { icon: <FaFileSignature />, label: 'Compare with Version\u2026', action: () => setCompareVersionOpen(true) },
+            { icon: <FaFileSignature />, label: t('menu:file.compareWithVersion'), action: () => setCompareVersionOpen(true) },
           ],
         },
         // App builds only: a browser tab has nothing that can hold on to a
         // folder across a reload. Omitted rather than disabled — a permanently
         // greyed submenu just invites bug reports.
-        ...(isNativeApp() && ['ios', 'android'].includes(nativeOS()) ? [{ icon: <FaHistory />, label: 'Recover Original File…', action: () => setSourceBackupOpen(true) }] : []),
+        ...(isNativeApp() && ['ios', 'android'].includes(nativeOS()) ? [{ icon: <FaHistory />, label: t('menu:file.recoverOriginalFile'), action: () => setSourceBackupOpen(true) }] : []),
         ...(backupsSupported() ? [
           { separator: true, label: '' },
           {
-            icon: <FaArchive />, label: 'Backups',
+            icon: <FaArchive />, label: t('menu:file.backups'),
             disabled: isCollabGuest,
             children: [
-              { icon: <FaArchive />, label: 'Back Up Now', action: handleBackupNow, disabled: isCollabGuest },
-              { icon: <FaHistory />, label: 'Recover Backup\u2026', action: () => setRecoverBackupOpen(true) },
+              { icon: <FaArchive />, label: t('menu:file.backUpNow'), action: handleBackupNow, disabled: isCollabGuest },
+              { icon: <FaHistory />, label: t('menu:file.recoverBackup'), action: () => setRecoverBackupOpen(true) },
               { separator: true, label: '' },
               // No mobile equivalent: neither platform lets an app open the
               // Files browser at a particular folder.
               ...(supportsRevealBackup() ? [
-                { icon: <FaFolderOpen />, label: 'Open Backup Folder', action: handleOpenBackupFolder },
+                { icon: <FaFolderOpen />, label: t('menu:file.openBackupFolder'), action: handleOpenBackupFolder },
               ] : []),
-              { icon: <FaCog />, label: 'Backup Settings\u2026', action: goToSettings },
+              { icon: <FaCog />, label: t('menu:file.backupSettings'), action: goToSettings },
             ],
           },
         ] : []),
         { separator: true, label: '' },
-        { icon: <FaCog />, label: 'Page Setup…', action: () => setPageSetupOpen(true), disabled: !canEditDocumentFormat },
+        { icon: <FaCog />, label: t('menu:file.pageSetup'), action: () => setPageSetupOpen(true), disabled: !canEditDocumentFormat },
         // "Include Title Page" used to sit here. It moved to the Title Page
         // dialog (Format ▸ Title Page): a bare entry in a long File menu is not
         // where anyone looks for it — the writer who wants the title page kept
         // out of a PDF is the writer already looking at their title page.
-        { icon: <FaPrint />, label: 'Print…', shortcut: `${mod}P`, action: () => { void handlePrint(); } },
+        { icon: <FaPrint />, label: t('menu:file.print'), shortcut: `${mod}P`, action: () => { void handlePrint(); } },
         {
-          icon: <FaPrint />, label: 'Print Selected Pages\u2026',
-          title: 'Print sides, or only the pages with a character, location or tag',
+          icon: <FaPrint />, label: t('menu:file.printSelectedPages'),
+          title: t('menu:file.printSelectedPagesTip'),
           action: () => { if (editor) { setSidesIntent('print'); setSidesDoc(exportJSON(editor)); } },
           disabled: !editor,
         },
       ],
     },
     {
-      label: 'Edit',
+      id: 'Edit',
+      label: t('menu:edit.edit'),
       items: [
-        { icon: <FaUndo />, label: 'Undo', shortcut: `${mod}Z`, action: () => { try { editor?.chain().focus().undo().run(); } catch {} } },
-        { icon: <FaRedo />, label: 'Redo', shortcut: `⇧${mod}Z`, action: () => { try { editor?.chain().focus().redo().run(); } catch {} } },
+        { icon: <FaUndo />, label: t('menu:edit.undo'), shortcut: `${mod}Z`, action: () => { try { editor?.chain().focus().undo().run(); } catch {} } },
+        { icon: <FaRedo />, label: t('menu:edit.redo'), shortcut: `⇧${mod}Z`, action: () => { try { editor?.chain().focus().redo().run(); } catch {} } },
         { separator: true, label: '' },
-        { icon: <FaCut />, label: 'Cut', shortcut: `${mod}X`, action: handleCut, disabled: !editor },
-        { icon: <FaCopy />, label: 'Copy', shortcut: `${mod}C`, action: handleCopy, disabled: !editor },
-        { icon: <FaPaste />, label: 'Paste', shortcut: `${mod}V`, action: handlePaste, disabled: !editor },
-        { icon: <FaPaste />, label: 'Paste as Fountain', shortcut: `⇧${mod}V`, action: handlePasteAsFountain, disabled: !editor },
-        { icon: <FaMousePointer />, label: 'Select All', shortcut: `${mod}A`, action: () => editor?.chain().focus().selectAll().run() },
+        { icon: <FaCut />, label: t('menu:edit.cut'), shortcut: `${mod}X`, action: handleCut, disabled: !editor },
+        { icon: <FaCopy />, label: t('menu:edit.copy'), shortcut: `${mod}C`, action: handleCopy, disabled: !editor },
+        { icon: <FaPaste />, label: t('menu:edit.paste'), shortcut: `${mod}V`, action: handlePaste, disabled: !editor },
+        { icon: <FaPaste />, label: t('menu:edit.pasteAsFountain'), shortcut: `⇧${mod}V`, action: handlePasteAsFountain, disabled: !editor },
+        { icon: <FaMousePointer />, label: t('menu:edit.selectAll'), shortcut: `${mod}A`, action: () => editor?.chain().focus().selectAll().run() },
         { separator: true, label: '' },
         ...(supportsApplePencil()
           ? [{
             icon: <FaPencilAlt />,
-            label: 'Handwriting\u2026',
+            label: t('menu:edit.handwriting'),
             action: requestHandwriting,
             disabled: !editor,
           }]
           : []),
-        { icon: <FaSearch />, label: 'Find & Replace…', shortcut: `${mod}F`, action: () => setSearchOpen(true) },
-        { icon: <FaHashtag />, label: 'Go to Page…', shortcut: `${mod}G`, action: () => setGoToPageOpen(true) },
-        { icon: <FaBookmark />, label: 'Add Bookmark…', action: () => { if (editor) editBookmarkAtSelection(editor); }, disabled: !editor },
+        { icon: <FaSearch />, label: t('menu:edit.findReplace'), shortcut: `${mod}F`, action: () => setSearchOpen(true) },
+        { icon: <FaHashtag />, label: t('menu:edit.goToPage'), shortcut: `${mod}G`, action: () => setGoToPageOpen(true) },
+        { icon: <FaBookmark />, label: t('menu:edit.addBookmark'), action: () => { if (editor) editBookmarkAtSelection(editor); }, disabled: !editor },
         {
           // The same actions as the right-click menu's Alternates, which a
           // touch screen only opens with a three-finger tap — so this is how a
           // phone or tablet reaches them.
-          icon: <FaLayerGroup />, label: 'Alternates',
+          icon: <FaLayerGroup />, label: t('menu:edit.alternates'),
           children: [
-            { label: 'Add Alternate', action: () => runAlternateAtCursor(addAlternateTransaction, 'line'), disabled: !editor },
-            { label: 'Next Alternate', action: () => runAlternateAtCursor((st, p) => cycleAlternateTransaction(st, p, 1), 'line'), disabled: !editor },
-            { label: 'Previous Alternate', action: () => runAlternateAtCursor((st, p) => cycleAlternateTransaction(st, p, -1), 'line'), disabled: !editor },
-            { label: 'Delete This Version', action: () => runAlternateAtCursor(deleteShownAlternateTransaction, 'line'), disabled: !editor },
-            { label: 'Keep Only This Version', action: () => runAlternateAtCursor(keepOnlyShownTransaction, 'line'), disabled: !editor },
+            { label: t('menu:edit.addAlternate'), action: () => runAlternateAtCursor(addAlternateTransaction, 'line'), disabled: !editor },
+            { label: t('menu:edit.nextAlternate'), action: () => runAlternateAtCursor((st, p) => cycleAlternateTransaction(st, p, 1), 'line'), disabled: !editor },
+            { label: t('menu:edit.previousAlternate'), action: () => runAlternateAtCursor((st, p) => cycleAlternateTransaction(st, p, -1), 'line'), disabled: !editor },
+            { label: t('menu:edit.deleteThisVersion'), action: () => runAlternateAtCursor(deleteShownAlternateTransaction, 'line'), disabled: !editor },
+            { label: t('menu:edit.keepOnlyThisVersion'), action: () => runAlternateAtCursor(keepOnlyShownTransaction, 'line'), disabled: !editor },
             { separator: true, label: '' },
-            { label: 'Add Scene Alternate', action: () => runAlternateAtCursor(addSceneAlternateTransaction, 'scene'), disabled: !editor },
-            { label: 'Next Scene Alternate', action: () => runAlternateAtCursor((st, p) => cycleSceneAlternateTransaction(st, p, 1), 'scene'), disabled: !editor },
-            { label: 'Previous Scene Alternate', action: () => runAlternateAtCursor((st, p) => cycleSceneAlternateTransaction(st, p, -1), 'scene'), disabled: !editor },
-            { label: 'Delete This Scene Version', action: () => runAlternateAtCursor(deleteShownSceneAlternateTransaction, 'scene'), disabled: !editor },
-            { label: 'Keep Only This Scene Version', action: () => runAlternateAtCursor(keepOnlyShownSceneTransaction, 'scene'), disabled: !editor },
+            { label: t('menu:edit.addSceneAlternate'), action: () => runAlternateAtCursor(addSceneAlternateTransaction, 'scene'), disabled: !editor },
+            { label: t('menu:edit.nextSceneAlternate'), action: () => runAlternateAtCursor((st, p) => cycleSceneAlternateTransaction(st, p, 1), 'scene'), disabled: !editor },
+            { label: t('menu:edit.previousSceneAlternate'), action: () => runAlternateAtCursor((st, p) => cycleSceneAlternateTransaction(st, p, -1), 'scene'), disabled: !editor },
+            { label: t('menu:edit.deleteThisSceneVersion'), action: () => runAlternateAtCursor(deleteShownSceneAlternateTransaction, 'scene'), disabled: !editor },
+            { label: t('menu:edit.keepOnlyThisSceneVersion'), action: () => runAlternateAtCursor(keepOnlyShownSceneTransaction, 'scene'), disabled: !editor },
           ],
         },
         {
-          icon: <FaKeyboard />, label: 'Insert Macro',
+          icon: <FaKeyboard />, label: t('menu:edit.insertMacro'),
           children: [
             ...macros.map((m) => ({
               label: macroLabel(m),
@@ -3060,32 +3077,33 @@ const MenuBar: React.FC<MenuBarProps> = ({
               disabled: !editor || !m.text,
             })),
             ...(macros.length ? [{ separator: true, label: '' }] : []),
-            { label: 'Manage Macros…', action: goToMacroSettings },
+            { label: t('menu:edit.manageMacros'), action: goToMacroSettings },
           ],
         },
         {
-          icon: <FaSpellCheck />, label: 'Spelling & Grammar',
+          icon: <FaSpellCheck />, label: t('menu:edit.spellingGrammar'),
           children: [
-            { icon: <FaSpellCheck />, label: spellCheckEnabled ? '\u2713 Auto Spell Check' : 'Auto Spell Check', action: toggleSpellCheck },
-            { icon: <FaSpellCheck />, label: 'Spell Check\u2026', shortcut: 'F7', action: () => setSpellModalOpen(true) },
+            { icon: <FaSpellCheck />, label: check(spellCheckEnabled, t('menu:edit.autoSpellCheck')), action: toggleSpellCheck },
+            { icon: <FaSpellCheck />, label: t('menu:edit.spellCheck'), shortcut: 'F7', action: () => setSpellModalOpen(true) },
             { separator: true, label: '' },
-            { icon: <FaSpellCheck />, label: grammarCheckEnabled ? '\u2713 Auto Writing Suggestions' : 'Auto Writing Suggestions', action: toggleGrammarCheck },
-            { icon: <FaSpellCheck />, label: 'Writing Suggestions\u2026', shortcut: '\u21e7F7', action: () => setGrammarModalOpen(true) },
-            { icon: <FaSpellCheck />, label: 'Grammar & Spelling Settings\u2026', action: () => setGrammarRulesPanelOpen(true) },
+            { icon: <FaSpellCheck />, label: check(grammarCheckEnabled, t('menu:edit.autoWritingSuggestions')), action: toggleGrammarCheck },
+            { icon: <FaSpellCheck />, label: t('menu:edit.writingSuggestions'), shortcut: '\u21e7F7', action: () => setGrammarModalOpen(true) },
+            { icon: <FaSpellCheck />, label: t('menu:edit.grammarSpellingSettings'), action: () => setGrammarRulesPanelOpen(true) },
           ],
         },
       ],
     },
     {
-      label: 'Format',
+      id: 'Format',
+      label: t('menu:format.format'),
       items: [
         {
-          icon: <FaListOl />, label: 'Element',
+          icon: <FaListOl />, label: t('menu:format.element'),
           children: [
             {
-              label: 'Show Element Menu\u2026',
+              label: t('menu:format.showElementMenu'),
               shortcut: formatShortcut(elementMenuShortcut),
-              title: 'Choose the element for this line, at the cursor',
+              title: t('menu:format.showElementMenuTip'),
               action: requestElementMenu,
             },
             { separator: true, label: '' },
@@ -3098,9 +3116,9 @@ const MenuBar: React.FC<MenuBarProps> = ({
                 parenthetical: `${mod}5`, transition: `${mod}6`, general: `${mod}7`, shot: `${mod}8`,
               };
               return {
-                label: r.label,
+                label: elementLabel(r.id, r.label),
                 shortcut: shortcuts[r.id],
-                title: ELEMENT_DESCRIPTIONS[r.id],
+                title: elementDescription(r.id),
                 action: () => setElement(r.id as any),
               };
             }),
@@ -3108,28 +3126,28 @@ const MenuBar: React.FC<MenuBarProps> = ({
         },
         { separator: true, label: '' },
         {
-          icon: <FaBold />, label: 'Style',
+          icon: <FaBold />, label: t('menu:format.style'),
           children: [
-            { icon: <FaBold />, label: 'Bold', shortcut: `${mod}B`, action: () => editor?.chain().focus(undefined, { scrollIntoView: false }).toggleBold().run(), disabled: locked.bold },
-            { icon: <FaItalic />, label: 'Italic', shortcut: `${mod}I`, action: () => editor?.chain().focus(undefined, { scrollIntoView: false }).toggleItalic().run(), disabled: locked.italic },
-            { icon: <FaUnderline />, label: 'Underline', shortcut: `${mod}U`, action: () => editor?.chain().focus(undefined, { scrollIntoView: false }).toggleUnderline().run(), disabled: locked.underline },
-            { icon: <FaStrikethrough />, label: 'Strikethrough', action: () => editor?.chain().focus(undefined, { scrollIntoView: false }).toggleStrike().run(), disabled: locked.strikethrough },
+            { icon: <FaBold />, label: t('menu:format.bold'), shortcut: `${mod}B`, action: () => editor?.chain().focus(undefined, { scrollIntoView: false }).toggleBold().run(), disabled: locked.bold },
+            { icon: <FaItalic />, label: t('menu:format.italic'), shortcut: `${mod}I`, action: () => editor?.chain().focus(undefined, { scrollIntoView: false }).toggleItalic().run(), disabled: locked.italic },
+            { icon: <FaUnderline />, label: t('menu:format.underline'), shortcut: `${mod}U`, action: () => editor?.chain().focus(undefined, { scrollIntoView: false }).toggleUnderline().run(), disabled: locked.underline },
+            { icon: <FaStrikethrough />, label: t('menu:format.strikethrough'), action: () => editor?.chain().focus(undefined, { scrollIntoView: false }).toggleStrike().run(), disabled: locked.strikethrough },
             { separator: true, label: '' },
-            { icon: <FaSubscript />, label: 'Subscript', action: () => editor?.chain().focus(undefined, { scrollIntoView: false }).toggleSubscript().run(), disabled: locked.subscript },
-            { icon: <FaSuperscript />, label: 'Superscript', action: () => editor?.chain().focus(undefined, { scrollIntoView: false }).toggleSuperscript().run(), disabled: locked.superscript },
+            { icon: <FaSubscript />, label: t('menu:format.subscript'), action: () => editor?.chain().focus(undefined, { scrollIntoView: false }).toggleSubscript().run(), disabled: locked.subscript },
+            { icon: <FaSuperscript />, label: t('menu:format.superscript'), action: () => editor?.chain().focus(undefined, { scrollIntoView: false }).toggleSuperscript().run(), disabled: locked.superscript },
           ],
         },
         {
-          icon: <FaAlignLeft />, label: 'Alignment',
+          icon: <FaAlignLeft />, label: t('menu:format.alignment'),
           children: [
-            { icon: <FaAlignLeft />, label: 'Align Left', action: () => editor?.chain().focus(undefined, { scrollIntoView: false }).setTextAlign('left').run(), disabled: locked.textAlign },
-            { icon: <FaAlignCenter />, label: 'Align Center', action: () => editor?.chain().focus(undefined, { scrollIntoView: false }).setTextAlign('center').run(), disabled: locked.textAlign },
-            { icon: <FaAlignRight />, label: 'Align Right', action: () => editor?.chain().focus(undefined, { scrollIntoView: false }).setTextAlign('right').run(), disabled: locked.textAlign },
-            { icon: <FaAlignJustify />, label: 'Justify', action: () => editor?.chain().focus(undefined, { scrollIntoView: false }).setTextAlign('justify').run(), disabled: locked.textAlign },
+            { icon: <FaAlignLeft />, label: t('menu:format.alignLeft'), action: () => editor?.chain().focus(undefined, { scrollIntoView: false }).setTextAlign('left').run(), disabled: locked.textAlign },
+            { icon: <FaAlignCenter />, label: t('menu:format.alignCenter'), action: () => editor?.chain().focus(undefined, { scrollIntoView: false }).setTextAlign('center').run(), disabled: locked.textAlign },
+            { icon: <FaAlignRight />, label: t('menu:format.alignRight'), action: () => editor?.chain().focus(undefined, { scrollIntoView: false }).setTextAlign('right').run(), disabled: locked.textAlign },
+            { icon: <FaAlignJustify />, label: t('menu:format.justify'), action: () => editor?.chain().focus(undefined, { scrollIntoView: false }).setTextAlign('justify').run(), disabled: locked.textAlign },
           ],
         },
         { separator: true, label: '' },
-        { icon: <FaColumns />, label: 'Dual Dialogue', shortcut: `${mod}D`, action: () => (editor as any)?.commands?.toggleDualDialogue() },
+        { icon: <FaColumns />, label: t('menu:format.dualDialogue'), shortcut: `${mod}D`, action: () => (editor as any)?.commands?.toggleDualDialogue() },
         {
           // Every AV control under one roof. Three sibling entries (Row,
           // Columns, Storyboard) pushed the Format menu past the bottom of the
@@ -3139,7 +3157,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
           // honours `disabled` on a leaf but opens a submenu regardless, so a
           // screenplay still shows what AV can do rather than hiding it —
           // issue #116 was in the end about discoverability.
-          icon: <FaColumns />, label: 'AV Script',
+          icon: <FaColumns />, label: t('menu:format.avScript'),
           children: [
             {
               // The way INTO the AV format, and the reason everything below it
@@ -3147,13 +3165,11 @@ const MenuBar: React.FC<MenuBarProps> = ({
               // only route to toggleAvBlock was ⌘⇧A, which an iPad does not
               // have. Deliberately the first item, and never disabled.
               icon: <FaColumns />,
-              label: inAvRow ? 'Remove AV Columns' : 'Insert AV Columns',
+              label: inAvRow ? t('menu:format.removeAvColumns') : t('menu:format.insertAvColumns'),
               shortcut: `${mod}\u21e7A`,
               title: inAvRow
-                ? 'Delete this AV table, and everything in it, back to a single line'
-                : 'Start a two-column AV table beside this line — Video on the left, Audio on the right. '
-                  + 'A line with text is kept; a blank one makes way for the table, and a table already '
-                  + 'above or below gains a row instead.',
+                ? t('menu:format.removeAvColumnsTip')
+                : t('menu:format.insertAvColumnsTip'),
               disabled: !editor,
               action: () => editor?.chain().focus().toggleAvBlock().run(),
             },
@@ -3168,30 +3184,30 @@ const MenuBar: React.FC<MenuBarProps> = ({
               // a line anywhere but inside it. Tapping the page below does
               // not help either: that area is `.page`, not `.ProseMirror`.
               icon: <FaSignInAlt />,
-              label: 'Line After Table',
+              label: t('menu:format.lineAfterTable'),
               disabled: !inAvRow,
               title: inAvRow
-                ? 'Put the cursor on an ordinary script line below this AV table, adding one if it is not there yet'
+                ? t('menu:format.lineAfterTableTip')
                 : avRowHint,
               action: () => editor?.chain().focus().exitAvBlock('after').run(),
             },
             {
               icon: <FaSignInAlt />,
-              label: 'Line Before Table',
+              label: t('menu:format.lineBeforeTable'),
               disabled: !inAvRow,
               title: inAvRow
-                ? 'Put the cursor on an ordinary script line above this AV table, adding one if it is not there yet'
+                ? t('menu:format.lineBeforeTableTip')
                 : avRowHint,
               action: () => editor?.chain().focus().exitAvBlock('before').run(),
             },
             { separator: true, label: '' },
             {
-              icon: <FaColumns />, label: 'Row',
+              icon: <FaColumns />, label: t('menu:format.row'),
               children: [
-                { icon: <FaPlus />, label: 'Insert Row Below', shortcut: `${mod}\u21b5`, disabled: !inAvRow, title: avRowHint, action: () => editor?.chain().focus().insertAvRow('below').run() },
-                { icon: <FaPlus />, label: 'Insert Row Above', disabled: !inAvRow, title: avRowHint, action: () => editor?.chain().focus().insertAvRow('above').run() },
+                { icon: <FaPlus />, label: t('menu:format.insertRowBelow'), shortcut: `${mod}\u21b5`, disabled: !inAvRow, title: avRowHint, action: () => editor?.chain().focus().insertAvRow('below').run() },
+                { icon: <FaPlus />, label: t('menu:format.insertRowAbove'), disabled: !inAvRow, title: avRowHint, action: () => editor?.chain().focus().insertAvRow('above').run() },
                 { separator: true, label: '' },
-                { icon: <FaTimes />, label: 'Delete Row', disabled: !inAvRow, title: avRowHint, action: () => editor?.chain().focus().deleteAvRow().run() },
+                { icon: <FaTimes />, label: t('menu:format.deleteRow'), disabled: !inAvRow, title: avRowHint, action: () => editor?.chain().focus().deleteAvRow().run() },
               ],
             },
             {
@@ -3199,53 +3215,53 @@ const MenuBar: React.FC<MenuBarProps> = ({
               // controls: every one of these has to be reachable without a
               // hardware keyboard, so the menu is the primary route, not a
               // shortcut.
-              icon: <FaColumns />, label: 'Columns',
+              icon: <FaColumns />, label: t('menu:format.columns'),
               children: [
                 {
                   icon: <FaClock />,
-                  label: avColumns.cue ? '\u2713 Cue / Timing Column' : 'Cue / Timing Column',
+                  label: check(avColumns.cue, t('menu:format.cueTimingColumn')),
                   disabled: !inAvRow, title: avRowHint,
                   action: () => toggleAvColumnChecked('cue'),
                 },
                 {
                   icon: <FaImage />,
-                  label: avColumns.image ? '\u2713 Storyboard Column' : 'Storyboard Column',
+                  label: check(avColumns.image, t('menu:format.storyboardColumn')),
                   disabled: !inAvRow, title: avRowHint,
                   action: () => toggleAvColumnChecked('image'),
                 },
                 { separator: true, label: '' },
                 {
                   icon: <FaFileAlt />,
-                  label: avRepeatHeaders ? '\u2713 Repeat Headers On Each Page' : 'Repeat Headers On Each Page',
+                  label: check(avRepeatHeaders, t('menu:format.repeatHeadersOnEachPage')),
                   disabled: !inAvRow, title: avRowHint,
                   action: () => toggleAvRepeatHeaders(),
                 },
                 { separator: true, label: '' },
                 {
-                  icon: <FaColumns />, label: 'Column Width',
+                  icon: <FaColumns />, label: t('menu:format.columnWidth'),
                   children: (['video', 'audio', 'cue', 'image'] as const).map((which) => ({
                     icon: <FaColumns />,
-                    label: which === 'cue' ? 'Cue' : which === 'image' ? 'Storyboard' : which === 'video' ? 'Video' : 'Audio',
+                    label: which === 'cue' ? t('menu:format.cue') : which === 'image' ? t('menu:format.storyboard') : which === 'video' ? t('menu:format.video') : t('menu:format.audio'),
                     children: [
-                      { icon: <FaColumns />, label: 'Narrower', disabled: !inAvRow, title: avRowHint, action: () => nudgeAvWidth(which, -0.25) },
-                      { icon: <FaColumns />, label: 'Wider', disabled: !inAvRow, title: avRowHint, action: () => nudgeAvWidth(which, 0.25) },
-                      { icon: <FaColumns />, label: 'Reset', disabled: !inAvRow, title: avRowHint, action: () => resetAvWidth(which) },
+                      { icon: <FaColumns />, label: t('menu:format.narrower'), disabled: !inAvRow, title: avRowHint, action: () => nudgeAvWidth(which, -0.25) },
+                      { icon: <FaColumns />, label: t('menu:format.wider'), disabled: !inAvRow, title: avRowHint, action: () => nudgeAvWidth(which, 0.25) },
+                      { icon: <FaColumns />, label: t('menu:format.reset'), disabled: !inAvRow, title: avRowHint, action: () => resetAvWidth(which) },
                     ],
                   })),
                 },
               ],
             },
             {
-              icon: <FaImage />, label: 'Storyboard',
+              icon: <FaImage />, label: t('menu:format.storyboard'),
               children: [
-                { icon: <FaImage />, label: 'Add / Replace Frame\u2026', disabled: !inAvRow, title: avRowHint, action: () => pickAvFrame() },
-                { icon: <FaPlus />, label: 'Add Blank Frame', disabled: !inAvRow, title: avRowHint, action: () => editor?.chain().focus().setAvRowImage(AV_BLANK_FRAME).run() },
+                { icon: <FaImage />, label: t('menu:format.addReplaceFrame'), disabled: !inAvRow, title: avRowHint, action: () => pickAvFrame() },
+                { icon: <FaPlus />, label: t('menu:format.addBlankFrame'), disabled: !inAvRow, title: avRowHint, action: () => editor?.chain().focus().setAvRowImage(AV_BLANK_FRAME).run() },
                 { separator: true, label: '' },
                 {
-                  icon: <FaImage />, label: 'Frame Aspect Ratio',
+                  icon: <FaImage />, label: t('menu:format.frameAspectRatio'),
                   children: AV_ASPECT_RATIOS.map((ratio) => ({
                     icon: <FaImage />,
-                    label: avFrameAspect === ratio ? `\u2713 ${ratio}` : ratio,
+                    label: check(avFrameAspect === ratio, ratio),
                     disabled: !inAvRow,
                     title: avRowHint,
                     // Only the ratio — setAvRowImage merges, so the picture
@@ -3254,14 +3270,14 @@ const MenuBar: React.FC<MenuBarProps> = ({
                   })),
                 },
                 { separator: true, label: '' },
-                { icon: <FaTimes />, label: 'Remove Frame', disabled: !inAvRow, title: avRowHint, action: () => editor?.chain().focus().clearAvRowImage().run() },
+                { icon: <FaTimes />, label: t('menu:format.removeFrame'), disabled: !inAvRow, title: avRowHint, action: () => editor?.chain().focus().clearAvRowImage().run() },
               ],
             },
           ],
         },
         {
           icon: <FaFileAlt />,
-          label: selectionOnNewPage ? '✓ Start On New Page' : 'Start On New Page',
+          label: check(selectionOnNewPage, t('menu:format.startOnNewPage')),
           action: () => {
             if (!editor) return;
             editor.chain().focus(undefined, { scrollIntoView: false }).toggleStartsNewPage().run();
@@ -3269,29 +3285,30 @@ const MenuBar: React.FC<MenuBarProps> = ({
           disabled: !editor,
         },
         { separator: true, label: '' },
-        { icon: <FaFont />, label: 'Fonts…', action: () => useEditorStore.getState().setFontsDialogOpen(true) },
-        { icon: <FaCommentDots />, label: 'Mores & Continueds…', action: () => useEditorStore.getState().setMoresContdsOpen(true) },
-        { icon: <FaHeading />, label: 'Header & Footer…', action: () => useEditorStore.getState().setHeaderFooterOpen(true) },
-        { icon: <FaStickyNote />, label: 'Footnotes & Endnotes…', action: () => useEditorStore.getState().setFootnoteDialogOpen(true) },
-        { icon: <FaImage />, label: 'Insert Image…', action: () => useEditorStore.getState().imageInsertHandler?.() },
+        { icon: <FaFont />, label: t('menu:format.fonts'), action: () => useEditorStore.getState().setFontsDialogOpen(true) },
+        { icon: <FaCommentDots />, label: t('menu:format.moresContinueds'), action: () => useEditorStore.getState().setMoresContdsOpen(true) },
+        { icon: <FaHeading />, label: t('menu:format.headerFooter'), action: () => useEditorStore.getState().setHeaderFooterOpen(true) },
+        { icon: <FaStickyNote />, label: t('menu:format.footnotesEndnotes'), action: () => useEditorStore.getState().setFootnoteDialogOpen(true) },
+        { icon: <FaImage />, label: t('menu:format.insertImage'), action: () => useEditorStore.getState().imageInsertHandler?.() },
         { separator: true, label: '' },
-        { icon: <FaFileAlt />, label: 'Title Page…', action: () => useEditorStore.getState().setTitlePageEditorOpen(true) },
-        { icon: <FaStream />, label: 'Genre & Pacing…', title: 'Genres for this script, and the pacing the runtime estimate uses', action: () => useEditorStore.getState().setScriptProfileOpen(true) },
-        { icon: <FaFileAlt />, label: `Formatting Template (${activeTemplate.name})...`, action: () => setTemplateSelectOpen(true), disabled: !canEditDocumentFormat },
-        { icon: <FaFileAlt />, label: 'Script Format Preferences…', action: () => setFormatPrefsOpen({ firstRun: false, afterSave: null }) },
+        { icon: <FaFileAlt />, label: t('menu:format.titlePage'), action: () => useEditorStore.getState().setTitlePageEditorOpen(true) },
+        { icon: <FaStream />, label: t('menu:format.genrePacing'), title: t('menu:format.genresForThisScriptAndThe'), action: () => useEditorStore.getState().setScriptProfileOpen(true) },
+        { icon: <FaFileAlt />, label: t('menu:format.formattingTemplate', { name: activeTemplate.name }), action: () => setTemplateSelectOpen(true), disabled: !canEditDocumentFormat },
+        { icon: <FaFileAlt />, label: t('menu:format.scriptFormatPreferences'), action: () => setFormatPrefsOpen({ firstRun: false, afterSave: null }) },
       ],
     },
     {
-      label: 'View',
+      id: 'View',
+      label: t('menu:view.view'),
       items: [
         {
-          icon: <FaColumns />, label: 'Panels',
+          icon: <FaColumns />, label: t('menu:view.panels'),
           children: [
-            { icon: <FaCompass />, label: navigatorOpen ? '\u2713 Navigator' : 'Navigator', action: toggleNavigator },
-            { icon: <FaTh />, label: indexCardsOpen ? '\u2713 Index Cards' : 'Index Cards', action: toggleIndexCards },
-            { icon: <FaStream />, label: beatBoardOpen ? '\u2713 Beat Board' : 'Beat Board', action: toggleBeatBoard },
-            { icon: <FaListUl />, label: outlineOpen ? '\u2713 Outline' : 'Outline', action: toggleOutline },
-            { icon: <FaProjectDiagram />, label: 'Story Timeline…', title: 'Plotlines across the scenes, by screen time', action: () => {
+            { icon: <FaCompass />, label: check(navigatorOpen, t('menu:view.navigator')), action: toggleNavigator },
+            { icon: <FaTh />, label: check(indexCardsOpen, t('menu:view.indexCards')), action: toggleIndexCards },
+            { icon: <FaStream />, label: check(beatBoardOpen, t('menu:view.beatBoard')), action: toggleBeatBoard },
+            { icon: <FaListUl />, label: check(outlineOpen, t('menu:view.outline')), action: toggleOutline },
+            { icon: <FaProjectDiagram />, label: t('menu:view.storyTimeline'), title: t('menu:view.plotlinesAcrossTheScenesByScreen'), action: () => {
               // The timeline edits scene headings, so the script has to be on
               // screen under it, not the Beat Board or Statistics.
               const s = useEditorStore.getState();
@@ -3299,60 +3316,60 @@ const MenuBar: React.FC<MenuBarProps> = ({
               if (s.statisticsOpen) s.setStatisticsOpen(false);
               s.setStoryTimelineOpen(true);
             } },
-            { icon: <FaStickyNote />, label: scriptNotesOpen ? '\u2713 Notes Panel' : 'Notes Panel', action: () => {
+            { icon: <FaStickyNote />, label: check(scriptNotesOpen, t('menu:view.notesPanel')), action: () => {
               const hasSelection = editor && !editor.state.selection.empty;
               useEditorStore.getState().setNotesActiveTab(hasSelection ? 'script' : 'general');
               toggleScriptNotes();
             } },
-            { icon: <FaUsers />, label: characterProfilesOpen ? '\u2713 Characters' : 'Characters', action: toggleCharacterProfiles },
-            { icon: <FaTags />, label: tagsPanelOpen ? '\u2713 Tags' : 'Tags', action: toggleTagsPanel },
-            { icon: <FaCompass />, label: locationDatabaseOpen ? '\u2713 Locations' : 'Locations', action: toggleLocationDatabase },
-            { icon: <FaComments />, label: dialogueTunerOpen ? '\u2713 Dialogue Tuner' : 'Dialogue Tuner', action: () => (dialogueTunerOpen ? closeDialogueTuner() : openDialogueTuner()) },
-            { icon: <FaUserEdit />, label: suggestionsPanelOpen ? '\u2713 Suggestions' : 'Suggestions', action: () => useSuggestModeStore.getState().setPanelOpen(!suggestionsPanelOpen) },
+            { icon: <FaUsers />, label: check(characterProfilesOpen, t('menu:view.characters')), action: toggleCharacterProfiles },
+            { icon: <FaTags />, label: check(tagsPanelOpen, t('menu:view.tags')), action: toggleTagsPanel },
+            { icon: <FaCompass />, label: check(locationDatabaseOpen, t('menu:view.locations')), action: toggleLocationDatabase },
+            { icon: <FaComments />, label: check(dialogueTunerOpen, t('menu:view.dialogueTuner')), action: () => (dialogueTunerOpen ? closeDialogueTuner() : openDialogueTuner()) },
+            { icon: <FaUserEdit />, label: check(suggestionsPanelOpen, t('menu:view.suggestions')), action: () => useSuggestModeStore.getState().setPanelOpen(!suggestionsPanelOpen) },
           ],
         },
         {
-          icon: <FaHighlighter />, label: 'Highlights',
+          icon: <FaHighlighter />, label: t('menu:view.highlights'),
           children: [
-            { icon: <FaHighlighter />, label: notesVisible ? '\u2713 Note Highlights' : 'Note Highlights', action: () => setNotesVisible(!notesVisible) },
-            { icon: <FaHighlighter />, label: tagsVisible ? '\u2713 Tag Highlights' : 'Tag Highlights', action: () => setTagsVisible(!tagsVisible) },
+            { icon: <FaHighlighter />, label: check(notesVisible, t('menu:view.noteHighlights')), action: () => setNotesVisible(!notesVisible) },
+            { icon: <FaHighlighter />, label: check(tagsVisible, t('menu:view.tagHighlights')), action: () => setTagsVisible(!tagsVisible) },
           ],
         },
         {
-          icon: <FaMobileAlt />, label: 'Layout',
+          icon: <FaMobileAlt />, label: t('menu:view.layout'),
           children: [
-            { icon: <FaRegFileAlt />, label: viewLayout === 'page' ? '\u2713 Page' : 'Page', action: () => setViewLayout('page') },
-            { icon: <FaMobileAlt />, label: viewLayout === 'phone' ? '\u2713 Phone' : 'Phone', action: () => setViewLayout('phone') },
-          ],
-        },
-        { separator: true, label: '' },
-        {
-          icon: <FaAdjust />, label: 'Theme',
-          children: [
-            { icon: <FaSun />, label: appearance === 'light' ? '\u2713 Light' : 'Light', action: () => setAppearance('light') },
-            { icon: <FaMoon />, label: appearance === 'dark' ? '\u2713 Dark' : 'Dark', action: () => setAppearance('dark') },
-            { icon: <FaRegFileAlt />, label: appearance === 'dark-pages' ? '\u2713 Dark Pages' : 'Dark Pages', action: () => setAppearance('dark-pages') },
+            { icon: <FaRegFileAlt />, label: check(viewLayout === 'page', t('menu:view.page')), action: () => setViewLayout('page') },
+            { icon: <FaMobileAlt />, label: check(viewLayout === 'phone', t('menu:view.phone')), action: () => setViewLayout('phone') },
           ],
         },
         { separator: true, label: '' },
         {
-          icon: <FaBullseye />, label: 'Focus Mode',
+          icon: <FaAdjust />, label: t('menu:view.theme'),
           children: [
-            { icon: <FaBullseye />, label: focusMode ? 'Leave Focus Mode' : 'Enter Focus Mode', shortcut: formatShortcut(FOCUS_MODE_SHORTCUT), action: () => setFocusMode(!focusMode) },
+            { icon: <FaSun />, label: check(appearance === 'light', t('menu:view.light')), action: () => setAppearance('light') },
+            { icon: <FaMoon />, label: check(appearance === 'dark', t('menu:view.dark')), action: () => setAppearance('dark') },
+            { icon: <FaRegFileAlt />, label: check(appearance === 'dark-pages', t('menu:view.darkPages')), action: () => setAppearance('dark-pages') },
+          ],
+        },
+        { separator: true, label: '' },
+        {
+          icon: <FaBullseye />, label: t('menu:view.focusMode'),
+          children: [
+            { icon: <FaBullseye />, label: focusMode ? t('menu:view.leaveFocusMode') : t('menu:view.enterFocusMode'), shortcut: formatShortcut(FOCUS_MODE_SHORTCUT), action: () => setFocusMode(!focusMode) },
             { separator: true, label: '' },
-            { label: focusTypewriter ? '\u2713 Typewriter Scrolling' : 'Typewriter Scrolling', action: () => setFocusTypewriter(!focusTypewriter) },
+            { label: check(focusTypewriter, t('menu:view.typewriterScrolling')), action: () => setFocusTypewriter(!focusTypewriter) },
             { separator: true, label: '' },
-            { label: focusDim === 'off' ? '\u2713 No Dimming' : 'No Dimming', action: () => setFocusDim('off') },
-            { label: focusDim === 'element' ? '\u2713 Dim All but Current Element' : 'Dim All but Current Element', action: () => setFocusDim('element') },
-            { label: focusDim === 'scene' ? '\u2713 Dim All but Current Scene' : 'Dim All but Current Scene', action: () => setFocusDim('scene') },
+            { label: check(focusDim === 'off', t('menu:view.noDimming')), action: () => setFocusDim('off') },
+            { label: check(focusDim === 'element', t('menu:view.dimAllButCurrentElement')), action: () => setFocusDim('element') },
+            { label: check(focusDim === 'scene', t('menu:view.dimAllButCurrentScene')), action: () => setFocusDim('scene') },
           ],
         },
         {
-          icon: <FaToolbox />, label: 'Menu & Toolbar',
+          icon: <FaToolbox />, label: t('menu:view.menuToolbar'),
           children: [
-            { icon: <FaCompressArrowsAlt />, label: savedToolbarMode === 'compact' ? '\u2713 Compact' : 'Compact', action: () => setToolbarMode('compact') },
-            { icon: <FaExpandArrowsAlt />, label: savedToolbarMode === 'comfortable' ? '\u2713 Comfortable' : 'Comfortable', action: () => setToolbarMode('comfortable') },
-            { icon: <FaEyeSlash />, label: savedToolbarMode === 'hidden' ? '\u2713 Hidden' : 'Hidden', action: () => {
+            { icon: <FaCompressArrowsAlt />, label: check(savedToolbarMode === 'compact', t('menu:view.compact')), action: () => setToolbarMode('compact') },
+            { icon: <FaExpandArrowsAlt />, label: check(savedToolbarMode === 'comfortable', t('menu:view.comfortable')), action: () => setToolbarMode('comfortable') },
+            { icon: <FaEyeSlash />, label: check(savedToolbarMode === 'hidden', t('menu:view.hidden')), action: () => {
               setToolbarMode('hidden');
               if (localStorage.getItem('opendraft:hiddenModeIntroShown') !== '1') {
                 setShowHiddenModeIntro(true);
@@ -3361,54 +3378,55 @@ const MenuBar: React.FC<MenuBarProps> = ({
           ],
         },
         {
-          icon: <FaSearchPlus />, label: `Zoom (${zoomLevel}%)`,
+          icon: <FaSearchPlus />, label: t('menu:view.zoom', { level: zoomLevel }),
           children: [
-            { icon: <FaSearchPlus />, label: 'Zoom In', shortcut: `${mod}+`, action: () => setZoomLevel(Math.min(300, zoomLevel + 10)) },
-            { icon: <FaSearchMinus />, label: 'Zoom Out', shortcut: `${mod}−`, action: () => setZoomLevel(Math.max(50, zoomLevel - 10)) },
+            { icon: <FaSearchPlus />, label: t('menu:view.zoomIn'), shortcut: `${mod}+`, action: () => setZoomLevel(Math.min(300, zoomLevel + 10)) },
+            { icon: <FaSearchMinus />, label: t('menu:view.zoomOut'), shortcut: `${mod}−`, action: () => setZoomLevel(Math.max(50, zoomLevel - 10)) },
             { separator: true, label: '' },
-            { label: zoomLevel === 50 ? '\u2713 50%' : '50%', action: () => setZoomLevel(50) },
-            { label: zoomLevel === 75 ? '\u2713 75%' : '75%', action: () => setZoomLevel(75) },
-            { label: zoomLevel === 100 ? '\u2713 100%' : '100%', action: () => setZoomLevel(100) },
-            { label: zoomLevel === 125 ? '\u2713 125%' : '125%', action: () => setZoomLevel(125) },
-            { label: zoomLevel === 150 ? '\u2713 150%' : '150%', action: () => setZoomLevel(150) },
-            { label: zoomLevel === 200 ? '\u2713 200%' : '200%', action: () => setZoomLevel(200) },
-            { label: zoomLevel === 300 ? '\u2713 300%' : '300%', action: () => setZoomLevel(300) },
+            { label: check(zoomLevel === 50, '50%'), action: () => setZoomLevel(50) },
+            { label: check(zoomLevel === 75, '75%'), action: () => setZoomLevel(75) },
+            { label: check(zoomLevel === 100, '100%'), action: () => setZoomLevel(100) },
+            { label: check(zoomLevel === 125, '125%'), action: () => setZoomLevel(125) },
+            { label: check(zoomLevel === 150, '150%'), action: () => setZoomLevel(150) },
+            { label: check(zoomLevel === 200, '200%'), action: () => setZoomLevel(200) },
+            { label: check(zoomLevel === 300, '300%'), action: () => setZoomLevel(300) },
           ],
         },
       ],
     },
     {
-      label: 'Tools',
+      id: 'Tools',
+      label: t('menu:tools.tools'),
       items: [
         {
-          icon: <FaUserFriends />, label: 'Collaboration',
+          icon: <FaUserFriends />, label: t('menu:tools.collaboration'),
           children: [
-            { icon: <FaUserFriends />, label: isCollabActive ? '\u2713 Collaborate...' : 'Collaborate...', action: onCollaborate, disabled: isCollabGuest },
-            { icon: <FaSignInAlt />, label: 'Join Collaboration…', action: onJoinCollab, disabled: isCollabGuest },
+            { icon: <FaUserFriends />, label: check(!!isCollabActive, t('menu:tools.collaborate')), action: onCollaborate, disabled: isCollabGuest },
+            { icon: <FaSignInAlt />, label: t('menu:tools.joinCollaboration'), action: onJoinCollab, disabled: isCollabGuest },
           ],
         },
         {
           // Edits become suggestions for the writer to accept (editor/suggestions).
           // A collaborator invited to suggest cannot turn it off.
           icon: <FaUserEdit />,
-          label: suggesting ? '\u2713 Suggest Changes' : 'Suggest Changes',
-          title: suggestLocked ? 'You joined to suggest: your edits are suggestions for the writer' : 'Make edits as suggestions, to accept or reject later',
+          label: check(suggesting, t('menu:tools.suggestChanges')),
+          title: suggestLocked ? t('menu:tools.suggestChangesTip') : t('menu:tools.suggestChangesTip2'),
           action: () => {
             const st = useSuggestModeStore.getState();
             st.setSuggesting(!st.suggesting);
-            if (!st.suggesting) showToast('Suggesting: your edits are now suggestions. Tools → Review Suggestions… to see them.', 'info');
+            if (!st.suggesting) showToast(t('menu:toasts.suggestingOn'), 'info');
           },
           disabled: suggestLocked,
         },
-        { icon: <FaUserEdit />, label: 'Review Suggestions…', action: () => useSuggestModeStore.getState().setPanelOpen(true) },
+        { icon: <FaUserEdit />, label: t('menu:tools.reviewSuggestions'), action: () => useSuggestModeStore.getState().setPanelOpen(true) },
         { separator: true, label: '' },
-        { icon: <FaProjectDiagram />, label: 'Manage Projects…', action: goToProjects, disabled: isCollabGuest },
-        { icon: <FaBoxes />, label: 'Asset Manager', action: () => useAssetStore.getState().toggleAssetManager() },
+        { icon: <FaProjectDiagram />, label: t('menu:tools.manageProjects'), action: goToProjects, disabled: isCollabGuest },
+        { icon: <FaBoxes />, label: t('menu:tools.assetManager'), action: () => useAssetStore.getState().toggleAssetManager() },
         { separator: true, label: '' },
         {
           icon: <FaMicrophoneAlt />,
-          label: tableReadOpen ? '\u2713 Table Read' : 'Table Read',
-          title: 'Hear the script read aloud, with a voice for each character',
+          label: check(tableReadOpen, t('menu:tools.tableRead')),
+          title: t('menu:tools.tableReadTip'),
           action: () => {
             const tr = useTableReadStore.getState();
             if (tr.open) { tr.setOpen(false); return; }
@@ -3424,90 +3442,90 @@ const MenuBar: React.FC<MenuBarProps> = ({
           disabled: !editor,
         },
         {
-          icon: <FaBullseye />, label: 'Writing Goals & Sprints\u2026',
+          icon: <FaBullseye />, label: t('menu:tools.writingGoalsSprints'),
           action: () => useWritingGoalsStore.getState().setDialogOpen(true),
         },
         {
-          icon: <FaStream />, label: 'Analytics',
+          icon: <FaStream />, label: t('menu:tools.analytics'),
           children: [
-            { icon: <FaStream />, label: 'Script Statistics', action: () => {
+            { icon: <FaStream />, label: t('menu:tools.scriptStatistics'), action: () => {
               const s = useEditorStore.getState();
               s.setStatisticsScrollTo(null);
               s.setStatisticsOpen(true);
             } },
-            { icon: <FaHistory />, label: 'Timing Report', action: () => {
+            { icon: <FaHistory />, label: t('menu:tools.timingReport'), action: () => {
               const s = useEditorStore.getState();
               s.setStatisticsScrollTo('stats-timing-report');
               s.setStatisticsOpen(true);
             } },
             {
-              icon: <FaTable />, label: 'Reports\u2026', action: () => setReportsOpen(true),
-              title: 'Scene, character, location, cast and breakdown reports, as CSV or PDF',
+              icon: <FaTable />, label: t('menu:tools.reports'), action: () => setReportsOpen(true),
+              title: t('menu:tools.reportsTip'),
               disabled: !editor,
             },
           ],
         },
         { separator: true, label: '' },
-        { icon: <FaCog />, label: 'System Settings…', action: goToSettings },
+        { icon: <FaCog />, label: t('menu:tools.systemSettings'), action: goToSettings },
         { separator: true, label: '' },
         {
-          icon: <FaFilm />, label: 'Production',
+          icon: <FaFilm />, label: t('menu:tools.production'),
           children: [
-            { icon: <FaToggleOn />, label: revisionMode ? '\u2713 Revision Mode' : 'Revision Mode', action: () => setRevisionMode(!revisionMode) },
+            { icon: <FaToggleOn />, label: check(revisionMode, t('menu:tools.revisionMode')), action: () => setRevisionMode(!revisionMode) },
             {
-              icon: <FaHighlighter />, label: `Revision Color (${revisionColor})`,
+              icon: <FaHighlighter />, label: t('menu:tools.revisionColor', { color: revisionColor }),
               children: REVISION_COLORS.map((c) => ({
-                label: c.name === revisionColor ? `\u2713 ${c.name}` : c.name,
+                label: check(c.name === revisionColor, c.name),
                 action: () => setRevisionColor(c.name),
               })),
             },
             {
-              icon: <FaStepForward />, label: 'Next Revision Color',
-              title: `Start the ${nextRevisionColor(revisionColor)} revision and turn Revision Mode on`,
+              icon: <FaStepForward />, label: t('menu:tools.nextRevisionColor'),
+              title: t('menu:tools.nextRevisionColorTip', { color: nextRevisionColor(revisionColor) }),
               action: () => {
                 advanceRevisionColor();
-                showToast(`Revising in ${useEditorStore.getState().revisionColor}`, 'info');
+                showToast(t('menu:toasts.revisingIn', { color: useEditorStore.getState().revisionColor }), 'info');
               },
             },
             {
               icon: <FaEye />,
-              label: showRevisionColors ? '\u2713 Show Revision Colors' : 'Show Revision Colors',
+              label: check(showRevisionColors, t('menu:tools.showRevisionColors')),
               action: () => setShowRevisionColors(!showRevisionColors),
             },
-            { icon: <FaEraser />, label: 'Clear Revision Marks\u2026', action: () => setClearRevisionsOpen(true), disabled: !editor },
+            { icon: <FaEraser />, label: t('menu:tools.clearRevisionMarks'), action: () => setClearRevisionsOpen(true), disabled: !editor },
             {
-              icon: <FaSlidersH />, label: 'Revision Settings\u2026',
-              title: 'The revision mark, a mark for each revision, and colored pages',
+              icon: <FaSlidersH />, label: t('menu:tools.revisionSettings'),
+              title: t('menu:tools.revisionSettingsTip'),
               action: () => setRevisionSettingsOpen(true),
             },
             { separator: true, label: '' },
             {
               icon: <FaListUl />,
-              label: sceneNumbersVisible ? '\u2713 Show Scene Numbers' : 'Show Scene Numbers',
+              label: check(sceneNumbersVisible, t('menu:tools.showSceneNumbers')),
               action: () => setSceneNumbersVisible(!sceneNumbersVisible),
             },
             {
               icon: <FaLock />,
-              label: sceneNumbersLocked ? '\u2713 Lock Scene Numbers' : 'Lock Scene Numbers',
+              label: check(sceneNumbersLocked, t('menu:tools.lockSceneNumbers')),
               action: () => setSceneNumbersLocked(!sceneNumbersLocked),
               // Unlocking is always allowed; locking needs numbers to lock.
               disabled: !sceneNumbersVisible && !sceneNumbersLocked,
             },
             {
-              icon: <FaBan />, label: 'Omit Scene',
+              icon: <FaBan />, label: t('menu:tools.omitScene'),
               title: sceneNumbersLocked
-                ? 'Replace the scene at the cursor with an OMITTED heading that keeps its number'
-                : 'Lock scene numbers first — an unlocked script can simply delete the scene',
+                ? t('menu:tools.omitSceneTipLocked')
+                : t('menu:tools.omitSceneTipUnlocked'),
               action: handleOmitScene,
               disabled: !editor || !sceneNumbersLocked,
             },
             { separator: true, label: '' },
             {
               icon: <FaListOl />,
-              label: elementNumbersVisible && formatNumbersElements ? '\u2713 Show Element Numbers' : 'Show Element Numbers',
+              label: check(elementNumbersVisible && formatNumbersElements, t('menu:tools.showElementNumbers')),
               title: formatNumbersElements
-                ? 'Numbers beside the elements this format numbers, such as every line of dialogue'
-                : `${activeTemplate.name} numbers no elements. Turn numbering on for an element in Element Numbering\u2026`,
+                ? t('menu:tools.showElementNumbersTip')
+                : t('menu:tools.showElementNumbersTipNone', { name: activeTemplate.name }),
               action: () => setElementNumbersVisible(!elementNumbersVisible),
               disabled: !formatNumbersElements,
             },
@@ -3515,7 +3533,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
               ? [
                   {
                     icon: <FaLock />,
-                    label: elementReferencesLocked ? '\u2713 Lock Element Numbers' : 'Lock Element Numbers',
+                    label: check(elementReferencesLocked, t('menu:tools.lockElementNumbers')),
                     disabled: !editor || !formatNumbersElements || isCollabGuest,
                     action: () => {
                       if (!editor) return;
@@ -3525,8 +3543,8 @@ const MenuBar: React.FC<MenuBarProps> = ({
                       if (ok)
                         showToast(
                           elementReferencesLocked
-                            ? 'Element numbers flow automatically again'
-                            : 'Element references locked; inserted lines get suffixes',
+                            ? t('menu:toasts.elementNumbersAutomatic')
+                            : t('menu:toasts.elementReferencesLocked'),
                           'success',
                         );
                     },
@@ -3535,36 +3553,36 @@ const MenuBar: React.FC<MenuBarProps> = ({
                     numberingRules[f.item.elementId] && f.item.number && !f.item.numberAutomatic)
                     ? [{
                         icon: <FaUnlock />,
-                        label: 'Use Automatic Element Numbers',
+                        label: t('menu:tools.useAutomaticElementNumbers'),
                         disabled: !editor || isCollabGuest,
                         action: () => {
                           if (editor?.commands.unlockElementNumbers()) {
-                            showToast('Element numbers flow automatically again', 'success');
+                            showToast(t('menu:toasts.elementNumbersAutomatic'), 'success');
                           }
                         },
                       }]
                     : []),
                   {
                     icon: <FaPencilAlt />,
-                    label: 'Edit Element Number\u2026',
+                    label: t('menu:tools.editElementNumber'),
                     action: editElementNumber,
                     disabled: !editor || !selectedNumberTarget || isCollabGuest,
                   },
                 ]
               : []),
             {
-              icon: <FaSlidersH />, label: 'Element Numbering\u2026',
-              title: 'Choose which elements are numbered and what restarts each count, in the formatting template',
+              icon: <FaSlidersH />, label: t('menu:tools.elementNumbering'),
+              title: t('menu:tools.elementNumberingTip'),
               action: () => setTemplateSelectOpen(true),
               disabled: !canEditDocumentFormat,
             },
             { separator: true, label: '' },
             {
               icon: pageLabels ? <FaUnlock /> : <FaLock />,
-              label: pageLabels ? 'Unlock Pages' : 'Lock Pages',
+              label: pageLabels ? t('menu:tools.unlockPages') : t('menu:tools.lockPages'),
               title: pageLabels
-                ? 'Let page numbers flow again; A pages are renumbered'
-                : 'Keep every page number where it is; new text spills onto A pages',
+                ? t('menu:tools.unlockPagesTip')
+                : t('menu:tools.lockPagesTip'),
               action: handleToggleLockPages,
               disabled: !editor,
             },
@@ -3590,25 +3608,26 @@ const MenuBar: React.FC<MenuBarProps> = ({
     try {
       const outcome = await checkForUpdate(true);
       if (outcome.status === 'up-to-date') {
-        showToast(`OpenDraft ${outcome.version} is the latest version.`, 'success');
+        showToast(t('menu:toasts.upToDate', { version: outcome.version }), 'success');
       } else if (outcome.status === 'unreachable') {
-        showToast('Could not check for updates. Check your connection.', 'error');
+        showToast(t('menu:toasts.updateUnreachable'), 'error');
       }
       // 'available' needs no toast — the banner is already on screen.
     } catch (err) {
       console.error('[MenuBar] update check failed:', err);
-      showToast('Could not check for updates.', 'error');
+      showToast(t('menu:toasts.updateFailed'), 'error');
     } finally {
       setCheckingUpdate(false);
     }
   };
 
   const helpMenu: MenuSection = {
-    label: 'Help',
+    id: 'Help',
+    label: t('menu:help.help'),
     items: [
       {
         icon: <FaBook />,
-        label: 'User Manual\u2026',
+        label: t('menu:help.userManual'),
         action: () => setManualOpen(true),
       },
       { separator: true, label: '' },
@@ -3616,18 +3635,18 @@ const MenuBar: React.FC<MenuBarProps> = ({
       // build, so it is not offered there.
       ...(isWeb() ? [] : [{
         icon: <FaCloudDownloadAlt />,
-        label: checkingUpdate ? 'Checking\u2026' : 'Check for Updates\u2026',
+        label: checkingUpdate ? t('menu:help.checking') : t('menu:help.checkForUpdates'),
         disabled: checkingUpdate,
         action: () => { void handleCheckForUpdates(); },
       }]),
       {
         icon: <FaInfoCircle />,
-        label: 'About Open Draft',
+        label: t('menu:help.aboutOpenDraft'),
         action: () => setAboutOpen(true),
       },
       {
         icon: <FaStethoscope />,
-        label: 'Diagnostics',
+        label: t('menu:help.diagnostics'),
         action: () => { void handleOpenDiagnostics(); },
       },
     ],
@@ -3637,7 +3656,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
   const pluginCtx = { editor };
   const mapPluginChildren = (children: any[]): MenuItem[] =>
     children.map((c) => ({
-      label: c.label || '',
+      label: resolvePluginText(c.labelKey, c.label || ''),
       shortcut: c.shortcut,
       action: c.action ? () => c.action!(pluginCtx) : undefined,
       disabled: typeof c.disabled === 'function' ? c.disabled(pluginCtx) : c.disabled,
@@ -3645,12 +3664,12 @@ const MenuBar: React.FC<MenuBarProps> = ({
       children: c.children ? mapPluginChildren(c.children) : undefined,
     }));
   for (const menu of menus) {
-    const pluginItems = pluginRegistry.getMenuItems(menu.label as PluginMenuSection);
+    const pluginItems = pluginRegistry.getMenuItems(menu.id as PluginMenuSection);
     if (pluginItems.length > 0) {
       menu.items.push({ separator: true, label: '' });
       for (const p of pluginItems) {
         menu.items.push({
-          label: p.label,
+          label: resolvePluginText(p.labelKey, p.label),
           shortcut: p.shortcut,
           action: p.action ? () => p.action!(pluginCtx) : undefined,
           disabled: typeof p.disabled === 'function' ? p.disabled(pluginCtx) : p.disabled,
@@ -3884,7 +3903,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
 
   // Find the active menu's items (search both main menus and help)
   const activeMenuData = activeMenu
-    ? menus.find(m => m.label === activeMenu) || (activeMenu === 'Help' ? helpMenu : null)
+    ? menus.find(m => m.id === activeMenu) || (activeMenu === 'Help' ? helpMenu : null)
     : null;
 
   // Close floating menu when clicking outside (but not on the dropdown portal or FAB)
@@ -3908,16 +3927,16 @@ const MenuBar: React.FC<MenuBarProps> = ({
     <>
       {menus.map((menu) => (
         <div
-          key={menu.label}
-          ref={(el) => { menuItemRefs.current[menu.label] = el; }}
-          className={`menu-item ${activeMenu === menu.label ? 'active' : ''}`}
+          key={menu.id}
+          ref={(el) => { menuItemRefs.current[menu.id] = el; }}
+          className={`menu-item ${activeMenu === menu.id ? 'active' : ''}`}
           onMouseDown={keepEditorSelection}
-          onClick={() => handleMenuClick(menu.label)}
+          onClick={() => handleMenuClick(menu.id)}
           onMouseEnter={() => {
-            if (activeMenu) setActiveMenu(menu.label);
+            if (activeMenu) setActiveMenu(menu.id);
           }}
         >
-          {menuIcons[menu.label] && <span className="menu-icon">{menuIcons[menu.label]}</span>}
+          {menuIcons[menu.id] && <span className="menu-icon">{menuIcons[menu.id]}</span>}
           <span className="menu-label">{menu.label}</span>
         </div>
       ))}
@@ -3929,10 +3948,10 @@ const MenuBar: React.FC<MenuBarProps> = ({
         onMouseEnter={() => {
           if (activeMenu) setActiveMenu('Help');
         }}
-        title="User manual, about and diagnostics"
+        title={t('menu:help.menuTip')}
       >
         <span className="menu-icon"><FaQuestionCircle /></span>
-        <span className="menu-label">Help</span>
+        <span className="menu-label">{t('menu:help.help')}</span>
       </div>
       <div className="menu-spacer" />
       <AuthIndicator />
@@ -3953,7 +3972,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
             onPointerUp={handleFabPointerUp}
             onClick={handleFabClick}
             onMouseDown={(e) => e.nativeEvent.stopImmediatePropagation()}
-            title="Menu (drag to reposition)"
+            title={t('menu:fab.title')}
           >
             <FaBars />
           </div>
@@ -3998,7 +4017,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
     {showHiddenModeIntro && createPortal(
       <div className="dialog-overlay" onClick={() => setShowHiddenModeIntro(false)}>
         <div className="hidden-mode-intro" onClick={(e) => e.stopPropagation()}>
-          <div className="dialog-header">Hidden Mode</div>
+          <div className="dialog-header">{t('menu:hiddenModeIntro.title')}</div>
           <div className="hidden-mode-intro-body">
             <div className="hidden-mode-intro-icon">
               <svg width="40" height="40" viewBox="0 0 40 40" fill="none" stroke="var(--fd-accent)" strokeWidth="1.5">
@@ -4008,19 +4027,19 @@ const MenuBar: React.FC<MenuBarProps> = ({
                 <line x1="26" y1="14" x2="26" y2="26" strokeWidth="2.5" strokeLinecap="round" />
               </svg>
             </div>
-            <p>The menu bar is now hidden. A <strong>floating menu button</strong> has been placed on screen to access all menus.</p>
-            <p>You can <strong>drag the button</strong> to reposition it anywhere on screen. Your preferred position will be remembered.</p>
-            <p>To restore the menu bar, tap the button and go to <strong>View &gt; Menu &amp; Toolbar</strong>.</p>
+            <p><Trans ns="menu" i18nKey="hiddenModeIntro.p1" components={{ strong: <strong /> }} /></p>
+            <p><Trans ns="menu" i18nKey="hiddenModeIntro.p2" components={{ strong: <strong /> }} /></p>
+            <p><Trans ns="menu" i18nKey="hiddenModeIntro.p3" components={{ strong: <strong /> }} /></p>
           </div>
           <div className="dialog-footer" style={{ flexDirection: 'column', gap: '12px', alignItems: 'stretch' }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--fd-text-secondary)', cursor: 'pointer' }}>
               <input type="checkbox" checked={hiddenModeDontShow} onChange={(e) => setHiddenModeDontShow(e.target.checked)} />
-              Don't show this again
+              {t('menu:hiddenModeIntro.dontShowAgain')}
             </label>
             <button className="dialog-btn dialog-btn-primary" onClick={() => {
               if (hiddenModeDontShow) localStorage.setItem('opendraft:hiddenModeIntroShown', '1');
               setShowHiddenModeIntro(false);
-            }}>Got it</button>
+            }}>{t('menu:hiddenModeIntro.gotIt')}</button>
           </div>
         </div>
       </div>,
@@ -4029,15 +4048,15 @@ const MenuBar: React.FC<MenuBarProps> = ({
     {checkinOpen && (
       <div className="dialog-overlay" onClick={() => setCheckinOpen(false)}>
         <div className="dialog-box" onClick={(e) => e.stopPropagation()}>
-          <div className="dialog-header">Check In Version</div>
+          <div className="dialog-header">{t('menu:checkIn.title')}</div>
           <div className="dialog-body">
             <div className="dialog-row">
-              <label>Version Description</label>
+              <label>{t('menu:checkIn.description')}</label>
               <input
                 ref={checkinInputRef}
                 value={checkinMessage}
                 onChange={(e) => setCheckinMessage(e.target.value)}
-                placeholder="Describe what changed..."
+                placeholder={t('menu:checkIn.placeholder')}
                 autoFocus
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && checkinMessage.trim()) handleCheckinSubmit();
@@ -4047,13 +4066,13 @@ const MenuBar: React.FC<MenuBarProps> = ({
             </div>
           </div>
           <div className="dialog-actions">
-            <button onClick={() => setCheckinOpen(false)}>Cancel</button>
+            <button onClick={() => setCheckinOpen(false)}>{t('common:cancel')}</button>
             <button
               className="dialog-primary"
               onClick={handleCheckinSubmit}
               disabled={checkinSaving || !checkinMessage.trim()}
             >
-              {checkinSaving ? 'Saving...' : 'Check In'}
+              {checkinSaving ? t('menu:checkIn.saving') : t('menu:checkIn.submit')}
             </button>
           </div>
         </div>
@@ -4127,15 +4146,18 @@ const MenuBar: React.FC<MenuBarProps> = ({
     {aboutOpen && (
       <div className="dialog-overlay" onClick={() => setAboutOpen(false)}>
         <div className="dialog-box about-dialog" onClick={(e) => e.stopPropagation()}>
-          <div className="dialog-header">About Open Draft</div>
+          <div className="dialog-header">{t('menu:help.aboutOpenDraft')}</div>
           <div className="dialog-body about-body">
-            <div className="about-title">Open Draft</div>
+            <div className="about-title">Open Draft</div>{/* i18n-ignore: product name */}
+            {/* i18n-ignore: release.sh rewrites these two literals each release */}
             <div className="about-version">Version 2.9.0</div>
-            <div className="about-tagline">Free, open-source screenwriting software</div>
+            <div className="about-tagline">{t('menu:about.tagline')}</div>
 
             <div className="about-whats-new">
+              {/* i18n-ignore: release.sh rewrites this literal each release */}
               <div className="about-section-title">What's New in 2.9.0</div>
               <div className="about-changelog">
+              {/* i18n-ignore-start: release notes stay English in phase 1 */}
               <div className="about-subsection-title">v2.9.0</div>
               <ul className="about-list">
                 <li><strong>The Outline</strong> &mdash; <em>View &rarr; Panels &rarr; Outline</em> shows the whole script as structure: acts, sequences, Fountain sections and scenes, each scene with its number, synopsis and length in pages. Drag a scene to move it (one undo step), add an act break, a sequence or a section from the header, and group scenes into named sequences. Click a scene to jump to it (#195).</li>
@@ -4516,6 +4538,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
                 <li><strong>Save As Replaces Save to Cloud</strong> — Shift+Cmd+S now offers an explicit Local/Cloud destination tab.</li>
                 <li><strong>Self-Hosted Docker Image</strong> — Single <code>ghcr.io/&hellip;/opendraft-combined</code> image bundling backend + collab server for one-image deployment targets.</li>
               </ul>
+              {/* i18n-ignore-end */}
               </div>
             </div>
 
@@ -4526,15 +4549,15 @@ const MenuBar: React.FC<MenuBarProps> = ({
                 onClick={() => setCompatOpen((v) => !v)}
               >
                 <span className="about-disclosure-caret">&#9654;</span>
-                <span className="about-section-title" style={{ margin: 0 }}>Compatibility</span>
+                <span className="about-section-title" style={{ margin: 0 }}>{t('menu:about.compatibility.title')}</span>
               </button>
               {compatOpen && (
               <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse', marginTop: 8 }}>
                 <thead>
                   <tr style={{ textAlign: 'left', color: 'var(--fd-text-secondary)' }}>
-                    <th style={{ padding: '4px 8px', fontWeight: 500 }}>Subsystem</th>
-                    <th style={{ padding: '4px 8px', fontWeight: 500 }}>Status</th>
-                    <th style={{ padding: '4px 8px', fontWeight: 500 }}>Implementation</th>
+                    <th style={{ padding: '4px 8px', fontWeight: 500 }}>{t('menu:about.compatibility.subsystem')}</th>
+                    <th style={{ padding: '4px 8px', fontWeight: 500 }}>{t('menu:about.compatibility.status')}</th>
+                    <th style={{ padding: '4px 8px', fontWeight: 500 }}>{t('menu:about.compatibility.implementation')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -4553,7 +4576,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
                             verticalAlign: 'middle',
                           }} />
                           <span style={{ color: entry.mode === 'primary' ? '#4caf50' : '#ff9800', verticalAlign: 'middle' }}>
-                            {entry.mode === 'primary' ? 'Latest' : 'Fallback'}
+                            {entry.mode === 'primary' ? t('menu:about.compatibility.latest') : t('menu:about.compatibility.fallback')}
                           </span>
                         </td>
                         <td style={{ padding: '4px 8px', color: 'var(--fd-text-secondary)', fontSize: 11 }}>
@@ -4585,7 +4608,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
             </div>
           </div>
           <div className="dialog-actions">
-            <button className="dialog-primary" onClick={() => setAboutOpen(false)}>Close</button>
+            <button className="dialog-primary" onClick={() => setAboutOpen(false)}>{t('common:close')}</button>
           </div>
         </div>
       </div>
@@ -4594,11 +4617,10 @@ const MenuBar: React.FC<MenuBarProps> = ({
     {diagnosticsOpen && (
       <div className="dialog-overlay" onClick={() => setDiagnosticsOpen(false)}>
         <div className="dialog-box about-dialog" onClick={(e) => e.stopPropagation()}>
-          <div className="dialog-header">Diagnostics</div>
+          <div className="dialog-header">{t('menu:help.diagnostics')}</div>
           <div className="dialog-body about-body">
             <p style={{ margin: 0, fontSize: 13, color: 'var(--fd-text-secondary)' }}>
-              Runtime info to attach to bug reports. Click "Copy" to copy the
-              full report to your clipboard, then paste it into the GitHub issue.
+              {t('menu:diagnostics.intro')}
             </p>
             {diagnosticsReport ? (
               <>
@@ -4613,33 +4635,28 @@ const MenuBar: React.FC<MenuBarProps> = ({
                     fontSize: 13,
                     lineHeight: 1.5,
                   }}>
-                    <strong>OneDrive interference suspected.</strong> Your app
-                    data folder appears to be inside a OneDrive-synced
-                    location. OneDrive can corrupt SQLite WAL files mid-write,
-                    causing silent save failures. To fix this, exclude
-                    OpenDraft's data folder from OneDrive backup, or move your
-                    Windows AppData folder out of OneDrive sync.
+                    <Trans ns="menu" i18nKey="diagnostics.oneDrive" components={{ strong: <strong /> }} />
                   </div>
                 )}
                 <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse', marginTop: 12 }}>
                   <tbody>
-                    <DiagRow label="Version" value={diagnosticsReport.appVersion} />
-                    <DiagRow label="OS" value={diagnosticsReport.os} />
-                    <DiagRow label="Storage backend" value={diagnosticsReport.storageMode} />
+                    <DiagRow label={t('menu:diagnostics.version')} value={diagnosticsReport.appVersion} />
+                    <DiagRow label={t('menu:diagnostics.os')} value={diagnosticsReport.os} />
+                    <DiagRow label={t('menu:diagnostics.storageBackend')} value={diagnosticsReport.storageMode} />
                     {diagnosticsReport.storageError && (
-                      <DiagRow label="Storage error" value={diagnosticsReport.storageError} mono />
+                      <DiagRow label={t('menu:diagnostics.storageError')} value={diagnosticsReport.storageError} mono />
                     )}
                     {diagnosticsReport.appDataDir && (
-                      <DiagRow label="App data dir" value={diagnosticsReport.appDataDir} mono />
+                      <DiagRow label={t('menu:diagnostics.appDataDir')} value={diagnosticsReport.appDataDir} mono />
                     )}
                     {diagnosticsReport.sqliteDbPath && (
-                      <DiagRow label="SQLite DB path" value={diagnosticsReport.sqliteDbPath} mono />
+                      <DiagRow label={t('menu:diagnostics.sqliteDbPath')} value={diagnosticsReport.sqliteDbPath} mono />
                     )}
                   </tbody>
                 </table>
               </>
             ) : (
-              <div style={{ marginTop: 12, color: 'var(--fd-text-secondary)' }}>Loading…</div>
+              <div style={{ marginTop: 12, color: 'var(--fd-text-secondary)' }}>{t('common:loading')}</div>
             )}
           </div>
           <div className="dialog-actions">
@@ -4648,9 +4665,9 @@ const MenuBar: React.FC<MenuBarProps> = ({
               onClick={handleCopyDiagnostics}
               disabled={!diagnosticsReport}
             >
-              {diagnosticsCopied ? 'Copied ✓' : 'Copy Report'}
+              {diagnosticsCopied ? t('menu:diagnostics.copied') : t('menu:diagnostics.copyReport')}
             </button>
-            <button className="dialog-primary" onClick={() => setDiagnosticsOpen(false)}>Close</button>
+            <button className="dialog-primary" onClick={() => setDiagnosticsOpen(false)}>{t('common:close')}</button>
           </div>
         </div>
       </div>
@@ -4702,14 +4719,14 @@ const MenuBar: React.FC<MenuBarProps> = ({
     {clearRevisionsOpen && (
       <div className="dialog-overlay" onClick={() => setClearRevisionsOpen(false)}>
         <div className="dialog-box" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
-          <div className="dialog-header">Clear Revision Marks</div>
+          <div className="dialog-header">{t('menu:clearRevisions.title')}</div>
           <div className="dialog-body">
             <p style={{ margin: 0, fontSize: 14, color: 'var(--fd-text)' }}>
-              Remove every revision asterisk from this script? The text itself is not changed, and Edit &rarr; Undo brings the marks back.
+              {t('menu:clearRevisions.body')}
             </p>
           </div>
           <div className="dialog-actions">
-            <button onClick={() => setClearRevisionsOpen(false)}>Cancel</button>
+            <button onClick={() => setClearRevisionsOpen(false)}>{t('common:cancel')}</button>
             <button
               className="dialog-primary"
               onClick={() => {
@@ -4720,14 +4737,14 @@ const MenuBar: React.FC<MenuBarProps> = ({
                   // falls to <body>. Put it back in the script so the Undo
                   // the dialog promises is one keystroke away.
                   requestAnimationFrame(() => { if (editor && !editor.isDestroyed) editor.commands.focus(); });
-                  showToast('Revision marks cleared', 'success');
+                  showToast(t('menu:toasts.revisionMarksCleared'), 'success');
                 } catch (err) {
                   console.error('[revisions] clear failed', err);
-                  showToast(`Could not clear revision marks: ${err instanceof Error ? err.message : String(err)}`, 'error');
+                  showToast(t('menu:toasts.clearRevisionMarksFailed', { message: err instanceof Error ? err.message : String(err) }), 'error');
                 }
               }}
             >
-              Clear Marks
+              {t('menu:clearRevisions.confirm')}
             </button>
           </div>
         </div>
@@ -4736,16 +4753,16 @@ const MenuBar: React.FC<MenuBarProps> = ({
     {discardConfirmOpen && (
       <div className="dialog-overlay" onClick={handleDiscardConfirmCancel}>
         <div className="dialog-box" onClick={(e) => e.stopPropagation()}>
-          <div className="dialog-header">Unsaved Changes</div>
+          <div className="dialog-header">{t('menu:unsaved.title')}</div>
           <div className="dialog-body">
             <p style={{ margin: 0, fontSize: 14, color: 'var(--fd-text)' }}>
-              You have unsaved changes. Would you like to save before proceeding?
+              {t('menu:unsaved.body')}
             </p>
           </div>
           <div className="dialog-actions">
-            <button onClick={handleDiscardConfirmCancel}>Cancel</button>
-            <button onClick={handleDiscardConfirmDiscard}>Discard</button>
-            <button className="dialog-primary" onClick={handleDiscardConfirmSave}>Save &amp; Continue</button>
+            <button onClick={handleDiscardConfirmCancel}>{t('common:cancel')}</button>
+            <button onClick={handleDiscardConfirmDiscard}>{t('menu:unsaved.discard')}</button>
+            <button className="dialog-primary" onClick={handleDiscardConfirmSave}>{t('menu:unsaved.saveAndContinue')}</button>
           </div>
         </div>
       </div>
@@ -4761,7 +4778,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
             await focusWindow(target);
           } catch (err) {
             showToast(
-              `Could not switch windows: ${err instanceof Error ? err.message : String(err)}`,
+              t('menu:toasts.switchWindowFailed', { message: err instanceof Error ? err.message : String(err) }),
               'error',
             );
           }
@@ -4776,32 +4793,26 @@ const MenuBar: React.FC<MenuBarProps> = ({
     {foreignFormatNotice && (
       <div className="dialog-overlay" onClick={() => setForeignFormatNotice(null)}>
         <div className="dialog-box" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
-          <div className="dialog-header">Editing a .{foreignFormatNotice.extension} file</div>
+          <div className="dialog-header">{t('menu:foreignFormat.title', { extension: foreignFormatNotice.extension })}</div>
           <div className="dialog-body">
             <p style={{ margin: '0 0 8px 0', fontSize: 14, color: 'var(--fd-text)' }}>
-              Save will ask before overwriting <strong>{foreignFormatNotice.name}</strong>. Save As creates a working copy and keeps the source untouched.
+              <Trans ns="menu" i18nKey="foreignFormat.saveAsks" values={{ name: foreignFormatNotice.name }} components={{ strong: <strong /> }} />
             </p>
             <p style={{ margin: '0 0 8px 0', fontSize: 14, color: 'var(--fd-text)' }}>
-              That file is in another application&apos;s format, and it can only hold
-              what that format defines. Saving to it rewrites the file from
-              OpenDraft&apos;s copy of the screenplay, so layout details it does not
-              describe may come back slightly differently — and anything OpenDraft
-              keeps alongside the script has nowhere to go:
+              {t('menu:foreignFormat.explanation')}
             </p>
             <ul style={{ margin: '0 0 8px 18px', fontSize: 13, color: 'var(--fd-text)' }}>
-              <li>notes, tags and beats</li>
-              <li>character profiles and relationships</li>
-              <li>revision marks and version history</li>
+              <li>{t('menu:foreignFormat.lostNotes')}</li>
+              <li>{t('menu:foreignFormat.lostCharacters')}</li>
+              <li>{t('menu:foreignFormat.lostRevisions')}</li>
             </ul>
             <p style={{ margin: 0, fontSize: 13, color: 'var(--fd-text-muted, #888)' }}>
-              To keep all of it, use <strong>Save As</strong> to store the screenplay in
-              OpenDraft&apos;s own library instead. The original file stays where it is,
-              untouched.
+              <Trans ns="menu" i18nKey="foreignFormat.keepAll" components={{ strong: <strong /> }} />
             </p>
           </div>
           <div className="dialog-actions">
             <button onClick={() => setForeignFormatNotice(null)}>
-              Keep editing the file
+              {t('menu:foreignFormat.keepEditing')}
             </button>
             <button
               className="dialog-primary"
@@ -4810,7 +4821,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
                 handleSaveAs();
               }}
             >
-              Save As…
+              {t('menu:foreignFormat.saveAs')}
             </button>
           </div>
         </div>
@@ -4820,29 +4831,25 @@ const MenuBar: React.FC<MenuBarProps> = ({
       const isCue = avColumnWarning.which === 'cue';
       const rows = avColumnWarning.rows;
       const what = isCue
-        ? `${rows} ${rows === 1 ? 'shot has' : 'shots have'} a time on`
-        : `${rows} ${rows === 1 ? 'row has' : 'rows have'} a storyboard frame in`;
+        ? t('menu:avColumnWarning.cueCount', { count: rows })
+        : t('menu:avColumnWarning.storyboardCount', { count: rows });
       return (
         <div className="dialog-overlay" onClick={() => setAvColumnWarning(null)}>
           <div className="dialog-box" onClick={(e) => e.stopPropagation()}>
             <div className="dialog-header">
-              Hide the {isCue ? 'Cue / Timing' : 'Storyboard'} Column?
+              {isCue ? t('menu:avColumnWarning.titleCue') : t('menu:avColumnWarning.titleStoryboard')}
             </div>
             <div className="dialog-body">
               <p style={{ margin: '0 0 8px 0', fontSize: 14, color: 'var(--fd-text)' }}>
-                {what} it. Hiding the column takes {isCue ? 'those times' : 'them'} out
-                of the script on screen, off the printed page, and out of
-                exported spreadsheets and PDFs.
+                {what} {isCue ? t('menu:avColumnWarning.hidingCue') : t('menu:avColumnWarning.hidingStoryboard')}
               </p>
               <p style={{ margin: 0, fontSize: 13, color: 'var(--fd-text-muted, #888)' }}>
-                Nothing is deleted — {isCue ? 'the times' : 'the frames'} stay with their
-                rows, and turning the column back on brings them back exactly as
-                they are now.
+                {isCue ? t('menu:avColumnWarning.keptCue') : t('menu:avColumnWarning.keptStoryboard')}
               </p>
             </div>
             <div className="dialog-actions">
-              <button onClick={() => setAvColumnWarning(null)}>Cancel</button>
-              <button className="dialog-primary" onClick={confirmAvColumnToggle}>Hide Column</button>
+              <button onClick={() => setAvColumnWarning(null)}>{t('common:cancel')}</button>
+              <button className="dialog-primary" onClick={confirmAvColumnToggle}>{t('menu:avColumnWarning.confirm')}</button>
             </div>
           </div>
         </div>
@@ -4851,31 +4858,26 @@ const MenuBar: React.FC<MenuBarProps> = ({
     {docxImportWarningOpen && (
       <div className="dialog-overlay" onClick={() => setDocxImportWarningOpen(false)}>
         <div className="dialog-box" onClick={(e) => e.stopPropagation()}>
-          <div className="dialog-header">Import from Word — Best-Effort Formatting</div>
+          <div className="dialog-header">{t('menu:docxWarning.title')}</div>
           <div className="dialog-body">
             <p style={{ margin: '0 0 8px 0', fontSize: 14, color: 'var(--fd-text)' }}>
-              OpenDraft will detect screenplay element types (scene heading, action,
-              character, dialogue, parenthetical, transition, etc.) from the
-              Word document&apos;s formatting.
+              {t('menu:docxWarning.detect')}
             </p>
             <p style={{ margin: '0 0 8px 0', fontSize: 14, color: 'var(--fd-text)' }}>
-              Detection is <strong>best-effort</strong> and depends on consistent
-              formatting being applied throughout the document. Results will be
-              accurate if you used:
+              <Trans ns="menu" i18nKey="docxWarning.bestEffort" components={{ strong: <strong /> }} />
             </p>
             <ul style={{ margin: '0 0 8px 18px', fontSize: 13, color: 'var(--fd-text)' }}>
-              <li>Final Draft, Fade In, Trelby, or Highland style names, OR</li>
-              <li>Standard Final Draft indents (Action 1.5&quot;, Character 3.5&quot;, Dialogue 2.5&quot;, Parenthetical 3.0&quot;), OR</li>
-              <li>Conventional text patterns (INT./EXT., ALL-CAPS character cues, &quot;CUT TO:&quot; transitions).</li>
+              <li>{t('menu:docxWarning.styleNames')}</li>
+              <li>{t('menu:docxWarning.indents')}</li>
+              <li>{t('menu:docxWarning.patterns')}</li>
             </ul>
             <p style={{ margin: 0, fontSize: 13, color: 'var(--fd-text-muted, #888)' }}>
-              Anything that can&apos;t be classified will be imported as Action and
-              listed in a post-import notice for you to review.
+              {t('menu:docxWarning.unclassified')}
             </p>
           </div>
           <div className="dialog-actions">
-            <button onClick={() => setDocxImportWarningOpen(false)}>Cancel</button>
-            <button className="dialog-primary" onClick={handleConfirmDocxImport}>Continue</button>
+            <button onClick={() => setDocxImportWarningOpen(false)}>{t('common:cancel')}</button>
+            <button className="dialog-primary" onClick={handleConfirmDocxImport}>{t('common:continue')}</button>
           </div>
         </div>
       </div>

@@ -14,6 +14,7 @@
  * on screen nor the recovered one can change under the decision.
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import {
   readRecoverableSnapshot,
   clearRecoverySnapshot,
@@ -51,6 +52,7 @@ const RecoveryPromptDialog: React.FC<Props> = ({
   onOpenChange,
   onChecked,
 }) => {
+  const { t } = useTranslation(['backup', 'common']);
   const [snapshot, setSnapshot] = useState<RecoverySnapshot | null>(null);
   const [checked, setChecked] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
@@ -160,34 +162,34 @@ const RecoveryPromptDialog: React.FC<Props> = ({
         ref={boxRef}
       >
         <div className="dialog-header" id="recovery-dialog-title">
-          Recover unsaved changes?
+          {t('recoveryPrompt.title')}
         </div>
         <div className="dialog-body">
           <p style={{ margin: '0 0 12px' }}>
-            OpenDraft found unsaved changes to{' '}
-            <strong>{snapshot.title || 'Untitled Screenplay'}</strong> from your
-            last session, edited {relativeTime(snapshot.savedAt)}.
+            <Trans
+              ns="backup"
+              i18nKey="recoveryPrompt.found"
+              values={{ title: snapshot.title || t('recoveryPrompt.untitled'), when: relativeTime(snapshot.savedAt) }}
+              components={{ strong: <strong /> }}
+            />
           </p>
           {isSameDocument ? (
             <p style={{ margin: 0, fontSize: 13, color: 'var(--fd-text-muted)' }}>
-              Restoring replaces what is currently in the editor. Your last saved
-              version stays untouched until you save again.
+              {t('recoveryPrompt.sameDocument')}
             </p>
           ) : (
             <p style={{ margin: 0, fontSize: 13, color: 'var(--fd-text-muted)' }}>
-              These changes belong to a different screenplay than the one open
-              now. Restoring opens them as an unsaved document, so nothing you
-              have saved is overwritten — use Save As to keep them.
+              {t('recoveryPrompt.otherDocument')}
             </p>
           )}
         </div>
         <div className="dialog-footer" style={{ display: 'flex', gap: 8 }}>
           <button className="dialog-btn" onClick={discard}>
-            Discard
+            {t('recoveryPrompt.discard')}
           </button>
           <div style={{ flex: 1 }} />
           <button className="dialog-btn dialog-btn-primary" onClick={restore} autoFocus>
-            Restore
+            {t('recoveryPrompt.restore')}
           </button>
         </div>
       </div>

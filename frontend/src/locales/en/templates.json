@@ -1,0 +1,205 @@
+{
+  "system": {
+    "industryStandard": {
+      "name": "Film Screenplay",
+      "description": "Industry-standard feature-film screenplay formatting (Final Draft compatible)."
+    },
+    "oneHourDrama": {
+      "name": "1-Hour TV Drama",
+      "description": "Single-camera teleplay for hour-long dramas. Same look as a feature screenplay with TV act structure (Teaser, Acts I–V).",
+      "tagline": "1-hour single-camera drama (Breaking Bad, Stranger Things)"
+    },
+    "multicamSitcom": {
+      "name": "Multi-Cam Sitcom",
+      "description": "Multi-camera teleplay (live-audience sitcoms): double-spaced dialogue, all-caps underlined stage directions, scene character list, scene-per-page.",
+      "tagline": "Live-audience sitcom (Big Bang Theory, Mom)"
+    },
+    "stagePlay": {
+      "name": "Stage Play",
+      "description": "Theater script: centered character names, italic parenthetical stage directions, ACT/SCENE structure.",
+      "tagline": "Theater script (acts, scenes, centered characters)"
+    },
+    "radioPlay": {
+      "name": "Radio Play",
+      "description": "Audio drama: numbered scenes, SOUND/MUSIC cues, narrator. No camera or visual elements.",
+      "tagline": "Radio drama / audio play (BBC, podcast fiction)"
+    },
+    "podcast": {
+      "name": "Podcast",
+      "description": "Scripted podcast and audio fiction: every line of dialogue numbered for the recording session, FX and music cues numbered on their own.",
+      "tagline": "Scripted podcast / audio fiction, lines numbered for recording"
+    },
+    "comic": {
+      "name": "Comic Book",
+      "description": "Comic book and graphic novel full script: pages and panels numbered automatically, captions and balloons lettered 1, 2, 3 down each page.",
+      "tagline": "Comic book / graphic novel full script, pages and panels numbered"
+    },
+    "avScript": {
+      "name": "AV Script (Two Column)",
+      "description": "Two-column Audio | Video script — commercials, corporate video, documentary. Each row pairs a video shot with its audio.",
+      "tagline": "Two-column commercial / corporate / documentary script"
+    }
+  },
+  "group": {
+    "tv": "TV",
+    "stage": "Stage",
+    "audio": "Audio",
+    "comics": "Comics",
+    "av": "AV"
+  },
+  "picker": {
+    "title": "Choose script format",
+    "empty": "No formats enabled. Open Format → Script Format Preferences to choose at least one."
+  },
+  "format": {
+    "defaultBadge": "default",
+    "makeDefault": "Make default",
+    "isDefault": "Default ✓",
+    "defaultTooltipClear": "The New Screenplay picker opens on this format. Click to clear.",
+    "defaultTooltipSet": "Open the New Screenplay picker on this format"
+  },
+  "conflict": {
+    "title": "Template Conflicts",
+    "intro": "Applying <strong>{{name}}</strong> requires resolving the following conflicts in your document.",
+    "disabled": {
+      "title": "Disabled Element Types",
+      "desc": "These element types are disabled in the template but exist in your document. Choose a replacement for each."
+    },
+    "elementCount_one": "{{label}} element",
+    "elementCount_other": "{{label}} elements",
+    "replaceWith": "Replace with:",
+    "formatting": {
+      "title": "Formatting Conflicts",
+      "desc": "These elements have inline formatting that conflicts with the template's locked rules. Check to strip conflicting marks.",
+      "detail_one": "{{count}} element with {{marks}}",
+      "detail_other": "{{count}} elements with {{marks}}"
+    },
+    "applyWithout": "Apply Without Resolving",
+    "resolveApply": "Resolve & Apply"
+  },
+  "prefs": {
+    "title": "Script Format Preferences",
+    "titleFirstRun": "Welcome — choose your script formats",
+    "hintFirstRun": "Pick the formats you commonly write in. When you create a new script, OpenDraft will offer just these options. You can change this later from the Format menu.",
+    "hint": "Choose which formats appear in the New Screenplay picker. Make one the default and the picker opens on it, ready to accept — the others are still one click away. Select just one format and new scripts use it without prompting at all.",
+    "yourTemplates": "Your templates",
+    "noneYet": "None yet. Format ▸ Formatting Template… is where you create one; it will show up here.",
+    "saveContinue": "Save & Continue"
+  },
+  "editor": {
+    "title": "Edit Template",
+    "namePlaceholder": "Template name",
+    "description": "Description",
+    "descriptionPlaceholder": "Optional description",
+    "mode": "Mode",
+    "modeEnforce": "Enforce",
+    "modeOverride": "Override",
+    "modeEnforceHint": "Formatting is locked — users cannot change element-level styling.",
+    "modeOverrideHint": "Formatting sets defaults — users can override per-instance.",
+    "elements": "Elements",
+    "addElementTitle": "Add a custom element (e.g. Sound Effect, Lyric, Insert)",
+    "addElement": "New",
+    "customBadge": "custom",
+    "removeElement": "Remove element",
+    "av": {
+      "inserts": "Inserts a two-column Audio/Video body — Video on the left, Audio on the right, one row per shot.",
+      "noFormatting": "It has no formatting of its own. Style the elements that go in its columns instead, and use <em>In AV columns</em> on each of them to say which column offers it.",
+      "untick": "Untick it in the list to keep it out of the element menu; the Format menu’s own AV commands are unaffected.",
+      "inColumns": "In AV columns",
+      "baseTitle": "The four AV paragraph types are offered in both columns in every document — only their formatting is a template choice.",
+      "columnTitle": "Which column of a two-column AV body offers this element.",
+      "notOffered": "Not offered",
+      "video": "Video column",
+      "audio": "Audio column",
+      "both": "Both columns"
+    },
+    "label": "Label",
+    "labelPlaceholder": "Element name",
+    "fontFamily": "Font Family",
+    "fontSize": "Font Size",
+    "textStyle": "Text Style",
+    "bold": "Bold",
+    "italic": "Italic",
+    "underline": "Underline",
+    "strikethrough": "Strikethrough",
+    "textTransform": "Text Transform",
+    "uppercase": "Uppercase",
+    "lowercase": "Lowercase",
+    "alignment": "Alignment",
+    "textColor": "Text Color",
+    "inherit": "inherit",
+    "backgroundColor": "Background Color",
+    "transparent": "transparent",
+    "spaceBefore": "Space Before (lines)",
+    "leftIndent": "Left Indent (in)",
+    "rightIndent": "Right Indent (in)",
+    "nextOnEnter": "Next on Enter",
+    "nextOnTab": "Next on Tab",
+    "placeholderText": "Placeholder Text",
+    "placeholderHint": "Shown when element is empty",
+    "newPage": "Starts on a new page",
+    "newPageOn": "Every “{{label}}” begins at the top of a fresh page, on screen and in PDF/Word exports.",
+    "newPageOff": "This element flows with the rest of the page.",
+    "numbering": {
+      "enable": "Number this element",
+      "prefix": "Prefix",
+      "startAt": "Start at",
+      "style": "Style",
+      "stylePlain": "Plain (3)",
+      "styleScene": "With scene number (12.3)",
+      "styleWords": "In words (THREE)",
+      "show": "Show the number",
+      "inMargin": "In the margin",
+      "inline": "At the start of the line",
+      "countWith": "Count with",
+      "ownCount": "Its own count",
+      "restartAt": "Restart numbering at",
+      "hintOff": "Numbers every “{{label}}” in the margin, on screen and in PDF, Word and Final Draft exports.",
+      "orJoiner": " or ",
+      "summaryWhole": "{{sample}} … counting through the whole script.",
+      "summaryWholeShared": "{{sample}} … counting through the whole script, in one count with every “{{owner}}”.",
+      "summaryReset": "{{sample}} … starting again at every {{resets}}.",
+      "summaryResetShared": "{{sample}} … starting again at every {{resets}}, in one count with every “{{owner}}”.",
+      "summaryScene": "Plain numbers where there is no scene number to show.",
+      "summaryInline": "Shown as the start of the line, even before anything is typed on it."
+    },
+    "allowOverride": "Allow format override",
+    "overrideOn": "Users can override formatting for this element type.",
+    "overrideOff": "All formatting is locked — users cannot change any styling for this element.",
+    "preview": "Preview",
+    "sampleText": "Sample text...",
+    "selectElement": "Select an element from the list to edit its formatting."
+  },
+  "select": {
+    "title": "Script Format / Template",
+    "hint": "Choose a script format (screenplay, sitcom, drama, stage play, radio) or a custom formatting template. The template controls element-level formatting rules; for an empty document, choosing a script type also seeds starter content.",
+    "unreadable": "The saved format cannot be read by this version. Its original data is kept when you save. Update OpenDraft to use it; choosing another format replaces the saved definition.",
+    "thisDocument": "This Document",
+    "currentBadge": "current",
+    "modeEnforce": "enforce",
+    "modeOverride": "override",
+    "duplicate": "Duplicate",
+    "duplicated": "Template duplicated",
+    "confirmDelete": "Delete template \"{{name}}\"?",
+    "deleted": "Template deleted",
+    "libraryNewer": "The library version is newer. The local library version is currently in use. Edit Current Format starts from that version; applying this saved copy creates a separate document format.",
+    "savedNewer": "The saved copy is newer. The local library version is currently in use. Edit Current Format starts from that version; applying this saved copy creates a separate document format.",
+    "libraryInUse": "The local library version is currently in use. Edit Current Format starts from that version; applying this saved copy creates a separate document format.",
+    "savedWithScript": "Saved with this script. Editing this format creates a separate document format and leaves your other templates unchanged.",
+    "editCurrent": "Edit Current Format",
+    "editDocument": "Edit Document Format",
+    "copied": "Format copied to your templates",
+    "copyFailed": "Could not save format to your templates.",
+    "saveToMine": "Save to My Templates",
+    "scriptFormats": "Script Formats",
+    "userDefined": "User Defined",
+    "noCustom": "No custom templates yet.",
+    "create": "+ Create Template",
+    "invalidSettings": "Invalid template settings. The template was not saved.",
+    "invalidDocumentSaved": "Invalid document format. The template was not saved.",
+    "invalidDocumentApplied": "Invalid document format. The format was not applied.",
+    "saved": "Template saved",
+    "noLongerDefault": "No longer the default format for new scripts",
+    "nowDefault": "New scripts will start on \"{{name}}\""
+  }
+}

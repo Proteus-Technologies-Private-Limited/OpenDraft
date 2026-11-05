@@ -7,6 +7,8 @@
  */
 
 import React, { useState, useCallback } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
+import { t as translate } from '../i18n';
 import {
   FaBold, FaItalic, FaUnderline, FaStrikethrough,
   FaAlignLeft, FaAlignCenter, FaAlignRight, FaAlignJustify,
@@ -57,13 +59,22 @@ function numberingSummary(n: ElementNumbering, rules: Record<string, FormattingE
     .map((k) => `${n.prefix ?? ''}${n.style === 'scene' ? `12.${k}` : n.style === 'words' ? numberInWords(k) : k}`)
     .join(', ');
   const resets = counting.resetOn.filter((id) => rules[id]).map((id) => rules[id].label);
-  const when = resets.length === 0
-    ? 'counting through the whole script'
-    : `starting again at every ${resets.join(' or ')}`;
-  const shared = owner ? `, in one count with every “${owner.label}”.` : '.';
-  const scene = n.style === 'scene' ? ' Plain numbers where there is no scene number to show.' : '';
-  const where = isInlineNumbering(n) ? ' Shown as the start of the line, even before anything is typed on it.' : '';
-  return `${sample} … ${when}${shared}${scene}${where}`;
+  const sampleText = sample;
+  const ownerLabel = owner?.label ?? '';
+  let core: string;
+  if (resets.length === 0) {
+    core = owner
+      ? translate('templates:editor.numbering.summaryWholeShared', { sample: sampleText, owner: ownerLabel })
+      : translate('templates:editor.numbering.summaryWhole', { sample: sampleText });
+  } else {
+    const list = resets.join(translate('templates:editor.numbering.orJoiner'));
+    core = owner
+      ? translate('templates:editor.numbering.summaryResetShared', { sample: sampleText, resets: list, owner: ownerLabel })
+      : translate('templates:editor.numbering.summaryReset', { sample: sampleText, resets: list });
+  }
+  const scene = n.style === 'scene' ? ` ${translate('templates:editor.numbering.summaryScene')}` : '';
+  const where = isInlineNumbering(n) ? ` ${translate('templates:editor.numbering.summaryInline')}` : '';
+  return `${core}${scene}${where}`;
 }
 
 const FONT_SIZES = [8, 9, 10, 11, 12, 13, 14, 16, 18, 20, 24, 28, 32, 36, 48, 60, 72, 96];
@@ -83,6 +94,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
   onSave,
   onCancel,
 }) => {
+  const { t } = useTranslation(['templates', 'common']);
   const [name, setName] = useState(initial.name);
   const [description, setDescription] = useState(initial.description);
   const [mode, setMode] = useState<'enforce' | 'override'>(initial.mode);
@@ -119,7 +131,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
 
   const addCustomElement = useCallback(() => {
     const id = uuid();
-    const newRule = createDefaultRule(id, 'Custom Element', false);
+    const newRule = createDefaultRule(id, 'Custom Element' /* i18n-ignore: stored as the element's label */, false);
     setRules((prev) => ({ ...prev, [id]: newRule }));
     setSelectedId(id);
     setNewElementId(id);
@@ -173,53 +185,53 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
       <div className="template-editor-dialog" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="template-editor-header">
-          <h2>Edit Template</h2>
+          <h2>{t('editor.title')}</h2>
           <div className="template-editor-header-actions">
-            <button className="dialog-btn" onClick={onCancel}>Cancel</button>
-            <button className="dialog-btn dialog-btn-primary" onClick={handleSave}>Save</button>
+            <button className="dialog-btn" onClick={onCancel}>{t('common:cancel')}</button>
+            <button className="dialog-btn dialog-btn-primary" onClick={handleSave}>{t('common:save')}</button>
           </div>
         </div>
 
         {/* Template meta */}
         <div className="template-editor-meta">
           <div className="template-editor-field">
-            <label>Name</label>
+            <label>{t('common:name')}</label>
             <input
               className="dialog-input"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Template name"
+              placeholder={t('editor.namePlaceholder')}
             />
           </div>
           <div className="template-editor-field">
-            <label>Description</label>
+            <label>{t('editor.description')}</label>
             <input
               className="dialog-input"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Optional description"
+              placeholder={t('editor.descriptionPlaceholder')}
             />
           </div>
           <div className="template-editor-field">
-            <label>Mode</label>
+            <label>{t('editor.mode')}</label>
             <div className="template-editor-mode-toggle">
               <button
                 className={`template-mode-btn${mode === 'enforce' ? ' active' : ''}`}
                 onClick={() => setMode('enforce')}
               >
-                Enforce
+                {t('editor.modeEnforce')}
               </button>
               <button
                 className={`template-mode-btn${mode === 'override' ? ' active' : ''}`}
                 onClick={() => setMode('override')}
               >
-                Override
+                {t('editor.modeOverride')}
               </button>
             </div>
             <span className="template-editor-hint">
               {mode === 'enforce'
-                ? 'Formatting is locked — users cannot change element-level styling.'
-                : 'Formatting sets defaults — users can override per-instance.'}
+                ? t('editor.modeEnforceHint')
+                : t('editor.modeOverrideHint')}
             </span>
           </div>
         </div>
@@ -229,13 +241,13 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
           {/* Left: element list */}
           <div className="template-editor-elements">
             <div className="template-editor-elements-header">
-              <span>Elements</span>
+              <span>{t('editor.elements')}</span>
               <button
                 className="template-add-btn"
                 onClick={addCustomElement}
-                title="Add a custom element (e.g. Sound Effect, Lyric, Insert)"
+                title={t('editor.addElementTitle')}
               >
-                <FaPlus /> New
+                <FaPlus /> {t('editor.addElement')}
               </button>
             </div>
             <div className="template-editor-elements-list">
@@ -253,13 +265,13 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                   />
                   <span className="template-element-label">
                     {rule.label}
-                    {!rule.isBuiltIn && <span className="template-custom-badge">custom</span>}
+                    {!rule.isBuiltIn && <span className="template-custom-badge">{t('editor.customBadge')}</span>}
                   </span>
                   {!rule.isBuiltIn && (
                     <button
                       className="template-delete-btn"
                       onClick={(e) => { e.stopPropagation(); removeElement(rule.id); }}
-                      title="Remove element"
+                      title={t('editor.removeElement')}
                     >
                       <FaTrash />
                     </button>
@@ -278,25 +290,17 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                  beside it — whether the element menu offers it at all. */
               <div className="template-editor-empty">
                 <p><strong>{selectedRule.label}</strong></p>
+                <p>{t('editor.av.inserts')}</p>
                 <p>
-                  Inserts a two-column Audio/Video body &mdash; Video on the left,
-                  Audio on the right, one row per shot.
+                  <Trans ns="templates" i18nKey="editor.av.noFormatting" components={{ em: <em /> }} />
                 </p>
-                <p>
-                  It has no formatting of its own. Style the elements that go in
-                  its columns instead, and use <em>In AV columns</em> on each of
-                  them to say which column offers it.
-                </p>
-                <p>
-                  Untick it in the list to keep it out of the element menu; the
-                  Format menu&rsquo;s own AV commands are unaffected.
-                </p>
+                <p>{t('editor.av.untick')}</p>
               </div>
             ) : selectedRule ? (
               <>
                 {/* Label */}
                 <div className="template-editor-field">
-                  <label>Label</label>
+                  <label>{t('editor.label')}</label>
                   <input
                     className="dialog-input"
                     value={selectedRule.label}
@@ -305,31 +309,31 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                     onFocus={(e) => { if (newElementId && selectedId === newElementId) e.target.select(); }}
                     onChange={(e) => updateRule(selectedId!, { label: e.target.value })}
                     disabled={selectedRule.isBuiltIn}
-                    placeholder="Element name"
+                    placeholder={t('editor.labelPlaceholder')}
                   />
                 </div>
 
                 {/* Font family & size */}
                 <div className="template-editor-field-row">
                   <div className="template-editor-field">
-                    <label>Font Family</label>
+                    <label>{t('editor.fontFamily')}</label>
                     <FontPicker
                       className="dialog-input"
-                      emptyLabel="Default"
+                      emptyLabel={t('common:default')}
                       value={selectedRule.fontFamily || ''}
                       onChange={(name) => updateRule(selectedId!, { fontFamily: name || null })}
                     />
                   </div>
                   <div className="template-editor-field">
-                    <label>Font Size</label>
+                    <label>{t('editor.fontSize')}</label>
                     <Select
                       className="dialog-input"
                       value={selectedRule.fontSize ?? ''}
                       onChange={(e) => updateRule(selectedId!, { fontSize: e.target.value ? Number(e.target.value) : null })}
                     >
-                      <option value="">Default</option>
+                      <option value="">{t('common:default')}</option>
                       {FONT_SIZES.map((s) => (
-                        <option key={s} value={s}>{s}pt</option>
+                        <option key={s} value={s}>{s}pt{/* i18n-ignore: unit */}</option>
                       ))}
                     </Select>
                   </div>
@@ -337,48 +341,48 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
 
                 {/* Text style toggles */}
                 <div className="template-editor-field">
-                  <label>Text Style</label>
+                  <label>{t('editor.textStyle')}</label>
                   <div className="template-style-toggles">
                     <button
                       className={`template-style-btn${selectedRule.bold ? ' active' : ''}`}
                       onClick={() => updateRule(selectedId!, { bold: !selectedRule.bold })}
-                      title="Bold"
+                      title={t('editor.bold')}
                     ><FaBold /></button>
                     <button
                       className={`template-style-btn${selectedRule.italic ? ' active' : ''}`}
                       onClick={() => updateRule(selectedId!, { italic: !selectedRule.italic })}
-                      title="Italic"
+                      title={t('editor.italic')}
                     ><FaItalic /></button>
                     <button
                       className={`template-style-btn${selectedRule.underline ? ' active' : ''}`}
                       onClick={() => updateRule(selectedId!, { underline: !selectedRule.underline })}
-                      title="Underline"
+                      title={t('editor.underline')}
                     ><FaUnderline /></button>
                     <button
                       className={`template-style-btn${selectedRule.strikethrough ? ' active' : ''}`}
                       onClick={() => updateRule(selectedId!, { strikethrough: !selectedRule.strikethrough })}
-                      title="Strikethrough"
+                      title={t('editor.strikethrough')}
                     ><FaStrikethrough /></button>
                   </div>
                 </div>
 
                 {/* Text transform */}
                 <div className="template-editor-field">
-                  <label>Text Transform</label>
+                  <label>{t('editor.textTransform')}</label>
                   <Select
                     className="dialog-input"
                     value={selectedRule.textTransform}
                     onChange={(e) => updateRule(selectedId!, { textTransform: e.target.value as any })}
                   >
-                    <option value="none">None</option>
-                    <option value="uppercase">Uppercase</option>
-                    <option value="lowercase">Lowercase</option>
+                    <option value="none">{t('common:none')}</option>
+                    <option value="uppercase">{t('editor.uppercase')}</option>
+                    <option value="lowercase">{t('editor.lowercase')}</option>
                   </Select>
                 </div>
 
                 {/* Alignment */}
                 <div className="template-editor-field">
-                  <label>Alignment</label>
+                  <label>{t('editor.alignment')}</label>
                   <div className="template-style-toggles">
                     <button
                       className={`template-style-btn${selectedRule.textAlign === 'left' ? ' active' : ''}`}
@@ -402,7 +406,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                 {/* Colors */}
                 <div className="template-editor-field-row">
                   <div className="template-editor-field">
-                    <label>Text Color</label>
+                    <label>{t('editor.textColor')}</label>
                     <div className="template-color-input">
                       <input
                         type="color"
@@ -414,7 +418,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                         className="dialog-input"
                         value={selectedRule.textColor || ''}
                         onChange={(e) => updateRule(selectedId!, { textColor: e.target.value || null })}
-                        placeholder="inherit"
+                        placeholder={t('editor.inherit')}
                       />
                       {selectedRule.textColor && (
                         <button
@@ -425,7 +429,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                     </div>
                   </div>
                   <div className="template-editor-field">
-                    <label>Background Color</label>
+                    <label>{t('editor.backgroundColor')}</label>
                     <div className="template-color-input">
                       <input
                         type="color"
@@ -437,7 +441,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                         className="dialog-input"
                         value={selectedRule.backgroundColor || ''}
                         onChange={(e) => updateRule(selectedId!, { backgroundColor: e.target.value || null })}
-                        placeholder="transparent"
+                        placeholder={t('editor.transparent')}
                       />
                       {selectedRule.backgroundColor && (
                         <button
@@ -457,7 +461,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                       in a unit no screenplay format is specified in. Stored in
                       points still — only the input is in lines. */}
                   <div className="template-editor-field">
-                    <label>Space Before (lines)</label>
+                    <label>{t('editor.spaceBefore')}</label>
                     <input
                       type="number"
                       className="dialog-input template-num-input"
@@ -470,7 +474,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                     />
                   </div>
                   <div className="template-editor-field">
-                    <label>Left Indent (in)</label>
+                    <label>{t('editor.leftIndent')}</label>
                     <input
                       type="number"
                       className="dialog-input template-num-input"
@@ -481,7 +485,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                     />
                   </div>
                   <div className="template-editor-field">
-                    <label>Right Indent (in)</label>
+                    <label>{t('editor.rightIndent')}</label>
                     <input
                       type="number"
                       className="dialog-input template-num-input"
@@ -496,7 +500,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                 {/* Element flow */}
                 <div className="template-editor-field-row">
                   <div className="template-editor-field">
-                    <label>Next on Enter</label>
+                    <label>{t('editor.nextOnEnter')}</label>
                     <Select
                       className="dialog-input"
                       value={selectedRule.nextOnEnter}
@@ -508,13 +512,13 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                     </Select>
                   </div>
                   <div className="template-editor-field">
-                    <label>Next on Tab</label>
+                    <label>{t('editor.nextOnTab')}</label>
                     <Select
                       className="dialog-input"
                       value={selectedRule.nextOnTab || ''}
                       onChange={(e) => updateRule(selectedId!, { nextOnTab: e.target.value || null })}
                     >
-                      <option value="">None</option>
+                      <option value="">{t('common:none')}</option>
                       {elementOptions.map((opt) => (
                         <option key={opt.id} value={opt.id}>{opt.label}</option>
                       ))}
@@ -528,32 +532,32 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                     of the "what may an AV script contain" decision. */}
                 {avPlaceable(selectedRule) && (
                   <div className="template-editor-field">
-                    <label>In AV columns</label>
+                    <label>{t('editor.av.inColumns')}</label>
                     <Select
                       className="dialog-input"
                       value={avPlacementOf(selectedRule)}
                       disabled={AV_BASE_IDS.has(selectedRule.id)}
                       title={AV_BASE_IDS.has(selectedRule.id)
-                        ? 'The four AV paragraph types are offered in both columns in every document — only their formatting is a template choice.'
-                        : 'Which column of a two-column AV body offers this element.'}
+                        ? t('editor.av.baseTitle')
+                        : t('editor.av.columnTitle')}
                       onChange={(e) => updateRule(selectedId!, { avCell: e.target.value as AvCellPlacement })}
                     >
-                      <option value="none">Not offered</option>
-                      <option value="video">Video column</option>
-                      <option value="audio">Audio column</option>
-                      <option value="both">Both columns</option>
+                      <option value="none">{t('editor.av.notOffered')}</option>
+                      <option value="video">{t('editor.av.video')}</option>
+                      <option value="audio">{t('editor.av.audio')}</option>
+                      <option value="both">{t('editor.av.both')}</option>
                     </Select>
                   </div>
                 )}
 
                 {/* Placeholder */}
                 <div className="template-editor-field">
-                  <label>Placeholder Text</label>
+                  <label>{t('editor.placeholderText')}</label>
                   <input
                     className="dialog-input"
                     value={selectedRule.placeholder}
                     onChange={(e) => updateRule(selectedId!, { placeholder: e.target.value })}
-                    placeholder="Shown when element is empty"
+                    placeholder={t('editor.placeholderHint')}
                   />
                 </div>
 
@@ -565,12 +569,12 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                       checked={forceBreakBefore.includes(selectedId!)}
                       onChange={(e) => toggleForceBreak(selectedId!, e.target.checked)}
                     />
-                    Starts on a new page
+                    {t('editor.newPage')}
                   </label>
                   <span className="template-editor-hint">
                     {forceBreakBefore.includes(selectedId!)
-                      ? `Every “${selectedRule.label}” begins at the top of a fresh page, on screen and in PDF/Word exports.`
-                      : 'This element flows with the rest of the page.'}
+                      ? t('editor.newPageOn', { label: selectedRule.label })
+                      : t('editor.newPageOff')}
                   </span>
                 </div>
 
@@ -583,23 +587,23 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                         checked={numbering?.enabled === true}
                         onChange={(e) => updateNumbering({ enabled: e.target.checked })}
                       />
-                      Number this element
+                      {t('editor.numbering.enable')}
                     </label>
                     {numbering?.enabled ? (
                       <>
                         <div className="template-editor-field-row">
                           <div className="template-editor-field">
-                            <label>Prefix</label>
+                            <label>{t('editor.numbering.prefix')}</label>
                             <input
                               className="dialog-input"
                               value={numbering.prefix ?? ''}
                               maxLength={12}
-                              placeholder="None"
+                              placeholder={t('common:none')}
                               onChange={(e) => updateNumbering({ prefix: e.target.value })}
                             />
                           </div>
                           <div className="template-editor-field">
-                            <label>Start at</label>
+                            <label>{t('editor.numbering.startAt')}</label>
                             <input
                               className="dialog-input"
                               type="number"
@@ -613,38 +617,38 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                             />
                           </div>
                           <div className="template-editor-field">
-                            <label>Style</label>
+                            <label>{t('editor.numbering.style')}</label>
                             <Select
                               className="dialog-input"
                               value={numbering.style ?? 'plain'}
                               onChange={(e) => updateNumbering({ style: e.target.value as 'plain' | 'scene' | 'words' })}
                             >
-                              <option value="plain">Plain (3)</option>
-                              <option value="scene">With scene number (12.3)</option>
-                              <option value="words">In words (THREE)</option>
+                              <option value="plain">{t('editor.numbering.stylePlain')}</option>
+                              <option value="scene">{t('editor.numbering.styleScene')}</option>
+                              <option value="words">{t('editor.numbering.styleWords')}</option>
                             </Select>
                           </div>
                         </div>
                         <div className="template-editor-field-row">
                           <div className="template-editor-field">
-                            <label>Show the number</label>
+                            <label>{t('editor.numbering.show')}</label>
                             <Select
                               className="dialog-input"
                               value={numbering.placement ?? 'margin'}
                               onChange={(e) => updateNumbering({ placement: e.target.value as 'margin' | 'inline' })}
                             >
-                              <option value="margin">In the margin</option>
-                              <option value="inline">At the start of the line</option>
+                              <option value="margin">{t('editor.numbering.inMargin')}</option>
+                              <option value="inline">{t('editor.numbering.inline')}</option>
                             </Select>
                           </div>
                           <div className="template-editor-field">
-                            <label>Count with</label>
+                            <label>{t('editor.numbering.countWith')}</label>
                             <Select
                               className="dialog-input"
                               value={numbering.countWith ?? ''}
                               onChange={(e) => updateNumbering({ countWith: e.target.value || undefined })}
                             >
-                              <option value="">Its own count</option>
+                              <option value="">{t('editor.numbering.ownCount')}</option>
                               {Object.keys(rules)
                                 .filter((id) => id !== selectedRule.id && rules[id].enabled
                                   && rules[id].numbering?.enabled && !rules[id].numbering?.countWith)
@@ -652,7 +656,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                             </Select>
                           </div>
                         </div>
-                        <label>Restart numbering at</label>
+                        <label>{t('editor.numbering.restartAt')}</label>
                         <div className="template-editor-reset-list">
                           {resetElementIds(rules).filter((id) => id !== selectedRule.id).map((id) => (
                             <label key={id} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
@@ -669,7 +673,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                       </>
                     ) : (
                       <span className="template-editor-hint">
-                        Numbers every “{selectedRule.label}” in the margin, on screen and in PDF, Word and Final Draft exports.
+                        {t('editor.numbering.hintOff', { label: selectedRule.label })}
                       </span>
                     )}
                   </div>
@@ -684,19 +688,19 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                         checked={selectedRule.allowFormatOverride !== false}
                         onChange={(e) => updateRule(selectedId!, { allowFormatOverride: e.target.checked })}
                       />
-                      Allow format override
+                      {t('editor.allowOverride')}
                     </label>
                     <span className="template-editor-hint">
                       {selectedRule.allowFormatOverride !== false
-                        ? 'Users can override formatting for this element type.'
-                        : 'All formatting is locked — users cannot change any styling for this element.'}
+                        ? t('editor.overrideOn')
+                        : t('editor.overrideOff')}
                     </span>
                   </div>
                 )}
 
                 {/* Preview */}
                 <div className="template-editor-field">
-                  <label>Preview</label>
+                  <label>{t('editor.preview')}</label>
                   <div
                     className="template-editor-preview"
                     style={{
@@ -716,13 +720,13 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                       backgroundColor: selectedRule.backgroundColor || undefined,
                     }}
                   >
-                    {selectedRule.placeholder || selectedRule.label || 'Sample text...'}
+                    {selectedRule.placeholder || selectedRule.label || t('editor.sampleText')}
                   </div>
                 </div>
               </>
             ) : (
               <div className="template-editor-empty">
-                Select an element from the list to edit its formatting.
+                {t('editor.selectElement')}
               </div>
             )}
           </div>

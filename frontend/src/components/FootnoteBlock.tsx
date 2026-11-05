@@ -17,6 +17,7 @@
  * 12pt line, the same unit the reserve was counted in.
  */
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { useEditorStore } from '../stores/editorStore';
 import type { FootnoteEntry, FootnotePlan, NoteSlice } from '../utils/footnotes';
 import { noteEntryLabel } from '../utils/noteNumbering';
@@ -86,6 +87,7 @@ export const NoteBody: React.FC<{ entry: FootnoteEntry; label: string | null }> 
 };
 
 const FootnoteBlock: React.FC<FootnoteBlockProps> = ({ plan, slices, pageNumber, noteIds }) => {
+  const { t } = useTranslation('format');
   const setNoteFilter = useEditorStore((s) => s.setNoteFilter);
   const scriptNotesOpen = useEditorStore((s) => s.scriptNotesOpen);
   const toggleScriptNotes = useEditorStore((s) => s.toggleScriptNotes);
@@ -118,7 +120,7 @@ const FootnoteBlock: React.FC<FootnoteBlockProps> = ({ plan, slices, pageNumber,
             className="footnote-slice"
             style={{ height: slice.lines * LINE_PX }}
             onClick={() => open(slice.noteId)}
-            title="Show this note in the Script Notes panel"
+            title={t('footnote.showInPanel')}
           >
             <div className="footnote-slice-inner" style={{ marginTop: -slice.fromLine * LINE_PX }}>
               <NoteBody entry={entry} label={label} />

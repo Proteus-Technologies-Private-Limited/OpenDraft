@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import {
   scheduleUpdateCheck,
   onUpdateAvailable,
@@ -22,6 +23,7 @@ import { getAppVersion } from '../services/diagnostics';
  * pressed.
  */
 const UpdateBanner: React.FC = () => {
+  const { t } = useTranslation(['collab', 'common']);
   const [update, setUpdate] = useState<AvailableUpdate | null>(null);
   const [isMobile, setIsMobile] = useState(
     typeof window !== 'undefined' && window.innerWidth < 600,
@@ -93,13 +95,17 @@ const UpdateBanner: React.FC = () => {
       }}
     >
       <div style={{ flex: 1, color: '#fff', fontSize: 13, lineHeight: 1.5 }}>
-        <strong style={{ fontWeight: 600 }}>OpenDraft {update.version} is available.</strong>
-        {` You are on ${getAppVersion()}.`}
+        <Trans
+          ns="collab"
+          i18nKey="update.available"
+          values={{ version: update.version, current: getAppVersion() }}
+          components={{ strong: <strong style={{ fontWeight: 600 }} /> }}
+        />
       </div>
       <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-        <button onClick={update_} style={button(true)}>Update</button>
-        <button onClick={later} style={button(false)}>Remind me later</button>
-        <button onClick={never} style={button(false)}>Dismiss</button>
+        <button onClick={update_} style={button(true)}>{t('update.update')}</button>
+        <button onClick={later} style={button(false)}>{t('update.remindLater')}</button>
+        <button onClick={never} style={button(false)}>{t('common:dismiss')}</button>
       </div>
     </div>
   );

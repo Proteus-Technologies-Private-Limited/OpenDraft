@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useEditorStore } from '../stores/editorStore';
 import { RETEXT_CATEGORIES, RETEXT_CATEGORY_META } from '../editor/grammar/retextProvider';
 import { HARPER_CATEGORIES, HARPER_CATEGORY_META } from '../editor/grammar/harperProvider';
@@ -10,31 +11,29 @@ interface GrammarRulesPanelProps {
 }
 
 type RuleSection = {
-  blurb: string;
+  /** Which blurb to show; the words are looked up when rendering. */
+  kind: 'grammar' | 'style';
   ids: readonly string[];
   meta: Record<string, { label: string; severity: 'grammar' | 'style'; description: string }>;
 };
 
 const GRAMMAR_SECTION: RuleSection = {
-  blurb: 'Real grammar mistakes: agreement, tense, articles, capitalization, repeated words.',
+  kind: 'grammar',
   ids: HARPER_CATEGORIES,
   meta: HARPER_CATEGORY_META as Record<string, { label: string; severity: 'grammar' | 'style'; description: string }>,
 };
 
 const STYLE_SECTION: RuleSection = {
-  blurb: 'Wordiness and tone suggestions (passive voice, weak intensifiers, "in order to").',
+  kind: 'style',
   ids: RETEXT_CATEGORIES,
   meta: RETEXT_CATEGORY_META as Record<string, { label: string; severity: 'grammar' | 'style'; description: string }>,
 };
 
 type TabId = 'grammar' | 'style' | 'dictionaries';
-const TABS: { id: TabId; label: string }[] = [
-  { id: 'grammar', label: 'Grammar' },
-  { id: 'style', label: 'Style' },
-  { id: 'dictionaries', label: 'Dictionaries' },
-];
+const TAB_IDS: TabId[] = ['grammar', 'style', 'dictionaries'];
 
 const RuleList: React.FC<{ section: RuleSection }> = ({ section }) => {
+  const { t } = useTranslation(['settings', 'common']);
   const grammarRulesEnabled = useEditorStore((s) => s.grammarRulesEnabled);
   const setGrammarRuleEnabled = useEditorStore((s) => s.setGrammarRuleEnabled);
   const isOn = (id: string) => grammarRulesEnabled[id] !== false;
@@ -42,7 +41,7 @@ const RuleList: React.FC<{ section: RuleSection }> = ({ section }) => {
   return (
     <>
       <p style={{ fontSize: 12, color: 'var(--fd-text-muted)', marginTop: 0, marginBottom: 12 }}>
-        {section.blurb}
+        {section.kind === 'grammar' ? t('grammar.blurbGrammar') : t('grammar.blurbStyle')}
       </p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {section.ids.map((id) => {
@@ -80,7 +79,7 @@ const RuleList: React.FC<{ section: RuleSection }> = ({ section }) => {
                   color: meta.severity === 'grammar' ? '#1aa888' : '#2e7dd7',
                 }}
               >
-                {meta.severity}
+                {meta.severity === 'grammar' ? t('grammar.severityGrammar') : t('grammar.severityStyle')}
               </span>
             </label>
           );
@@ -91,6 +90,9 @@ const RuleList: React.FC<{ section: RuleSection }> = ({ section }) => {
 };
 
 const GrammarRulesPanel: React.FC<GrammarRulesPanelProps> = ({ onClose }) => {
+  const { t } = useTranslation(['settings', 'common']);
+  const tabLabel = (id: TabId): string =>
+    id === 'grammar' ? t('grammar.tabGrammar') : id === 'style' ? t('grammar.tabStyle') : t('grammar.tabDictionaries');
   const [activeTab, setActiveTab] = useState<TabId>('grammar');
   const dictionaryLibraryOpen = useEditorStore((s) => s.dictionaryLibraryOpen);
   const setDictionaryLibraryOpen = useEditorStore((s) => s.setDictionaryLibraryOpen);
@@ -103,7 +105,7 @@ const GrammarRulesPanel: React.FC<GrammarRulesPanelProps> = ({ onClose }) => {
           onClick={(e) => e.stopPropagation()}
           style={{ maxWidth: 640, width: '100%', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}
         >
-          <div className="dialog-header">Grammar &amp; Spelling Settings</div>
+          <div className="dialog-header">{t('grammar.title')}</div>
           <div
             style={{
               display: 'flex',
@@ -112,13 +114,13 @@ const GrammarRulesPanel: React.FC<GrammarRulesPanelProps> = ({ onClose }) => {
               padding: '0 16px',
             }}
           >
-            {TABS.map((t) => {
-              const active = t.id === activeTab;
+            {TAB_IDS.map((id) => {
+              const active = id === activeTab;
               return (
                 <button
-                  key={t.id}
+                  key={id}
                   type="button"
-                  onClick={() => setActiveTab(t.id)}
+                  onClick={() => setActiveTab(id)}
                   style={{
                     background: 'transparent',
                     border: 'none',
@@ -131,7 +133,7 @@ const GrammarRulesPanel: React.FC<GrammarRulesPanelProps> = ({ onClose }) => {
                     marginBottom: -1,
                   }}
                 >
-                  {t.label}
+                  {tabLabel(id)}
                 </button>
               );
             })}
@@ -144,7 +146,7 @@ const GrammarRulesPanel: React.FC<GrammarRulesPanelProps> = ({ onClose }) => {
             )}
           </div>
           <div className="dialog-footer">
-            <button className="dialog-primary" onClick={onClose}>Done</button>
+            <button className="dialog-primary" onClick={onClose}>{t('common:done')}</button>
           </div>
         </div>
       </div>

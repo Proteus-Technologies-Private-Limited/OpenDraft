@@ -3,6 +3,9 @@ import type { JSONContent } from '@tiptap/react';
 import { withoutSuggestionsJSON } from '../editor/suggestions';
 import { DEFAULT_SCRIPT_PROFILE } from '../utils/scriptProfile';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { Trans, useTranslation } from 'react-i18next';
+import { compareText, formatDate as formatDateLocale, formatNumber } from '../i18n/format';
+import { t as translate } from '../i18n';
 import { FaCloud, FaDesktop, FaFolder, FaExclamationTriangle } from 'react-icons/fa';
 import {
   DndContext,
@@ -53,17 +56,19 @@ function fileNameOf(path: string): string {
   return path.split(/[/\\]/).pop() || path;
 }
 
-const FILE_PROBLEMS: Partial<Record<LinkedFileState, string>> = {
-  pending: 'Not saved to the file yet — OpenDraft will keep trying',
-  missing: 'The file is not where it was',
-  conflict: 'The file was changed outside OpenDraft',
-};
 
 /** The file a script is saved to, shown beside its other details. */
 const FileBadge: React.FC<{ path: string; state?: LinkedFileState }> = ({ path, state }) => {
-  const problem = state ? FILE_PROBLEMS[state] : undefined;
+  const { t } = useTranslation('projects');
+  let problem: string | undefined;
+  switch (state) {
+    case 'pending': problem = t('view.file.pending'); break;
+    case 'missing': problem = t('view.file.missing'); break;
+    case 'conflict': problem = t('view.file.conflict'); break;
+    default: problem = undefined;
+  }
   return (
-    <span className="source-badge source-badge--local source-badge--path" title={problem ? `${path}\n${problem}` : `Saved to ${path}`}>
+    <span className="source-badge source-badge--local source-badge--path" title={problem ? `${path}\n${problem}` : t('view.savedTo', { path })}>
       {problem ? <FaExclamationTriangle /> : <FaFolder />}
       {fileNameOf(path)}
     </span>
@@ -76,25 +81,29 @@ const FileMenuItems: React.FC<{
   filePath?: string;
   onFileAction: (id: string, action: FileAction) => void;
   close: () => void;
-}> = ({ scriptId, filePath, onFileAction, close }) => (
+}> = ({ scriptId, filePath, onFileAction, close }) => {
+  const { t } = useTranslation('projects');
+  return (
   <>
     <div className="dropdown-separator" />
     {filePath ? (
       <>
-        <div className="dropdown-item" onClick={() => { onFileAction(scriptId, 'reveal'); close(); }}>Show File</div>
-        <div className="dropdown-item" onClick={() => { onFileAction(scriptId, 'unlink'); close(); }}>Stop Saving to File</div>
+        <div className="dropdown-item" onClick={() => { onFileAction(scriptId, 'reveal'); close(); }}>{t('view.file.show')}</div>
+        <div className="dropdown-item" onClick={() => { onFileAction(scriptId, 'unlink'); close(); }}>{t('view.file.stopSaving')}</div>
       </>
     ) : (
-      <div className="dropdown-item" onClick={() => { onFileAction(scriptId, 'link'); close(); }}>Save to File…</div>
+      <div className="dropdown-item" onClick={() => { onFileAction(scriptId, 'link'); close(); }}>{t('view.file.saveToFile')}</div>
     )}
   </>
-);
+  );
+};
 
 /** Dropdown button: "+ New Document" → Screenplay | Treatment. */
 const NewDocumentButton: React.FC<{
   onCreateScreenplay: () => void;
   onCreateTreatment: () => void;
 }> = ({ onCreateScreenplay, onCreateTreatment }) => {
+  const { t } = useTranslation('projects');
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -115,7 +124,7 @@ const NewDocumentButton: React.FC<{
         aria-haspopup="menu"
         aria-expanded={open}
       >
-        + New Document ▾
+        {t('view.newDocument')}
       </button>
       {open && (
         <div className="new-document-menu" role="menu">
@@ -123,15 +132,15 @@ const NewDocumentButton: React.FC<{
             role="menuitem"
             onClick={() => { setOpen(false); onCreateScreenplay(); }}
           >
-            <strong>Screenplay</strong>
-            <span>Full-format script with scenes and dialogue</span>
+            <strong>{t('view.screenplay')}</strong>
+            <span>{t('view.screenplayHint')}</span>
           </button>
           <button
             role="menuitem"
             onClick={() => { setOpen(false); onCreateTreatment(); }}
           >
-            <strong>Treatment</strong>
-            <span>Prose narrative (5–25 pages) of the story</span>
+            <strong>{t('view.treatment')}</strong>
+            <span>{t('view.treatmentHint')}</span>
           </button>
         </div>
       )}
@@ -191,6 +200,7 @@ const SortableScriptRow: React.FC<SortableScriptRowProps> = ({
   fileState,
   onFileAction,
 }) => {
+  const { t } = useTranslation(['projects', 'common']);
   const {
     attributes,
     listeners,
@@ -251,7 +261,7 @@ const SortableScriptRow: React.FC<SortableScriptRowProps> = ({
 
       {/* Drag handle */}
       {sortKey === 'custom' && (
-        <div className="drag-handle" {...attributes} {...listeners} title="Drag to reorder">
+        <div className="drag-handle" {...attributes} {...listeners} title={t('list.dragToReorder')}>
           &#x2630;
         </div>
       )}
@@ -274,19 +284,19 @@ const SortableScriptRow: React.FC<SortableScriptRowProps> = ({
           <div
             className="project-script-title"
             onDoubleClick={(e) => { e.stopPropagation(); setEditing(true); setEditTitle(script.title); }}
-            title="Double-click to rename"
+            title={t('list.doubleClickRename')}
           >
             {script.title}
           </div>
         )}
         <div className="project-script-meta">
-          <span>Created {formatDate(script.created_at)}</span>
+          <span>{t('list.created', { date: formatDate(script.created_at) })}</span>
           <span className="project-card-dot">&middot;</span>
-          <span>Modified {formatDate(script.updated_at)}</span>
+          <span>{t('list.modified', { date: formatDate(script.updated_at) })}</span>
           {script.page_count > 0 && (
             <>
               <span className="project-card-dot">&middot;</span>
-              <span>{script.page_count} pg</span>
+              <span>{t('view.pagesShort', { count: script.page_count })}</span>
             </>
           )}
           <span className="project-card-dot">&middot;</span>
@@ -294,10 +304,10 @@ const SortableScriptRow: React.FC<SortableScriptRowProps> = ({
           <span className="project-card-dot">&middot;</span>
           <span
             className={`source-badge source-badge--${source}`}
-            title={source === 'cloud' ? 'Stored on OpenDraft Cloud' : 'Stored on this device'}
+            title={source === 'cloud' ? t('list.storedCloud') : t('list.storedLocal')}
           >
             {source === 'cloud' ? <FaCloud /> : <FaDesktop />}
-            {source === 'cloud' ? 'Cloud' : 'Local'}
+            {source === 'cloud' ? t('list.cloudBadge') : t('list.localBadge')}
           </span>
           {filePath && (
             <>
@@ -313,14 +323,14 @@ const SortableScriptRow: React.FC<SortableScriptRowProps> = ({
         <button
           className={`card-action-btn pin-btn${script.pinned ? ' active' : ''}`}
           onClick={() => onPin(script.id, !script.pinned)}
-          title={script.pinned ? 'Unpin' : 'Pin to top'}
+          title={script.pinned ? t('list.unpin') : t('list.pin')}
         >
           &#x1F4CC;
         </button>
         <button
           className="card-action-btn color-btn"
           onClick={() => setShowColorPicker(!showColorPicker)}
-          title="Set color"
+          title={t('list.setColor')}
         >
           <span
             className="color-dot"
@@ -330,7 +340,7 @@ const SortableScriptRow: React.FC<SortableScriptRowProps> = ({
         <button
           className="card-action-btn more-btn"
           onClick={() => setShowActions(!showActions)}
-          title="More actions"
+          title={t('list.moreActions')}
         >
           &#x22EE;
         </button>
@@ -339,18 +349,18 @@ const SortableScriptRow: React.FC<SortableScriptRowProps> = ({
       {/* Actions dropdown */}
       {showActions && (
         <div className="script-actions-dropdown" onClick={(e) => e.stopPropagation()}>
-          <div className="dropdown-item" onClick={() => { setEditing(true); setEditTitle(script.title); setShowActions(false); }}>Rename</div>
-          <div className="dropdown-item" onClick={() => { onDuplicate(script.id); setShowActions(false); }}>Duplicate</div>
+          <div className="dropdown-item" onClick={() => { setEditing(true); setEditTitle(script.title); setShowActions(false); }}>{t('common:rename')}</div>
+          <div className="dropdown-item" onClick={() => { onDuplicate(script.id); setShowActions(false); }}>{t('view.duplicate')}</div>
           <div className="dropdown-separator" />
-          <div className="dropdown-item" onClick={() => { onExport(script.id, 'fdx'); setShowActions(false); }}>Export as FDX</div>
-          <div className="dropdown-item" onClick={() => { onExport(script.id, 'fountain'); setShowActions(false); }}>Export as Fountain</div>
-          <div className="dropdown-item" onClick={() => { onExport(script.id, 'pdf'); setShowActions(false); }}>Export as PDF</div>
-          <div className="dropdown-item" onClick={() => { onExport(script.id, 'odraft'); setShowActions(false); }}>Export as .odraft</div>
+          <div className="dropdown-item" onClick={() => { onExport(script.id, 'fdx'); setShowActions(false); }}>{t('view.exportAs', { format: 'FDX' })}</div>
+          <div className="dropdown-item" onClick={() => { onExport(script.id, 'fountain'); setShowActions(false); }}>{t('view.exportAs', { format: 'Fountain' })}</div>
+          <div className="dropdown-item" onClick={() => { onExport(script.id, 'pdf'); setShowActions(false); }}>{t('view.exportAs', { format: 'PDF' })}</div>
+          <div className="dropdown-item" onClick={() => { onExport(script.id, 'odraft'); setShowActions(false); }}>{t('view.exportAs', { format: '.odraft' })}</div>
           {onFileAction && (
             <FileMenuItems scriptId={script.id} filePath={filePath} onFileAction={onFileAction} close={() => setShowActions(false)} />
           )}
           <div className="dropdown-separator" />
-          <div className="dropdown-item dropdown-item-danger" onClick={() => { onDelete(script.id); setShowActions(false); }}>Delete</div>
+          <div className="dropdown-item dropdown-item-danger" onClick={() => { onDelete(script.id); setShowActions(false); }}>{t('common:delete')}</div>
         </div>
       )}
 
@@ -362,7 +372,7 @@ const SortableScriptRow: React.FC<SortableScriptRowProps> = ({
               className={`color-picker-swatch${script.color === c ? ' selected' : ''}`}
               style={{ backgroundColor: c || '#555' }}
               onClick={() => { onColor(script.id, c); setShowColorPicker(false); }}
-              title={c || 'No color'}
+              title={c || t('list.noColor')}
             >
               {!c && <span className="color-none-x">&#x2715;</span>}
             </button>
@@ -406,6 +416,7 @@ const ScriptCard: React.FC<ScriptCardProps> = ({
   fileState,
   onFileAction,
 }) => {
+  const { t } = useTranslation(['projects', 'common']);
   const {
     attributes,
     listeners,
@@ -473,7 +484,7 @@ const ScriptCard: React.FC<ScriptCardProps> = ({
             className="card-drag-handle"
             {...attributes}
             {...listeners}
-            title="Drag to reorder"
+            title={t('list.dragToReorder')}
             onClick={(e) => e.stopPropagation()}
           >
             &#x2630;
@@ -496,7 +507,7 @@ const ScriptCard: React.FC<ScriptCardProps> = ({
           <div
             className="script-card-title"
             onDoubleClick={(e) => { e.stopPropagation(); setEditing(true); setEditTitle(script.title); }}
-            title="Double-click to rename"
+            title={t('list.doubleClickRename')}
           >
             {script.title}
           </div>
@@ -505,34 +516,34 @@ const ScriptCard: React.FC<ScriptCardProps> = ({
           <button
             className={`card-action-btn pin-btn${script.pinned ? ' active' : ''}`}
             onClick={(e) => { e.stopPropagation(); onPin(script.id, !script.pinned); }}
-            title={script.pinned ? 'Unpin' : 'Pin to top'}
+            title={script.pinned ? t('list.unpin') : t('list.pin')}
           >
             &#x1F4CC;
           </button>
           <button
             className="card-action-btn more-btn"
             onClick={(e) => { e.stopPropagation(); setShowActions(!showActions); }}
-            title="More actions"
+            title={t('list.moreActions')}
           >
             &#x22EE;
           </button>
         </div>
       </div>
       <div className="script-card-preview">
-        {script.preview || 'Empty screenplay'}
+        {script.preview || t('view.emptyScreenplay')}
       </div>
       <div className="script-card-meta">
-        {script.page_count > 0 && <span>{script.page_count} pg</span>}
+        {script.page_count > 0 && <span>{t('view.pagesShort', { count: script.page_count })}</span>}
         <span>{formatDate(script.updated_at)}</span>
         {filePath ? (
           <FileBadge path={filePath} state={fileState} />
         ) : (
           <span
             className={`source-badge source-badge--${source}`}
-            title={source === 'cloud' ? 'Stored on OpenDraft Cloud' : 'Stored on this device'}
+            title={source === 'cloud' ? t('list.storedCloud') : t('list.storedLocal')}
           >
             {source === 'cloud' ? <FaCloud /> : <FaDesktop />}
-            {source === 'cloud' ? 'Cloud' : 'Local'}
+            {source === 'cloud' ? t('list.cloudBadge') : t('list.localBadge')}
           </span>
         )}
       </div>
@@ -540,18 +551,18 @@ const ScriptCard: React.FC<ScriptCardProps> = ({
       {/* Actions dropdown */}
       {showActions && (
         <div className="script-actions-dropdown script-card-dropdown" onClick={(e) => e.stopPropagation()}>
-          <div className="dropdown-item" onClick={() => { setEditing(true); setEditTitle(script.title); setShowActions(false); }}>Rename</div>
-          <div className="dropdown-item" onClick={() => { onDuplicate(script.id); setShowActions(false); }}>Duplicate</div>
+          <div className="dropdown-item" onClick={() => { setEditing(true); setEditTitle(script.title); setShowActions(false); }}>{t('common:rename')}</div>
+          <div className="dropdown-item" onClick={() => { onDuplicate(script.id); setShowActions(false); }}>{t('view.duplicate')}</div>
           <div className="dropdown-separator" />
-          <div className="dropdown-item" onClick={() => { onExport(script.id, 'fdx'); setShowActions(false); }}>Export as FDX</div>
-          <div className="dropdown-item" onClick={() => { onExport(script.id, 'fountain'); setShowActions(false); }}>Export as Fountain</div>
-          <div className="dropdown-item" onClick={() => { onExport(script.id, 'pdf'); setShowActions(false); }}>Export as PDF</div>
-          <div className="dropdown-item" onClick={() => { onExport(script.id, 'odraft'); setShowActions(false); }}>Export as .odraft</div>
+          <div className="dropdown-item" onClick={() => { onExport(script.id, 'fdx'); setShowActions(false); }}>{t('view.exportAs', { format: 'FDX' })}</div>
+          <div className="dropdown-item" onClick={() => { onExport(script.id, 'fountain'); setShowActions(false); }}>{t('view.exportAs', { format: 'Fountain' })}</div>
+          <div className="dropdown-item" onClick={() => { onExport(script.id, 'pdf'); setShowActions(false); }}>{t('view.exportAs', { format: 'PDF' })}</div>
+          <div className="dropdown-item" onClick={() => { onExport(script.id, 'odraft'); setShowActions(false); }}>{t('view.exportAs', { format: '.odraft' })}</div>
           {onFileAction && (
             <FileMenuItems scriptId={script.id} filePath={filePath} onFileAction={onFileAction} close={() => setShowActions(false)} />
           )}
           <div className="dropdown-separator" />
-          <div className="dropdown-item dropdown-item-danger" onClick={() => { onDelete(script.id); setShowActions(false); }}>Delete</div>
+          <div className="dropdown-item dropdown-item-danger" onClick={() => { onDelete(script.id); setShowActions(false); }}>{t('common:delete')}</div>
         </div>
       )}
     </div>
@@ -561,6 +572,7 @@ const ScriptCard: React.FC<ScriptCardProps> = ({
 // ── Main component ───────────────────────────────────────────────────────
 
 const ProjectView: React.FC = () => {
+  const { t } = useTranslation(['projects', 'common']);
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
@@ -670,7 +682,7 @@ const ProjectView: React.FC = () => {
         if (!deleted) return;
         arrivedAfterDeleteRef.current = null;
         if (list && list.length === 0) setEmptyPrompt({ deletedTitle: deleted });
-        else showToast(`“${deleted}” deleted`, 'success');
+        else showToast(translate('projects:view.scriptDeleted', { title: deleted }), 'success');
       })
       .finally(() => setLoading(false));
   }, [fetchProject, fetchScripts, fetchVersions, fetchFileLinks]);
@@ -697,16 +709,16 @@ const ProjectView: React.FC = () => {
         const lf = await import('../services/linkedFiles');
         const scan = await lf.scanProjectFolder(projectId);
         if (scan.added > 0) {
-          showToast(`${scan.added} new file${scan.added === 1 ? '' : 's'} in the project folder added.`, 'info');
+          showToast(translate('projects:view.folderFilesAdded', { count: scan.added }), 'info');
           await fetchScripts();
         }
         if (scan.failed.length > 0) {
-          showToast(`Could not read ${scan.failed.join(', ')} in the project folder.`, 'error');
+          showToast(translate('projects:view.folderReadFailed', { files: scan.failed.join(', ') }), 'error');
         }
         await fetchFileLinks();
       } catch (err) {
         console.warn('[project] folder scan failed', err);
-        showToast(`Could not read the project folder: ${err instanceof Error ? err.message : String(err)}`, 'error');
+        showToast(translate('projects:view.folderScanFailed', { error: err instanceof Error ? err.message : String(err) }), 'error');
       }
     })();
   }, [projectId, canLinkFiles, projectFolder, fetchScripts, fetchFileLinks]);
@@ -724,7 +736,7 @@ const ProjectView: React.FC = () => {
       if (action === 'unlink') {
         await lf.unlinkScript(scriptId);
         await fetchFileLinks();
-        showToast('This script is no longer saved to the file. The file is still on disk.', 'success');
+        showToast(translate('projects:view.file.unlinked'), 'success');
         return;
       }
       const script = scripts.find((s) => s.id === scriptId);
@@ -737,8 +749,8 @@ const ProjectView: React.FC = () => {
         dir = await documentDir();
       }
       const picked = await save({
-        title: 'Save to File',
-        defaultPath: lf.joinPath(dir, linkedFileName(script?.title || 'Untitled', format)),
+        title: translate('projects:view.file.dialogTitle'),
+        defaultPath: lf.joinPath(dir, linkedFileName(script?.title || 'Untitled' /* i18n-ignore: becomes the file name */, format)),
         filters: [
           { name: 'OpenDraft', extensions: ['odraft'] },
           { name: 'Fountain', extensions: ['fountain'] },
@@ -748,20 +760,20 @@ const ProjectView: React.FC = () => {
       if (!picked) return;
       const taken = await lf.findLinkByPath(picked);
       if (taken && taken.scriptId !== scriptId) {
-        showToast(`${lf.basenameOf(picked)} is already where another script is saved.`, 'error');
+        showToast(translate('projects:view.file.taken', { file: lf.basenameOf(picked) }), 'error');
         return;
       }
       const outcome = await lf.linkScriptToFile(projectId, scriptId, picked);
       await fetchFileLinks();
       showToast(
         outcome === 'written'
-          ? `Saved to ${lf.basenameOf(picked)}. Every save of this script now updates that file too.`
-          : `Linked to ${lf.basenameOf(picked)}, but it could not be written yet. OpenDraft will keep trying.`,
+          ? translate('projects:view.file.linked', { file: lf.basenameOf(picked) })
+          : translate('projects:view.file.linkedPending', { file: lf.basenameOf(picked) }),
         outcome === 'written' ? 'success' : 'error',
       );
     } catch (err) {
       console.error('[project] file action failed', err);
-      showToast(`Could not do that: ${err instanceof Error ? err.message : String(err)}`, 'error');
+      showToast(translate('projects:view.file.failed', { error: err instanceof Error ? err.message : String(err) }), 'error');
     }
   }, [projectId, project, projectFolder, scripts, fileLinks, fetchFileLinks]);
 
@@ -784,7 +796,7 @@ const ProjectView: React.FC = () => {
     const compareFn = (a: ScriptMeta, b: ScriptMeta): number => {
       switch (scriptSortKey) {
         case 'title':
-          return a.title.localeCompare(b.title);
+          return compareText(a.title, b.title);
         case 'created':
           return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
         case 'updated':
@@ -821,7 +833,7 @@ const ProjectView: React.FC = () => {
     projStore.setCurrentScriptId(null);
     projStore.setScripts([]);
     const edStore = useEditorStore.getState();
-    edStore.setDocumentTitle('Untitled Screenplay');
+    edStore.setDocumentTitle('Untitled Screenplay' /* i18n-ignore: stored as the document title */);
     edStore.setBeats([]);
     edStore.setBeatColumns([]);
     edStore.setPlotlines([]);
@@ -849,7 +861,7 @@ const ProjectView: React.FC = () => {
 
   const confirmCreateTreatment = async (rawName: string) => {
     if (!projectId || !project) return;
-    const name = rawName.trim() || 'Untitled Treatment';
+    const name = rawName.trim() || 'Untitled Treatment' /* i18n-ignore: stored as the treatment's title */;
     setTreatmentNamePrompt(null);
     try {
       const resp = await client.createScript(projectId, {
@@ -861,7 +873,7 @@ const ProjectView: React.FC = () => {
       navigate(`/project/${projectId}/treatment/${resp.meta.id}`, { state: { from: `/project/${projectId}` } });
     } catch (err) {
       showToast(
-        err instanceof Error ? err.message : 'Failed to create treatment',
+        err instanceof Error ? err.message : translate('projects:view.treatmentFailed'),
         'error',
       );
     }
@@ -900,7 +912,7 @@ const ProjectView: React.FC = () => {
       if (remaining && remaining.length === 0) setEmptyPrompt({ deletedTitle });
     } catch (err) {
       showToast(
-        `Delete failed: ${err instanceof Error ? err.message : String(err)}`,
+        translate('projects:view.deleteFailed', { error: err instanceof Error ? err.message : String(err) }),
         'error',
       );
     }
@@ -915,7 +927,7 @@ const ProjectView: React.FC = () => {
     setEmptyPrompt(null);
     // Back on the Projects list, show the tab this project was on.
     try { localStorage.setItem('opendraft:projectSource', projectSource); } catch { /* private mode */ }
-    showToast('Project deleted', 'success');
+    showToast(translate('projects:list.deleted'), 'success');
     backToProjects();
   };
 
@@ -972,7 +984,7 @@ const ProjectView: React.FC = () => {
           );
         }
         showToast(
-          `Rename failed: ${err instanceof Error ? err.message : String(err)}`,
+          translate('projects:view.renameFailed', { error: err instanceof Error ? err.message : String(err) }),
           'error',
         );
       }
@@ -990,7 +1002,7 @@ const ProjectView: React.FC = () => {
           // a cloud project.
           const orig = await cloudApi.getScript(projectId, id);
           await cloudApi.createScript(projectId, {
-            title: `${orig.meta.title} (copy)`,
+            title: `${orig.meta.title} (copy)`, // i18n-ignore: stored as the new script's title
             content: orig.content,
             format: 'json',
           });
@@ -999,10 +1011,10 @@ const ProjectView: React.FC = () => {
         }
         await fetchScripts();
         await fetchFileLinks();
-        showToast('Script duplicated', 'success');
+        showToast(translate('projects:view.duplicated'), 'success');
       } catch (err) {
         showToast(
-          `Duplicate failed: ${err instanceof Error ? err.message : String(err)}`,
+          translate('projects:view.duplicateFailed', { error: err instanceof Error ? err.message : String(err) }),
           'error',
         );
       }
@@ -1016,7 +1028,7 @@ const ProjectView: React.FC = () => {
       try {
         const resp = await client.getScript(projectId, id);
         const saved = resp.content as Record<string, unknown>;
-        const title = resp.meta.title || 'Untitled';
+        const title = resp.meta.title || 'Untitled'; // i18n-ignore: becomes the exported file's name
         // Pending suggestions stay out of every file but .odraft (editor/suggestions).
         const content = format === 'odraft'
           ? saved
@@ -1052,10 +1064,10 @@ const ProjectView: React.FC = () => {
             await downloadOdraft(resp.meta, content);
             break;
         }
-        showToast(`Exported as ${format.toUpperCase()}`, 'success');
+        showToast(translate('projects:view.exportedAs', { format: format.toUpperCase() }), 'success');
       } catch (err) {
         showToast(
-          `Export failed: ${err instanceof Error ? err.message : String(err)}`,
+          translate('projects:view.exportFailed', { error: err instanceof Error ? err.message : String(err) }),
           'error',
         );
       }
@@ -1097,12 +1109,12 @@ const ProjectView: React.FC = () => {
     input.onchange = (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file || !projectId) return;
-      const fallbackTitle = file.name.replace(/\.\w+$/, '') || 'Untitled';
+      const fallbackTitle = file.name.replace(/\.\w+$/, '') || 'Untitled'; // i18n-ignore: stored as the script's title
       const binary = isBinaryImportExtension(extensionOf(file.name));
       const reader = new FileReader();
       reader.onerror = () => {
         console.error('Failed to read script file:', reader.error);
-        showToast('Could not read that file.', 'error');
+        showToast(translate('projects:view.readFileFailed'), 'error');
       };
       reader.onload = async () => {
         try {
@@ -1123,7 +1135,7 @@ const ProjectView: React.FC = () => {
         } catch (err) {
           if (isImportCancelled(err)) return;
           console.error('Failed to import script:', err);
-          showToast(`Import failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
+          showToast(translate('projects:view.importFailed', { error: err instanceof Error ? err.message : String(err) }), 'error');
         }
       };
       if (binary) reader.readAsArrayBuffer(file);
@@ -1133,21 +1145,21 @@ const ProjectView: React.FC = () => {
   };
 
   const formatSize = (bytes: number): string => {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    const oneDecimal = { minimumFractionDigits: 1, maximumFractionDigits: 1 };
+    if (bytes < 1024) return t('view.size.bytes', { value: formatNumber(bytes) });
+    if (bytes < 1024 * 1024) return t('view.size.kb', { value: formatNumber(bytes / 1024, oneDecimal) });
+    return t('view.size.mb', { value: formatNumber(bytes / (1024 * 1024), oneDecimal) });
   };
 
   const formatDate = (iso: string): string => {
     try {
-      const d = new Date(iso);
-      return d.toLocaleDateString(undefined, {
+      return formatDateLocale(iso, {
         year: 'numeric',
         month: 'short',
         day: 'numeric',
         hour: '2-digit',
         minute: '2-digit',
-      });
+      }) || iso;
     } catch {
       return iso;
     }
@@ -1156,7 +1168,7 @@ const ProjectView: React.FC = () => {
   if (loading) {
     return (
       <div className="project-view">
-        <div className="project-view-loading">Loading project...</div>
+        <div className="project-view-loading">{t('view.loading')}</div>
       </div>
     );
   }
@@ -1168,7 +1180,7 @@ const ProjectView: React.FC = () => {
           className="project-back-btn"
           onClick={backToProjects}
         >
-          &#x2190; Projects
+          &#x2190; {t('list.title')}
         </button>
         <div>
           {editingProjectName ? (
@@ -1199,7 +1211,7 @@ const ProjectView: React.FC = () => {
             <h1
               className="project-view-title"
               onDoubleClick={() => { setEditProjectName(project?.name || ''); setEditingProjectName(true); }}
-              title="Double-click to rename"
+              title={t('list.doubleClickRename')}
             >
               {project?.name || projectId}
             </h1>
@@ -1207,18 +1219,18 @@ const ProjectView: React.FC = () => {
           {project && (
             <div className="project-view-meta">
               <span>
-                {scripts.length} script{scripts.length !== 1 ? 's' : ''}
+                {t('view.scripts', { count: scripts.length })}
               </span>
               <span className="project-card-dot">&middot;</span>
-              <span>Created {formatDate(project.created_at)}</span>
+              <span>{t('list.created', { date: formatDate(project.created_at) })}</span>
               <span className="project-card-dot">&middot;</span>
-              <span>Modified {formatDate(project.updated_at)}</span>
+              <span>{t('list.modified', { date: formatDate(project.updated_at) })}</span>
               {canLinkFiles && projectFolder && (
                 <>
                   <span className="project-card-dot">&middot;</span>
                   <span
                     className="source-badge source-badge--local source-badge--path"
-                    title={`Scripts are saved to ${projectFolder}`}
+                    title={t('view.scriptsSavedTo', { folder: projectFolder })}
                     style={{ cursor: 'pointer' }}
                     onClick={() => setShowStorage(true)}
                   >
@@ -1238,32 +1250,32 @@ const ProjectView: React.FC = () => {
                 .then(({ saved, assetsOmitted, missingAssets }) => {
                   if (!saved) return;
                   if (assetsOmitted) {
-                    showToast('Project exported as zip — images are only included when exporting a local project in the app', 'info');
+                    showToast(translate('projects:view.zip.assetsOmitted'), 'info');
                   } else if (missingAssets.length > 0) {
-                    showToast(`Project exported as zip, but ${missingAssets.length} image${missingAssets.length === 1 ? '' : 's'} could not be read`, 'info');
+                    showToast(translate('projects:view.zip.missingImages', { count: missingAssets.length }), 'info');
                   } else {
-                    showToast('Project exported as zip', 'success');
+                    showToast(translate('projects:view.zip.done'), 'success');
                   }
                 })
-                .catch((err) => showToast(`Export failed: ${err instanceof Error ? err.message : String(err)}`, 'error'));
+                .catch((err) => showToast(translate('projects:view.exportFailed', { error: err instanceof Error ? err.message : String(err) }), 'error'));
             }}
           >
-            Export Project
+            {t('view.exportProject')}
           </button>
           {canLinkFiles && (
             <button
               className="project-action-btn"
               onClick={() => setShowStorage(true)}
-              title="Where this project's scripts are saved"
+              title={t('view.storageTitle')}
             >
-              Storage
+              {t('view.storage')}
             </button>
           )}
           <button
             className="project-action-btn"
             onClick={() => setShowProperties(true)}
           >
-            Properties
+            {t('view.properties')}
           </button>
         </div>
       </div>
@@ -1276,7 +1288,7 @@ const ProjectView: React.FC = () => {
             className={`project-tab ${activeTab === tab ? 'active' : ''}`}
             onClick={() => setActiveTab(tab)}
           >
-            {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            {tab === 'scripts' ? t('view.tab.scripts') : tab === 'assets' ? t('view.tab.assets') : t('view.tab.versions')}
           </button>
         ))}
       </div>
@@ -1294,7 +1306,7 @@ const ProjectView: React.FC = () => {
                 className="project-action-btn"
                 onClick={handleImportScript}
               >
-                Import
+                {t('common:import')}
               </button>
               <Select
                 className="sort-select"
@@ -1303,26 +1315,26 @@ const ProjectView: React.FC = () => {
                   setScriptSortKey(e.target.value as ScriptSortKey)
                 }
               >
-                <option value="custom">Custom Order</option>
-                <option value="title">Title</option>
-                <option value="created">Created</option>
-                <option value="updated">Last Modified</option>
-                <option value="color">Color</option>
-                <option value="size">Size</option>
-                <option value="pages">Pages</option>
+                <option value="custom">{t('list.sort.custom')}</option>
+                <option value="title">{t('view.sort.title')}</option>
+                <option value="created">{t('list.sort.created')}</option>
+                <option value="updated">{t('list.sort.updated')}</option>
+                <option value="color">{t('list.sort.color')}</option>
+                <option value="size">{t('view.sort.size')}</option>
+                <option value="pages">{t('view.sort.pages')}</option>
               </Select>
               <div className="view-toggle-group">
                 <button
                   className={`view-toggle-btn${viewMode === 'list' ? ' active' : ''}`}
                   onClick={() => setViewMode('list')}
-                  title="List view"
+                  title={t('view.listView')}
                 >
                   &#x2630;
                 </button>
                 <button
                   className={`view-toggle-btn${viewMode === 'card' ? ' active' : ''}`}
                   onClick={() => setViewMode('card')}
-                  title="Card view"
+                  title={t('view.cardView')}
                 >
                   &#x25A6;
                 </button>
@@ -1330,7 +1342,7 @@ const ProjectView: React.FC = () => {
             </div>
             {scripts.length === 0 ? (
               <div className="project-tab-empty">
-                No scripts yet. Create or import one to get started.
+                {t('view.noScripts')}
               </div>
             ) : viewMode === 'card' ? (
               /* ── Card view ── */
@@ -1341,7 +1353,7 @@ const ProjectView: React.FC = () => {
               >
                 {pinnedScripts.length > 0 && (
                   <>
-                    <div className="pinned-section-header">Pinned</div>
+                    <div className="pinned-section-header">{t('list.pinned')}</div>
                     <SortableContext
                       items={pinnedScripts.map((s) => s.id)}
                       strategy={rectSortingStrategy}
@@ -1371,7 +1383,7 @@ const ProjectView: React.FC = () => {
                 )}
                 {unpinnedScripts.length > 0 && (
                   <>
-                    <div className="section-header">All Screenplays</div>
+                    <div className="section-header">{t('view.allScreenplays')}</div>
                     <SortableContext
                       items={unpinnedScripts.map((s) => s.id)}
                       strategy={rectSortingStrategy}
@@ -1409,7 +1421,7 @@ const ProjectView: React.FC = () => {
               >
                 {pinnedScripts.length > 0 && (
                   <>
-                    <div className="pinned-section-header">Pinned</div>
+                    <div className="pinned-section-header">{t('list.pinned')}</div>
                     <SortableContext
                       items={pinnedScripts.map((s) => s.id)}
                       strategy={verticalListSortingStrategy}
@@ -1442,7 +1454,7 @@ const ProjectView: React.FC = () => {
                 )}
                 {unpinnedScripts.length > 0 && (
                   <>
-                    <div className="section-header">All Screenplays</div>
+                    <div className="section-header">{t('view.allScreenplays')}</div>
                     <SortableContext
                       items={unpinnedScripts.map((s) => s.id)}
                       strategy={verticalListSortingStrategy}
@@ -1486,7 +1498,7 @@ const ProjectView: React.FC = () => {
           <div className="project-versions-tab">
             {versions.length === 0 ? (
               <div className="project-tab-empty">
-                No version history available.
+                {t('view.noVersions')}
               </div>
             ) : (
               <div className="project-versions-list">
@@ -1511,9 +1523,9 @@ const ProjectView: React.FC = () => {
           onClick={() => setTreatmentNamePrompt(null)}
         >
           <div className="dialog-box" onClick={(e) => e.stopPropagation()}>
-            <div className="dialog-header">New Treatment</div>
+            <div className="dialog-header">{t('view.newTreatment.title')}</div>
             <div className="dialog-body">
-              <p style={{ margin: '0 0 10px 0' }}>Name this treatment:</p>
+              <p style={{ margin: '0 0 10px 0' }}>{t('view.newTreatment.prompt')}</p>
               <input
                 autoFocus
                 type="text"
@@ -1524,7 +1536,7 @@ const ProjectView: React.FC = () => {
                   if (e.key === 'Enter') confirmCreateTreatment(treatmentNamePrompt);
                   if (e.key === 'Escape') setTreatmentNamePrompt(null);
                 }}
-                placeholder="e.g. First Treatment, Producer Draft…"
+                placeholder={t('view.newTreatment.placeholder')}
                 style={{
                   width: '100%',
                   padding: '8px 10px',
@@ -1538,12 +1550,12 @@ const ProjectView: React.FC = () => {
               />
             </div>
             <div className="dialog-actions">
-              <button onClick={() => setTreatmentNamePrompt(null)}>Cancel</button>
+              <button onClick={() => setTreatmentNamePrompt(null)}>{t('common:cancel')}</button>
               <button
                 className="dialog-primary"
                 onClick={() => confirmCreateTreatment(treatmentNamePrompt)}
               >
-                Create
+                {t('common:create')}
               </button>
             </div>
           </div>
@@ -1569,11 +1581,10 @@ const ProjectView: React.FC = () => {
           onClick={() => setPendingDeleteId(null)}
         >
           <div className="dialog-box" onClick={(e) => e.stopPropagation()}>
-            <div className="dialog-header">Delete Script</div>
+            <div className="dialog-header">{t('deleteScript.title')}</div>
             <div className="dialog-body">
               <p>
-                Are you sure you want to delete this script? This cannot be
-                undone.
+                {t('view.deleteScriptConfirm')}
               </p>
               {fileLinks[pendingDeleteId] && (
                 <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 13 }}>
@@ -1583,20 +1594,19 @@ const ProjectView: React.FC = () => {
                     onChange={(e) => setDeleteFileToo(e.target.checked)}
                   />
                   <span>
-                    Also delete <strong>{fileNameOf(fileLinks[pendingDeleteId])}</strong> from
-                    disk. Otherwise the file stays where it is.
+                    <Trans ns="projects" i18nKey="deleteScript.alsoDeleteFile" values={{ file: fileNameOf(fileLinks[pendingDeleteId]) }} components={{ strong: <strong /> }} />
                   </span>
                 </label>
               )}
             </div>
             <div className="dialog-actions">
-              <button onClick={() => setPendingDeleteId(null)}>Cancel</button>
+              <button onClick={() => setPendingDeleteId(null)}>{t('common:cancel')}</button>
               <button
                 className="dialog-primary"
                 style={{ background: '#c0392b' }}
                 onClick={confirmDeleteScript}
               >
-                Delete
+                {t('common:delete')}
               </button>
             </div>
           </div>

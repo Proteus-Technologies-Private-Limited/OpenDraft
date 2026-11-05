@@ -26,6 +26,7 @@ import { jsonBlockText } from './nodeText';
 import { extractAvBodies, AV_DEFAULT_HEADERS } from './avDocument';
 import { readColumnConfig, clampColumnWidth } from '../editor/extensions/AvBlock';
 import { parseTimecode, formatTimecode } from '../editor/avTiming';
+import { t } from '../i18n';
 
 /** Identifies a file as ours. */
 export const AV_YAML_FORMAT = 'opendraft-av';
@@ -307,34 +308,31 @@ export function importAvYaml(text: string): AvYamlImportResult {
   try {
     parsed = yamlLoad(text);
   } catch (err) {
-    const where = err instanceof YAMLException && err.mark ? ` (line ${err.mark.line + 1})` : '';
-    throw new AvYamlError(`That file is not valid YAML${where}.`);
+    throw new AvYamlError(err instanceof YAMLException && err.mark
+      ? t('messages:avYaml.notYamlLine', { line: err.mark.line + 1 })
+      : t('messages:avYaml.notYaml'));
   }
 
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-    throw new AvYamlError('That file is not an OpenDraft AV document.');
+    throw new AvYamlError(t('messages:avYaml.notAvDoc'));
   }
   const file = parsed as Record<string, unknown>;
 
   if (file.format !== AV_YAML_FORMAT) {
-    throw new AvYamlError(
-      `That file is not an OpenDraft AV document (expected format: ${AV_YAML_FORMAT}).`,
-    );
+    throw new AvYamlError(t('messages:avYaml.wrongFormat', { format: AV_YAML_FORMAT }));
   }
 
   const version = Number(file.schemaVersion);
   if (!Number.isFinite(version) || version < 1) {
-    throw new AvYamlError('That file does not say which AV schema version it uses.');
+    throw new AvYamlError(t('messages:avYaml.noVersion'));
   }
   if (version > AV_YAML_SCHEMA_VERSION) {
-    throw new AvYamlError(
-      `That file uses AV schema version ${version}, but this version of OpenDraft reads up to ${AV_YAML_SCHEMA_VERSION}. Update OpenDraft to open it.`,
-    );
+    throw new AvYamlError(t('messages:avYaml.tooNew', { version, max: AV_YAML_SCHEMA_VERSION }));
   }
 
   const sections = Array.isArray(file.av) ? file.av : null;
   if (!sections || !sections.length) {
-    throw new AvYamlError('That AV file has no `av:` section to import.');
+    throw new AvYamlError(t('messages:avYaml.noSection'));
   }
 
   const blocks: JSONContent[] = [];
@@ -361,7 +359,7 @@ export function importAvYaml(text: string): AvYamlImportResult {
 
     const rawRows = Array.isArray(section.rows) ? section.rows : [];
     if (!rawRows.length) {
-      throw new AvYamlError(`AV section ${si + 1} has no rows.`);
+      throw new AvYamlError(t('messages:avYaml.noRows', { n: si + 1 }));
     }
 
     const content = rawRows.map((rr) => {

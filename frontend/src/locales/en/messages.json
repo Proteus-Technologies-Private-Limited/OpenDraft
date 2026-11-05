@@ -1,0 +1,458 @@
+{
+  "avFrame": {
+    "notImage": "Please choose an image file",
+    "needRow": "Put the cursor in an AV row first, then add the frame",
+    "failed": "Could not add the frame: {{message}}"
+  },
+  "image": {
+    "degraded": "This image had to be stored inside the document. Save to your library to keep it out of the way.",
+    "couldNotAdd": "Could not add \"{{name}}\".",
+    "fileFallbackName": "image"
+  },
+  "template": {
+    "unreadable": "This script’s saved format cannot be read by this version of OpenDraft. A local format is used for display; the original format data will be kept when you save. Update OpenDraft to use the saved format."
+  },
+  "pacing": {
+    "brisk": {
+      "label": "Brisk",
+      "description": "Fast-talking, quick cutting, overlapping dialogue — screen time runs shorter than the page."
+    },
+    "standard": {
+      "label": "Standard",
+      "description": "One page ≈ one minute. Right for most scripts."
+    },
+    "measured": {
+      "label": "Measured",
+      "description": "Slow-burn or contemplative — long silences, lingering images, held moments that play longer than they read."
+    }
+  },
+  "stats": {
+    "bucket": {
+      "under1": "< 1 page",
+      "p1to2": "1-2 pages",
+      "p2to3": "2-3 pages",
+      "p3to5": "3-5 pages",
+      "p5plus": "5+ pages"
+    }
+  },
+  "pdfFonts": {
+    "hebrew": "Hebrew",
+    "arabic": "Arabic",
+    "thai": "Thai",
+    "cyrillic": "Cyrillic, Greek, Armenian and Georgian",
+    "chinese": "Chinese",
+    "japanese": "Japanese",
+    "korean": "Korean",
+    "chineseTraditional": "Chinese (traditional)",
+    "and": " and ",
+    "missing": "The {{fonts}} font could not be loaded, so that text is blank in the PDF.",
+    "unsupported": "{{scripts}} cannot be written to a PDF yet, so that text is missing or garbled. The rest of the script exported normally."
+  },
+  "grammar": {
+    "harper": {
+      "Agreement": {
+        "label": "Subject–verb agreement",
+        "description": "Verb form must match the subject (\"she walk\" → \"she walks\")."
+      },
+      "Grammar": {
+        "label": "Grammar",
+        "description": "Tense, confusables (their/they're), pronoun case, and similar mistakes."
+      },
+      "Capitalization": {
+        "label": "Capitalization",
+        "description": "Proper nouns, sentence starts, the pronoun \"I\"."
+      },
+      "Repetition": {
+        "label": "Repeated word",
+        "description": "Accidental \"the the\"."
+      },
+      "Punctuation": {
+        "label": "Punctuation",
+        "description": "Missing commas, stray spaces around punctuation."
+      },
+      "WordChoice": {
+        "label": "Word choice",
+        "description": "Suggests a clearer or more idiomatic word."
+      },
+      "Readability": {
+        "label": "Readability",
+        "description": "Long or hard-to-parse sentences."
+      },
+      "Typo": {
+        "label": "Typo",
+        "description": "Likely typos detected from context (e.g. \"teh\" → \"the\")."
+      },
+      "Spelling": {
+        "label": "Spelling",
+        "description": "Misspelled words (overlaps with the spell checker — disable one)."
+      },
+      "Style": {
+        "label": "Style",
+        "description": "Stylistic suggestions (wordiness, weak phrasing)."
+      },
+      "Enhancement": {
+        "label": "Enhancement",
+        "description": "Optional rewrites that often improve clarity."
+      },
+      "Formatting": {
+        "label": "Formatting",
+        "description": "Spacing, quotation marks, dashes."
+      },
+      "Regionalism": {
+        "label": "Regionalism",
+        "description": "Word usage that is unusual outside a particular region."
+      },
+      "Miscellaneous": {
+        "label": "Other",
+        "description": "Other grammar issues that don't fit the categories above."
+      }
+    },
+    "retext": {
+      "passive": {
+        "label": "Passive voice",
+        "description": "Flag passive constructions (\"was kicked\")."
+      },
+      "repeated": {
+        "label": "Repeated word",
+        "description": "Catch accidental \"the the\"."
+      },
+      "indefiniteArticle": {
+        "label": "A / an",
+        "description": "Detect \"a hour\" / \"an university\"."
+      },
+      "redundantAcronyms": {
+        "label": "Redundant acronyms",
+        "description": "e.g. \"ATM machine\"."
+      },
+      "intensify": {
+        "label": "Weak intensifier",
+        "description": "Suggest stronger alternatives to \"very\", \"really\"."
+      },
+      "simplify": {
+        "label": "Wordy phrase",
+        "description": "Tighten \"in order to\" → \"to\"."
+      }
+    }
+  },
+  "reports": {
+    "count": {
+      "scene_one": "{{count}} scene",
+      "scene_other": "{{count}} scenes",
+      "speakingCharacter_one": "{{count}} speaking character",
+      "speakingCharacter_other": "{{count}} speaking characters",
+      "location_one": "{{count}} location",
+      "location_other": "{{count}} locations",
+      "castMember_one": "{{count}} cast member",
+      "castMember_other": "{{count}} cast members",
+      "taggedItem_one": "{{count}} tagged item",
+      "taggedItem_other": "{{count}} tagged items",
+      "category_one": "{{count}} category",
+      "category_other": "{{count}} categories",
+      "openNote_one": "{{count}} open note",
+      "openNote_other": "{{count}} open notes",
+      "note_one": "{{count}} note",
+      "note_other": "{{count}} notes",
+      "reply_one": "{{count}} reply",
+      "reply_other": "{{count}} replies"
+    },
+    "scenes": {
+      "label": "Scene Report",
+      "description": "Every scene with its location, length, screen time and who speaks",
+      "summary": "{{scenes}} · {{length}} pages",
+      "columns": {
+        "scene": "Scene",
+        "heading": "Heading",
+        "intExt": "Int/Ext",
+        "location": "Location",
+        "time": "Time",
+        "length": "Length",
+        "estTime": "Est. Time",
+        "speaking": "Speaking Characters",
+        "words": "Words"
+      }
+    },
+    "characters": {
+      "label": "Character Report",
+      "description": "Speeches, words and scenes for every speaking character",
+      "columns": {
+        "character": "Character",
+        "role": "Role",
+        "gender": "Gender",
+        "speeches": "Speeches",
+        "words": "Words",
+        "share": "Share of Dialogue",
+        "scenes": "Scenes",
+        "sceneNumbers": "Scene Numbers"
+      }
+    },
+    "locations": {
+      "label": "Location Report",
+      "description": "Each location, how often it is used and for how many pages",
+      "columns": {
+        "location": "Location",
+        "intExt": "Int/Ext",
+        "times": "Times of Day",
+        "scenes": "Scenes",
+        "totalLength": "Total Length",
+        "sceneNumbers": "Scene Numbers"
+      }
+    },
+    "cast": {
+      "label": "Cast Report",
+      "description": "Character profiles with role, gender, age and speaking scenes",
+      "columns": {
+        "character": "Character",
+        "role": "Role",
+        "gender": "Gender",
+        "age": "Age",
+        "speakingScenes": "Speaking Scenes",
+        "description": "Description"
+      }
+    },
+    "breakdown": {
+      "label": "Breakdown Report",
+      "description": "Tagged props, costumes, vehicles and more, with their scenes",
+      "summary": "{{items}} in {{categories}}",
+      "columns": {
+        "category": "Category",
+        "item": "Item",
+        "scenes": "Scenes",
+        "sceneNumbers": "Scene Numbers",
+        "notes": "Notes"
+      }
+    },
+    "notes": {
+      "label": "Notes Report",
+      "description": "Every note with its replies, who wrote it, who it is assigned to, and whether it is resolved",
+      "title": "Notes Report",
+      "summary": "{{notes}} · {{open}} open · {{resolved}} resolved · {{replies}}",
+      "columns": {
+        "number": "#",
+        "scene": "Scene",
+        "on": "On",
+        "from": "From",
+        "comment": "Comment",
+        "status": "Status",
+        "assignedTo": "Assigned To",
+        "date": "Date"
+      },
+      "general": "General",
+      "open": "Open",
+      "resolved": "Resolved",
+      "resolvedBy": "Resolved by {{name}}",
+      "resolvedAt": "{{status}} {{date}}"
+    },
+    "openNotes": {
+      "label": "Open Notes",
+      "description": "Only the notes not yet resolved, with their replies — what is still to do",
+      "title": "Open Notes",
+      "summary": "{{notes}} · {{replies}}"
+    },
+    "nothing": "Nothing to report."
+  },
+  "backup": {
+    "error": {
+      "missingFolder": "The backup folder no longer exists.",
+      "noPermission": "OpenDraft doesn't have permission to write to the backup folder.",
+      "diskFull": "The disk is full.",
+      "noResponse": "The backup folder did not respond (is a network drive disconnected?)."
+    },
+    "failed": "Backup failed — {{reason}}",
+    "paused": "Automatic backups paused — {{reason}} Fix the folder in Settings to resume.",
+    "notInBrowser": "Backups are not available in the browser.",
+    "onlyInApp": "Backups are only available in the OpenDraft app.",
+    "noFolder": "No backup folder is configured.",
+    "revealDesktopOnly": "Showing a backup in a file manager is only available on the desktop.",
+    "chooseFolderBrowser": "Choosing a backup folder is not available in the browser."
+  },
+  "sprint": {
+    "finished_one": "Sprint finished — {{count}} word written.",
+    "finished_other": "Sprint finished — {{count}} words written."
+  },
+  "recovery": {
+    "tooLarge": "This document is too large to protect against a crash. Save it to your library so auto-save takes over.",
+    "noRoom": "Crash protection is unavailable — there is no room to store a recovery copy. Save your work to your library."
+  },
+  "fallbackImport": {
+    "project_one": "{{count}} project",
+    "project_other": "{{count}} projects",
+    "script_one": "{{count}} script",
+    "script_other": "{{count}} scripts",
+    "asset_one": "{{count}} asset",
+    "asset_other": "{{count}} assets",
+    "template_one": "{{count}} template",
+    "template_other": "{{count}} templates",
+    "imported": "Imported {{counts}} from file-based fallback storage",
+    "importedWithErrors": "Imported {{counts}} from fallback. {{failed}} item(s) failed — check DevTools for details.",
+    "nothing": "nothing"
+  },
+  "dictionary": {
+    "unknownLanguage": "Unknown language: {{code}}",
+    "downloadFailed": "Couldn't download \"{{label}}\" — the source may be temporarily unavailable, or the network is offline.",
+    "codeRequired": "Language code is required.",
+    "urlsRequired": "Both .aff and .dic URLs are required.",
+    "parseFailed": "Download or parse failed. Check the URLs and that the files are valid Hunspell .aff/.dic."
+  },
+  "auth": {
+    "renewFailed": "Could not renew your sign-in just now. Please try again in a moment."
+  },
+  "cloud": {
+    "notConfigured": "OpenDraft Cloud is not configured for this app. Open Settings → System Settings to set the OpenDraft server URL.",
+    "cannotReachNamed": "Cannot reach {{where}}. Check that the server is running and reachable.",
+    "cannotReach": "Cannot reach OpenDraft Cloud ({{detail}}).",
+    "invalidResponse": "OpenDraft Cloud returned an invalid response. The server may be misconfigured.",
+    "renewUnavailable": "Could not reach the OpenDraft server to renew your sign-in. Please try again in a moment."
+  },
+  "fonts": {
+    "tooLarge": "Too large — fonts must be under {{mb}} MB.",
+    "empty": "That file is empty.",
+    "tooSmall": "That file is too small to be a font.",
+    "notFont": "That file is not a TrueType or OpenType font.",
+    "installFailed": "Could not install this font: {{message}}",
+    "noStorage": "This browser has no local storage for fonts.",
+    "deleteFailed": "The font was removed from this session but could not be deleted from storage."
+  },
+  "linkedFiles": {
+    "unsupportedExtension": "OpenDraft can keep scripts in .odraft, .fountain, .fdx or .osf files, not .{{ext}}.",
+    "noExtension": "(none)",
+    "cannotWrite": "OpenDraft can't write to {{folder}}",
+    "cannotWriteReason": "OpenDraft can't write to {{folder}} — {{reason}}",
+    "notInFolder": "This project is not saved to a folder."
+  },
+  "elements": {
+    "sceneHeading": "Scene Heading",
+    "action": "Action",
+    "character": "Character",
+    "parenthetical": "Parenthetical",
+    "dialogue": "Dialogue",
+    "transition": "Transition",
+    "shot": "Shot",
+    "general": "General",
+    "dualDialogue": "Dual Dialogue",
+    "lyrics": "Lyrics",
+    "newAct": "New Act",
+    "endOfAct": "End of Act"
+  },
+  "marks": {
+    "bold": "Bold",
+    "italic": "Italic",
+    "underline": "Underline",
+    "strike": "Strikethrough",
+    "subscript": "Subscript",
+    "superscript": "Superscript",
+    "textStyle": "Font/Size",
+    "color": "Text Color",
+    "highlight": "Highlight",
+    "formatOverride": "Format Override"
+  },
+  "relativeTime": {
+    "justNow": "just now",
+    "minutes_one": "{{count}} minute ago",
+    "minutes_other": "{{count}} minutes ago",
+    "hours_one": "{{count}} hour ago",
+    "hours_other": "{{count}} hours ago",
+    "days_one": "{{count}} day ago",
+    "days_other": "{{count}} days ago"
+  },
+  "suggestions": {
+    "insertedBy": "Suggested by {{name}}",
+    "insertedByAt": "Suggested by {{name}} · {{when}}",
+    "someone": "someone",
+    "someoneCap": "Someone",
+    "deleteBy": "{{name}} suggested deleting this",
+    "deleteByAt": "{{name}} suggested deleting this · {{when}}",
+    "formatAdd": "{{name}} suggested adding {{format}}",
+    "formatRemove": "{{name}} suggested removing {{format}}",
+    "joinLabel": "⤒ join",
+    "joinTitle": "{{name}} suggested joining this line to the one before",
+    "wasType": "was {{type}}",
+    "changeTitle": "{{name}} suggested changing this from {{from}} to {{to}}"
+  },
+  "clipboard": {
+    "pasteDeniedIos": "Could not read the clipboard. iOS asks permission for every paste — tap “Paste” when it appears, or press and hold in the script and use Paste there.",
+    "pasteDenied": "Could not read the clipboard. Allow clipboard access for OpenDraft and try again.",
+    "selectFirst": "Select something to copy first.",
+    "copyFailed": "Could not copy to the clipboard.",
+    "empty": "The clipboard is empty."
+  },
+  "import": {
+    "archiveNotOpenable": "{{format}} files are compressed archives and cannot be opened on this platform. Export the script from {{app}} as .fdx, .fountain or .osf and import that instead.",
+    "expectedText": "Expected text content for a {{format}} file.",
+    "invalidOdraft": "Invalid .odraft file: {{message}}",
+    "archiveUnreadable": "Could not read the {{format}} file — it is not a valid .{{ext}} archive. It may be damaged, incomplete, or saved in a different format; try exporting it from {{format}} again.",
+    "zipInvalid": "This file is not a valid zip archive",
+    "zipSingleScript": "This zip holds a single script, not a project. Import it from inside a project instead.",
+    "zipNoProject": "Invalid project archive: missing project.json",
+    "zipNoneImported": "None of the {{count}} scripts could be imported",
+    "pdfPassword": "This PDF is protected by a password. Open it in a PDF viewer, save a copy without the password, and import that.",
+    "pdfUnreadable": "This file is not a PDF that can be read — it may be damaged.",
+    "pdfNoText": "This PDF has no text to read — it may be a scan. Only PDFs with selectable text can be imported.",
+    "pdfNothingRecognised": "No scene headings or dialogue were recognised — the PDF may not be laid out as a screenplay.",
+    "docxTable": "Encountered a table that is not a dual-dialogue layout — flattened cells into action.",
+    "docxNoDocument": "Not a valid .docx file: missing word/document.xml",
+    "docxNoBody": "Not a valid .docx file: missing <w:body>",
+    "highlandNoFountain": "Not a Highland screenplay: the file has no text.fountain{{contents}}.",
+    "highlandNotFountain": "This Highland document is stored as {{name}} rather than Fountain, so it was read as Fountain text; check the element types after import.",
+    "highlandImages": "Images stored in the Highland file were not imported."
+  },
+  "export": {
+    "zipUnreadable_one": "Could not read script: {{names}}",
+    "zipUnreadable_other": "Could not read scripts: {{names}}",
+    "twoUpPageSize": "The page size is not valid, so the pages cannot be put two to a sheet.",
+    "twoUpStructure": "Could not put the pages two to a sheet: the PDF had an unexpected structure.",
+    "twoUpPageStructure": "Could not put the pages two to a sheet: page {{page}} had an unexpected structure.",
+    "avEmpty": "This document has no AV content to export.",
+    "cannotWrite": "OpenDraft cannot write .{{format}} files."
+  },
+  "file": {
+    "chooseDifferent": "Choose a different destination for Save a Copy. The original was left unchanged.",
+    "openBrowser": "Opening a file in place is not available in the browser.",
+    "saveBrowser": "Saving a file in place is not available in the browser."
+  },
+  "macros": {
+    "notJson": "This file is not valid JSON.",
+    "notMacros": "This file does not contain OpenDraft macros."
+  },
+  "avYaml": {
+    "notYaml": "That file is not valid YAML.",
+    "notYamlLine": "That file is not valid YAML (line {{line}}).",
+    "notAvDoc": "That file is not an OpenDraft AV document.",
+    "wrongFormat": "That file is not an OpenDraft AV document (expected format: {{format}}).",
+    "noVersion": "That file does not say which AV schema version it uses.",
+    "tooNew": "That file uses AV schema version {{version}}, but this version of OpenDraft reads up to {{max}}. Update OpenDraft to open it.",
+    "noSection": "That AV file has no `av:` section to import.",
+    "noRows": "AV section {{n}} has no rows."
+  },
+  "sides": {
+    "emptyScenes": "The chosen scenes are empty.",
+    "noLines": "{{name}} has no lines in this script.",
+    "noSceneAt": "No scene is set at {{location}}.",
+    "notTagged": "Nothing in the script is tagged {{label}}."
+  },
+  "av": {
+    "durationLabel": "Duration for shot {{shot}}",
+    "durationInvalid": "Not a time — use 0:05, 1:30 or 1:02:03",
+    "durationTitle": "Shot duration",
+    "resizeTitle": "Drag to resize · double-click to reset"
+  },
+  "tts": {
+    "unreadable": "The speech server answered with nothing readable.",
+    "noProvider": "No AI voice provider is set up.",
+    "needGeminiKey": "Add your Gemini API key in Settings → Table Read Voices.",
+    "needElevenLabsKey": "Add your ElevenLabs API key in Settings → Table Read Voices.",
+    "needAzureKey": "Add your Azure Speech key and region in Settings → Table Read Voices.",
+    "noKokoroVoice": "No Kokoro voice is selected.",
+    "noGeminiVoice": "No Gemini voice is selected.",
+    "noAzureVoice": "No Azure voice is selected.",
+    "noElevenLabsVoice": "No ElevenLabs voice is selected.",
+    "noVoice": "No voice is selected.",
+    "geminiNoAudio": "Gemini returned no audio for this line.",
+    "azureNoAudio": "Azure Speech returned no audio.",
+    "audioNoStart": "The audio from {{provider}} did not start playing. This browser may not support its format.",
+    "audioNoPlay": "The audio from {{provider}} could not be played.",
+    "audioNoDecode": "The audio from {{provider}} could not be decoded: {{message}}",
+    "kokoroStopped": "The Kokoro voice engine stopped: {{message}}",
+    "kokoroUnknown": "unknown error",
+    "systemStopped": "The system speech engine stopped responding: {{message}}"
+  }
+}

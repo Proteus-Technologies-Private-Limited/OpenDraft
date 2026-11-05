@@ -1,0 +1,111 @@
+{
+  "status": {
+    "save": {
+      "unsaved": "Есть несохранённые изменения",
+      "saving": "Сохранение…",
+      "saved": "Сохранено",
+      "error": "Не удалось сохранить"
+    },
+    "linked": {
+      "notSaved": "не сохранено в файл",
+      "missing": "файл не найден",
+      "conflict": "изменён вне OpenDraft",
+      "retryHint": "Нажмите, чтобы повторить.",
+      "everySave": "Каждое сохранение также записывает {{path}}"
+    },
+    "acts_one": "{{count}} акт",
+    "acts_few": "{{count}} акта",
+    "acts_many": "{{count}} актов",
+    "acts_other": "{{count}} акта",
+    "saveWritesBack": "Сохранение записывает изменения в {{name}}",
+    "actStructure": "Структура актов",
+    "runtime": {
+      "title": "Ожидаемый хронометраж при темпе «{{pacing}}» — нажмите, чтобы выбрать жанр и темп",
+      "est": "≈ {{runtime}}"
+    },
+    "wordsTitle": "Слов в сценарии",
+    "words_one": "{{formatted}} слово",
+    "words_few": "{{formatted}} слова",
+    "words_many": "{{formatted}} слов",
+    "words_other": "{{formatted}} слова",
+    "revision": "Ред.: {{color}}",
+    "page": "Страница {{label}}",
+    "pageOf": "Страница {{current}} из {{total}}",
+    "pagesLocked": "Страницы зафиксированы",
+    "locked": "(зафиксировано)",
+    "suggesting": {
+      "lockedTitle": "Вы присоединились как рецензент: автор принимает или отклоняет ваши правки",
+      "title": "Ваши правки — предложения. Нажмите, чтобы снова править напрямую.",
+      "label": "Предложения"
+    }
+  },
+  "resetToDefault": "Сбросить по умолчанию",
+  "richText": {
+    "bold": "Полужирный",
+    "italic": "Курсив",
+    "underline": "Подчёркнутый",
+    "bulletList": "Маркированный список"
+  },
+  "fontPicker": {
+    "fontFamily": "Шрифт",
+    "search": "Поиск шрифтов…",
+    "searchLabel": "Поиск шрифтов",
+    "noMatch": "Нет шрифтов по запросу «{{query}}».",
+    "notInstalledTitle": "{{name}} не установлен на этом устройстве — вместо него показан похожий шрифт",
+    "notInstalled": "не установлен",
+    "manage": "Добавить шрифты и управлять ими…",
+    "group": {
+      "document": "Из этого документа",
+      "custom": "Свои шрифты",
+      "screenplay": "Стандарт сценария",
+      "typewriter": "Пишущая машинка",
+      "serif": "С засечками",
+      "sansSerif": "Без засечек",
+      "monospace": "Моноширинные",
+      "display": "Акцидентные и для заголовков",
+      "handwriting": "Рукописные",
+      "latinExtended": "Расширенная латиница",
+      "indic": "Индийские",
+      "arabicHebrew": "Арабские и ивритские",
+      "cjk": "Китайские, японские, корейские",
+      "other": "Другие",
+      "device": "На этом устройстве"
+    }
+  },
+  "languageSelector": {
+    "title": "Язык диалогов"
+  },
+  "toolbar": {
+    "fontSize": "Размер шрифта",
+    "pt": "{{size}} пт",
+    "bold": "Полужирный ({{shortcut}})",
+    "italic": "Курсив ({{shortcut}})",
+    "underline": "Подчёркнутый ({{shortcut}})",
+    "strikethrough": "Зачёркнутый",
+    "subscript": "Подстрочный",
+    "superscript": "Надстрочный",
+    "textColor": "Цвет текста",
+    "highlightColor": "Цвет выделения",
+    "alignLeft": "По левому краю",
+    "alignCenter": "По центру",
+    "alignRight": "По правому краю",
+    "justify": "По ширине",
+    "findReplace": "Найти и заменить ({{shortcut}})",
+    "goToPage": "Перейти к странице ({{shortcut}})",
+    "scriptNotes": "Заметки к сценарию",
+    "productionTags": "Производственные теги",
+    "zoomOut": "Уменьшить",
+    "editZoom": "Нажмите, чтобы изменить масштаб",
+    "zoomIn": "Увеличить",
+    "undo": "Отменить ({{shortcut}})",
+    "redo": "Повторить ({{shortcut}})",
+    "addAvRow": "Добавить AV-строку ниже (Tab из ячейки звука или {{shortcut}})",
+    "row": "Строка",
+    "deleteAvRow": "Удалить эту AV-строку",
+    "moreFormatting": "Другие параметры форматирования",
+    "zoom": "Масштаб",
+    "elementType": "Тип элемента",
+    "elementTypeTitlePage": "Элементы титульной страницы задаются в редакторе титульной страницы; их оформление хранится в шаблоне",
+    "titlePage": "Титульная страница"
+  }
+}

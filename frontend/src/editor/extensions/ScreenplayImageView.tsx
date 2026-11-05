@@ -1,4 +1,5 @@
 import React, { useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { NodeViewWrapper, type NodeViewProps } from '@tiptap/react';
 import { useImageSrc } from '../../hooks/useImageSrc';
 
@@ -12,6 +13,7 @@ const LINE_HEIGHT_PX = 16; // 12pt — matches pagination LINE_HEIGHT_PT
  * for the image.
  */
 export const ScreenplayImageView: React.FC<NodeViewProps> = ({ node, updateAttributes, selected, editor }) => {
+  const { t } = useTranslation('editor');
   const { width, align } = node.attrs as { width: number | null; align: string };
   const imgRef = useRef<HTMLImageElement>(null);
   const { url, missing } = useImageSrc(node.attrs as Record<string, unknown>);
@@ -69,13 +71,13 @@ export const ScreenplayImageView: React.FC<NodeViewProps> = ({ node, updateAttri
             className="sp-image-missing"
             style={{ height: `${Math.max(1, node.attrs.heightLines as number) * LINE_HEIGHT_PX}px` }}
           >
-            Image not available
+            {t('image.notAvailable')}
           </span>
         ) : (
           <img ref={imgRef} src={url} alt="" draggable={false} onLoad={onLoad} className="sp-image-img" />
         )}
         {selected && editable && !missing && (
-          <span className="sp-image-resize" onMouseDown={startResize} title="Drag to resize" />
+          <span className="sp-image-resize" onMouseDown={startResize} title={t('image.dragToResize')} />
         )}
       </span>
     </NodeViewWrapper>

@@ -19,6 +19,7 @@ import { writeSnapshot, backupsSupported } from '../services/backupService';
 import { isMobileTauri } from '../services/platform';
 import { docHasAnyText } from '../utils/docText';
 import { showToast } from '../components/Toast';
+import { t } from '../i18n';
 
 /** How many times the initial snapshot waits for the editor to finish loading. */
 const INITIAL_ATTEMPTS = 4;
@@ -113,9 +114,9 @@ export function useBackupScheduler(opts: BackupSchedulerOptions): void {
         // First failure gets one toast; the next are console-only; the last
         // says we've stopped. At most two toasts per broken session.
         if (failures === 1) {
-          showToast(`Backup failed — ${reason}`, 'error');
+          showToast(t('messages:backup.failed', { reason }), 'error');
         } else if (failures >= BACKUP_FAILURE_LIMIT) {
-          showToast(`Automatic backups paused — ${reason} Fix the folder in Settings to resume.`, 'error');
+          showToast(t('messages:backup.paused', { reason }), 'error');
         } else {
           console.warn('[backup]', reason);
         }

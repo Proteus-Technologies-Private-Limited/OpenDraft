@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Editor } from '@tiptap/react';
 import { cleanBookmarkName, MAX_BOOKMARK_NAME, setBookmark, uniqueBookmarkName } from '../utils/bookmarks';
 import { removeBookmark } from './bookmarkActions';
@@ -13,6 +14,7 @@ interface BookmarkDialogProps {
 
 /** Name a new bookmark, or rename or remove an existing one. */
 const BookmarkDialog: React.FC<BookmarkDialogProps> = ({ editor, pos, initialName, isNew, onClose }) => {
+  const { t } = useTranslation(['dialogs', 'common']);
   const [name, setName] = useState(initialName);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -42,10 +44,10 @@ const BookmarkDialog: React.FC<BookmarkDialogProps> = ({ editor, pos, initialNam
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}
       >
-        <div className="dialog-header" id="bookmark-dialog-title">{isNew ? 'Add Bookmark' : 'Rename Bookmark'}</div>
+        <div className="dialog-header" id="bookmark-dialog-title">{isNew ? t('bookmark.addTitle') : t('bookmark.renameTitle')}</div>
         <div className="dialog-body">
           <div className="dialog-row">
-            <label htmlFor="bookmark-name-input">Bookmark name</label>
+            <label htmlFor="bookmark-name-input">{t('bookmark.nameLabel')}</label>
             <input
               id="bookmark-name-input"
               ref={inputRef}
@@ -56,7 +58,7 @@ const BookmarkDialog: React.FC<BookmarkDialogProps> = ({ editor, pos, initialNam
               autoComplete="off"
             />
           </div>
-          {clash && <p className="bookmark-dialog-error" role="alert">Another bookmark is already called &ldquo;{clean}&rdquo;.</p>}
+          {clash && <p className="bookmark-dialog-error" role="alert">{t('bookmark.nameClash', { name: clean })}</p>}
         </div>
         <div className="dialog-actions">
           {!isNew && (
@@ -64,12 +66,12 @@ const BookmarkDialog: React.FC<BookmarkDialogProps> = ({ editor, pos, initialNam
               className="bookmark-dialog-remove"
               onClick={() => { removeBookmark(editor, pos); editor.commands.focus(); onClose(); }}
             >
-              Remove
+              {t('common:remove')}
             </button>
           )}
-          <button onClick={onClose}>Cancel</button>
+          <button onClick={onClose}>{t('common:cancel')}</button>
           <button className="dialog-primary" onClick={save} disabled={!clean || !!clash}>
-            {isNew ? 'Add' : 'Rename'}
+            {isNew ? t('common:add') : t('common:rename')}
           </button>
         </div>
       </div>

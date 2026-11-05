@@ -27,9 +27,13 @@ export const NOTE_NUMBER_FORMATS: ReadonlyArray<{
   label: string;
 }> = [
   { id: 'arabic', label: '1, 2, 3, …' },
+  // i18n-ignore sample number sequences, not words
   { id: 'lowerAlpha', label: 'a, b, c, …' },
+  // i18n-ignore sample number sequences, not words
   { id: 'upperAlpha', label: 'A, B, C, …' },
+  // i18n-ignore sample number sequences, not words
   { id: 'lowerRoman', label: 'i, ii, iii, …' },
+  // i18n-ignore sample number sequences, not words
   { id: 'upperRoman', label: 'I, II, III, …' },
   { id: 'symbol', label: '*, †, ‡, §' },
 ];

@@ -66,6 +66,7 @@ const LINE_TYPES: Record<string, string> = {
   editdialogparen: 'parenthetical',
   transition: 'transition',
   shot: 'shot',
+  // i18n-ignore import-format data key, not UI text
   text: 'general',
   general: 'general',
   note: 'note',

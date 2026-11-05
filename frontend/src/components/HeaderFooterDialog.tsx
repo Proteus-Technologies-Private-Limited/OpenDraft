@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   useEditorStore,
   DEFAULT_PAGE_LAYOUT,
@@ -18,13 +19,8 @@ interface HeaderFooterDialogProps {
 }
 
 /** Insertable dynamic fields, in the order Final Draft lists them. */
-const FIELDS: Array<{ token: string; label: string; hint: string }> = [
-  { token: '{page}', label: 'Page #', hint: 'The number printed on this page' },
-  { token: '{pages}', label: 'Total Pages', hint: 'The number on the last page' },
-  { token: '{title}', label: 'Title', hint: 'The document title' },
-  { token: '{date}', label: 'Date', hint: "Today's date" },
-  { token: '{revision}', label: 'Revision', hint: 'The current revision colour' },
-];
+// The tokens are what gets stored in the template; their labels and hints are looked up by token when drawn.
+const FIELD_TOKENS = ['{page}', '{pages}', '{title}', '{date}', '{revision}'] as const;
 
 function ptToIn(pt: number): number {
   return +(pt / 72).toFixed(3);
@@ -34,13 +30,25 @@ function inToPt(inches: number): number {
   return Math.round(inches * 72);
 }
 
-const POSITIONS: Array<{ key: keyof HeaderFooterContent; label: string }> = [
-  { key: 'left', label: 'Left' },
-  { key: 'center', label: 'Center' },
-  { key: 'right', label: 'Right' },
+const POSITIONS: Array<{ key: keyof HeaderFooterContent }> = [
+  { key: 'left' },
+  { key: 'center' },
+  { key: 'right' },
 ];
 
 const HeaderFooterDialog: React.FC<HeaderFooterDialogProps> = ({ onClose, focusBand }) => {
+  const { t } = useTranslation(['format', 'common']);
+  const fieldText = (token: (typeof FIELD_TOKENS)[number]): { label: string; hint: string } => {
+    switch (token) {
+      case '{page}': return { label: t('headerFooter.field.page.label'), hint: t('headerFooter.field.page.hint') };
+      case '{pages}': return { label: t('headerFooter.field.pages.label'), hint: t('headerFooter.field.pages.hint') };
+      case '{title}': return { label: t('headerFooter.field.title.label'), hint: t('headerFooter.field.title.hint') };
+      case '{date}': return { label: t('headerFooter.field.date.label'), hint: t('headerFooter.field.date.hint') };
+      case '{revision}': return { label: t('headerFooter.field.revision.label'), hint: t('headerFooter.field.revision.hint') };
+    }
+  };
+  const positionLabel = (key: keyof HeaderFooterContent): string =>
+    key === 'left' ? t('headerFooter.position.left') : key === 'center' ? t('headerFooter.position.center') : t('headerFooter.position.right');
   const { pageLayout, setPageLayout, documentTitle, revisionColor, pageCount } = useEditorStore();
 
   // Work on a full, gap-free copy so a document saved before any of these
@@ -163,15 +171,15 @@ const HeaderFooterDialog: React.FC<HeaderFooterDialogProps> = ({ onClose, focusB
     const startKey = band === 'header' ? 'headerStartPage' : 'footerStartPage';
     const marginKey = band === 'header' ? 'headerMargin' : 'footerMargin';
     const startValue = band === 'header' ? hf.headerStartPage : hf.footerStartPage;
-    const marginLabel = band === 'header' ? 'Distance from top (in)' : 'Distance from bottom (in)';
+    const marginLabel = band === 'header' ? t('headerFooter.distanceFromTop') : t('headerFooter.distanceFromBottom');
 
     return (
       <div className="hf-section">
-        <div className="hf-section-title">{band === 'header' ? 'Header' : 'Footer'}</div>
+        <div className="hf-section-title">{band === 'header' ? t('headerFooter.header') : t('headerFooter.footer')}</div>
         <div className="hf-slot-row">
-          {POSITIONS.map(({ key, label }) => (
+          {POSITIONS.map(({ key }) => (
             <label key={key} className="hf-slot">
-              <span className="hf-slot-label">{label}</span>
+              <span className="hf-slot-label">{positionLabel(key)}</span>
               <input
                 ref={(el) => {
                   inputRefs.current[refKey(band, key)] = el;
@@ -193,11 +201,11 @@ const HeaderFooterDialog: React.FC<HeaderFooterDialogProps> = ({ onClose, focusB
             checked={showsOnFirst(band)}
             onChange={(e) => toggleFirstPage(band, e.target.checked)}
           />
-          <span>Show on first page</span>
+          <span>{t('headerFooter.showOnFirst')}</span>
         </label>
         <div className="hf-row-pair">
           <div className="hf-row">
-            <label>Start showing on page</label>
+            <label>{t('headerFooter.startShowing')}</label>
             <input
               type="number"
               step="1"
@@ -229,22 +237,22 @@ const HeaderFooterDialog: React.FC<HeaderFooterDialogProps> = ({ onClose, focusB
         className="dialog-box hf-dialog"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
-        aria-label="Header and Footer"
+        aria-label={t('headerFooter.ariaLabel')}
       >
-        <div className="dialog-header">Header &amp; Footer</div>
+        <div className="dialog-header">{t('headerFooter.title')}</div>
         <div className="dialog-body">
           <div className="hf-fields">
-            <span className="hf-fields-label">Insert field</span>
-            {FIELDS.map((f) => (
+            <span className="hf-fields-label">{t('headerFooter.insertField')}</span>
+            {FIELD_TOKENS.map((token) => (
               <button
-                key={f.token}
+                key={token}
                 type="button"
                 className="hf-field-btn"
-                title={`${f.token} — ${f.hint}`}
+                title={t('headerFooter.fieldTitle', { token, hint: fieldText(token).hint })}
                 onMouseDown={(e) => e.preventDefault() /* keep the caret in the input */}
-                onClick={() => insertField(f.token)}
+                onClick={() => insertField(token)}
               >
-                {f.label}
+                {fieldText(token).label}
               </button>
             ))}
           </div>
@@ -253,9 +261,9 @@ const HeaderFooterDialog: React.FC<HeaderFooterDialogProps> = ({ onClose, focusB
           {renderBand('footer')}
 
           <div className="hf-section">
-            <div className="hf-section-title">Page Numbering</div>
+            <div className="hf-section-title">{t('headerFooter.pageNumbering')}</div>
             <div className="hf-row">
-              <label>Start numbering at</label>
+              <label>{t('headerFooter.startNumbering')}</label>
               <input
                 type="number"
                 step="1"
@@ -268,22 +276,20 @@ const HeaderFooterDialog: React.FC<HeaderFooterDialogProps> = ({ onClose, focusB
               />
             </div>
             <div className="hf-hint">
-              The number printed on the first script page. The title page is never numbered and
-              never counted. Raise this when the opening sheet should read as a later page — a
-              synopsis on the first sheet, for instance, makes the script start at 2.
+              {t('headerFooter.numberingHint')}
             </div>
           </div>
 
           <div className="hf-section">
-            <div className="hf-section-title">Preview</div>
+            <div className="hf-section-title">{t('headerFooter.preview')}</div>
             <div className="hf-preview">
               {preview.map((p) => (
                 <div key={p.printed} className="hf-preview-page">
                   <div className="hf-preview-band">
                     {p.header
-                      ? p.header.map((t, i) => (
+                      ? p.header.map((text, i) => (
                           <span key={i} className={`hf-preview-slot hf-preview-slot-${i}`}>
-                            {t}
+                            {text}
                           </span>
                         ))
                       : null}
@@ -291,15 +297,15 @@ const HeaderFooterDialog: React.FC<HeaderFooterDialogProps> = ({ onClose, focusB
                   <div className="hf-preview-body" aria-hidden="true" />
                   <div className="hf-preview-band">
                     {p.footer
-                      ? p.footer.map((t, i) => (
+                      ? p.footer.map((text, i) => (
                           <span key={i} className={`hf-preview-slot hf-preview-slot-${i}`}>
-                            {t}
+                            {text}
                           </span>
                         ))
                       : null}
                   </div>
                   <div className="hf-preview-caption">
-                    {p.printed === firstPrinted ? 'First script page' : `Page ${p.printed}`}
+                    {p.printed === firstPrinted ? t('headerFooter.firstScriptPage') : t('headerFooter.pageN', { number: p.printed })}
                   </div>
                 </div>
               ))}
@@ -309,12 +315,12 @@ const HeaderFooterDialog: React.FC<HeaderFooterDialogProps> = ({ onClose, focusB
 
         <div className="dialog-actions">
           <button className="page-setup-reset" onClick={handleReset}>
-            Reset Default
+            {t('headerFooter.resetDefault')}
           </button>
           <div className="page-setup-spacer" />
-          <button onClick={onClose}>Cancel</button>
+          <button onClick={onClose}>{t('common:cancel')}</button>
           <button className="dialog-primary" onClick={handleApply}>
-            Apply
+            {t('common:apply')}
           </button>
         </div>
       </div>

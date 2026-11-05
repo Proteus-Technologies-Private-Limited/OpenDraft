@@ -10,6 +10,7 @@ import { api, ApiError } from '../services/api';
 import type { ProjectInfo, ProjectProperties, ScriptMeta, ScriptResponse } from '../services/api';
 import type { AssetIndexEntry } from './zipExport';
 import { uuid } from './uuid';
+import { t } from '../i18n';
 
 /** The part of `api` the import writes through. */
 export interface ZipImportClient {
@@ -161,7 +162,7 @@ export async function importProjectFromZip(
     zip = await JSZip.loadAsync(buf);
   } catch (err) {
     console.error('[zipImport] not a readable zip', err);
-    throw new Error('This file is not a valid zip archive');
+    throw new Error(t('messages:import.zipInvalid'));
   }
 
   const paths: string[] = [];
@@ -171,9 +172,9 @@ export async function importProjectFromZip(
     // A single-script archive puts its pair at the root. Say so, rather than
     // the bare "missing project.json" that told the writer nothing.
     if (groupScriptFiles(paths, '').length > 0) {
-      throw new Error('This zip holds a single script, not a project. Import it from inside a project instead.');
+      throw new Error(t('messages:import.zipSingleScript'));
     }
-    throw new Error('Invalid project archive: missing project.json');
+    throw new Error(t('messages:import.zipNoProject'));
   }
 
   const projectRaw = await readJson(zip, 'project.json');
@@ -295,7 +296,7 @@ export async function importProjectFromZip(
     }
 
     if (imported === 0 && failed.length > 0) {
-      throw new Error(`None of the ${failed.length} scripts could be imported`);
+      throw new Error(t('messages:import.zipNoneImported', { count: failed.length }));
     }
 
     return {

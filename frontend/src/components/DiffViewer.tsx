@@ -1,12 +1,14 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface DiffViewerProps {
   diff: string;
 }
 
 const DiffViewer: React.FC<DiffViewerProps> = ({ diff }) => {
+  const { t } = useTranslation('collab');
   if (!diff) {
-    return <div className="diff-viewer-empty">No diff to display</div>;
+    return <div className="diff-viewer-empty">{t('diffViewer.empty')}</div>;
   }
 
   const lines = diff.split('\n');

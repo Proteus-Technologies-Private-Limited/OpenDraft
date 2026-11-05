@@ -1,6 +1,7 @@
 import type { RecognitionCallbacks, RecognitionSession } from './recognition';
 import { localCaptureProblem } from '../capabilities';
 import { permissionErrorMessage } from './permissionError';
+import { t } from '../../../i18n';
 
 let cachedWorker: Worker | null = null;
 export function disposeLocalRecognition(): void {
@@ -71,13 +72,13 @@ export async function startLocalRecognition(
   };
   recorder.onerror = () => {
     cancel();
-    callbacks.error('Microphone recording failed.');
+    callbacks.error(t('addons:dictation.error.recordingFailed'));
     callbacks.end();
   };
   recorder.onstop = async () => {
     release();
     if (cancelled) return;
-    callbacks.interim('Preparing audio and loading the local model…');
+    callbacks.interim(t('addons:dictation.status.preparing'));
     let context: AudioContext | null = null;
     try {
       context = new AudioContext({ sampleRate: 16000 });
@@ -97,9 +98,7 @@ export async function startLocalRecognition(
       timeout = setTimeout(() => {
         if (cancelled) return;
         cancel();
-        callbacks.error(
-          'Local recognition timed out. Try a shorter recording or check the model download connection.',
-        );
+        callbacks.error(t('addons:dictation.error.localTimeout'));
         callbacks.end();
       }, 180_000);
       worker.onmessage = (event) => {
@@ -107,7 +106,7 @@ export async function startLocalRecognition(
         const data = event.data;
         if (data.id !== id) return;
         if (data.kind === 'progress')
-          callbacks.interim(`Downloading model assets: ${Math.round(data.progress)}%`);
+          callbacks.interim(t('addons:dictation.status.downloading', { percent: Math.round(data.progress) }));
         if (data.kind === 'result') {
           finish();
           callbacks.result(data.text);
@@ -124,7 +123,7 @@ export async function startLocalRecognition(
         if (!cancelled) {
           disposeLocalRecognition();
           finish();
-          callbacks.error('The local speech worker failed.');
+          callbacks.error(t('addons:dictation.error.workerFailed'));
           callbacks.end();
         }
       };

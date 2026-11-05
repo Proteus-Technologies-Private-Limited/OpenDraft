@@ -15,6 +15,7 @@ import {
 } from '../utils/noteNumbering';
 import { normalizeNoteThread, type NoteThread } from '../utils/noteThreads';
 import { useSettingsStore } from './settingsStore';
+import { t } from '../i18n';
 
 // ── View-state persistence helpers ──
 const VIEW_STATE_KEY = 'opendraft:viewState';
@@ -1897,7 +1898,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   installedLanguages: loadInstalledLanguages(),
   installLanguage: async (code) => {
     const lang = findLanguage(code);
-    if (!lang) return { ok: false, error: `Unknown language: ${code}` };
+    if (!lang) return { ok: false, error: t('messages:dictionary.unknownLanguage', { code }) };
     const urls = urlsFor(lang);
     const ok = await spellChecker.loadLanguage(code, {
       affUrl: urls.aff,
@@ -1905,7 +1906,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       label: lang.label,
     });
     if (!ok) {
-      return { ok: false, error: `Couldn't download "${lang.label}" — the source may be temporarily unavailable, or the network is offline.` };
+      return { ok: false, error: t('messages:dictionary.downloadFailed', { label: lang.label }) };
     }
     set((s) => {
       if (s.installedLanguages.includes(code)) return s;
@@ -1917,9 +1918,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
   installLanguageFromUrls: async ({ code, label, affUrl, dicUrl }) => {
     const trimmedCode = code.trim();
-    if (!trimmedCode) return { ok: false, error: 'Language code is required.' };
+    if (!trimmedCode) return { ok: false, error: t('messages:dictionary.codeRequired') };
     if (!affUrl.trim() || !dicUrl.trim()) {
-      return { ok: false, error: 'Both .aff and .dic URLs are required.' };
+      return { ok: false, error: t('messages:dictionary.urlsRequired') };
     }
     const ok = await spellChecker.loadLanguage(trimmedCode, {
       affUrl: affUrl.trim(),
@@ -1927,7 +1928,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       label: label.trim() || trimmedCode,
     });
     if (!ok) {
-      return { ok: false, error: 'Download or parse failed. Check the URLs and that the files are valid Hunspell .aff/.dic.' };
+      return { ok: false, error: t('messages:dictionary.parseFailed') };
     }
     set((s) => {
       if (s.installedLanguages.includes(trimmedCode)) return s;

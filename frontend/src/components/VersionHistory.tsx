@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Trans, useTranslation } from 'react-i18next';
 import type { JSONContent } from '@tiptap/react';
 import { useProjectStore } from '../stores/projectStore';
 import { api } from '../services/api';
@@ -11,6 +12,7 @@ import { relativeTime } from '../utils/relativeTime';
 
 
 const VersionHistory: React.FC = () => {
+  const { t } = useTranslation(['collab', 'common']);
   const navigate = useNavigate();
   const { currentProject, currentScriptId, versions, setVersions, versionHistoryOpen, setVersionHistoryOpen, triggerScriptReload } =
     useProjectStore();
@@ -43,7 +45,7 @@ const VersionHistory: React.FC = () => {
       const vA = versions.find((v) => v.hash === compareSelection[0]);
       const vB = versions.find((v) => v.hash === compareSelection[1]);
       if (!vA || !vB) {
-        showToast('Selected versions no longer available', 'error');
+        showToast(t('versions.toast.unavailable'), 'error');
         return;
       }
       // Order: earlier version = A, later = B
@@ -71,20 +73,20 @@ const VersionHistory: React.FC = () => {
 
       if (!respA && !respB) {
         showToast(
-          `This script does not exist in either selected version.`,
+          t('versions.toast.notInEither'),
           'error',
         );
         return;
       }
       if (!respA) {
         showToast(
-          `Script was added in ${later.short_hash}. It does not exist in ${earlier.short_hash}.`,
+          t('versions.toast.addedIn', { later: later.short_hash, earlier: earlier.short_hash }),
           'info',
         );
       }
       if (!respB) {
         showToast(
-          `Script was removed before ${later.short_hash}. Showing only ${earlier.short_hash}.`,
+          t('versions.toast.removedBefore', { later: later.short_hash, earlier: earlier.short_hash }),
           'info',
         );
       }
@@ -95,18 +97,18 @@ const VersionHistory: React.FC = () => {
         docB: (respB?.content || emptyDoc) as Record<string, unknown>,
         labelA: respA
           ? `${earlier.short_hash} · ${earlier.message}`
-          : `${earlier.short_hash} · (script not in this version)`,
+          : `${earlier.short_hash} · ${t('versions.scriptNotInVersion')}`,
         labelB: respB
           ? `${later.short_hash} · ${later.message}`
-          : `${later.short_hash} · (script not in this version)`,
+          : `${later.short_hash} · ${t('versions.scriptNotInVersion')}`,
       });
     } catch (err) {
       showToast(
-        err instanceof Error ? err.message : 'Failed to load versions for comparison',
+        err instanceof Error ? err.message : t('versions.toast.compareFailed'),
         'error',
       );
     }
-  }, [currentProject, currentScriptId, compareSelection, versions]);
+  }, [currentProject, currentScriptId, compareSelection, versions, t]);
 
   // Load versions when panel opens
   const loadVersions = useCallback(async () => {
@@ -117,11 +119,11 @@ const VersionHistory: React.FC = () => {
       const data = await api.getVersions(currentProject.id, currentScriptId || undefined);
       setVersions(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load versions');
+      setError(err instanceof Error ? err.message : t('versions.toast.loadFailed'));
     } finally {
       setLoading(false);
     }
-  }, [currentProject, currentScriptId, setVersions]);
+  }, [currentProject, currentScriptId, setVersions, t]);
 
   useEffect(() => {
     if (versionHistoryOpen && currentProject) {
@@ -136,19 +138,19 @@ const VersionHistory: React.FC = () => {
 
       // Diff against previous commit (or show first commit as-is)
       if (index >= versions.length - 1) {
-        setDiffText('(Initial version -- no previous version to compare against)');
+        setDiffText(t('versions.initial'));
         return;
       }
 
       const prevVersion = versions[index + 1]; // versions are newest-first
       try {
         const result = await api.getVersionDiff(currentProject.id, prevVersion.hash, version.hash);
-        setDiffText(result.diff || '(No changes)');
+        setDiffText(result.diff || t('versions.noChanges'));
       } catch (err) {
-        setDiffText(`Error loading diff: ${err instanceof Error ? err.message : 'unknown error'}`);
+        setDiffText(t('versions.diffError', { message: err instanceof Error ? err.message : t('versions.unknownError') }));
       }
     },
-    [currentProject, versions]
+    [currentProject, versions, t]
   );
 
   const [restoreConfirm, setRestoreConfirm] = useState<VersionInfo | null>(null);
@@ -181,18 +183,18 @@ const VersionHistory: React.FC = () => {
             // Script was removed by the restore — go to project view
             setVersionHistoryOpen(false);
             navigate(`/project/${currentProject.id}`, { replace: true });
-            showToast(`Restored to version ${version.short_hash}. The open script no longer exists in this version.`, 'info');
+            showToast(t('versions.toast.restoredScriptGone', { hash: version.short_hash }), 'info');
             return;
           }
         } else {
           triggerScriptReload();
         }
-        showToast(`Restored to version ${version.short_hash}`, 'success');
+        showToast(t('versions.toast.restored', { hash: version.short_hash }), 'success');
       } catch (err) {
-        showToast(`Restore failed: ${err instanceof Error ? err.message : 'unknown error'}`, 'error');
+        showToast(t('versions.toast.restoreFailed', { message: err instanceof Error ? err.message : t('versions.unknownError') }), 'error');
       }
     },
-    [currentProject, currentScriptId, restoreConfirm, loadVersions, navigate, setVersionHistoryOpen, triggerScriptReload]
+    [currentProject, currentScriptId, restoreConfirm, loadVersions, navigate, setVersionHistoryOpen, triggerScriptReload, t]
   );
 
   // ── Delete a version (discussion #183) ──
@@ -212,21 +214,21 @@ const VersionHistory: React.FC = () => {
       setSelectedVersion(null);
       setDiffText(null);
       await loadVersions();
-      showToast(`Deleted version ${version.short_hash}`, 'success');
+      showToast(t('versions.toast.deleted', { hash: version.short_hash }), 'success');
     } catch (err) {
       console.error('[VersionHistory] delete failed', err);
-      showToast(`Delete failed: ${err instanceof Error ? err.message : 'unknown error'}`, 'error');
+      showToast(t('versions.toast.deleteFailed', { message: err instanceof Error ? err.message : t('versions.unknownError') }), 'error');
     } finally {
       setDeleting(false);
     }
-  }, [currentProject, deleteConfirm, loadVersions]);
+  }, [currentProject, deleteConfirm, loadVersions, t]);
 
   if (!versionHistoryOpen) return null;
 
   return (
     <div className="version-history-panel">
       <div className="version-history-header">
-        <span className="version-history-title">Version History</span>
+        <span className="version-history-title">{t('versions.title')}</span>
         <button
           className="version-history-close"
           onClick={() => {
@@ -241,34 +243,34 @@ const VersionHistory: React.FC = () => {
 
       {!currentProject && (
         <div className="version-history-empty">
-          No project selected. Import or create a screenplay first.
+          {t('versions.noProject')}
         </div>
       )}
 
       {error && <div className="version-history-error">{error}</div>}
 
-      {loading && <div className="version-history-loading">Loading versions...</div>}
+      {loading && <div className="version-history-loading">{t('versions.loading')}</div>}
 
       {currentScriptId && versions.length >= 2 && (
         <div className="version-compare-bar">
           <span className="version-compare-info">
-            {compareSelection.length === 0 && 'Check two versions to compare'}
-            {compareSelection.length === 1 && 'Select one more version to compare'}
-            {compareSelection.length === 2 && 'Ready to compare'}
+            {compareSelection.length === 0 && t('versions.compareHint0')}
+            {compareSelection.length === 1 && t('versions.compareHint1')}
+            {compareSelection.length === 2 && t('versions.compareHint2')}
           </span>
           <button
             className="version-compare-btn"
             disabled={compareSelection.length !== 2}
             onClick={runScriptCompare}
           >
-            Compare Selected
+            {t('versions.compareSelected')}
           </button>
           {compareSelection.length > 0 && (
             <button
               className="version-compare-clear"
               onClick={() => setCompareSelection([])}
             >
-              Clear
+              {t('common:clear')}
             </button>
           )}
         </div>
@@ -278,7 +280,7 @@ const VersionHistory: React.FC = () => {
         <div className="version-history-list">
           {versions.length === 0 && !loading && currentProject && (
             <div className="version-history-empty">
-              No versions yet. Use File &gt; Check In to save a version.
+              {t('versions.empty')}
             </div>
           )}
           {versions.map((v, i) => (
@@ -295,7 +297,7 @@ const VersionHistory: React.FC = () => {
                     checked={compareSelection.includes(v.hash)}
                     onChange={(e) => { e.stopPropagation(); toggleCompareSelect(v.hash); }}
                     onClick={(e) => e.stopPropagation()}
-                    title="Select for compare"
+                    title={t('versions.selectForCompare')}
                   />
                 )}
                 <span className="version-hash">{v.short_hash}</span>
@@ -321,9 +323,9 @@ const VersionHistory: React.FC = () => {
                         );
                       }
                     }}
-                    title="View this version in the editor (read-only)"
+                    title={t('versions.viewTitle')}
                   >
-                    View
+                    {t('versions.view')}
                   </button>
                 )}
                 <button
@@ -332,9 +334,9 @@ const VersionHistory: React.FC = () => {
                     e.stopPropagation();
                     handleRestore(v);
                   }}
-                  title="Restore this version"
+                  title={t('versions.restoreTitle')}
                 >
-                  Restore
+                  {t('versions.restore')}
                 </button>
                 <button
                   className="version-delete-btn"
@@ -342,9 +344,9 @@ const VersionHistory: React.FC = () => {
                     e.stopPropagation();
                     setDeleteConfirm(v);
                   }}
-                  title="Delete this version from the history"
+                  title={t('versions.deleteTitle')}
                 >
-                  Delete
+                  {t('common:delete')}
                 </button>
               </div>
             </div>
@@ -355,7 +357,7 @@ const VersionHistory: React.FC = () => {
           <div className="version-diff-area">
             <div className="version-diff-header">
               <span>
-                Changes in {selectedVersion.short_hash}: {selectedVersion.message}
+                {t('versions.changesIn', { hash: selectedVersion.short_hash, message: selectedVersion.message })}
               </span>
               <button
                 className="version-diff-close"
@@ -385,21 +387,33 @@ const VersionHistory: React.FC = () => {
       {deleteConfirm && (
         <div className="dialog-overlay" onClick={() => { if (!deleting) setDeleteConfirm(null); }}>
           <div className="dialog-box" onClick={(e) => e.stopPropagation()}>
-            <div className="dialog-header">Delete Version</div>
+            <div className="dialog-header">{t('versions.deleteDialogTitle')}</div>
             <div className="dialog-body">
               <p style={{ margin: 0 }}>
-                Delete version <strong>{deleteConfirm.short_hash}</strong>
-                {deleteConfirm.message ? <> &ldquo;{deleteConfirm.message}&rdquo;</> : null} from the history?
+                {deleteConfirm.message ? (
+                  <Trans
+                    ns="collab"
+                    i18nKey="versions.deleteConfirmWithMessage"
+                    values={{ hash: deleteConfirm.short_hash, message: deleteConfirm.message }}
+                    components={{ strong: <strong /> }}
+                  />
+                ) : (
+                  <Trans
+                    ns="collab"
+                    i18nKey="versions.deleteConfirm"
+                    values={{ hash: deleteConfirm.short_hash }}
+                    components={{ strong: <strong /> }}
+                  />
+                )}
               </p>
               <p style={{ margin: '8px 0 0' }}>
-                Your scripts as they are now, and every other version, stay as they are.
-                This cannot be undone.
+                {t('versions.deleteNote')}
               </p>
             </div>
             <div className="dialog-actions">
-              <button onClick={() => setDeleteConfirm(null)} disabled={deleting}>Cancel</button>
+              <button onClick={() => setDeleteConfirm(null)} disabled={deleting}>{t('common:cancel')}</button>
               <button className="dialog-danger" onClick={handleDeleteConfirm} disabled={deleting}>
-                {deleting ? 'Deleting…' : 'Delete'}
+                {deleting ? t('versions.deleting') : t('common:delete')}
               </button>
             </div>
           </div>
@@ -408,17 +422,21 @@ const VersionHistory: React.FC = () => {
       {restoreConfirm && (
         <div className="dialog-overlay" onClick={() => setRestoreConfirm(null)}>
           <div className="dialog-box" onClick={(e) => e.stopPropagation()}>
-            <div className="dialog-header">Restore Version</div>
+            <div className="dialog-header">{t('versions.restoreDialogTitle')}</div>
             <div className="dialog-body">
               <p style={{ margin: 0 }}>
-                Restore to version <strong>{restoreConfirm.short_hash}</strong>?
-                This will create a new version with the restored content.
+                <Trans
+                  ns="collab"
+                  i18nKey="versions.restoreConfirm"
+                  values={{ hash: restoreConfirm.short_hash }}
+                  components={{ strong: <strong /> }}
+                />
               </p>
             </div>
             <div className="dialog-actions">
-              <button onClick={() => setRestoreConfirm(null)}>Cancel</button>
+              <button onClick={() => setRestoreConfirm(null)}>{t('common:cancel')}</button>
               <button className="dialog-primary" onClick={handleRestoreConfirm}>
-                Restore
+                {t('versions.restore')}
               </button>
             </div>
           </div>

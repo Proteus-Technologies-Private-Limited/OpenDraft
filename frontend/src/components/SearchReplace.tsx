@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Editor } from '@tiptap/react';
+import { useTranslation } from 'react-i18next';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import { useEditorStore } from '../stores/editorStore';
@@ -36,6 +37,7 @@ interface SearchReplaceProps {
 }
 
 const SearchReplace: React.FC<SearchReplaceProps> = ({ editor }) => {
+  const { t } = useTranslation(['tools', 'common']);
   const { searchOpen, setSearchOpen } = useEditorStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [replaceTerm, setReplaceTerm] = useState('');
@@ -296,24 +298,24 @@ const SearchReplace: React.FC<SearchReplaceProps> = ({ editor }) => {
         onMouseDown={handleDragStart}
         style={{ cursor: 'grab' }}
       >
-        <span>Find & Replace</span>
+        <span>{t('search.title')}</span>
         <button
           className="search-close-btn"
           onClick={() => setSearchOpen(false)}
-          aria-label="Close find and replace"
+          aria-label={t('search.close')}
         >
           ✕
         </button>
       </div>
       <div className="search-replace-body">
         <div className="search-row">
-          <label>Find:</label>
+          <label>{t('search.find')}</label>
           <input
             ref={inputRef}
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            aria-label="Find text"
+            aria-label={t('search.findText')}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && e.shiftKey) {
                 e.preventDefault();
@@ -323,7 +325,7 @@ const SearchReplace: React.FC<SearchReplaceProps> = ({ editor }) => {
                 findNext();
               }
             }}
-            placeholder="Search text..."
+            placeholder={t('search.findPlaceholder')}
           />
           <span className="match-info">
             {searchTerm
@@ -332,19 +334,19 @@ const SearchReplace: React.FC<SearchReplaceProps> = ({ editor }) => {
           </span>
         </div>
         <div className="search-row">
-          <label>Replace:</label>
+          <label>{t('search.replace')}</label>
           <input
             type="text"
             value={replaceTerm}
             onChange={(e) => setReplaceTerm(e.target.value)}
-            aria-label="Replace with text"
+            aria-label={t('search.replaceText')}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault();
                 replaceOne();
               }
             }}
-            placeholder="Replace with..."
+            placeholder={t('search.replacePlaceholder')}
           />
         </div>
         <div className="search-options">
@@ -354,7 +356,7 @@ const SearchReplace: React.FC<SearchReplaceProps> = ({ editor }) => {
               checked={matchCase}
               onChange={(e) => setMatchCase(e.target.checked)}
             />
-            Match Case
+            {t('search.matchCase')}
           </label>
           <label className="search-checkbox">
             <input
@@ -362,37 +364,37 @@ const SearchReplace: React.FC<SearchReplaceProps> = ({ editor }) => {
               checked={wholeWord}
               onChange={(e) => setWholeWord(e.target.checked)}
             />
-            Whole Word
+            {t('search.wholeWord')}
           </label>
         </div>
         <div className="search-actions">
           <button
             onClick={findPrev}
             disabled={!searchTerm || matches.length === 0}
-            aria-label="Find previous match"
+            aria-label={t('search.findPrevious')}
           >
-            ◀ Prev
+            {t('search.prev')}
           </button>
           <button
             onClick={findNext}
             disabled={!searchTerm || matches.length === 0}
-            aria-label="Find next match"
+            aria-label={t('search.findNext')}
           >
-            Next ▶
+            {t('search.next')}
           </button>
           <button
             onClick={replaceOne}
             disabled={!searchTerm || matches.length === 0}
-            aria-label="Replace current match"
+            aria-label={t('search.replaceCurrent')}
           >
-            Replace
+            {t('common:replace')}
           </button>
           <button
             onClick={replaceAll}
             disabled={!searchTerm || matches.length === 0}
-            aria-label="Replace all matches"
+            aria-label={t('search.replaceAllMatches')}
           >
-            Replace All
+            {t('search.replaceAll')}
           </button>
         </div>
       </div>

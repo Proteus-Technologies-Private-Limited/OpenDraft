@@ -24,11 +24,16 @@ import {
   SUGGEST_FORMAT, isFormatStamp, SUGGEST_DELETE, SUGGEST_INSERT, SUGGESTED_JOIN, SUGGESTED_SPLIT, SUGGESTED_TYPE,
   discardOverriddenFormats, introducesFormatSuggestions, isHousekeeping, isLocalEdit, onlyGivesSceneIds, suggestTransaction, type Blocked, type Suggester, type SuggestionStamp, type TypeStamp,
 } from '../suggestions';
+import { t } from '../../i18n';
+import { formatDateTime } from '../../i18n/format';
 
 const when = (at: unknown) => {
   const n = Number(at);
   if (!n) return '';
-  try { return new Date(n).toLocaleString(); } catch { return ''; }
+  try {
+    // Same fields toLocaleString() shows, in the interface language.
+    return formatDateTime(n, { year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' });
+  } catch { return ''; }
 };
 
 /** The author's stable id in a collaboration session (SuggestionStamp.uid). */
@@ -53,7 +58,9 @@ export const SuggestionInsert = Mark.create({
   renderHTML({ HTMLAttributes, mark }) {
     return ['ins', mergeAttributes(HTMLAttributes, {
       class: 'suggestion-insert',
-      title: `Suggested by ${mark.attrs.by || 'someone'}${when(mark.attrs.at) ? ` · ${when(mark.attrs.at)}` : ''}`,
+      title: when(mark.attrs.at)
+        ? t('messages:suggestions.insertedByAt', { name: mark.attrs.by || t('messages:suggestions.someone'), when: when(mark.attrs.at) })
+        : t('messages:suggestions.insertedBy', { name: mark.attrs.by || t('messages:suggestions.someone') }),
     }), 0];
   },
 });
@@ -73,7 +80,9 @@ export const SuggestionDelete = Mark.create({
   renderHTML({ HTMLAttributes, mark }) {
     return ['del', mergeAttributes(HTMLAttributes, {
       class: 'suggestion-delete',
-      title: `${mark.attrs.by || 'Someone'} suggested deleting this${when(mark.attrs.at) ? ` · ${when(mark.attrs.at)}` : ''}`,
+      title: when(mark.attrs.at)
+        ? t('messages:suggestions.deleteByAt', { name: mark.attrs.by || t('messages:suggestions.someoneCap'), when: when(mark.attrs.at) })
+        : t('messages:suggestions.deleteBy', { name: mark.attrs.by || t('messages:suggestions.someoneCap') }),
     }), 0];
   },
 });
@@ -132,7 +141,7 @@ export const SuggestionFormat = Mark.create({
       {
         class: 'suggestion-format',
         'data-suggestion-format': JSON.stringify(mark.attrs),
-        title: `${mark.attrs.by || 'Someone'} suggested ${mark.attrs.after ? 'adding' : 'removing'} ${mark.attrs.format}`,
+        title: t(mark.attrs.after ? 'messages:suggestions.formatAdd' : 'messages:suggestions.formatRemove', { name: mark.attrs.by || t('messages:suggestions.someoneCap'), format: mark.attrs.format }),
       },
       0,
     ];
@@ -165,12 +174,23 @@ function label(text: string, title: string, kind: string): HTMLElement {
   return el;
 }
 
-const TYPE_NAMES: Record<string, string> = {
-  sceneHeading: 'Scene Heading', action: 'Action', character: 'Character', dialogue: 'Dialogue',
-  parenthetical: 'Parenthetical', transition: 'Transition', general: 'General', shot: 'Shot',
-  lyrics: 'Lyrics', newAct: 'New Act', endOfAct: 'End of Act',
-};
-const typeName = (t: string) => TYPE_NAMES[t] ?? t;
+/** The element type's name for the writer, looked up when shown; an unknown type reads as its id. */
+function typeName(type: string): string {
+  switch (type) {
+    case 'sceneHeading': return t('messages:elements.sceneHeading');
+    case 'action': return t('messages:elements.action');
+    case 'character': return t('messages:elements.character');
+    case 'dialogue': return t('messages:elements.dialogue');
+    case 'parenthetical': return t('messages:elements.parenthetical');
+    case 'transition': return t('messages:elements.transition');
+    case 'general': return t('messages:elements.general');
+    case 'shot': return t('messages:elements.shot');
+    case 'lyrics': return t('messages:elements.lyrics');
+    case 'newAct': return t('messages:elements.newAct');
+    case 'endOfAct': return t('messages:elements.endOfAct');
+    default: return type;
+  }
+}
 
 /** Labels for the suggestions that have no text of their own. Exported for tests. */
 export function buildSuggestionDecorations(doc: PmNode): DecorationSet {
@@ -179,13 +199,13 @@ export function buildSuggestionDecorations(doc: PmNode): DecorationSet {
     if (!node.isTextblock) return true;
     const join = node.attrs[SUGGESTED_JOIN] as SuggestionStamp | null;
     if (join && typeof join === 'object') {
-      decorations.push(Decoration.widget(pos + 1, () => label('⤒ join', `${join.by || 'Someone'} suggested joining this line to the one before`, 'join'), {
+      decorations.push(Decoration.widget(pos + 1, () => label(t('messages:suggestions.joinLabel'), t('messages:suggestions.joinTitle', { name: join.by || t('messages:suggestions.someoneCap') }), 'join'), {
         side: -1, ignoreSelection: true, key: `join-${join.id}`,
       }));
     }
     const type = node.attrs[SUGGESTED_TYPE] as TypeStamp | null;
     if (type && typeof type === 'object' && type.from) {
-      decorations.push(Decoration.widget(pos + 1, () => label(`was ${typeName(type.from)}`, `${type.by || 'Someone'} suggested changing this from ${typeName(type.from)} to ${typeName(node.type.name)}`, 'type'), {
+      decorations.push(Decoration.widget(pos + 1, () => label(t('messages:suggestions.wasType', { type: typeName(type.from) }), t('messages:suggestions.changeTitle', { name: type.by || t('messages:suggestions.someoneCap'), from: typeName(type.from), to: typeName(node.type.name) }), 'type'), {
         side: -1, ignoreSelection: true, key: `type-${type.id}-${type.from}-${node.type.name}`,
       }));
     }

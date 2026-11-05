@@ -1,5 +1,6 @@
 import React, { useRef, useCallback, useEffect } from 'react';
 import DOMPurify from 'dompurify';
+import { useTranslation } from 'react-i18next';
 
 interface MiniRichTextProps {
   value: string;
@@ -25,6 +26,7 @@ const MiniRichText: React.FC<MiniRichTextProps> = ({
   placeholder = '',
   minHeight = 60,
 }) => {
+  const { t } = useTranslation('toolbar');
   const editorRef = useRef<HTMLDivElement>(null);
   const isInternalChange = useRef(false);
 
@@ -69,7 +71,7 @@ const MiniRichText: React.FC<MiniRichTextProps> = ({
         <button
           className={`mini-rt-btn${isActive('bold') ? ' active' : ''}`}
           onClick={() => exec('bold')}
-          title="Bold"
+          title={t('richText.bold')}
           type="button"
         >
           <strong>B</strong>
@@ -77,7 +79,7 @@ const MiniRichText: React.FC<MiniRichTextProps> = ({
         <button
           className={`mini-rt-btn${isActive('italic') ? ' active' : ''}`}
           onClick={() => exec('italic')}
-          title="Italic"
+          title={t('richText.italic')}
           type="button"
         >
           <em>I</em>
@@ -85,7 +87,7 @@ const MiniRichText: React.FC<MiniRichTextProps> = ({
         <button
           className={`mini-rt-btn${isActive('underline') ? ' active' : ''}`}
           onClick={() => exec('underline')}
-          title="Underline"
+          title={t('richText.underline')}
           type="button"
         >
           <u>U</u>
@@ -94,7 +96,7 @@ const MiniRichText: React.FC<MiniRichTextProps> = ({
         <button
           className={`mini-rt-btn${isActive('insertUnorderedList') ? ' active' : ''}`}
           onClick={() => exec('insertUnorderedList')}
-          title="Bullet list"
+          title={t('richText.bulletList')}
           type="button"
         >
           &#8226;

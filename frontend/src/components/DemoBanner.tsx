@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../services/api';
 import { isTauri } from '../services/platform';
 
 const DISMISSED_KEY = 'opendraft:demo-banner-dismissed';
 
 const DemoBanner: React.FC = () => {
+  const { t } = useTranslation('collab');
   const [message, setMessage] = useState<string | null>(null);
   const [visible, setVisible] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 600);
@@ -74,7 +76,7 @@ const DemoBanner: React.FC = () => {
           fontSize: isMobile ? 22 : 28,
           fontWeight: 700,
           color: '#e67e22',
-        }}>Demo Server</h2>
+        }}>{t('demo.title')}</h2>
         <div style={{
           textAlign: 'left',
           marginBottom: isMobile ? 20 : 32,
@@ -103,7 +105,7 @@ const DemoBanner: React.FC = () => {
             width: isMobile ? '100%' : 'auto',
           }}
         >
-          I Understand
+          {t('demo.understand')}
         </button>
       </div>
     </div>

@@ -29,6 +29,7 @@ import { restoreRevisionState } from './revisionState';
 import { useEditorStore, DEFAULT_TAG_CATEGORIES } from '../stores/editorStore';
 import { pluginRegistry, type PluginImporter } from '../plugins/registry';
 import { reviewPdfImport } from './pdfImportReview';
+import { t } from '../i18n';
 
 export { ImportCancelledError, isImportCancelled } from './pdfImportReview';
 
@@ -335,12 +336,11 @@ async function parseScreenplayImportInternal(
 
   if (isBinaryImportExtension(ext) && typeof data === 'string') {
     throw new Error(
-      `${formatLabel} files are compressed archives and cannot be opened on this platform. ` +
-        `Export the script from ${ARCHIVE_SOURCE_APPS[ext] ?? 'Fade In'} as .fdx, .fountain or .osf and import that instead.`,
+      t('messages:import.archiveNotOpenable', { format: formatLabel, app: ARCHIVE_SOURCE_APPS[ext] ?? 'Fade In' }),
     );
   }
   if (!isBinaryImportExtension(ext) && typeof data !== 'string') {
-    throw new Error(`Expected text content for a ${formatLabel} file.`);
+    throw new Error(t('messages:import.expectedText', { format: formatLabel }));
   }
 
   // Every branch parses before it touches the stores. Resetting first meant a
@@ -445,7 +445,7 @@ async function parseScreenplayImportInternal(
     try {
       parsed = parseOdraft(text);
     } catch (err) {
-      throw new Error(`Invalid .odraft file: ${err instanceof Error ? err.message : String(err)}`);
+      throw new Error(t('messages:import.invalidOdraft', { message: err instanceof Error ? err.message : String(err) }));
     }
     // Bring back notes, tags, beats and character profiles — without this an
     // imported .odraft comes back as bare text with all of that dropped.

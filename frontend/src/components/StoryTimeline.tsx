@@ -15,6 +15,7 @@
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import type { Editor } from '@tiptap/react';
+import { useTranslation } from 'react-i18next';
 import { useEditorStore } from '../stores/editorStore';
 import { PLOTLINE_COLORS, type Plotline } from '../utils/plotlines';
 import {
@@ -40,6 +41,7 @@ const MIN_SCENE_PX = 18;
 const PX_PER_SECOND = 0.6;
 
 const StoryTimeline: React.FC<Props> = ({ editor, onClose }) => {
+  const { t } = useTranslation(['story', 'common']);
   const plotlines = useEditorStore((s) => s.plotlines);
   const beats = useEditorStore((s) => s.beats);
   const pageLayout = useEditorStore((s) => s.pageLayout);
@@ -113,7 +115,7 @@ const StoryTimeline: React.FC<Props> = ({ editor, onClose }) => {
     setPendingDelete(null);
   };
 
-  const sceneTitle = (s: TimelineScene) => `${s.number}. ${s.heading} — ${formatSceneDuration(s.seconds)}`;
+  const sceneTitle = (s: TimelineScene) => t('timeline.sceneTitle', { number: s.number, heading: s.heading, duration: formatSceneDuration(s.seconds) });
   // Every row lays its scenes out the same way, so the columns line up.
   const cellStyle = (s: TimelineScene): React.CSSProperties => ({
     flex: `${Math.max(s.seconds, 1)} 0 0`,
@@ -138,24 +140,24 @@ const StoryTimeline: React.FC<Props> = ({ editor, onClose }) => {
         aria-labelledby="story-timeline-title"
       >
         <div className="dialog-header story-timeline-header">
-          <span id="story-timeline-title">Story Timeline</span>
+          <span id="story-timeline-title">{t('timeline.title')}</span>
           <span className="story-timeline-meta">
-            {scenes.length} scene{scenes.length === 1 ? '' : 's'} · {formatSceneDuration(totalSeconds)}
+            {t('timeline.meta', { scenes: t('timeline.sceneCount', { count: scenes.length }), duration: formatSceneDuration(totalSeconds) })}
           </span>
         </div>
 
         <div className="story-timeline-body">
           {scenes.length === 0 ? (
-            <p className="story-timeline-empty">No scenes yet. Write a scene heading (INT. or EXT.) and it appears here.</p>
+            <p className="story-timeline-empty">{t('timeline.empty')}</p>
           ) : (
             <div className="story-timeline-grid">
               {/* Left: the plotlines */}
               <div className="story-timeline-labels">
-                <div className="story-timeline-label story-timeline-ruler-label">Scene</div>
+                <div className="story-timeline-label story-timeline-ruler-label">{t('timeline.scene')}</div>
                 {linkedBeatCount > 0 && (
                   <div className="story-timeline-label story-timeline-beats-label">
-                    <span>Beats</span>
-                    <span className="story-timeline-sum">{linkedBeatCount} linked</span>
+                    <span>{t('timeline.beats')}</span>
+                    <span className="story-timeline-sum">{t('timeline.linked', { count: linkedBeatCount })}</span>
                   </div>
                 )}
                 {plotlines.map((p) => {
@@ -168,8 +170,8 @@ const StoryTimeline: React.FC<Props> = ({ editor, onClose }) => {
                           className="story-timeline-swatch"
                           style={{ background: p.color }}
                           onClick={(e) => { e.stopPropagation(); setColorPickerFor(colorPickerFor === p.id ? null : p.id); }}
-                          title="Colour"
-                          aria-label={`Colour of ${p.name || 'plotline'}`}
+                          title={t('timeline.colour')}
+                          aria-label={t('timeline.colourOf', { name: p.name || t('timeline.plotlineLower') })}
                         />
                         {colorPickerFor === p.id && (
                           <div className="story-timeline-colors" onClick={(e) => e.stopPropagation()}>
@@ -190,19 +192,20 @@ const StoryTimeline: React.FC<Props> = ({ editor, onClose }) => {
                           className="story-timeline-name"
                           value={p.name}
                           onChange={(e) => updatePlotline(p.id, { name: e.target.value })}
-                          placeholder="Plotline name"
-                          aria-label="Plotline name"
+                          placeholder={t('timeline.plotlineName')}
+                          aria-label={t('timeline.plotlineName')}
                         />
                         <span className="story-timeline-sum">
-                          {sum.scenes} scene{sum.scenes === 1 ? '' : 's'} · {formatSceneDuration(sum.seconds)}
-                          {beatCount > 0 && ` · ${beatCount} beat${beatCount === 1 ? '' : 's'}`}
+                          {beatCount > 0
+                            ? t('timeline.summaryWithBeats', { scenes: t('timeline.sceneCount', { count: sum.scenes }), duration: formatSceneDuration(sum.seconds), beats: t('timeline.beatCount', { count: beatCount }) })
+                            : t('timeline.summary', { scenes: t('timeline.sceneCount', { count: sum.scenes }), duration: formatSceneDuration(sum.seconds) })}
                         </span>
                       </div>
                       <button
                         className="story-timeline-delete"
                         onClick={() => setPendingDelete(p)}
-                        title="Delete plotline"
-                        aria-label={`Delete ${p.name || 'plotline'}`}
+                        title={t('timeline.deletePlotlineTitle')}
+                        aria-label={t('timeline.deleteNamed', { name: p.name || t('timeline.plotlineLower') })}
                       >
                         &times;
                       </button>
@@ -211,13 +214,13 @@ const StoryTimeline: React.FC<Props> = ({ editor, onClose }) => {
                 })}
                 {plotlines.length > 0 && (
                   <div className="story-timeline-label story-timeline-unassigned-label">
-                    <span>No plotline</span>
+                    <span>{t('timeline.noPlotline')}</span>
                     <span className="story-timeline-sum">
-                      {unassigned.length} scene{unassigned.length === 1 ? '' : 's'}
+                      {t('timeline.sceneCount', { count: unassigned.length })}
                     </span>
                   </div>
                 )}
-                <button className="story-timeline-add" onClick={() => addPlotline()}>+ Add Plotline</button>
+                <button className="story-timeline-add" onClick={() => addPlotline()}>{t('timeline.addPlotline')}</button>
               </div>
 
               {/* Right: the scenes, by screen time */}
@@ -229,14 +232,14 @@ const StoryTimeline: React.FC<Props> = ({ editor, onClose }) => {
                       className="story-timeline-ruler-cell"
                       style={cellStyle(s)}
                       onClick={() => goTo(s)}
-                      title={`${sceneTitle(s)} — go to scene`}
+                      title={t('timeline.goToScene', { scene: sceneTitle(s) })}
                     >
                       {s.number}
                     </button>
                   ))}
                 </div>
                 {linkedBeatCount > 0 && (
-                  <div className="story-timeline-track story-timeline-beats" style={trackStyle} role="group" aria-label="Linked beats">
+                  <div className="story-timeline-track story-timeline-beats" style={trackStyle} role="group" aria-label={t('timeline.linkedBeats')}>
                     {scenes.map((s) => {
                       const here = beatsAt(s);
                       if (!here.length) return <span key={s.pos} className="story-timeline-beat-cell empty" style={cellStyle(s)} />;
@@ -246,8 +249,8 @@ const StoryTimeline: React.FC<Props> = ({ editor, onClose }) => {
                           className="story-timeline-beat-cell"
                           style={cellStyle(s)}
                           onClick={() => goTo(s)}
-                          title={`${sceneTitle(s)}\n${here.map((b) => `• ${b.title || 'Untitled beat'}`).join('\n')}\nClick to go to the scene`}
-                          aria-label={`${here.length} beat${here.length === 1 ? '' : 's'} at scene ${s.number} — go to scene`}
+                          title={t('timeline.beatsTitle', { scene: sceneTitle(s), beats: here.map((b) => `• ${b.title || t('timeline.untitledBeat')}`).join('\n') })}
+                          aria-label={t('timeline.beatsAtScene', { count: here.length, number: s.number })}
                         >
                           {here.slice(0, 3).map((b) => (
                             <span key={b.id} className="story-timeline-beat" style={b.color ? { background: b.color } : undefined} />
@@ -259,7 +262,7 @@ const StoryTimeline: React.FC<Props> = ({ editor, onClose }) => {
                   </div>
                 )}
                 {plotlines.map((p) => (
-                  <div key={p.id} className="story-timeline-track" style={trackStyle} role="group" aria-label={p.name || 'Plotline'}>
+                  <div key={p.id} className="story-timeline-track" style={trackStyle} role="group" aria-label={p.name || t('timeline.plotlineCap')}>
                     {scenes.map((s) => {
                       const on = s.plotlineIds.includes(p.id);
                       return (
@@ -270,7 +273,7 @@ const StoryTimeline: React.FC<Props> = ({ editor, onClose }) => {
                           onClick={() => toggle(s, p.id)}
                           disabled={!editable}
                           aria-pressed={on}
-                          title={`${sceneTitle(s)} — ${on ? 'in' : 'not in'} ${p.name || 'this plotline'}; click to ${on ? 'take out' : 'add'}`}
+                          title={t(on ? 'timeline.cellOn' : 'timeline.cellOff', { scene: sceneTitle(s), name: p.name || t('timeline.thisPlotline') })}
                         />
                       );
                     })}
@@ -283,7 +286,7 @@ const StoryTimeline: React.FC<Props> = ({ editor, onClose }) => {
                         key={s.pos}
                         className={`story-timeline-cell${unassigned.includes(s) ? ' gap' : ''}`}
                         style={cellStyle(s)}
-                        title={unassigned.includes(s) ? `${sceneTitle(s)} — in no plotline` : undefined}
+                        title={unassigned.includes(s) ? t('timeline.inNoPlotline', { scene: sceneTitle(s) }) : undefined}
                       />
                     ))}
                   </div>
@@ -293,28 +296,28 @@ const StoryTimeline: React.FC<Props> = ({ editor, onClose }) => {
           )}
           {scenes.length > 0 && plotlines.length === 0 && (
             <p className="story-timeline-empty">
-              Add a plotline &mdash; the A story, the B story, a character&rsquo;s arc &mdash; then click the scenes that carry it.
+              {t('timeline.addHint')}
             </p>
           )}
         </div>
 
         <div className="dialog-actions">
-          <button className="dialog-primary" onClick={onClose}>Done</button>
+          <button className="dialog-primary" onClick={onClose}>{t('common:done')}</button>
         </div>
       </div>
 
       {pendingDelete && (
         <div className="dialog-overlay" onClick={(e) => { e.stopPropagation(); setPendingDelete(null); }}>
           <div className="dialog-box" onClick={(e) => e.stopPropagation()}>
-            <div className="dialog-header">Delete Plotline</div>
+            <div className="dialog-header">{t('timeline.deleteHeader')}</div>
             <div className="dialog-body">
               <p style={{ margin: 0 }}>
-                Delete &ldquo;{pendingDelete.name || 'this plotline'}&rdquo;? Its scenes and beats stay in the script; they just leave this plotline.
+                {t('timeline.deleteConfirm', { name: pendingDelete.name || t('timeline.thisPlotline') })}
               </p>
             </div>
             <div className="dialog-actions">
-              <button onClick={() => setPendingDelete(null)}>Cancel</button>
-              <button className="dialog-primary" style={{ background: '#c0392b' }} onClick={confirmDelete}>Delete</button>
+              <button onClick={() => setPendingDelete(null)}>{t('common:cancel')}</button>
+              <button className="dialog-primary" style={{ background: '#c0392b' }} onClick={confirmDelete}>{t('common:delete')}</button>
             </div>
           </div>
         </div>

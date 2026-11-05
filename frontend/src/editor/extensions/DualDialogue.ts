@@ -1,6 +1,7 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import type { Node as PmNode } from '@tiptap/pm/model';
 import { showToast } from '../../components/Toast';
+import { t } from '../../i18n';
 
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
@@ -115,7 +116,7 @@ export const DualDialogue = Node.create({
         }
 
         if (curIdx < 0) {
-          showToast('Place cursor on a character or dialogue element', 'error');
+          showToast(t('editor:dualDialogue.placeCursor'), 'error');
           return false;
         }
 
@@ -131,7 +132,7 @@ export const DualDialogue = Node.create({
           }
         }
         if (blocks[g1Start].node.type.name !== 'character') {
-          showToast('Place cursor on a character or dialogue element', 'error');
+          showToast(t('editor:dualDialogue.placeCursor'), 'error');
           return false;
         }
 
@@ -180,7 +181,7 @@ export const DualDialogue = Node.create({
         }
 
         if (g2End < 0) {
-          showToast('Dual dialogue requires two adjacent character/dialogue groups', 'error');
+          showToast(t('editor:dualDialogue.needsTwoGroups'), 'error');
           return false;
         }
 

@@ -868,6 +868,7 @@ export async function exportDocx(
       alignment: AlignmentType.CENTER,
       pageBreakBefore: true,
       spacing: { line: LINE_HEIGHT_PT * TWIPS_PER_POINT, lineRule: LineRuleType.EXACT },
+      // i18n-ignore written into the exported file
       children: [new TextRun({ text: 'NOTES', font: docFont, size: FONT_SIZE_HALFPT })],
     }));
     for (const entry of plan.generalEntries) {

@@ -13,6 +13,7 @@ import { jsonBlockText, singleLine } from './nodeText';
 import { isNonPrintingType } from './nonPrinting';
 import { computeSceneTiming, formatSceneDuration, type TimingOptions } from './scriptTiming';
 import { parseHeading } from './scriptStatistics';
+import { t } from '../i18n';
 
 export interface ReportInput {
   doc: JSONContent;
@@ -194,15 +195,31 @@ export function formatEighths(eighths: number): string {
   return rest === 0 ? String(whole) : `${whole} ${rest}/8`;
 }
 
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+type CountKey = 'scene' | 'speakingCharacter' | 'location' | 'castMember' | 'taggedItem' | 'category' | 'openNote' | 'note' | 'reply';
+/** "3 scenes" / "1 scene" in the interface language, plural forms included. */
+const plural = (n: number, what: CountKey): string => {
+  switch (what) {
+    case 'scene': return t('messages:reports.count.scene', { count: n });
+    case 'speakingCharacter': return t('messages:reports.count.speakingCharacter', { count: n });
+    case 'location': return t('messages:reports.count.location', { count: n });
+    case 'castMember': return t('messages:reports.count.castMember', { count: n });
+    case 'taggedItem': return t('messages:reports.count.taggedItem', { count: n });
+    case 'category': return t('messages:reports.count.category', { count: n });
+    case 'openNote': return t('messages:reports.count.openNote', { count: n });
+    case 'note': return t('messages:reports.count.note', { count: n });
+    default: return t('messages:reports.count.reply', { count: n });
+  }
+};
 
 function sceneReport(input: ReportInput): ReportTable {
   const scenes = collectReportScenes(input.doc, input.timing);
   const totalEighths = scenes.reduce((n, s) => n + s.eighths, 0);
   return {
-    title: 'Scene Report',
-    summary: `${plural(scenes.length, 'scene')} · ${formatEighths(totalEighths)} pages`,
-    columns: ['Scene', 'Heading', 'Int/Ext', 'Location', 'Time', 'Length', 'Est. Time', 'Speaking Characters', 'Words'],
+    title: t('messages:reports.scenes.label'),
+    summary: t('messages:reports.scenes.summary', { scenes: plural(scenes.length, 'scene'), length: formatEighths(totalEighths) }),
+    columns: [
+      t('messages:reports.scenes.columns.scene'), t('messages:reports.scenes.columns.heading'), t('messages:reports.scenes.columns.intExt'), t('messages:reports.scenes.columns.location'), t('messages:reports.scenes.columns.time'), t('messages:reports.scenes.columns.length'), t('messages:reports.scenes.columns.estTime'), t('messages:reports.scenes.columns.speaking'), t('messages:reports.scenes.columns.words'),
+    ],
     rows: scenes.map((s) => [
       s.number, s.heading, s.prefix, s.location, s.timeOfDay, formatEighths(s.eighths),
       formatSceneDuration(s.seconds), s.speakers.join(', '), s.words,
@@ -236,9 +253,11 @@ function characterReport(input: ReportInput): ReportTable {
       ];
     });
   return {
-    title: 'Character Report',
-    summary: `${plural(rows.length, 'speaking character')}`,
-    columns: ['Character', 'Role', 'Gender', 'Speeches', 'Words', 'Share of Dialogue', 'Scenes', 'Scene Numbers'],
+    title: t('messages:reports.characters.label'),
+    summary: plural(rows.length, 'speakingCharacter'),
+    columns: [
+      t('messages:reports.characters.columns.character'), t('messages:reports.characters.columns.role'), t('messages:reports.characters.columns.gender'), t('messages:reports.characters.columns.speeches'), t('messages:reports.characters.columns.words'), t('messages:reports.characters.columns.share'), t('messages:reports.characters.columns.scenes'), t('messages:reports.characters.columns.sceneNumbers'),
+    ],
     rows,
   };
 }
@@ -262,9 +281,11 @@ function locationReport(input: ReportInput): ReportTable {
       formatEighths(e.eighths), e.scenes.join(', '),
     ]);
   return {
-    title: 'Location Report',
+    title: t('messages:reports.locations.label'),
     summary: plural(rows.length, 'location'),
-    columns: ['Location', 'Int/Ext', 'Times of Day', 'Scenes', 'Total Length', 'Scene Numbers'],
+    columns: [
+      t('messages:reports.locations.columns.location'), t('messages:reports.locations.columns.intExt'), t('messages:reports.locations.columns.times'), t('messages:reports.locations.columns.scenes'), t('messages:reports.locations.columns.totalLength'), t('messages:reports.locations.columns.sceneNumbers'),
+    ],
     rows,
   };
 }
@@ -290,9 +311,11 @@ function castReport(input: ReportInput): ReportTable {
       return [name, p?.role ?? '', p?.gender ?? '', p?.age ?? '', speaking.get(name) ?? 0, plainText(p?.description ?? '')];
     });
   return {
-    title: 'Cast Report',
-    summary: plural(rows.length, 'cast member'),
-    columns: ['Character', 'Role', 'Gender', 'Age', 'Speaking Scenes', 'Description'],
+    title: t('messages:reports.cast.label'),
+    summary: plural(rows.length, 'castMember'),
+    columns: [
+      t('messages:reports.cast.columns.character'), t('messages:reports.cast.columns.role'), t('messages:reports.cast.columns.gender'), t('messages:reports.cast.columns.age'), t('messages:reports.cast.columns.speakingScenes'), t('messages:reports.cast.columns.description'),
+    ],
     rows,
   };
 }
@@ -323,9 +346,14 @@ function tagBreakdownReport(input: ReportInput): ReportTable {
       plainText(item.notes ?? ''),
     ]);
   return {
-    title: 'Breakdown Report',
-    summary: `${plural(rows.length, 'tagged item')} in ${plural(new Set(rows.map((r) => r[0])).size, 'category')}`,
-    columns: ['Category', 'Item', 'Scenes', 'Scene Numbers', 'Notes'],
+    title: t('messages:reports.breakdown.label'),
+    summary: t('messages:reports.breakdown.summary', {
+      items: plural(rows.length, 'taggedItem'),
+      categories: plural(new Set(rows.map((r) => r[0])).size, 'category'),
+    }),
+    columns: [
+      t('messages:reports.breakdown.columns.category'), t('messages:reports.breakdown.columns.item'), t('messages:reports.breakdown.columns.scenes'), t('messages:reports.breakdown.columns.sceneNumbers'), t('messages:reports.breakdown.columns.notes'),
+    ],
     rows,
   };
 }
@@ -410,7 +438,7 @@ function buildNotesReport(input: ReportInput, openOnly: boolean): ReportTable {
   });
   anchored.sort((a, b) => a.order - b.order);
   const general: Entry[] = (input.generalNotes ?? []).map((note, i) => ({
-    note, scene: 'General', on: singleLine(note.title ?? '').trim(), order: i,
+    note, scene: t('messages:reports.notes.general'), on: singleLine(note.title ?? '').trim(), order: i,
   }));
 
   const all = [...anchored, ...general, ...orphaned];
@@ -421,9 +449,13 @@ function buildNotesReport(input: ReportInput, openOnly: boolean): ReportTable {
   listed.forEach((entry, i) => {
     const n = i + 1;
     const { note } = entry;
-    const status = isResolved(note)
-      ? `Resolved${note.resolvedBy ? ` by ${note.resolvedBy}` : ''}${note.resolvedAt ? ` ${reportDate(note.resolvedAt)}` : ''}`
-      : 'Open';
+    let status = t('messages:reports.notes.open');
+    if (isResolved(note)) {
+      status = note.resolvedBy
+        ? t('messages:reports.notes.resolvedBy', { name: note.resolvedBy })
+        : t('messages:reports.notes.resolved');
+      if (note.resolvedAt) status = t('messages:reports.notes.resolvedAt', { status, date: reportDate(note.resolvedAt) });
+    }
     rows.push([String(n), entry.scene, entry.on, note.author ?? '', text(note.content), status, note.assignee ?? '', reportDate(note.createdAt)]);
     repliesOf(note).forEach((r, k) => {
       replyCount++;
@@ -432,25 +464,30 @@ function buildNotesReport(input: ReportInput, openOnly: boolean): ReportTable {
   });
 
   const resolved = all.filter((e) => isResolved(e.note)).length;
-  const replies = `${replyCount} ${replyCount === 1 ? 'reply' : 'replies'}`;
+  const replies = plural(replyCount, 'reply');
   return {
-    title: openOnly ? 'Open Notes' : 'Notes Report',
+    title: openOnly ? t('messages:reports.openNotes.title') : t('messages:reports.notes.title'),
     summary: openOnly
-      ? `${plural(listed.length, 'open note')} · ${replies}`
-      : `${plural(all.length, 'note')} · ${all.length - resolved} open · ${resolved} resolved · ${replies}`,
-    columns: ['#', 'Scene', 'On', 'From', 'Comment', 'Status', 'Assigned To', 'Date'],
+      ? t('messages:reports.openNotes.summary', { notes: plural(listed.length, 'openNote'), replies })
+      : t('messages:reports.notes.summary', { notes: plural(all.length, 'note'), open: all.length - resolved, resolved, replies }),
+    columns: [
+      t('messages:reports.notes.columns.number'), t('messages:reports.notes.columns.scene'), t('messages:reports.notes.columns.on'), t('messages:reports.notes.columns.from'), t('messages:reports.notes.columns.comment'), t('messages:reports.notes.columns.status'), t('messages:reports.notes.columns.assignedTo'), t('messages:reports.notes.columns.date'),
+    ],
     rows,
   };
 }
 
+// Labels and descriptions are getters: looked up when the dialog reads them, so they follow the interface language.
+// Labels and descriptions are getters: looked up when the dialog reads them, so they follow the interface language.
+// Labels and descriptions are getters: looked up when the dialog reads them, so they follow the interface language.
 export const BUILT_IN_REPORTS: BuiltInReport[] = [
-  { id: 'scenes', label: 'Scene Report', description: 'Every scene with its location, length, screen time and who speaks', build: sceneReport },
-  { id: 'characters', label: 'Character Report', description: 'Speeches, words and scenes for every speaking character', build: characterReport },
-  { id: 'locations', label: 'Location Report', description: 'Each location, how often it is used and for how many pages', build: locationReport },
-  { id: 'cast', label: 'Cast Report', description: 'Character profiles with role, gender, age and speaking scenes', build: castReport },
-  { id: 'breakdown', label: 'Breakdown Report', description: 'Tagged props, costumes, vehicles and more, with their scenes', build: tagBreakdownReport },
-  { id: 'notes', label: 'Notes Report', description: 'Every note with its replies, who wrote it, who it is assigned to, and whether it is resolved', build: (input) => buildNotesReport(input, false) },
-  { id: 'open-notes', label: 'Open Notes', description: 'Only the notes not yet resolved, with their replies — what is still to do', build: (input) => buildNotesReport(input, true) },
+  { id: 'scenes', get label() { return t('messages:reports.scenes.label'); }, get description() { return t('messages:reports.scenes.description'); }, build: sceneReport },
+  { id: 'characters', get label() { return t('messages:reports.characters.label'); }, get description() { return t('messages:reports.characters.description'); }, build: characterReport },
+  { id: 'locations', get label() { return t('messages:reports.locations.label'); }, get description() { return t('messages:reports.locations.description'); }, build: locationReport },
+  { id: 'cast', get label() { return t('messages:reports.cast.label'); }, get description() { return t('messages:reports.cast.description'); }, build: castReport },
+  { id: 'breakdown', get label() { return t('messages:reports.breakdown.label'); }, get description() { return t('messages:reports.breakdown.description'); }, build: tagBreakdownReport },
+  { id: 'notes', get label() { return t('messages:reports.notes.label'); }, get description() { return t('messages:reports.notes.description'); }, build: (input) => buildNotesReport(input, false) },
+  { id: 'open-notes', get label() { return t('messages:reports.openNotes.label'); }, get description() { return t('messages:reports.openNotes.description'); }, build: (input) => buildNotesReport(input, true) },
 ];
 
 // ── Output ──────────────────────────────────────────────────────────────────
@@ -528,7 +565,7 @@ export async function reportToPdf(table: ReportTable, scriptTitle: string): Prom
 
   header();
   if (table.rows.length === 0) {
-    pdf.text('Nothing to report.', margin + pad, y + pad + fontSize);
+    pdf.text(t('messages:reports.nothing'), margin + pad, y + pad + fontSize);
   }
   table.rows.forEach((row, r) => {
     const cells = row.map((v, c) => wrap(String(v ?? ''), widths[c]));

@@ -18,6 +18,7 @@ import JSZip from 'jszip';
 import { DOCX_DUAL_SEPARATOR_STYLE } from './dualDialogue';
 import { singleLine } from './nodeText';
 import { buildTitlePageBlocks, type TitlePageFields } from './titlePageBlocks';
+import { t } from '../i18n';
 
 interface TipTapMark {
   type: string;
@@ -412,7 +413,7 @@ function flattenBody(body: Element, styleMap: StyleMap, warnings: string[]): {
           }
         }
       } else {
-        warnings.push('Encountered a table that is not a dual-dialogue layout — flattened cells into action.');
+        warnings.push(t('messages:import.docxTable'));
         for (const r of rows) {
           for (const tc of childrenNS(r, 'tc')) {
             for (const tp of childrenNS(tc, 'p')) {
@@ -623,7 +624,7 @@ export async function parseDocx(buf: ArrayBuffer): Promise<DocxParseResult> {
   const zip = await JSZip.loadAsync(buf);
   const docFile = zip.file('word/document.xml');
   if (!docFile) {
-    throw new Error('Not a valid .docx file: missing word/document.xml');
+    throw new Error(t('messages:import.docxNoDocument'));
   }
   const docXmlText = await docFile.async('string');
   const stylesFile = zip.file('word/styles.xml');
@@ -654,7 +655,7 @@ export async function parseDocx(buf: ArrayBuffer): Promise<DocxParseResult> {
     docXml.getElementsByTagNameNS(W_NS, 'body')[0] ||
     docXml.getElementsByTagName('w:body')[0];
   if (!body) {
-    throw new Error('Not a valid .docx file: missing <w:body>');
+    throw new Error(t('messages:import.docxNoBody'));
   }
 
   // Page margin from the (last) sectPr — paragraph indents in OOXML are

@@ -1,5 +1,6 @@
 import React, { useCallback, useState, useRef, useEffect, useMemo } from 'react';
 import { Editor } from '@tiptap/react';
+import { useTranslation } from 'react-i18next';
 import { useEditorStore, type SceneInfo } from '../stores/editorStore';
 import { computeSceneLengths, activeTemplateHints } from '../editor/pagination';
 import { computeSceneTiming, formatSceneDuration, getTimingColor } from '../utils/scriptTiming';
@@ -11,6 +12,7 @@ interface IndexCardsProps {
 }
 
 const IndexCards: React.FC<IndexCardsProps> = ({ editor, scrollContainer }) => {
+  const { t } = useTranslation(['story', 'common']);
   const { scenes, indexCardsOpen, updateSceneSynopsis, updateSceneColor, toggleIndexCards, pageLayout } = useEditorStore();
 
   const [fullscreen, setFullscreen] = useState(false);
@@ -563,8 +565,8 @@ const IndexCards: React.FC<IndexCardsProps> = ({ editor, scrollContainer }) => {
   return (
     <div className={containerClass} ref={containerRef}>
       <div className="index-cards-header">
-        <span className="index-cards-title">Index Cards</span>
-        <span className="index-cards-count">{scenes.length} scenes</span>
+        <span className="index-cards-title">{t('indexCards.title')}</span>
+        <span className="index-cards-count">{t('indexCards.sceneCount', { count: scenes.length })}</span>
         <div className="index-cards-actions">
           {dragMode ? (
             <>
@@ -572,7 +574,7 @@ const IndexCards: React.FC<IndexCardsProps> = ({ editor, scrollContainer }) => {
                 className="ic-action-btn ic-undo-redo-btn"
                 onClick={undo}
                 disabled={!canUndo}
-                title="Undo (Ctrl+Z)"
+                title={t('indexCards.undo', { shortcut: 'Ctrl+Z' })}
               >
                 <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M3 7h7a4 4 0 0 1 0 8H7" />
@@ -583,7 +585,7 @@ const IndexCards: React.FC<IndexCardsProps> = ({ editor, scrollContainer }) => {
                 className="ic-action-btn ic-undo-redo-btn"
                 onClick={redo}
                 disabled={!canRedo}
-                title="Redo (Ctrl+Shift+Z)"
+                title={t('indexCards.redo', { shortcut: 'Ctrl+Shift+Z' })}
               >
                 <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M13 7H6a4 4 0 0 0 0 8h3" />
@@ -593,32 +595,32 @@ const IndexCards: React.FC<IndexCardsProps> = ({ editor, scrollContainer }) => {
               <button
                 className="ic-action-btn"
                 onClick={cancelReorder}
-                title="Cancel reorder"
+                title={t('indexCards.cancelReorder')}
               >
-                Cancel
+                {t('common:cancel')}
               </button>
               <button
                 className={`ic-action-btn ic-apply-btn${hasChanges ? ' active' : ''}`}
                 onClick={applyReorder}
-                title={hasChanges ? 'Apply scene reorder to screenplay' : 'No changes to apply'}
+                title={hasChanges ? t('indexCards.applyReorder') : t('indexCards.noChanges')}
                 disabled={!hasChanges}
               >
-                Apply
+                {t('common:apply')}
               </button>
             </>
           ) : (
             <button
               className="ic-action-btn"
               onClick={enterReorderMode}
-              title="Enter drag-drop mode"
+              title={t('indexCards.enterReorder')}
             >
-              Reorder
+              {t('indexCards.reorder')}
             </button>
           )}
           <button
             className="ic-action-btn ic-fullscreen-btn"
             onClick={() => setFullscreen(!fullscreen)}
-            title={fullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+            title={fullscreen ? t('indexCards.exitFullscreen') : t('indexCards.fullscreen')}
           >
             {fullscreen ? (
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -635,7 +637,7 @@ const IndexCards: React.FC<IndexCardsProps> = ({ editor, scrollContainer }) => {
           <button
             className="ic-action-btn ic-close-btn"
             onClick={() => { if (fullscreen) setFullscreen(false); toggleIndexCards(); }}
-            title="Close Index Cards"
+            title={t('indexCards.close')}
           >
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
               <line x1="2" y1="2" x2="12" y2="12" />
@@ -647,7 +649,7 @@ const IndexCards: React.FC<IndexCardsProps> = ({ editor, scrollContainer }) => {
       <div className="index-cards-grid" ref={gridRef} style={{ position: 'relative' }}>
         {displayScenes.length === 0 ? (
           <div className="index-cards-empty">
-            No scenes yet. Write a scene heading to see index cards here.
+            {t('indexCards.empty')}
           </div>
         ) : (
           <>
@@ -671,7 +673,7 @@ const IndexCards: React.FC<IndexCardsProps> = ({ editor, scrollContainer }) => {
                   {dragMode && (
                     <div
                       className="ic-drag-handle"
-                      title="Drag to reorder"
+                      title={t('indexCards.dragToReorder')}
                       onPointerDown={(e) => handleDragHandleDown(e, index)}
                     >
                       &#8942;&#8942;
@@ -693,7 +695,7 @@ const IndexCards: React.FC<IndexCardsProps> = ({ editor, scrollContainer }) => {
                       <div
                         className="index-card-heading"
                         onClick={() => !dragMode && goToScene(index)}
-                        title={dragMode ? undefined : 'Click to navigate to scene'}
+                        title={dragMode ? undefined : t('indexCards.goToScene')}
                       >
                         {scene.heading}
                       </div>
@@ -713,7 +715,7 @@ const IndexCards: React.FC<IndexCardsProps> = ({ editor, scrollContainer }) => {
                     <div className="index-card-synopsis-wrap">
                       <textarea
                         className="index-card-synopsis"
-                        placeholder="Add synopsis..."
+                        placeholder={t('indexCards.synopsisPlaceholder')}
                         value={scene.synopsis}
                         onChange={(e) => {
                           updateSceneSynopsis(scene.id, e.target.value);
@@ -725,7 +727,7 @@ const IndexCards: React.FC<IndexCardsProps> = ({ editor, scrollContainer }) => {
                       <button
                         className="ic-synopsis-expand"
                         onClick={() => setSynopsisModal({ sceneIdx: index, id: scene.id, heading: scene.heading, synopsis: scene.synopsis, color: scene.color })}
-                        title="Expand synopsis"
+                        title={t('indexCards.expandSynopsis')}
                         disabled={dragMode}
                       >
                         <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.3">

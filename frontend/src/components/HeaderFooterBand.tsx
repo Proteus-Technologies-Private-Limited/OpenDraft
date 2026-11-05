@@ -1,8 +1,18 @@
 import React, { useCallback, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { resolveHFFields } from '../stores/editorStore';
 import type { HeaderFooterContent } from '../stores/editorStore';
 
 export type BandKind = 'header' | 'footer';
+
+/** Header/footer slot names as shown to the writer (the stored slot keys stay left/center/right). */
+function useBandWords() {
+  const { t } = useTranslation('format');
+  const kindName = (kind: BandKind) => (kind === 'header' ? t('headerFooter.band.header') : t('headerFooter.band.footer'));
+  const slotName = (slot: keyof HeaderFooterContent) =>
+    slot === 'left' ? t('headerFooter.band.left') : slot === 'center' ? t('headerFooter.band.center') : t('headerFooter.band.right');
+  return { t, kindName, slotName };
+}
 
 interface HeaderFooterBandProps {
   kind: BandKind;
@@ -59,6 +69,7 @@ const EditingBand: React.FC<{
   onCancel: () => void;
   onOpenSettings: () => void;
 }> = ({ kind, content, style, onCommit, onCancel, onOpenSettings }) => {
+  const { t, kindName, slotName } = useBandWords();
   const [draft, setDraft] = useState<HeaderFooterContent>(content);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   // Guards the blur handler: committing or cancelling moves focus out of the
@@ -122,8 +133,8 @@ const EditingBand: React.FC<{
           key={slot}
           className={`${SLOT_CLASS[slot]} page-sep-hf-input`}
           value={draft[slot]}
-          placeholder={slot}
-          aria-label={`${kind} ${slot}`}
+          placeholder={slotName(slot)}
+          aria-label={t('headerFooter.band.inputLabel', { kind: kindName(kind), slot: slotName(slot) })}
           autoFocus={i === 0}
           onChange={(e) => setDraft((prev) => ({ ...prev, [slot]: e.target.value }))}
         />
@@ -131,7 +142,7 @@ const EditingBand: React.FC<{
       <button
         type="button"
         className="page-sep-hf-settings"
-        title="Open Header & Footer settings"
+        title={t('headerFooter.band.openSettings')}
         // Fires before blur, so commit the typing first.
         onMouseDown={(e) => {
           e.preventDefault();
@@ -161,6 +172,7 @@ const HeaderFooterBand: React.FC<HeaderFooterBandProps> = ({
   onOpenSettings,
   style,
 }) => {
+  const { t } = useBandWords();
   if (editing) {
     return (
       <EditingBand
@@ -187,7 +199,7 @@ const HeaderFooterBand: React.FC<HeaderFooterBandProps> = ({
         .join(' ')}
       style={style}
       onDoubleClick={editable ? onStartEdit : undefined}
-      title={editable ? `Double-click to edit the ${kind}` : undefined}
+      title={editable ? (kind === 'header' ? t('headerFooter.band.editHeader') : t('headerFooter.band.editFooter')) : undefined}
     >
       {SLOTS.map((slot) => (
         <span key={slot} className={SLOT_CLASS[slot]}>
@@ -195,7 +207,7 @@ const HeaderFooterBand: React.FC<HeaderFooterBandProps> = ({
         </span>
       ))}
       {editable && isEmpty && (
-        <span className="page-sep-hf-placeholder">Double-click to add a {kind}</span>
+        <span className="page-sep-hf-placeholder">{kind === 'header' ? t('headerFooter.band.addHeader') : t('headerFooter.band.addFooter')}</span>
       )}
     </div>
   );

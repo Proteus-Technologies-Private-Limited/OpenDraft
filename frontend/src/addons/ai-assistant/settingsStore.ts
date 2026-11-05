@@ -5,6 +5,7 @@
  * and an API key, if the server needs one. `forgetSettings` is what the writer
  * gets when they turn the add-on off and ask for its settings to be deleted.
  */
+import { t } from '../../i18n';
 import type { AiProviderKind } from './client';
 import { DEFAULT_OLLAMA_URL, DEFAULT_OPENAI_URL } from './client';
 
@@ -57,7 +58,7 @@ export function saveSettings(settings: AssistantSettings): void {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
   } catch (err) {
     throw new Error(
-      `Could not save the settings on this device: ${err instanceof Error ? err.message : String(err)}`,
+      t('addons:assistant.settings.saveFailed', { message: err instanceof Error ? err.message : String(err) }),
     );
   }
 }

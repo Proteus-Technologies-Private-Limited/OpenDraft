@@ -13,6 +13,7 @@
  */
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { JSONContent } from '@tiptap/react';
+import { useTranslation } from 'react-i18next';
 import { showToast } from './Toast';
 import Select from './Select';
 import type { ParsedPdfScreenplay } from '../utils/pdfImport';
@@ -40,6 +41,7 @@ interface DialogProps {
 }
 
 export const PdfImportPreviewDialog: React.FC<DialogProps> = ({ filename, parsed, onImport, onCancel }) => {
+  const { t } = useTranslation(['tools', 'common']);
   const rows = useMemo(() => reviewRowsFrom(parsed), [parsed]);
   const [types, setTypes] = useState<string[]>(() => rows.map((r) => r.originalType));
   const history = useRef<string[][]>([]);
@@ -80,7 +82,7 @@ export const PdfImportPreviewDialog: React.FC<DialogProps> = ({ filename, parsed
   /** Types present in the script, for the filter. */
   const presentTypes = useMemo(() => {
     const seen = new Set(types);
-    return [...REVIEW_TYPES, 'dualDialogue'].filter((t) => seen.has(t));
+    return [...REVIEW_TYPES, 'dualDialogue'].filter((ty) => seen.has(ty));
   }, [types]);
 
   const commitTypes = useCallback((next: string[]) => {
@@ -134,7 +136,7 @@ export const PdfImportPreviewDialog: React.FC<DialogProps> = ({ filename, parsed
       onImport(applyReviewedTypes(parsed.doc, rows, types));
     } catch (err) {
       console.error('[PDF import preview] could not build the reviewed document:', err);
-      showToast(`Import failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
+      showToast(t('pdfImport.importFailed', { message: err instanceof Error ? err.message : String(err) }), 'error');
     }
   };
 
@@ -212,45 +214,43 @@ export const PdfImportPreviewDialog: React.FC<DialogProps> = ({ filename, parsed
         aria-labelledby="pdf-review-title"
       >
         <div className="dialog-header" id="pdf-review-title">
-          Import Preview <span className="pdf-review-file">{filename}</span>
+          {t('pdfImport.title')} <span className="pdf-review-file">{filename}</span>
         </div>
         <div className="dialog-body pdf-review-body">
           <p className="pdf-review-help">
-            Check how each line of the PDF was read. Select lines — shift-click for a range,
-            {' '}⌘/Ctrl-click or tick to add one — then set their type. Nothing changes in the open
-            script until you press Import.
+            {t('pdfImport.help')}
           </p>
           {parsed.warnings.map((w) => <p key={w} className="pdf-review-warning" role="status">{w}</p>)}
 
           <div className="pdf-review-toolbar">
             <label className="pdf-review-filter">
-              <span>Show</span>
-              <Select value={filter} onChange={(e) => setFilter(e.target.value)} aria-label="Show lines">
-                <option value="all">All lines</option>
-                <option value="changed">Changed lines</option>
-                {presentTypes.map((t) => <option key={t} value={t}>{REVIEW_TYPE_LABELS[t] ?? t}</option>)}
+              <span>{t('pdfImport.show')}</span>
+              <Select value={filter} onChange={(e) => setFilter(e.target.value)} aria-label={t('pdfImport.showLines')}>
+                <option value="all">{t('pdfImport.filterAll')}</option>
+                <option value="changed">{t('pdfImport.filterChanged')}</option>
+                {presentTypes.map((ty) => <option key={ty} value={ty}>{REVIEW_TYPE_LABELS[ty] ?? ty}</option>)}
               </Select>
             </label>
-            <div className="pdf-review-select-btns" role="group" aria-label="Select">
-              <button type="button" className="dialog-btn" onClick={selectAllShown} disabled={total === 0}>All</button>
-              <button type="button" className="dialog-btn" onClick={selectNone} disabled={selectedCount === 0}>None</button>
+            <div className="pdf-review-select-btns" role="group" aria-label={t('pdfImport.select')}>
+              <button type="button" className="dialog-btn" onClick={selectAllShown} disabled={total === 0}>{t('pdfImport.all')}</button>
+              <button type="button" className="dialog-btn" onClick={selectNone} disabled={selectedCount === 0}>{t('common:none')}</button>
               <button
                 type="button"
                 className="dialog-btn"
                 onClick={() => setSel((s) => ({ selected: selectSameType(rows, types, selected), anchor: s.anchor }))}
                 disabled={selectedCount === 0}
-                title="Select every line of the type(s) already selected"
+                title={t('pdfImport.sameTypeTitle')}
               >
-                Same type
+                {t('pdfImport.sameType')}
               </button>
               <button
                 type="button"
                 className="dialog-btn"
                 onClick={() => setSel((s) => ({ selected: selectSameLook(rows, selected), anchor: s.anchor }))}
                 disabled={selectedCount === 0}
-                title="Select every line at the same indent, in the same case, as those already selected"
+                title={t('pdfImport.sameIndentTitle')}
               >
-                Same indent
+                {t('pdfImport.sameIndent')}
               </button>
               <button
                 type="button"
@@ -258,9 +258,9 @@ export const PdfImportPreviewDialog: React.FC<DialogProps> = ({ filename, parsed
                 onClick={() => setRangeNext((r) => !r)}
                 disabled={sel.anchor === null}
                 aria-pressed={rangeNext}
-                title="Select everything from the last line you picked to the next line you tap"
+                title={t('pdfImport.rangeTitle')}
               >
-                Range…
+                {t('pdfImport.range')}
               </button>
             </div>
           </div>
@@ -270,12 +270,12 @@ export const PdfImportPreviewDialog: React.FC<DialogProps> = ({ filename, parsed
             className="pdf-review-list"
             role="listbox"
             aria-multiselectable="true"
-            aria-label="Imported lines"
+            aria-label={t('pdfImport.importedLines')}
             tabIndex={0}
             onKeyDown={onListKeyDown}
             onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
           >
-            {total === 0 && <p className="pdf-review-empty">No lines to show.</p>}
+            {total === 0 && <p className="pdf-review-empty">{t('pdfImport.noLines')}</p>}
             <div className="pdf-review-spacer" style={{ height: total * rowHeight }}>
               {order.slice(first, last).map((i, k) => {
                 const row = rows[i];
@@ -295,17 +295,17 @@ export const PdfImportPreviewDialog: React.FC<DialogProps> = ({ filename, parsed
                       type="checkbox"
                       checked={isSelected}
                       disabled={row.locked}
-                      aria-label={`Select line ${i + 1}`}
+                      aria-label={t('pdfImport.selectLine', { number: i + 1 })}
                       onClick={(e) => e.stopPropagation()}
                       onChange={(e) => click(i, { toggle: true, range: (e.nativeEvent as MouseEvent).shiftKey })}
                     />
-                    <span className="pdf-review-scene" title="Scene">{scenes[i] > 0 ? scenes[i] : ''}</span>
-                    <span className={`pdf-review-type pdf-review-type-${type}`} title={isChanged ? `Read as ${REVIEW_TYPE_LABELS[row.originalType] ?? row.originalType}` : undefined}>
+                    <span className="pdf-review-scene" title={t('pdfImport.scene')}>{scenes[i] > 0 ? scenes[i] : ''}</span>
+                    <span className={`pdf-review-type pdf-review-type-${type}`} title={isChanged ? t('pdfImport.readAs', { type: REVIEW_TYPE_LABELS[row.originalType] ?? row.originalType }) : undefined}>
                       {REVIEW_TYPE_LABELS[type] ?? type}
                     </span>
                     <span className={`pdf-review-text pdf-review-text-${type}`}>{row.text || ' '}</span>
                     <span className="pdf-review-meta">
-                      {row.page !== null ? `p.${row.page}` : ''}
+                      {row.page !== null ? t('pdfImport.pageShort', { page: row.page }) : ''}
                       {row.indent !== null ? ` · ${row.indent.toFixed(1)}″` : ''}
                     </span>
                   </div>
@@ -315,36 +315,36 @@ export const PdfImportPreviewDialog: React.FC<DialogProps> = ({ filename, parsed
           </div>
 
           <div className="pdf-review-apply">
-            <span className="pdf-review-count">{selectedCount} selected</span>
+            <span className="pdf-review-count">{t('pdfImport.selectedCount', { count: selectedCount })}</span>
             <label className="pdf-review-settype">
-              <span>Set type</span>
+              <span>{t('pdfImport.setType')}</span>
               <Select
                 value=""
                 onChange={(e) => { if (e.target.value) setSelectedType(e.target.value); }}
                 disabled={selectedCount === 0}
-                aria-label="Set the selected lines' type"
+                aria-label={t('pdfImport.setTypeLabel')}
               >
-                <option value="">Choose…</option>
-                {REVIEW_TYPES.map((t, n) => <option key={t} value={t}>{REVIEW_TYPE_LABELS[t]} ({n + 1})</option>)}
+                <option value="">{t('pdfImport.choose')}</option>
+                {REVIEW_TYPES.map((ty, n) => <option key={ty} value={ty}>{REVIEW_TYPE_LABELS[ty]} ({n + 1})</option>)}
               </Select>
             </label>
-            <button type="button" className="dialog-btn" onClick={undo} disabled={!canUndo}>Undo</button>
+            <button type="button" className="dialog-btn" onClick={undo} disabled={!canUndo}>{t('pdfImport.undo')}</button>
             <button
               type="button"
               className="dialog-btn"
               onClick={() => commitTypes(rows.map((r) => r.originalType))}
               disabled={changed === 0}
             >
-              Revert all
+              {t('pdfImport.revertAll')}
             </button>
           </div>
         </div>
         <div className="dialog-actions">
           <span className="pdf-review-summary">
-            {bodyCount} lines{changed > 0 ? ` · ${changed} changed` : ''}
+            {t('pdfImport.lineCount', { count: bodyCount })}{changed > 0 ? ` · ${t('pdfImport.changedCount', { count: changed })}` : ''}
           </span>
-          <button onClick={onCancel}>Cancel</button>
-          <button className="dialog-primary" onClick={doImport}>Import</button>
+          <button onClick={onCancel}>{t('common:cancel')}</button>
+          <button className="dialog-primary" onClick={doImport}>{t('common:import')}</button>
         </div>
       </div>
     </div>

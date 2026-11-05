@@ -5,7 +5,8 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { pluginRegistry, type OpenDraftPlugin } from './registry';
+import { pluginRegistry, resolvePluginText, type OpenDraftPlugin } from './registry';
+import { addPluginResources, i18next } from '../i18n';
 import {
   binaryImportExtensions,
   importAccept,
@@ -123,5 +124,39 @@ describe('plugin menu icons', () => {
     ));
     expect(markup).toContain('<svg aria-hidden="true">');
     expect(markup).toContain('ℹ');
+  });
+});
+
+describe('resolvePluginText', () => {
+  afterEach(() => {
+    i18next.removeResourceBundle('en', 'test-i18n-plugin');
+    i18next.removeResourceBundle('es', 'test-i18n-plugin');
+  });
+
+  it('returns the plain label when there is no key', () => {
+    expect(resolvePluginText(undefined, 'Export')).toBe('Export');
+    expect(resolvePluginText('', 'Export')).toBe('Export');
+  });
+
+  it('returns the plain label when the key has no entry', () => {
+    expect(resolvePluginText('test-i18n-plugin:missing.key', 'Export')).toBe('Export');
+  });
+
+  it('uses the plugin\'s own resources when present', () => {
+    addPluginResources('test-i18n-plugin', { en: { export: 'Export (en)' }, es: { export: 'Exportar' } });
+    expect(resolvePluginText('test-i18n-plugin:export', 'Export')).toBe('Export (en)');
+  });
+
+  it('follows the language and falls back to English for one the plugin lacks', async () => {
+    addPluginResources('test-i18n-plugin', { en: { export: 'Export (en)' }, es: { export: 'Exportar' } });
+    const before = i18next.language;
+    try {
+      await i18next.changeLanguage('es');
+      expect(resolvePluginText('test-i18n-plugin:export', 'Export')).toBe('Exportar');
+      await i18next.changeLanguage('fr');
+      expect(resolvePluginText('test-i18n-plugin:export', 'Export')).toBe('Export (en)');
+    } finally {
+      await i18next.changeLanguage(before);
+    }
   });
 });

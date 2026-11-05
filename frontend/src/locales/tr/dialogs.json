@@ -1,0 +1,41 @@
+{
+  "saveError": {
+    "heading": {
+      "autoSave": "Otomatik kayıt başarısız",
+      "saveFailed": "Kayıt başarısız",
+      "beforeClose": "Kapatmadan önce kaydedilemedi"
+    },
+    "body": "OpenDraft değişikliklerinizi kaydedemedi. Çalışmanız hâlâ düzenleyicide duruyor — uygulamayı kapatmadan veya pencereyi yenilemeden önce önemli olan her şeyi kopyalayın.",
+    "failureAt": "Hata zamanı: {{time}}",
+    "acknowledge": "Anladım"
+  },
+  "storageFallback": {
+    "fileHeading": "Dosya tabanlı depolamaya geçildi",
+    "dbHeading": "Yerel veritabanı kullanılamıyor",
+    "fileExplanation": "OpenDraft yerel veritabanını açamadı; bu yüzden projeleriniz şu an uygulama veri klasörünüzde ayrı dosyalar olarak kaydediliyor. Çalışmaya devam edebilirsiniz — kaydetme ve yükleme normal çalışır, ancak veritabanına yeniden erişilene kadar sürüm geçmişi devre dışıdır.",
+    "dbExplanation": "OpenDraft yerel veritabanını açamadı ve dosya tabanlı yedek yöntem de başarısız oldu. Değişiklikleriniz yalnızca tarayıcıya kaydedilecek ve depolama temizlenirse kaybolabilir.",
+    "underlyingError": "Asıl hata:"
+  },
+  "quota": {
+    "title": "Ücretsiz plan sınırına ulaşıldı",
+    "usage": "<strong>{{plan}}</strong> planında <strong>{{limit}}</strong> dosyanın <strong>{{current}}</strong> tanesini kullandınız.",
+    "upgrade": "Yükselt"
+  },
+  "oneDrive": {
+    "title": "OneDrive girişimi algılandı",
+    "intro": "OpenDraft'ın veri klasörü OneDrive ile eşitlenen bir konumda. Bu, <strong>sessiz kayıt hatalarının</strong> bilinen bir nedenidir: OneDrive, kayıt sırasında SQLite yazma günlüğü dosyasını kilitleyip veritabanını bozabilir ve son düzenlemelerinizi kaybettirebilir.",
+    "affectedFolder": "Etkilenen klasör:",
+    "howToFix": "Nasıl düzeltilir:",
+    "step1": "OneDrive ayarları → Eşitleme ve yedekleme → Yedeklemeyi yönet bölümünü açın.",
+    "step2": "Yukarıdaki yolu içeren klasörün (genellikle Belgeler veya Masaüstü) yedeklemesini kapatın ya da OpenDraft'ın uygulama veri klasörünü açıkça hariç tutun.",
+    "step3": "OpenDraft'ı yeniden başlatın.",
+    "dontShowAgain": "Bir daha gösterme"
+  },
+  "bookmark": {
+    "addTitle": "Yer imi ekle",
+    "renameTitle": "Yer imini yeniden adlandır",
+    "nameLabel": "Yer imi adı",
+    "nameClash": "Başka bir yer imi zaten “{{name}}” adını taşıyor.",
+    "placeCursor": "Yer imi eklemek için imleci bir senaryo öğesine yerleştirin."
+  }
+}

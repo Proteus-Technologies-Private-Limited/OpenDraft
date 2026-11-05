@@ -13,6 +13,8 @@
 import { registerCommand } from './registry';
 import type { BlockSpec, CommandElement } from './types';
 
+// i18n-ignore-start model-facing: command labels, descriptions and result messages are tool text sent to / returned to the LLM
+
 /**
  * The element types the page prints in capitals. Kept here (rather than in the
  * core's capitalisation module) so the add-on does not depend on a core
@@ -435,3 +437,4 @@ export function registerScreenplayCommands(): void {
     },
   });
 }
+// i18n-ignore-end

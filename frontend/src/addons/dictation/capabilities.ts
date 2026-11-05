@@ -1,28 +1,32 @@
 import { getOS, isTauri } from '../../services/platform';
 import { browserRecognitionConstructor } from './services/recognition';
 import type { Engine } from './settings';
-export const ENGINE_NAMES: Record<Engine, string> = {
-  local: 'Local Whisper',
-  browser: 'Browser speech service',
-  device: 'Device speech service',
-};
-export const ENGINE_PRIVACY: Record<Engine, string> = {
-  local:
-    'Audio stays on this device. First use downloads model assets from huggingface.co, which sees your IP address.',
-  browser:
-    'Your recorded voice may be sent to the browser vendor’s speech servers (Google, Apple or Microsoft).',
-  device:
-    'Your recorded voice may be sent to Apple or your Android speech provider (usually Google). On-device recognition is requested where supported; an offline preference is not a guarantee.',
-};
+import { t } from '../../i18n';
+/** The engine's name for the writer. Resolved at call time so it follows the interface language. */
+export function engineName(engine: Engine): string {
+  switch (engine) {
+    case 'browser': return t('addons:dictation.engine.browser');
+    case 'device': return t('addons:dictation.engine.device');
+    default: return t('addons:dictation.engine.local');
+  }
+}
+/** What leaves the device for this engine. */
+export function enginePrivacy(engine: Engine): string {
+  switch (engine) {
+    case 'browser': return t('addons:dictation.privacy.browser');
+    case 'device': return t('addons:dictation.privacy.device');
+    default: return t('addons:dictation.privacy.local');
+  }
+}
 export function localCaptureProblem(): string | null {
   if (typeof window !== 'undefined' && isTauri() && getOS() === 'linux')
-    return 'This Linux desktop build does not expose supported WebKit microphone capture. Use OpenDraft in a microphone-capable browser for Local Whisper.';
+    return t('addons:dictation.problem.linux');
   if (
     typeof navigator === 'undefined' ||
     !navigator.mediaDevices?.getUserMedia ||
     typeof MediaRecorder === 'undefined'
   )
-    return 'Microphone recording is unavailable in this browser. Use HTTPS or localhost and enable microphone access.';
+    return t('addons:dictation.problem.noMicrophone');
   return null;
 }
 export function availableEngines(): Engine[] {

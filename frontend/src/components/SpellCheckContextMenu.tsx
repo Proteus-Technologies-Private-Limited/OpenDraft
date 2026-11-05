@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Editor } from '@tiptap/react';
 import { spellChecker, PROJECT_DICT_TARGET } from '../editor/spellchecker';
 import { spellCheckPluginKey } from '../editor/extensions/SpellCheck';
@@ -21,6 +22,7 @@ const SpellCheckContextMenu: React.FC<SpellCheckContextMenuProps> = ({
   to,
   onClose,
 }) => {
+  const { t: tr } = useTranslation('editor');
   const menuRef = useRef<HTMLDivElement>(null);
   const suggestions = spellChecker.suggest(word);
   const [addOpen, setAddOpen] = useState(false);
@@ -142,25 +144,25 @@ const SpellCheckContextMenu: React.FC<SpellCheckContextMenuProps> = ({
         ))
       ) : (
         <div className="spell-context-item" style={{ color: 'var(--fd-text-muted)', cursor: 'default' }}>
-          No suggestions
+          {tr('spellCheck.noSuggestions')}
         </div>
       )}
       <div className="spell-context-separator" />
       <div className="spell-context-item" onClick={handleIgnore}>
-        Ignore
+        {tr('spellCheck.ignore')}
       </div>
       <div
         className="spell-context-item"
         onClick={handleAddToDictionary}
         style={hasMultipleTargets ? { display: 'flex', alignItems: 'center', justifyContent: 'space-between' } : undefined}
       >
-        <span>Add to Dictionary</span>
+        <span>{tr('spellCheck.addToDictionary')}</span>
         {hasMultipleTargets && <span style={{ fontSize: 11, color: 'var(--fd-text-muted)' }}>▸</span>}
       </div>
       {hasMultipleTargets && addOpen && (
         <div style={{ borderTop: '1px solid var(--fd-border)' }}>
           {activeTargets.map((t) => {
-            const label = t === PROJECT_DICT_TARGET ? 'Project dictionary' : t;
+            const label = t === PROJECT_DICT_TARGET ? tr('spellCheck.projectDictionary') : t;
             return (
               <div
                 key={t}

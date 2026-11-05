@@ -1,0 +1,207 @@
+{
+  "system": {
+    "industryStandard": {
+      "name": "Roteiro de cinema",
+      "description": "Formatação padrão do mercado para roteiros de longa-metragem (compatível com Final Draft)."
+    },
+    "oneHourDrama": {
+      "name": "Drama de TV de 1 hora",
+      "description": "Roteiro de câmera única para dramas de uma hora. Mesmo visual de um roteiro de longa-metragem, com a estrutura de atos da TV (Teaser, Atos I–V).",
+      "tagline": "Drama de câmera única de 1 hora (Breaking Bad, Stranger Things)"
+    },
+    "multicamSitcom": {
+      "name": "Sitcom multicâmera",
+      "description": "Roteiro multicâmera (sitcoms com plateia): diálogo em espaço duplo, rubricas em maiúsculas e sublinhadas, lista de personagens da cena, uma cena por página.",
+      "tagline": "Sitcom com plateia (Big Bang Theory, Mom)"
+    },
+    "stagePlay": {
+      "name": "Peça de teatro",
+      "description": "Texto teatral: nomes de personagem centralizados, rubricas em itálico, estrutura de ATO/CENA.",
+      "tagline": "Texto teatral (atos, cenas, personagens centralizados)"
+    },
+    "radioPlay": {
+      "name": "Radioteatro",
+      "description": "Drama de áudio: cenas numeradas, indicações de SOM/MÚSICA, narrador. Sem câmera nem elementos visuais.",
+      "tagline": "Radioteatro / peça de áudio (BBC, ficção em podcast)"
+    },
+    "podcast": {
+      "name": "Podcast",
+      "description": "Podcast roteirizado e ficção em áudio: cada fala numerada para a sessão de gravação, indicações de efeitos e música numeradas à parte.",
+      "tagline": "Podcast roteirizado / ficção em áudio, falas numeradas para gravação"
+    },
+    "comic": {
+      "name": "Quadrinhos",
+      "description": "Roteiro completo de quadrinhos e graphic novels: páginas e quadros numerados automaticamente, legendas e balões numerados 1, 2, 3 em cada página.",
+      "tagline": "Roteiro completo de quadrinhos / graphic novel, páginas e quadros numerados"
+    },
+    "avScript": {
+      "name": "Roteiro AV (duas colunas)",
+      "description": "Roteiro de Áudio | Vídeo em duas colunas — comerciais, vídeos corporativos, documentários. Cada linha une um plano de vídeo ao seu áudio.",
+      "tagline": "Roteiro de duas colunas para comercial / corporativo / documentário"
+    }
+  },
+  "group": {
+    "tv": "TV",
+    "stage": "Teatro",
+    "audio": "Áudio",
+    "comics": "Quadrinhos",
+    "av": "AV"
+  },
+  "picker": {
+    "title": "Escolher formato de roteiro",
+    "empty": "Nenhum formato ativado. Abra Formatar → Preferências de formato de roteiro para escolher pelo menos um."
+  },
+  "format": {
+    "defaultBadge": "padrão",
+    "makeDefault": "Tornar padrão",
+    "isDefault": "Padrão ✓",
+    "defaultTooltipClear": "O seletor de Novo roteiro abre neste formato. Clique para remover.",
+    "defaultTooltipSet": "Abrir o seletor de Novo roteiro neste formato"
+  },
+  "conflict": {
+    "title": "Conflitos do modelo",
+    "intro": "Aplicar <strong>{{name}}</strong> exige resolver os conflitos a seguir no seu documento.",
+    "disabled": {
+      "title": "Tipos de elemento desativados",
+      "desc": "Esses tipos de elemento estão desativados no modelo, mas existem no seu documento. Escolha um substituto para cada um."
+    },
+    "elementCount_one": "Elemento {{label}}",
+    "elementCount_many": "Elementos {{label}}",
+    "elementCount_other": "Elementos {{label}}",
+    "replaceWith": "Substituir por:",
+    "formatting": {
+      "title": "Conflitos de formatação",
+      "desc": "Esses elementos têm formatação direta que conflita com as regras travadas do modelo. Marque para remover as marcas conflitantes.",
+      "detail_one": "{{count}} elemento com {{marks}}",
+      "detail_many": "{{count}} de elementos com {{marks}}",
+      "detail_other": "{{count}} elementos com {{marks}}"
+    },
+    "applyWithout": "Aplicar sem resolver",
+    "resolveApply": "Resolver e aplicar"
+  },
+  "prefs": {
+    "title": "Preferências de formato de roteiro",
+    "titleFirstRun": "Boas-vindas — escolha seus formatos de roteiro",
+    "hintFirstRun": "Escolha os formatos em que você costuma escrever. Ao criar um novo roteiro, o OpenDraft oferecerá apenas essas opções. Você pode mudar isso depois no menu Formatar.",
+    "hint": "Escolha quais formatos aparecem no seletor de Novo roteiro. Defina um como padrão e o seletor abre nele, pronto para aceitar — os outros continuam a um clique de distância. Selecione apenas um formato e os novos roteiros o usam sem perguntar.",
+    "yourTemplates": "Seus modelos",
+    "noneYet": "Nenhum ainda. É em Formatar ▸ Modelo de formatação… que você cria um; ele aparecerá aqui.",
+    "saveContinue": "Salvar e continuar"
+  },
+  "editor": {
+    "title": "Editar modelo",
+    "namePlaceholder": "Nome do modelo",
+    "description": "Descrição",
+    "descriptionPlaceholder": "Descrição opcional",
+    "mode": "Modo",
+    "modeEnforce": "Impor",
+    "modeOverride": "Substituível",
+    "modeEnforceHint": "A formatação é travada — os usuários não podem alterar o estilo no nível do elemento.",
+    "modeOverrideHint": "A formatação define os padrões — os usuários podem substituí-la em cada ocorrência.",
+    "elements": "Elementos",
+    "addElementTitle": "Adicionar um elemento personalizado (ex.: Efeito sonoro, Letra, Inserção)",
+    "addElement": "Novo",
+    "customBadge": "personalizado",
+    "removeElement": "Remover elemento",
+    "av": {
+      "inserts": "Insere um corpo de Áudio/Vídeo em duas colunas — Vídeo à esquerda, Áudio à direita, uma linha por plano.",
+      "noFormatting": "Ele não tem formatação própria. Formate os elementos que vão em suas colunas e use <em>Nas colunas AV</em> em cada um para dizer qual coluna o oferece.",
+      "untick": "Desmarque-o na lista para tirá-lo do menu de elementos; os comandos AV do próprio menu Formatar não são afetados.",
+      "inColumns": "Nas colunas AV",
+      "baseTitle": "Os quatro tipos de parágrafo AV são oferecidos nas duas colunas em todos os documentos — só a formatação deles é escolha do modelo.",
+      "columnTitle": "Qual coluna de um corpo AV de duas colunas oferece este elemento.",
+      "notOffered": "Não oferecido",
+      "video": "Coluna de vídeo",
+      "audio": "Coluna de áudio",
+      "both": "Ambas as colunas"
+    },
+    "label": "Rótulo",
+    "labelPlaceholder": "Nome do elemento",
+    "fontFamily": "Família da fonte",
+    "fontSize": "Tamanho da fonte",
+    "textStyle": "Estilo do texto",
+    "bold": "Negrito",
+    "italic": "Itálico",
+    "underline": "Sublinhado",
+    "strikethrough": "Tachado",
+    "textTransform": "Transformação do texto",
+    "uppercase": "Maiúsculas",
+    "lowercase": "Minúsculas",
+    "alignment": "Alinhamento",
+    "textColor": "Cor do texto",
+    "inherit": "herdar",
+    "backgroundColor": "Cor de fundo",
+    "transparent": "transparente",
+    "spaceBefore": "Espaço antes (linhas)",
+    "leftIndent": "Recuo à esquerda (pol.)",
+    "rightIndent": "Recuo à direita (pol.)",
+    "nextOnEnter": "Próximo ao pressionar Enter",
+    "nextOnTab": "Próximo ao pressionar Tab",
+    "placeholderText": "Texto de espaço reservado",
+    "placeholderHint": "Exibido quando o elemento está vazio",
+    "newPage": "Começa em uma nova página",
+    "newPageOn": "Todo “{{label}}” começa no topo de uma página nova, na tela e nas exportações para PDF/Word.",
+    "newPageOff": "Este elemento flui junto com o resto da página.",
+    "numbering": {
+      "enable": "Numerar este elemento",
+      "prefix": "Prefixo",
+      "startAt": "Começar em",
+      "style": "Estilo",
+      "stylePlain": "Simples (3)",
+      "styleScene": "Com número da cena (12.3)",
+      "styleWords": "Por extenso (TRÊS)",
+      "show": "Mostrar o número",
+      "inMargin": "Na margem",
+      "inline": "No início da linha",
+      "countWith": "Contar junto com",
+      "ownCount": "Contagem própria",
+      "restartAt": "Reiniciar a numeração em",
+      "hintOff": "Numera todo “{{label}}” na margem, na tela e nas exportações para PDF, Word e Final Draft.",
+      "orJoiner": " ou ",
+      "summaryWhole": "{{sample}} … contando ao longo de todo o roteiro.",
+      "summaryWholeShared": "{{sample}} … contando ao longo de todo o roteiro, em uma só contagem com todo “{{owner}}”.",
+      "summaryReset": "{{sample}} … recomeçando a cada {{resets}}.",
+      "summaryResetShared": "{{sample}} … recomeçando a cada {{resets}}, em uma só contagem com todo “{{owner}}”.",
+      "summaryScene": "Números simples onde não há número de cena para mostrar.",
+      "summaryInline": "Exibido no início da linha, mesmo antes de qualquer coisa ser digitada nela."
+    },
+    "allowOverride": "Permitir substituir a formatação",
+    "overrideOn": "Os usuários podem substituir a formatação deste tipo de elemento.",
+    "overrideOff": "Toda a formatação é travada — os usuários não podem alterar nenhum estilo deste elemento.",
+    "preview": "Pré-visualização",
+    "sampleText": "Texto de exemplo...",
+    "selectElement": "Selecione um elemento na lista para editar sua formatação."
+  },
+  "select": {
+    "title": "Formato de roteiro / Modelo",
+    "hint": "Escolha um formato de roteiro (cinema, sitcom, drama, teatro, rádio) ou um modelo de formatação personalizado. O modelo controla as regras de formatação no nível do elemento; em um documento vazio, escolher um tipo de roteiro também cria um conteúdo inicial.",
+    "unreadable": "O formato salvo não pode ser lido por esta versão. Os dados originais são mantidos quando você salva. Atualize o OpenDraft para usá-lo; escolher outro formato substitui a definição salva.",
+    "thisDocument": "Este documento",
+    "currentBadge": "atual",
+    "modeEnforce": "impor",
+    "modeOverride": "substituível",
+    "duplicate": "Duplicar",
+    "duplicated": "Modelo duplicado",
+    "confirmDelete": "Excluir o modelo \"{{name}}\"?",
+    "deleted": "Modelo excluído",
+    "libraryNewer": "A versão da biblioteca é mais recente. A versão da biblioteca local está em uso no momento. Editar formato atual parte dessa versão; aplicar esta cópia salva cria um formato de documento separado.",
+    "savedNewer": "A cópia salva é mais recente. A versão da biblioteca local está em uso no momento. Editar formato atual parte dessa versão; aplicar esta cópia salva cria um formato de documento separado.",
+    "libraryInUse": "A versão da biblioteca local está em uso no momento. Editar formato atual parte dessa versão; aplicar esta cópia salva cria um formato de documento separado.",
+    "savedWithScript": "Salvo com este roteiro. Editar este formato cria um formato de documento separado e não altera seus outros modelos.",
+    "editCurrent": "Editar formato atual",
+    "editDocument": "Editar formato do documento",
+    "copied": "Formato copiado para seus modelos",
+    "copyFailed": "Não foi possível salvar o formato nos seus modelos.",
+    "saveToMine": "Salvar em Meus modelos",
+    "scriptFormats": "Formatos de roteiro",
+    "userDefined": "Definidos pelo usuário",
+    "noCustom": "Nenhum modelo personalizado ainda.",
+    "create": "+ Criar modelo",
+    "invalidSettings": "Configurações de modelo inválidas. O modelo não foi salvo.",
+    "invalidDocumentSaved": "Formato de documento inválido. O modelo não foi salvo.",
+    "invalidDocumentApplied": "Formato de documento inválido. O formato não foi aplicado.",
+    "saved": "Modelo salvo",
+    "noLongerDefault": "Não é mais o formato padrão para novos roteiros",
+    "nowDefault": "Os novos roteiros começarão em \"{{name}}\""
+  }
+}
