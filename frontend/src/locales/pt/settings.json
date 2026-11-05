@@ -421,5 +421,36 @@
     "shortcut": "Atalho do menu de elementos",
     "shortcutHintMac": "Abre o menu de elementos onde quer que esteja o cursor, em uma linha em branco ou com texto. É o caminho até ele se você desativar a configuração acima. Clique na caixa e pressione as teclas desejadas; a combinação precisa de pelo menos um entre ⌘, ⌥ ou ⌃.",
     "shortcutHintOther": "Abre o menu de elementos onde quer que esteja o cursor, em uma linha em branco ou com texto. É o caminho até ele se você desativar a configuração acima. Clique na caixa e pressione as teclas desejadas; a combinação precisa de pelo menos um entre Ctrl ou Alt."
+  },
+  "smartType": {
+    "title": "Listas do SmartType",
+    "description": "Adicione, edite, remova ou reordene sugestões, uma por linha. Salve as listas para aplicar as alterações. As entradas ficam em maiúsculas e as duplicatas são removidas. Essas listas ficam neste dispositivo.",
+    "hint": "Nomes, locações, horários e transições já usados no roteiro atual continuam sendo sugeridos. Limpar uma lista remove as sugestões salvas; isso não altera o seu roteiro.",
+    "fields": {
+      "scenePrefixes": {
+        "label": "Prefixos / introduções de cena",
+        "hint": "Por exemplo INT., EXT. ou SEQUÊNCIA DE SONHO:. Um espaço é adicionado depois de cada prefixo.",
+        "restore": "Restaurar prefixos padrão"
+      },
+      "times": {
+        "label": "Horários da cena",
+        "hint": "Por exemplo DIA, NOITE ou HORA MÁGICA.",
+        "restore": "Restaurar horários padrão"
+      },
+      "characterExtensions": {
+        "label": "Extensões de personagem",
+        "hint": "Por exemplo V.O. ou AO TELEFONE. Os parênteses são adicionados automaticamente.",
+        "restore": "Restaurar extensões padrão"
+      },
+      "transitions": {
+        "label": "Transições",
+        "hint": "Por exemplo CORTA PARA: ou FUSÃO PARA BRANCO:. Inclua a pontuação que deseja inserir.",
+        "restore": "Restaurar transições padrão"
+      }
+    },
+    "saved": "Listas do SmartType salvas neste dispositivo.",
+    "saveFailed": "Não foi possível salvar as listas do SmartType: {{message}}. Suas alterações continuam aqui; tente salvar novamente.",
+    "save": "Salvar listas",
+    "discard": "Descartar alterações"
   }
 }

@@ -410,5 +410,36 @@
     "shortcut": "Element menu shortcut",
     "shortcutHintMac": "Opens the element menu wherever the cursor is, on a blank line or a line with text. This is the way to it if you turn the setting above off. Click the box and press the keys you want; the combination needs at least one of ⌘, ⌥ or ⌃.",
     "shortcutHintOther": "Opens the element menu wherever the cursor is, on a blank line or a line with text. This is the way to it if you turn the setting above off. Click the box and press the keys you want; the combination needs at least one of Ctrl or Alt."
+  },
+  "smartType": {
+    "title": "SmartType lists",
+    "description": "Add, edit, remove or reorder suggestions with one item per line. Save lists to apply changes. Entries use uppercase and duplicates are removed. These lists stay on this device.",
+    "hint": "Names, locations, times and transitions already used in the current script are still suggested. Clearing a list removes its saved suggestions; it does not change your script.",
+    "fields": {
+      "scenePrefixes": {
+        "label": "Scene prefixes / intros",
+        "hint": "For example INT., EXT., or DREAM SEQUENCE:. A space is added after each prefix.",
+        "restore": "Restore default scene prefixes / intros"
+      },
+      "times": {
+        "label": "Scene times",
+        "hint": "For example DAY, NIGHT, or MAGIC HOUR.",
+        "restore": "Restore default scene times"
+      },
+      "characterExtensions": {
+        "label": "Character extensions",
+        "hint": "For example V.O. or THROUGH PHONE. Parentheses are added automatically.",
+        "restore": "Restore default character extensions"
+      },
+      "transitions": {
+        "label": "Transitions",
+        "hint": "For example CUT TO: or FADE TO WHITE:. Include the punctuation you want inserted.",
+        "restore": "Restore default transitions"
+      }
+    },
+    "saved": "SmartType lists saved on this device.",
+    "saveFailed": "Could not save SmartType lists: {{message}}. Your changes are still here; try saving again.",
+    "save": "Save lists",
+    "discard": "Discard changes"
   }
 }

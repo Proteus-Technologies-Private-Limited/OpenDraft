@@ -123,6 +123,7 @@
   "settings:invite.expiryMinutes_other",
   "settings:macros.title",
   "settings:saving.intervalMinutes_other",
+  "settings:smartType.fields.transitions.label",
   "story:beatBoard.beatCount_other",
   "story:characters.field.description",
   "story:characters.field.image",

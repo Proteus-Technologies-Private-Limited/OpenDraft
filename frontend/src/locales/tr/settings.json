@@ -410,5 +410,36 @@
     "shortcut": "Öğe menüsü kısayolu",
     "shortcutHintMac": "İmleç nerede olursa olsun, boş satırda ya da metin içeren satırda öğe menüsünü açar. Yukarıdaki ayarı kapatırsanız menüye ulaşmanın yolu budur. Kutuya tıklayın ve istediğiniz tuşlara basın; birleşimde ⌘, ⌥ veya ⌃ tuşlarından en az biri olmalıdır.",
     "shortcutHintOther": "İmleç nerede olursa olsun, boş satırda ya da metin içeren satırda öğe menüsünü açar. Yukarıdaki ayarı kapatırsanız menüye ulaşmanın yolu budur. Kutuya tıklayın ve istediğiniz tuşlara basın; birleşimde Ctrl veya Alt tuşlarından en az biri olmalıdır."
+  },
+  "smartType": {
+    "title": "SmartType listeleri",
+    "description": "Önerileri her satıra bir tane olacak şekilde ekleyin, düzenleyin, kaldırın veya yeniden sıralayın. Değişiklikleri uygulamak için listeleri kaydedin. Girdiler büyük harfle yazılır ve yinelenenler kaldırılır. Bu listeler bu cihazda kalır.",
+    "hint": "Geçerli senaryoda zaten kullanılan adlar, mekânlar, zamanlar ve geçişler önerilmeye devam eder. Bir listeyi temizlemek kayıtlı önerilerini kaldırır; senaryonuzu değiştirmez.",
+    "fields": {
+      "scenePrefixes": {
+        "label": "Sahne önekleri / girişleri",
+        "hint": "Örneğin INT., EXT. veya RÜYA SEKANSI:. Her önekten sonra bir boşluk eklenir.",
+        "restore": "Varsayılan önekleri geri yükle"
+      },
+      "times": {
+        "label": "Sahne zamanları",
+        "hint": "Örneğin GÜNDÜZ, GECE veya ALTIN SAAT.",
+        "restore": "Varsayılan zamanları geri yükle"
+      },
+      "characterExtensions": {
+        "label": "Karakter uzantıları",
+        "hint": "Örneğin V.O. veya TELEFONDA. Parantezler otomatik eklenir.",
+        "restore": "Varsayılan uzantıları geri yükle"
+      },
+      "transitions": {
+        "label": "Geçişler",
+        "hint": "Örneğin CUT TO: veya BEYAZA SOLMA:. Eklenmesini istediğiniz noktalamayı da yazın.",
+        "restore": "Varsayılan geçişleri geri yükle"
+      }
+    },
+    "saved": "SmartType listeleri bu cihazda kaydedildi.",
+    "saveFailed": "SmartType listeleri kaydedilemedi: {{message}}. Değişiklikleriniz burada duruyor; yeniden kaydetmeyi deneyin.",
+    "save": "Listeleri kaydet",
+    "discard": "Değişiklikleri at"
   }
 }

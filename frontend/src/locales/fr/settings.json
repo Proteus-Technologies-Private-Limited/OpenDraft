@@ -421,5 +421,36 @@
     "shortcut": "Raccourci du menu des éléments",
     "shortcutHintMac": "Ouvre le menu des éléments où que soit le curseur, sur une ligne vide ou une ligne contenant du texte. C’est le moyen d’y accéder si vous désactivez le réglage ci-dessus. Cliquez dans la zone et appuyez sur les touches voulues ; la combinaison nécessite au moins une des touches ⌘, ⌥ ou ⌃.",
     "shortcutHintOther": "Ouvre le menu des éléments où que soit le curseur, sur une ligne vide ou une ligne contenant du texte. C’est le moyen d’y accéder si vous désactivez le réglage ci-dessus. Cliquez dans la zone et appuyez sur les touches voulues ; la combinaison nécessite au moins une des touches Ctrl ou Alt."
+  },
+  "smartType": {
+    "title": "Listes SmartType",
+    "description": "Ajoutez, modifiez, supprimez ou réorganisez les suggestions, une par ligne. Enregistrez les listes pour appliquer les changements. Les entrées sont en majuscules et les doublons sont supprimés. Ces listes restent sur cet appareil.",
+    "hint": "Les noms, lieux, moments et transitions déjà utilisés dans le scénario actuel continuent d’être suggérés. Vider une liste supprime ses suggestions enregistrées ; cela ne modifie pas votre scénario.",
+    "fields": {
+      "scenePrefixes": {
+        "label": "Préfixes / intros de scène",
+        "hint": "Par exemple INT., EXT. ou SÉQUENCE DE RÊVE :. Une espace est ajoutée après chaque préfixe.",
+        "restore": "Restaurer les préfixes par défaut"
+      },
+      "times": {
+        "label": "Moments de la scène",
+        "hint": "Par exemple JOUR, NUIT ou HEURE MAGIQUE.",
+        "restore": "Restaurer les moments par défaut"
+      },
+      "characterExtensions": {
+        "label": "Extensions de personnage",
+        "hint": "Par exemple V.O. ou AU TÉLÉPHONE. Les parenthèses sont ajoutées automatiquement.",
+        "restore": "Restaurer les extensions par défaut"
+      },
+      "transitions": {
+        "label": "Transitions",
+        "hint": "Par exemple CUT TO: ou FONDU AU BLANC:. Incluez la ponctuation à insérer.",
+        "restore": "Restaurer les transitions par défaut"
+      }
+    },
+    "saved": "Listes SmartType enregistrées sur cet appareil.",
+    "saveFailed": "Impossible d’enregistrer les listes SmartType : {{message}}. Vos modifications sont toujours là ; réessayez d’enregistrer.",
+    "save": "Enregistrer les listes",
+    "discard": "Annuler les modifications"
   }
 }

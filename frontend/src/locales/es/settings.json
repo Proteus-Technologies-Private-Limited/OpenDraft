@@ -421,5 +421,36 @@
     "shortcut": "Atajo del menú de elementos",
     "shortcutHintMac": "Abre el menú de elementos donde esté el cursor, en una línea en blanco o en una con texto. Es la forma de acceder a él si desactivas el ajuste anterior. Haz clic en el cuadro y pulsa las teclas que quieras; la combinación necesita al menos una de las teclas ⌘, ⌥ o ⌃.",
     "shortcutHintOther": "Abre el menú de elementos donde esté el cursor, en una línea en blanco o en una con texto. Es la forma de acceder a él si desactivas el ajuste anterior. Haz clic en el cuadro y pulsa las teclas que quieras; la combinación necesita al menos una de las teclas Ctrl o Alt."
+  },
+  "smartType": {
+    "title": "Listas de SmartType",
+    "description": "Añade, edita, elimina o reordena sugerencias, una por línea. Guarda las listas para aplicar los cambios. Las entradas se escriben en mayúsculas y se eliminan los duplicados. Estas listas se quedan en este dispositivo.",
+    "hint": "Los nombres, ubicaciones, horarios y transiciones que ya se usan en el guion actual se siguen sugiriendo. Vaciar una lista elimina sus sugerencias guardadas; no cambia tu guion.",
+    "fields": {
+      "scenePrefixes": {
+        "label": "Prefijos / introducciones de escena",
+        "hint": "Por ejemplo INT., EXT. o SECUENCIA DE SUEÑO:. Se añade un espacio después de cada prefijo.",
+        "restore": "Restaurar prefijos predeterminados"
+      },
+      "times": {
+        "label": "Momentos de la escena",
+        "hint": "Por ejemplo DÍA, NOCHE o HORA MÁGICA.",
+        "restore": "Restaurar momentos predeterminados"
+      },
+      "characterExtensions": {
+        "label": "Extensiones de personaje",
+        "hint": "Por ejemplo V.O. o POR TELÉFONO. Los paréntesis se añaden automáticamente.",
+        "restore": "Restaurar extensiones predeterminadas"
+      },
+      "transitions": {
+        "label": "Transiciones",
+        "hint": "Por ejemplo CORTE A: o FUNDIDO A BLANCO:. Incluye la puntuación que quieras insertar.",
+        "restore": "Restaurar transiciones predeterminadas"
+      }
+    },
+    "saved": "Listas de SmartType guardadas en este dispositivo.",
+    "saveFailed": "No se pudieron guardar las listas de SmartType: {{message}}. Tus cambios siguen aquí; intenta guardar de nuevo.",
+    "save": "Guardar listas",
+    "discard": "Descartar cambios"
   }
 }
