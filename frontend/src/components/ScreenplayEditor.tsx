@@ -1584,6 +1584,7 @@ const ScreenplayEditor: React.FC = () => {
   // SmartType state: the completion popup for character cues, scene headings
   // and transitions. `from` is the character offset in the block that the
   // chosen item replaces (see editor/smartType).
+  const smartTypeLists = useSettingsStore((s) => s.smartTypeLists);
   const smartTypeIndexRef = useRef<ScriptIndex>(emptyScriptIndex());
   const [smartTypeState, setSmartTypeState] = useState<{
     visible: boolean;
@@ -2726,7 +2727,7 @@ const ScreenplayEditor: React.FC = () => {
     const rebuild = () => {
       const { $from } = editor.state.selection;
       const blockPos = $from.depth > 0 ? $from.before($from.depth) : null;
-      smartTypeIndexRef.current = buildScriptIndex(collectScriptBlocks(editor.state.doc, blockPos));
+      smartTypeIndexRef.current = buildScriptIndex(collectScriptBlocks(editor.state.doc, blockPos), smartTypeLists);
     };
     rebuild();
     let timeout: ReturnType<typeof setTimeout> | null = null;
@@ -2742,12 +2743,14 @@ const ScreenplayEditor: React.FC = () => {
       editor.off('update', onUpdate);
       if (timeout) clearTimeout(timeout);
     };
-  }, [editor]);
+  }, [editor, smartTypeLists]);
 
   // --- SmartType: show on typing, hide when the caret moves without typing ---
   useEffect(() => {
     if (!editor) return;
     const hide = () => setSmartTypeState(s => (s.visible ? { ...s, visible: false } : s));
+    hide();
+    smartTypeHiddenForRef.current = null;
     let hideTimer: ReturnType<typeof setTimeout> | null = null;
     const cancelHide = () => {
       if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
@@ -2785,7 +2788,7 @@ const ScreenplayEditor: React.FC = () => {
         return;
       }
 
-      const result = suggestSmartType(element, text, $from.parentOffset, smartTypeIndexRef.current);
+      const result = suggestSmartType(element, text, $from.parentOffset, smartTypeIndexRef.current, smartTypeLists);
       if (!result) {
         hide();
         return;
@@ -2836,7 +2839,7 @@ const ScreenplayEditor: React.FC = () => {
       editor.off('update', onUpdate);
       editor.off('selectionUpdate', onSelection);
     };
-  }, [editor]);
+  }, [editor, smartTypeLists]);
 
   // Re-measure overlays after editor updates (decorations settle)
   useEffect(() => {
