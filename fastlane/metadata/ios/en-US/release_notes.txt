@@ -1,10 +1,22 @@
-Tidy up your drafts, and PDFs that read right in Indian languages.
+See your whole story at a glance, print just the scenes you need, and write by voice.
 
-DELETE A DRAFT FROM THE FILE MENU
-File > Delete Script removes the script you have open, whether it's on this device or in OpenDraft Cloud. Type its name to confirm, and you're taken back to its project.
+THE OUTLINE
+See your acts, sequences and scenes in one list, with each scene's length. Move scenes around and group them into sequences.
 
-YOUR PROJECTS, EASIER TO FIND
-Manage Projects is now in the File menu, and the Open screen links to it, so renaming and deleting projects and drafts is always close at hand. When you delete a project's last draft, OpenDraft offers to remove the empty project too.
+PRINT ONLY THE SCENES YOU NEED
+Export a range of scenes, or pick any you like, and choose the title page, page numbers, scene numbers and a watermark for that copy.
 
-TAMIL AND OTHER INDIAN LANGUAGES IN PDF
-Tamil now looks the same in a PDF as it does on screen. Hindi, Marathi, Bengali, Gujarati, Punjabi, Odia, Telugu, Kannada, Malayalam and Sinhala get the same fix, with joined letters printed properly.
+DICTATION
+Speak your scene, check the words, then add them to your script. Simple voice commands start a new scene or a character's line. It's off until you turn it on.
+
+FASTER TYPING
+Character names, locations and transitions you've already used are offered as you type.
+
+SEE WHAT CHANGED BETWEEN DRAFTS
+Comparing drafts now shows rewritten lines word by word, and which lines moved to another scene.
+
+YOUR OWN SCRIPT FORMATS, EVERYWHERE
+A script keeps its custom format when you open it on another device or share it with a co-writer.
+
+ALSO NEW
+Suggest bold, italic and other styling for a co-writer to accept. Line numbers can be locked for a recording or shooting script. Long speeches continue neatly onto the next page. The status bar shows your total word count.
