@@ -211,6 +211,8 @@ import {
   FaExpandArrowsAlt,
   FaEyeSlash,
   FaListUl,
+  FaMap,
+  FaClone,
   FaToggleOn,
   FaLock,
   FaFileSignature,
@@ -219,6 +221,7 @@ import {
   FaMoon,
   FaRegFileAlt,
   FaStepForward,
+  FaBolt,
   FaEraser,
   FaUnlock,
   FaSlidersH,
@@ -352,6 +355,14 @@ const MenuBar: React.FC<MenuBarProps> = ({
     toggleIndexCards,
     beatBoardOpen,
     toggleBeatBoard,
+    storyMapOpen,
+    toggleStoryMap,
+    splitScreenOpen,
+    toggleSplitScreen,
+    splitScreenMode,
+    setSplitScreenMode,
+    splitScreenPane,
+    setSplitScreenPane,
     outlineOpen,
     toggleOutline,
     scriptNotesOpen,
@@ -3291,6 +3302,24 @@ const MenuBar: React.FC<MenuBarProps> = ({
             { icon: <FaTh />, label: indexCardsOpen ? '\u2713 Index Cards' : 'Index Cards', action: toggleIndexCards },
             { icon: <FaStream />, label: beatBoardOpen ? '\u2713 Beat Board' : 'Beat Board', action: toggleBeatBoard },
             { icon: <FaListUl />, label: outlineOpen ? '\u2713 Outline' : 'Outline', action: toggleOutline },
+            { icon: <FaMap />, label: storyMapOpen ? '\u2713 Story Map' : 'Story Map', title: 'The scenes as one strip, by page length or screen time', action: toggleStoryMap },
+            {
+              icon: <FaClone />, label: splitScreenOpen ? '\u2713 Split Screen' : 'Split Screen', children: [
+                { label: splitScreenMode === 'side-by-side' && splitScreenOpen ? '\u2713 Side by Side' : 'Side by Side', action: () => setSplitScreenMode('side-by-side') },
+                { label: splitScreenMode === 'stacked' && splitScreenOpen ? '\u2713 Stacked' : 'Stacked', action: () => setSplitScreenMode('stacked') },
+                { separator: true, label: '' },
+                { label: splitScreenOpen ? 'One Pane' : '\u2713 One Pane', action: () => { if (splitScreenOpen) toggleSplitScreen(); } },
+                { separator: true, label: '' },
+                {
+                  label: 'Second Pane', children: [
+                    { icon: <FaFileAlt />, label: splitScreenPane === 'page-view' && splitScreenOpen ? '\u2713 Page View' : 'Page View', action: () => setSplitScreenPane('page-view') },
+                    { icon: <FaTh />, label: splitScreenPane === 'index-cards' && splitScreenOpen ? '\u2713 Index Cards' : 'Index Cards', action: () => setSplitScreenPane('index-cards') },
+                    { icon: <FaListUl />, label: splitScreenPane === 'outline' && splitScreenOpen ? '\u2713 Outline' : 'Outline', action: () => setSplitScreenPane('outline') },
+                    { icon: <FaStream />, label: splitScreenPane === 'beat-board' && splitScreenOpen ? '\u2713 Beat Board' : 'Beat Board', action: () => setSplitScreenPane('beat-board') },
+                  ],
+                },
+              ],
+            },
             { icon: <FaProjectDiagram />, label: 'Story Timeline…', title: 'Plotlines across the scenes, by screen time', action: () => {
               // The timeline edits scene headings, so the script has to be on
               // screen under it, not the Beat Board or Statistics.
@@ -3323,6 +3352,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
           children: [
             { icon: <FaRegFileAlt />, label: viewLayout === 'page' ? '\u2713 Page' : 'Page', action: () => setViewLayout('page') },
             { icon: <FaMobileAlt />, label: viewLayout === 'phone' ? '\u2713 Phone' : 'Phone', action: () => setViewLayout('phone') },
+            { icon: <FaBolt />, label: viewLayout === 'speed' ? '\u2713 Speed' : 'Speed', action: () => setViewLayout('speed') },
           ],
         },
         { separator: true, label: '' },

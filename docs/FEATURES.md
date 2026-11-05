@@ -18,12 +18,14 @@ A complete list of features in OpenDraft.
 - **Comic Book format** -- Full comic and graphic novel scripts: pages spelled out (PAGE ONE), panels numbered on each page, captions and balloons lettered across the page
 - **Alternates** -- Keep other versions of a line of dialogue or action, or of a whole scene, beside it and switch between them; only the version showing prints and exports. During a live collaboration session the version shown stays editable, but adding, switching or deleting versions waits until the session ends (or you leave it), so two people switching at once cannot duplicate text
 - **Distraction-free writing** -- Clean, focused interface with minimal chrome
+- **Speed View** -- The page layout without page breaks: one continuous sheet for drafting, while pagination, page count and every export stay unchanged (View → Layout → Speed)
 - **Focus Mode** -- Full screen with panels and menus out of the way, typewriter scrolling, and optional dimming of all but the current element or scene
 - **Writing Goals & Sprints** -- Daily and session goals in words or pages with a status bar progress ring, timed sprints with an optional no-backspace mode, and a words-written-per-day calendar in Script Statistics, kept on your device only
 
 ## Story Planning
 
-- **Beat Board & Index Cards** -- Visual story planning with drag-and-drop scene organization
+- **Beat Board & Index Cards** -- Visual story planning with drag-and-drop scene organization; Index Cards opens as a view that fills the writing area, with a page-or-time scene timeline under the cards
+- **Split Screen** -- Keep the script beside Page View, Index Cards, the Outline or the Beat Board, side by side or stacked, from View → Split Screen
 - **Plotlines & Story Timeline** -- Name the story's threads, put scenes and beats in them, and see every plotline across the script by screen time
 - **Beats Linked to Scenes** -- Link a Beat Board beat to the scenes that carry it and jump straight to them; linked beats show on the Story Timeline
 - **Character Profiles** -- Track characters with role types, highlight colors, and rich descriptions

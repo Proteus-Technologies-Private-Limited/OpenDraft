@@ -862,9 +862,12 @@ interface BeatBoardProps {
   /** The script's editor, for linking beats to its scenes. Without one the
    *  board works as before, minus scene links. */
   editor?: Editor | null;
+  /** Drawn as the split screen's second pane, where the board is not "open"
+   *  in the full-view sense. */
+  embedded?: boolean;
 }
 
-const BeatBoard: React.FC<BeatBoardProps> = ({ editor = null }) => {
+const BeatBoard: React.FC<BeatBoardProps> = ({ editor = null, embedded = false }) => {
   const {
     beats, beatBoardOpen, beatColumns, beatArrangeMode,
     addBeat, updateBeat, deleteBeat, setBeats,
@@ -881,7 +884,7 @@ const BeatBoard: React.FC<BeatBoardProps> = ({ editor = null }) => {
   // scene as deleted.
   const [docVersion, setDocVersion] = useState(0);
   useEffect(() => {
-    if (!editor || !beatBoardOpen) return;
+    if (!editor || (!beatBoardOpen && !embedded)) return;
     const bump = ({ transaction }: { transaction: { docChanged: boolean } }) => {
       if (transaction.docChanged) setDocVersion((v) => v + 1);
     };
@@ -1070,7 +1073,7 @@ const BeatBoard: React.FC<BeatBoardProps> = ({ editor = null }) => {
     }, 0);
   }, [defaultColumnId, beats.length, addBeat, addBeatColumn, updateBeat]);
 
-  if (!beatBoardOpen) return null;
+  if (!beatBoardOpen && !embedded) return null;
 
   return (
     <BeatScenesContext.Provider value={sceneLinks}>
