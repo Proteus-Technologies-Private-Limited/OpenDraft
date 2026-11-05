@@ -1,0 +1,39 @@
+.smarttype-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+.smarttype-settings-list {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+}
+.smarttype-settings-list label {
+  font-weight: 600;
+}
+.smarttype-settings-list textarea {
+  width: 100%;
+  box-sizing: border-box;
+  height: auto;
+  min-height: 9em;
+  padding: 8px;
+  resize: vertical;
+}
+.smarttype-settings-list button {
+  white-space: normal;
+}
+.smarttype-settings-list button,
+.smarttype-settings-actions button {
+  min-height: 44px;
+}
+.smarttype-settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 20px;
+}
+@media (max-width: 600px) {
+  .smarttype-settings-grid { grid-template-columns: minmax(0, 1fr); }
+}

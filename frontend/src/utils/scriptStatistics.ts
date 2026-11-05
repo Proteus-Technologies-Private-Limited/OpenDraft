@@ -6,6 +6,7 @@ import type { JSONContent } from '@tiptap/react';
 import { jsonBlockText, singleLine } from './nodeText';
 import type { CharacterProfile } from '../stores/editorStore';
 import { isNonPrintingType } from './nonPrinting';
+import { matchScenePrefix } from './smartTypeLists';
 
 // ── Scene heading parsing (matching SceneNavigator patterns) ──────────
 
@@ -14,13 +15,17 @@ const TIME_WORDS = 'DAY|NIGHT|DAWN|DUSK|MORNING|AFTERNOON|EVENING|SUNSET|SUNRISE
 // CLEARING" read as EST. + "CLEARING", and "PRINT SHOP" as INT. + "SHOP".
 const PREFIX_RE = /\b(INT\.?\/?EXT\.?|EXT\.?\/?INT\.?|INT\.?|EXT\.?|I\/E\.?|EST\.?)\s+/i;
 
-export function parseHeading(raw: string): { prefix: string; location: string; timeOfDay: string } {
+export function parseHeading(raw: string, scenePrefixes: readonly string[] = []): { prefix: string; location: string; timeOfDay: string } {
   let rest = raw.trim();
   let prefix = '';
   let timeOfDay = '';
 
-  const prefixMatch = rest.match(PREFIX_RE);
-  if (prefixMatch && prefixMatch.index !== undefined) {
+  const customPrefix = matchScenePrefix(rest, scenePrefixes);
+  const prefixMatch = customPrefix ? null : rest.match(PREFIX_RE);
+  if (customPrefix) {
+    prefix = customPrefix.prefix.toUpperCase();
+    rest = rest.slice(customPrefix.length);
+  } else if (prefixMatch && prefixMatch.index !== undefined) {
     const p = prefixMatch[1].toUpperCase();
     if (p.includes('/')) prefix = 'INT./EXT.';
     else if (p.startsWith('INT')) prefix = 'INT.';

@@ -14,6 +14,7 @@ import VoiceProviderSettings from './VoiceProviderSettings';
 import { isMacPlatform } from '../utils/shortcuts';
 import ShortcutField from './ShortcutField';
 import MacroSettingsSection from './MacroSettingsSection';
+import SmartTypeSettingsSection from './SmartTypeSettingsSection';
 import { printRoute, isTauri as isTauriApp } from '../services/platform';
 import Select from './Select';
 
@@ -1220,6 +1221,8 @@ const SettingsPage: React.FC = () => {
             </div>
           </div>
         </section>
+
+        <SmartTypeSettingsSection />
 
         <MacroSettingsSection />
 
