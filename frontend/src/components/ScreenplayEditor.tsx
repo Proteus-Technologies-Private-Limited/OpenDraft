@@ -66,8 +66,11 @@ import HeaderFooterDialog from './HeaderFooterDialog';
 import type { BandKind } from './HeaderFooterBand';
 import MenuBar from './MenuBar';
 import Toolbar from './Toolbar';
+import ToolbarCustomiseDialog from './ToolbarCustomiseDialog';
 import SceneNavigator from './SceneNavigator';
 import IndexCards from './IndexCards';
+import StoryMap from './StoryMap';
+import PagePreviewPane from './PagePreviewPane';
 import BeatBoard from './BeatBoard';
 import OutlineView from './OutlineView';
 import ScriptStatistics from './ScriptStatistics';
@@ -549,7 +552,9 @@ const ScreenplayEditor: React.FC = () => {
     setActiveElement, setScenes, setPageCount, setCurrentPage,
     zoomLevel, setZoomLevel, fontFamily, fontSize, pageLayout, tagsVisible, notesVisible,
     viewLayout,
-    beatBoardOpen, statisticsOpen,
+    beatBoardOpen, statisticsOpen, indexCardsOpen,
+    splitScreenOpen, toggleSplitScreen, splitScreenMode, splitScreenPane,
+    storyMapOpen, toggleStoryMap,
     outlineOpen,
     navigatorOpen, toggleNavigator, scriptNotesOpen, toggleScriptNotes,
     characterProfilesOpen, tagsPanelOpen, locationDatabaseOpen, dialogueTunerOpen,
@@ -1044,8 +1049,14 @@ const ScreenplayEditor: React.FC = () => {
   pageLayoutRef.current = pageLayout;
   // Phone view: the same pages, reflowed to the screen (see ViewLayout).
   const phoneView = viewLayout === 'phone';
+  // Speed view: the page's sheet with the page breaks taken out, for drafting.
+  const speedView = viewLayout === 'speed';
   const phoneViewRef = useRef(phoneView);
   phoneViewRef.current = phoneView;
+  // Speed view draws no gap between pages, so the overlay must not subtract
+  // one: measureOverlays reads both refs while computing the page anchors.
+  const speedViewRef = useRef(speedView);
+  speedViewRef.current = speedView;
 
   // ── Touch gestures (must be after editorMainRef) ──
   const isTouch = useIsTouchDevice();
@@ -1175,6 +1186,13 @@ const ScreenplayEditor: React.FC = () => {
   zoomLevelRef.current = zoomLevel;
 
   const [overlays, setOverlays] = useState<OverlayInfo[]>([]);
+  /**
+   * The page Go to Page just asked for. The scroll handler consumes it before
+   * its own heuristic so the status bar names the page the writer jumped to,
+   * even when that page's break cannot reach the top (Speed has no page gap to
+   * scroll through).
+   */
+  const pendingCurrentPageRef = useRef<number | null>(null);
 
   const {
     openFileOpen, setOpenFileOpen, saveAsOpen, setSaveAsOpen,
@@ -1679,7 +1697,10 @@ const ScreenplayEditor: React.FC = () => {
         ? (elRect.bottom - pageRect.top) / scale - separatorHeight - (internal ? contdHeight : dualContdHeight)
         : phoneViewRef.current
         ? (elRect.top - pageRect.top) / scale - PHONE_PAGE_GAP_PX
-        : (elRect.top - pageRect.top) / scale - m.sepHeightPx - contdHeight;
+        : speedViewRef.current
+          // No page gap to step over in the one continuous sheet.
+          ? (elRect.top - pageRect.top) / scale
+          : (elRect.top - pageRect.top) / scale - m.sepHeightPx - contdHeight;
       newOverlays.push({
         top: overlayTop,
         pageNumber: brk.pageNumber,
@@ -4191,12 +4212,24 @@ const ScreenplayEditor: React.FC = () => {
   // scale before mixing with rect deltas.
   const handleScroll = useCallback(() => {
     if (!editorMainRef.current || !pageRef.current) return;
+    if (pendingCurrentPageRef.current !== null) {
+      setCurrentPage(pendingCurrentPageRef.current);
+      pendingCurrentPageRef.current = null;
+      return;
+    }
     const containerTop = editorMainRef.current.getBoundingClientRect().top;
     const pageTop = pageRef.current.getBoundingClientRect().top;
     const scale = (zoomLevelRef.current || 100) / 100;
     let page = 1;
     for (const ov of overlays) {
       if (pageTop + ov.top * scale - containerTop < 50) page = ov.pageNumber;
+    }
+    // At the end of the document the last page is on screen even when its
+    // break cannot reach the top: Speed has no page gap to scroll through, so
+    // a short last page can stay 30-60px below the top at the maximum scroll.
+    const el = editorMainRef.current;
+    if (overlays.length > 0 && el.scrollTop + el.clientHeight >= el.scrollHeight - 2) {
+      page = overlays[overlays.length - 1].pageNumber;
     }
     setCurrentPage(page);
   }, [overlays, setCurrentPage]);
@@ -4225,21 +4258,34 @@ const ScreenplayEditor: React.FC = () => {
   const handleGoToPage = useCallback((page: number) => {
     if (!editorMainRef.current || !pageRef.current) return;
     if (page <= 1) {
+      pendingCurrentPageRef.current = null;
+      setCurrentPage(1);
       editorMainRef.current.scrollTo({ top: 0, behavior: 'auto' });
       return;
     }
     const ov = overlays.find(o => o.pageNumber === page);
     if (ov) {
+      // Name the page now, and let the first scroll event consume the request
+      // instead of recomputing it from the 50px threshold.
+      pendingCurrentPageRef.current = page;
+      setCurrentPage(page);
       const pageRect = pageRef.current.getBoundingClientRect();
       const containerRect = editorMainRef.current.getBoundingClientRect();
       const scale = (zoomLevelRef.current || 100) / 100;
+      // Speed view has no page gap to step over: the break's element is
+      // already a point in the one continuous sheet.
+      if (speedView) {
+        const scrollTo = editorMainRef.current.scrollTop + (pageRect.top + ov.top * scale - containerRect.top);
+        editorMainRef.current.scrollTo({ top: Math.max(0, scrollTo), behavior: 'auto' });
+        return;
+      }
       const layout = pageLayoutRef.current;
       const bottomMarginPx = (layout.bottomMargin / 72) * 96;
       const pageTopOffset = ov.top + bottomMarginPx + 40; // 40 = page-sep-gap
       const scrollTo = editorMainRef.current.scrollTop + (pageRect.top + pageTopOffset * scale - containerRect.top);
       editorMainRef.current.scrollTo({ top: scrollTo, behavior: 'auto' });
     }
-  }, [overlays]);
+  }, [overlays, speedView, setCurrentPage]);
 
   // Wire up the picker trigger
   showPickerRef.current = useCallback((defaultType: ElementType, availableTypes?: ElementType[]) => {
@@ -5679,19 +5725,22 @@ const ScreenplayEditor: React.FC = () => {
         setShareDialogOpen(true);
       }} onJoinCollab={() => setJoinCollabOpen(true)} isCollabActive={collabMode} isCollabGuest={collabMode && !isCollabHost} canEditDocumentFormat={!collabMode || collabRole === 'editor'} />}
       {!isHistoryMode && <Toolbar editor={editor} />}
+      {!isHistoryMode && <ToolbarCustomiseDialog />}
       <div className="editor-layout">
         {!isHistoryMode && <SceneNavigator editor={editor} scrollContainer={editorMainRef.current} style={{ width: navWidth, minWidth: navWidth }} />}
         {!isHistoryMode && navigatorOpen && (
           <div className="panel-resize-handle" onPointerDown={(e) => handleResizePointerDown('left', e)} style={{ touchAction: 'none' }} />
         )}
         <div className="editor-center">
-          {!isHistoryMode && <IndexCards editor={editor} scrollContainer={editorMainRef.current} />}
+          <div className={`editor-main-area${splitScreenOpen && !outlineOpen && !statisticsOpen && !beatBoardOpen && !isHistoryMode ? ` split-screen split-${splitScreenMode}` : ''}`}>
           {!isHistoryMode && outlineOpen && editor ? (
             <OutlineView editor={editor} />
           ) : !isHistoryMode && statisticsOpen && editor ? (
             <ScriptStatistics editor={editor} />
           ) : !isHistoryMode && beatBoardOpen ? (
             <BeatBoard editor={editor} />
+          ) : !isHistoryMode && indexCardsOpen && !splitScreenOpen && editor ? (
+            <IndexCards editor={editor} />
           ) : (
             <div className={`editor-main${phoneView ? ' phone-layout' : ''}`} ref={editorMainRef} onDragOver={handleEditorDragOver} onDragLeave={handleEditorDragLeave} onDrop={handleEditorDrop}>
               <div
@@ -5734,7 +5783,7 @@ const ScreenplayEditor: React.FC = () => {
               >
                 {resolvedNoteCss && <style>{resolvedNoteCss}</style>}
                 <div
-                  className={`page${phoneView ? ' phone-view' : ''}${!tagsVisible ? ' tags-hidden' : ''}${!notesVisible ? ' notes-hidden' : ''}${isHistoryMode ? ' history-readonly' : ''}${sceneNumbersVisible ? ' show-scene-numbers' : ''}${elementNumbersVisible ? ' show-element-numbers' : ''}${includeTitlePageInOutput ? '' : ' print-skip-title-page'}${showRevisionColors ? ' show-revision-colors' : ''}`}
+                  className={`page${phoneView ? ' phone-view' : ''}${speedView ? ' speed-view' : ''}${!tagsVisible ? ' tags-hidden' : ''}${!notesVisible ? ' notes-hidden' : ''}${isHistoryMode ? ' history-readonly' : ''}${sceneNumbersVisible ? ' show-scene-numbers' : ''}${elementNumbersVisible ? ' show-element-numbers' : ''}${includeTitlePageInOutput ? '' : ' print-skip-title-page'}${showRevisionColors ? ' show-revision-colors' : ''}`}
                   ref={pageRef}
                   style={{
                     fontFamily: fontStack(fontFamily),
@@ -5745,7 +5794,10 @@ const ScreenplayEditor: React.FC = () => {
                     // measured from them.
                     ...(phoneView ? {} : {
                       width: `${pageLayout.pageWidth}in`,
-                      minHeight: `${lastPageEnd + endnoteExtraHeight + (pageLayout.bottomMargin / 72) * 96}px`,
+                      // Speed view is one continuous sheet: its height is the
+                      // script's, not a page's, or it would end in a blank
+                      // page-sized tail below the last line.
+                      minHeight: speedView ? 0 : `${lastPageEnd + endnoteExtraHeight + (pageLayout.bottomMargin / 72) * 96}px`,
                       paddingTop: `${pageLayout.topMargin}pt`,
                       paddingBottom: `${pageLayout.bottomMargin}pt`,
                       paddingLeft: `${pageLayout.leftMargin}in`,
@@ -5784,7 +5836,7 @@ const ScreenplayEditor: React.FC = () => {
                   ))}
 
                   {/* Page break separators — absolutely positioned, full page width */}
-                  {!phoneView && overlays.map((ov) => {
+                  {!phoneView && !speedView && overlays.map((ov) => {
                     // `ov.pageNumber` counts script pages, ignoring the title page;
                     // the band shows the PRINTED number, which the starting-number
                     // offset can shift.
@@ -5830,7 +5882,7 @@ const ScreenplayEditor: React.FC = () => {
                       title page precedes it, so without this the very first header
                       would have nowhere to render — invisible on screen even though
                       it printed. */}
-                  {!phoneView && (() => {
+                  {!phoneView && !speedView && (() => {
                     if (overlays.some((o) => o.isTitlePage)) return null; // the title-page break carries it
                     const printed = printedPageNumber(1, headerFooter.startingPageNumber);
                     if (printed < headerFooter.headerStartPage) return null;
@@ -5844,7 +5896,7 @@ const ScreenplayEditor: React.FC = () => {
                   })()}
 
                   {/* Last page footer — no page break follows the last page, so render its footer separately */}
-                  {!phoneView && (() => {
+                  {!phoneView && !speedView && (() => {
                     const lastPage = overlays.length > 0
                       ? overlays[overlays.length - 1].pageNumber
                       : 1;
@@ -5868,7 +5920,7 @@ const ScreenplayEditor: React.FC = () => {
                     );
                   })()}
 
-                  {!phoneView && footnotePlan && endnotePages.length > 0 && (
+                  {!phoneView && !speedView && footnotePlan && endnotePages.length > 0 && (
                     <EndnotePages
                       plan={footnotePlan}
                       pages={endnotePages}
@@ -5912,6 +5964,34 @@ const ScreenplayEditor: React.FC = () => {
               </div>
               </div>
             </div>
+          )}
+          {splitScreenOpen && !outlineOpen && !statisticsOpen && !beatBoardOpen && !isHistoryMode && editor && (
+            <div className={`split-pane split-pane-${splitScreenPane}`}>
+              {splitScreenPane === 'index-cards' && (
+                <IndexCards editor={editor} variant="split" onRequestClose={toggleSplitScreen} />
+              )}
+              {splitScreenPane === 'outline' && (
+                <>
+                  <button className="split-pane-close" onClick={toggleSplitScreen} title="Close split screen" aria-label="Close split screen">&times;</button>
+                  <OutlineView editor={editor} />
+                </>
+              )}
+              {splitScreenPane === 'beat-board' && (
+                <>
+                  <button className="split-pane-close" onClick={toggleSplitScreen} title="Close split screen" aria-label="Close split screen">&times;</button>
+                  <BeatBoard editor={editor} embedded />
+                </>
+              )}
+              {splitScreenPane === 'page-view' && (
+                <PagePreviewPane editor={editor} onRequestClose={toggleSplitScreen} />
+              )}
+            </div>
+          )}
+          </div>
+          {/* The scenes as one strip under the script; the same component is
+              the timeline inside the Index Cards view. */}
+          {!isHistoryMode && storyMapOpen && editor && !outlineOpen && !statisticsOpen && !beatBoardOpen && !indexCardsOpen && (
+            <StoryMap editor={editor} onRequestClose={toggleStoryMap} scrollContainer={editorMainRef.current} />
           )}
           {/* Table Read docks over the bottom of the script it is reading. */}
           {storyTimelineOpen && editor && (

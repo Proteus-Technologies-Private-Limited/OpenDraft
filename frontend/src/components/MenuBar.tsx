@@ -23,6 +23,7 @@ import { macroLabel } from '../utils/macros';
 import { insertMacro } from './macroActions';
 import { addScriptNoteAtSelection } from '../utils/addScriptNote';
 import { FOCUS_MODE_SHORTCUT } from '../editor/extensions/FocusMode';
+import { APP_COMMAND_EVENT, type AppCommand } from '../utils/appCommands';
 import { showToast } from './Toast';
 import { useSuggestModeStore } from '../stores/suggestModeStore';
 import { hasSuggestions, withoutSuggestionsJSON } from '../editor/suggestions';
@@ -211,6 +212,8 @@ import {
   FaExpandArrowsAlt,
   FaEyeSlash,
   FaListUl,
+  FaMap,
+  FaClone,
   FaToggleOn,
   FaLock,
   FaFileSignature,
@@ -219,6 +222,7 @@ import {
   FaMoon,
   FaRegFileAlt,
   FaStepForward,
+  FaBolt,
   FaEraser,
   FaUnlock,
   FaSlidersH,
@@ -352,6 +356,14 @@ const MenuBar: React.FC<MenuBarProps> = ({
     toggleIndexCards,
     beatBoardOpen,
     toggleBeatBoard,
+    storyMapOpen,
+    toggleStoryMap,
+    splitScreenOpen,
+    toggleSplitScreen,
+    splitScreenMode,
+    setSplitScreenMode,
+    splitScreenPane,
+    setSplitScreenPane,
     outlineOpen,
     toggleOutline,
     scriptNotesOpen,
@@ -394,6 +406,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
     setAppearance,
     toolbarMode: savedToolbarMode,
     setToolbarMode,
+    setToolbarCustomiseOpen,
     focusMode,
     setFocusMode,
     focusTypewriter,
@@ -2332,6 +2345,25 @@ const MenuBar: React.FC<MenuBarProps> = ({
     }
   }, [editor, documentTitle, pageLayout, pdfOptions]);
 
+  // The toolbar's file buttons run the menu handlers, so those actions still
+  // go through the unsaved-changes guard, the file origin and the library.
+  // One implementation, two entry points.
+  useEffect(() => {
+    const onCommand = (event: Event) => {
+      const command = (event as CustomEvent<AppCommand>).detail;
+      switch (command) {
+        case 'new-script': handleNewScreenplay(); break;
+        case 'import-script': confirmOrRun(handleImport); break;
+        case 'save-script': void handleSave(); break;
+        case 'export-pdf': handleExportPDF(); break;
+        case 'reports': setReportsOpen(true); break;
+        default: break;
+      }
+    };
+    window.addEventListener(APP_COMMAND_EVENT, onCommand);
+    return () => window.removeEventListener(APP_COMMAND_EVENT, onCommand);
+  }, [handleNewScreenplay, confirmOrRun, handleImport, handleSave, handleExportPDF]);
+
   /**
    * File → Print (and ⌘P).
    *
@@ -3291,6 +3323,24 @@ const MenuBar: React.FC<MenuBarProps> = ({
             { icon: <FaTh />, label: indexCardsOpen ? '\u2713 Index Cards' : 'Index Cards', action: toggleIndexCards },
             { icon: <FaStream />, label: beatBoardOpen ? '\u2713 Beat Board' : 'Beat Board', action: toggleBeatBoard },
             { icon: <FaListUl />, label: outlineOpen ? '\u2713 Outline' : 'Outline', action: toggleOutline },
+            { icon: <FaMap />, label: storyMapOpen ? '\u2713 Story Map' : 'Story Map', title: 'The scenes as one strip, by page length or screen time', action: toggleStoryMap },
+            {
+              icon: <FaClone />, label: splitScreenOpen ? '\u2713 Split Screen' : 'Split Screen', children: [
+                { label: splitScreenMode === 'side-by-side' && splitScreenOpen ? '\u2713 Side by Side' : 'Side by Side', action: () => setSplitScreenMode('side-by-side') },
+                { label: splitScreenMode === 'stacked' && splitScreenOpen ? '\u2713 Stacked' : 'Stacked', action: () => setSplitScreenMode('stacked') },
+                { separator: true, label: '' },
+                { label: splitScreenOpen ? 'One Pane' : '\u2713 One Pane', action: () => { if (splitScreenOpen) toggleSplitScreen(); } },
+                { separator: true, label: '' },
+                {
+                  label: 'Second Pane', children: [
+                    { icon: <FaFileAlt />, label: splitScreenPane === 'page-view' && splitScreenOpen ? '\u2713 Page View' : 'Page View', action: () => setSplitScreenPane('page-view') },
+                    { icon: <FaTh />, label: splitScreenPane === 'index-cards' && splitScreenOpen ? '\u2713 Index Cards' : 'Index Cards', action: () => setSplitScreenPane('index-cards') },
+                    { icon: <FaListUl />, label: splitScreenPane === 'outline' && splitScreenOpen ? '\u2713 Outline' : 'Outline', action: () => setSplitScreenPane('outline') },
+                    { icon: <FaStream />, label: splitScreenPane === 'beat-board' && splitScreenOpen ? '\u2713 Beat Board' : 'Beat Board', action: () => setSplitScreenPane('beat-board') },
+                  ],
+                },
+              ],
+            },
             { icon: <FaProjectDiagram />, label: 'Story Timeline…', title: 'Plotlines across the scenes, by screen time', action: () => {
               // The timeline edits scene headings, so the script has to be on
               // screen under it, not the Beat Board or Statistics.
@@ -3323,6 +3373,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
           children: [
             { icon: <FaRegFileAlt />, label: viewLayout === 'page' ? '\u2713 Page' : 'Page', action: () => setViewLayout('page') },
             { icon: <FaMobileAlt />, label: viewLayout === 'phone' ? '\u2713 Phone' : 'Phone', action: () => setViewLayout('phone') },
+            { icon: <FaBolt />, label: viewLayout === 'speed' ? '\u2713 Speed' : 'Speed', action: () => setViewLayout('speed') },
           ],
         },
         { separator: true, label: '' },
@@ -3358,6 +3409,8 @@ const MenuBar: React.FC<MenuBarProps> = ({
                 setShowHiddenModeIntro(true);
               }
             }},
+            { separator: true, label: '' },
+            { icon: <FaSlidersH />, label: 'Customise Toolbar\u2026', action: () => setToolbarCustomiseOpen(true) },
           ],
         },
         {
