@@ -1,0 +1,107 @@
+{
+  "status": {
+    "save": {
+      "unsaved": "बिना सेव किए बदलाव",
+      "saving": "सेव हो रहा है…",
+      "saved": "सेव हो गया",
+      "error": "सेव नहीं हो सका"
+    },
+    "linked": {
+      "notSaved": "फ़ाइल में सेव नहीं हुआ",
+      "missing": "फ़ाइल नहीं मिली",
+      "conflict": "OpenDraft के बाहर बदली गई",
+      "retryHint": "फिर से कोशिश करने के लिए क्लिक करें।",
+      "everySave": "हर सेव के साथ {{path}} भी लिखी जाती है"
+    },
+    "acts_one": "{{count}} ऐक्ट",
+    "acts_other": "{{count}} ऐक्ट",
+    "saveWritesBack": "सेव करने पर {{name}} में वापस लिखा जाता है",
+    "actStructure": "ऐक्ट स्ट्रक्चर",
+    "runtime": {
+      "title": "{{pacing}} गति पर अनुमानित अवधि — जॉनर और गति तय करने के लिए क्लिक करें",
+      "est": "अनु. {{runtime}}"
+    },
+    "wordsTitle": "स्क्रिप्ट में शब्द",
+    "words_one": "{{formatted}} शब्द",
+    "words_other": "{{formatted}} शब्द",
+    "revision": "रिविज़न: {{color}}",
+    "page": "पेज {{label}}",
+    "pageOf": "पेज {{current}} / {{total}}",
+    "pagesLocked": "पेज लॉक हैं",
+    "locked": "(लॉक)",
+    "suggesting": {
+      "lockedTitle": "आप सुझाव देने के लिए जुड़े हैं: लेखक आपके बदलाव स्वीकार या अस्वीकार करेंगे",
+      "title": "आपके बदलाव सुझाव हैं। सीधे संपादित करने के लिए फिर से क्लिक करें।",
+      "label": "सुझाव मोड"
+    }
+  },
+  "resetToDefault": "डिफ़ॉल्ट पर रीसेट करें",
+  "richText": {
+    "bold": "बोल्ड",
+    "italic": "इटैलिक",
+    "underline": "अंडरलाइन",
+    "bulletList": "बुलेट सूची"
+  },
+  "fontPicker": {
+    "fontFamily": "फ़ॉन्ट फ़ैमिली",
+    "search": "फ़ॉन्ट खोजें…",
+    "searchLabel": "फ़ॉन्ट खोजें",
+    "noMatch": "“{{query}}” से कोई फ़ॉन्ट मेल नहीं खाता।",
+    "notInstalledTitle": "{{name}} इस डिवाइस पर इंस्टॉल नहीं है — उसकी जगह मिलता-जुलता फ़ॉन्ट दिख रहा है",
+    "notInstalled": "इंस्टॉल नहीं है",
+    "manage": "फ़ॉन्ट जोड़ें या प्रबंधित करें…",
+    "group": {
+      "document": "इस दस्तावेज़ से",
+      "custom": "कस्टम फ़ॉन्ट",
+      "screenplay": "स्क्रीनप्ले स्टैंडर्ड",
+      "typewriter": "टाइपराइटर",
+      "serif": "सेरिफ़",
+      "sansSerif": "सैन्स सेरिफ़",
+      "monospace": "मोनोस्पेस",
+      "display": "डिस्प्ले और शीर्षक",
+      "handwriting": "हस्तलेखन",
+      "latinExtended": "लैटिन एक्सटेंडेड",
+      "indic": "भारतीय / इंडिक",
+      "arabicHebrew": "अरबी और हिब्रू",
+      "cjk": "चीनी-जापानी-कोरियाई (CJK)",
+      "other": "अन्य",
+      "device": "इस डिवाइस पर"
+    }
+  },
+  "languageSelector": {
+    "title": "डायलॉग की भाषा"
+  },
+  "toolbar": {
+    "fontSize": "फ़ॉन्ट साइज़",
+    "pt": "{{size}}pt",
+    "bold": "बोल्ड ({{shortcut}})",
+    "italic": "इटैलिक ({{shortcut}})",
+    "underline": "अंडरलाइन ({{shortcut}})",
+    "strikethrough": "स्ट्राइकथ्रू",
+    "subscript": "सबस्क्रिप्ट",
+    "superscript": "सुपरस्क्रिप्ट",
+    "textColor": "टेक्स्ट का रंग",
+    "highlightColor": "हाइलाइट का रंग",
+    "alignLeft": "बाएँ संरेखित करें",
+    "alignCenter": "बीच में संरेखित करें",
+    "alignRight": "दाएँ संरेखित करें",
+    "justify": "जस्टिफ़ाई करें",
+    "findReplace": "खोजें और बदलें ({{shortcut}})",
+    "goToPage": "पेज पर जाएँ ({{shortcut}})",
+    "scriptNotes": "स्क्रिप्ट नोट्स",
+    "productionTags": "प्रोडक्शन टैग",
+    "zoomOut": "ज़ूम कम करें",
+    "editZoom": "ज़ूम बदलने के लिए क्लिक करें",
+    "zoomIn": "ज़ूम बढ़ाएँ",
+    "undo": "पूर्ववत करें ({{shortcut}})",
+    "redo": "फिर से करें ({{shortcut}})",
+    "addAvRow": "नीचे AV पंक्ति जोड़ें (ऑडियो सेल से Tab, या {{shortcut}})",
+    "row": "पंक्ति",
+    "deleteAvRow": "यह AV पंक्ति हटाएँ",
+    "moreFormatting": "और फ़ॉर्मैटिंग विकल्प",
+    "zoom": "ज़ूम",
+    "elementType": "एलिमेंट का प्रकार",
+    "elementTypeTitlePage": "टाइटल पेज के एलिमेंट टाइटल पेज एडिटर में तय होते हैं; उनकी फ़ॉर्मैटिंग टेम्पलेट में होती है",
+    "titlePage": "टाइटल पेज"
+  }
+}

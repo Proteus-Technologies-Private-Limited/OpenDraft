@@ -1,0 +1,107 @@
+{
+  "status": {
+    "save": {
+      "unsaved": "ಉಳಿಸದ ಬದಲಾವಣೆಗಳು",
+      "saving": "ಉಳಿಸಲಾಗುತ್ತಿದೆ…",
+      "saved": "ಉಳಿಸಲಾಗಿದೆ",
+      "error": "ಉಳಿಸಲು ಆಗಲಿಲ್ಲ"
+    },
+    "linked": {
+      "notSaved": "ಫೈಲ್‌ಗೆ ಉಳಿಸಿಲ್ಲ",
+      "missing": "ಫೈಲ್ ಸಿಗಲಿಲ್ಲ",
+      "conflict": "OpenDraft ಹೊರಗೆ ಬದಲಾಗಿದೆ",
+      "retryHint": "ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಲು ಕ್ಲಿಕ್ ಮಾಡಿ.",
+      "everySave": "ಪ್ರತಿ ಉಳಿಕೆಯೂ {{path}} ಗೂ ಬರೆಯುತ್ತದೆ"
+    },
+    "acts_one": "{{count}} ಅಂಕ",
+    "acts_other": "{{count}} ಅಂಕಗಳು",
+    "saveWritesBack": "ಉಳಿಸಿದಾಗ {{name}} ಗೆ ಮರಳಿ ಬರೆಯಲಾಗುತ್ತದೆ",
+    "actStructure": "ಅಂಕ ರಚನೆ",
+    "runtime": {
+      "title": "{{pacing}} ವೇಗದಲ್ಲಿ ಅಂದಾಜು ಅವಧಿ — ಜಾನರ್ ಮತ್ತು ವೇಗ ಹೊಂದಿಸಲು ಕ್ಲಿಕ್ ಮಾಡಿ",
+      "est": "ಅಂದಾಜು {{runtime}}"
+    },
+    "wordsTitle": "ಸ್ಕ್ರಿಪ್ಟ್‌ನಲ್ಲಿರುವ ಪದಗಳು",
+    "words_one": "{{formatted}} ಪದ",
+    "words_other": "{{formatted}} ಪದಗಳು",
+    "revision": "ರಿವಿಷನ್: {{color}}",
+    "page": "ಪುಟ {{label}}",
+    "pageOf": "ಪುಟ {{current}} / {{total}}",
+    "pagesLocked": "ಪುಟಗಳು ಲಾಕ್ ಆಗಿವೆ",
+    "locked": "(ಲಾಕ್ ಆಗಿದೆ)",
+    "suggesting": {
+      "lockedTitle": "ನೀವು ಸಲಹೆ ನೀಡಲು ಸೇರಿದ್ದೀರಿ: ಬರಹಗಾರರು ನಿಮ್ಮ ಎಡಿಟ್‌ಗಳನ್ನು ಸ್ವೀಕರಿಸುತ್ತಾರೆ ಅಥವಾ ತಿರಸ್ಕರಿಸುತ್ತಾರೆ",
+      "title": "ನಿಮ್ಮ ಎಡಿಟ್‌ಗಳು ಸಲಹೆಗಳಾಗಿವೆ. ನೇರವಾಗಿ ಎಡಿಟ್ ಮಾಡಲು ಮತ್ತೆ ಕ್ಲಿಕ್ ಮಾಡಿ.",
+      "label": "ಸಲಹೆ ನೀಡುತ್ತಿದ್ದೀರಿ"
+    }
+  },
+  "resetToDefault": "ಡೀಫಾಲ್ಟ್‌ಗೆ ಮರುಹೊಂದಿಸಿ",
+  "richText": {
+    "bold": "ದಪ್ಪ",
+    "italic": "ಇಟಾಲಿಕ್",
+    "underline": "ಅಡಿಗೆರೆ",
+    "bulletList": "ಬುಲೆಟ್ ಪಟ್ಟಿ"
+  },
+  "fontPicker": {
+    "fontFamily": "ಫಾಂಟ್ ಕುಟುಂಬ",
+    "search": "ಫಾಂಟ್‌ಗಳನ್ನು ಹುಡುಕಿ…",
+    "searchLabel": "ಫಾಂಟ್‌ಗಳನ್ನು ಹುಡುಕಿ",
+    "noMatch": "“{{query}}” ಗೆ ಹೊಂದುವ ಫಾಂಟ್ ಇಲ್ಲ.",
+    "notInstalledTitle": "{{name}} ಈ ಸಾಧನದಲ್ಲಿ ಇಲ್ಲ — ಬದಲಿಗೆ ಅದೇ ರೀತಿಯ ಫಾಂಟ್ ತೋರಿಸಲಾಗಿದೆ",
+    "notInstalled": "ಇನ್‌ಸ್ಟಾಲ್ ಆಗಿಲ್ಲ",
+    "manage": "ಫಾಂಟ್‌ಗಳನ್ನು ಸೇರಿಸಿ ಅಥವಾ ನಿರ್ವಹಿಸಿ…",
+    "group": {
+      "document": "ಈ ಡಾಕ್ಯುಮೆಂಟ್‌ನಿಂದ",
+      "custom": "ಕಸ್ಟಮ್ ಫಾಂಟ್‌ಗಳು",
+      "screenplay": "ಚಿತ್ರಕಥೆ ಪ್ರಮಾಣಿತ",
+      "typewriter": "ಟೈಪ್‌ರೈಟರ್",
+      "serif": "ಸೆರಿಫ್",
+      "sansSerif": "ಸ್ಯಾನ್ಸ್ ಸೆರಿಫ್",
+      "monospace": "ಮೊನೊಸ್ಪೇಸ್",
+      "display": "ಡಿಸ್‌ಪ್ಲೇ ಮತ್ತು ಶೀರ್ಷಿಕೆಗಳು",
+      "handwriting": "ಕೈಬರಹ",
+      "latinExtended": "ಲ್ಯಾಟಿನ್ ವಿಸ್ತೃತ",
+      "indic": "ಭಾರತೀಯ / ಇಂಡಿಕ್",
+      "arabicHebrew": "ಅರೇಬಿಕ್ ಮತ್ತು ಹೀಬ್ರೂ",
+      "cjk": "CJK",
+      "other": "ಇತರೆ",
+      "device": "ಈ ಸಾಧನದಲ್ಲಿ"
+    }
+  },
+  "languageSelector": {
+    "title": "ಡೈಲಾಗ್ ಭಾಷೆ"
+  },
+  "toolbar": {
+    "fontSize": "ಫಾಂಟ್ ಗಾತ್ರ",
+    "pt": "{{size}}pt",
+    "bold": "ದಪ್ಪ ({{shortcut}})",
+    "italic": "ಇಟಾಲಿಕ್ ({{shortcut}})",
+    "underline": "ಅಡಿಗೆರೆ ({{shortcut}})",
+    "strikethrough": "ಹೊಡೆದುಹಾಕಿದ ರೇಖೆ",
+    "subscript": "ಅಧೋಲೇಖ",
+    "superscript": "ಉಚ್ಛಲೇಖ",
+    "textColor": "ಪಠ್ಯದ ಬಣ್ಣ",
+    "highlightColor": "ಹೈಲೈಟ್ ಬಣ್ಣ",
+    "alignLeft": "ಎಡಕ್ಕೆ ಜೋಡಿಸಿ",
+    "alignCenter": "ಮಧ್ಯಕ್ಕೆ ಜೋಡಿಸಿ",
+    "alignRight": "ಬಲಕ್ಕೆ ಜೋಡಿಸಿ",
+    "justify": "ಜಸ್ಟಿಫೈ",
+    "findReplace": "ಹುಡುಕಿ ಮತ್ತು ಬದಲಾಯಿಸಿ ({{shortcut}})",
+    "goToPage": "ಪುಟಕ್ಕೆ ಹೋಗಿ ({{shortcut}})",
+    "scriptNotes": "ಸ್ಕ್ರಿಪ್ಟ್ ಟಿಪ್ಪಣಿಗಳು",
+    "productionTags": "ಪ್ರೊಡಕ್ಷನ್ ಟ್ಯಾಗ್‌ಗಳು",
+    "zoomOut": "ಜೂಮ್ ಕಡಿಮೆ ಮಾಡಿ",
+    "editZoom": "ಜೂಮ್ ಬದಲಾಯಿಸಲು ಕ್ಲಿಕ್ ಮಾಡಿ",
+    "zoomIn": "ಜೂಮ್ ಹೆಚ್ಚಿಸಿ",
+    "undo": "ರದ್ದುಗೊಳಿಸಿ ({{shortcut}})",
+    "redo": "ಮತ್ತೆ ಮಾಡಿ ({{shortcut}})",
+    "addAvRow": "ಕೆಳಗೆ AV ಸಾಲು ಸೇರಿಸಿ (ಆಡಿಯೋ ಸೆಲ್‌ನಿಂದ Tab, ಅಥವಾ {{shortcut}})",
+    "row": "ಸಾಲು",
+    "deleteAvRow": "ಈ AV ಸಾಲನ್ನು ಅಳಿಸಿ",
+    "moreFormatting": "ಇನ್ನಷ್ಟು ಫಾರ್ಮ್ಯಾಟಿಂಗ್ ಆಯ್ಕೆಗಳು",
+    "zoom": "ಜೂಮ್",
+    "elementType": "ಎಲಿಮೆಂಟ್ ಪ್ರಕಾರ",
+    "elementTypeTitlePage": "ಶೀರ್ಷಿಕೆ ಪುಟದ ಎಲಿಮೆಂಟ್‌ಗಳನ್ನು ಶೀರ್ಷಿಕೆ ಪುಟ ಎಡಿಟರ್‌ನಲ್ಲಿ ಹೊಂದಿಸಲಾಗುತ್ತದೆ; ಅವುಗಳ ಫಾರ್ಮ್ಯಾಟಿಂಗ್ ಟೆಂಪ್ಲೇಟ್‌ನಲ್ಲಿದೆ",
+    "titlePage": "ಶೀರ್ಷಿಕೆ ಪುಟ"
+  }
+}

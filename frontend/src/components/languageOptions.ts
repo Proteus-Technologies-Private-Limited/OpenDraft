@@ -34,6 +34,8 @@ export function buildLanguageOptions(
   }
   return [
     { value: 'system', label: systemLabel(deviceName) },
-    ...LANGUAGES.map((l) => ({ value: l.code, label: l.nativeName, lang: l.code, dir: l.dir })),
+    ...[...LANGUAGES]
+      .sort((a, b) => (a.code === 'en' ? -1 : b.code === 'en' ? 1 : a.englishName.localeCompare(b.englishName, 'en')))
+      .map((l) => ({ value: l.code, label: l.nativeName, lang: l.code, dir: l.dir })),
   ];
 }

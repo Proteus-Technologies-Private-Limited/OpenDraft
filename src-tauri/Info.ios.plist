@@ -14,6 +14,17 @@
         <string>pt</string>
         <string>ru</string>
         <string>tr</string>
+<string>bn</string>
+<string>gu</string>
+<string>hi</string>
+<string>kn</string>
+<string>ml</string>
+<string>mr</string>
+<string>or</string>
+<string>pa</string>
+<string>ta</string>
+<string>te</string>
+<string>ur</string>
     </array>
     <key>NSMicrophoneUsageDescription</key>
     <string>Record your voice when you start screenplay dictation.</string>

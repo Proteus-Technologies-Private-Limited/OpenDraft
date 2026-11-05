@@ -12,7 +12,9 @@
  * what is missing.
  */
 
-export type LanguageCode = 'en' | 'es' | 'fr' | 'pt' | 'ru' | 'tr' | 'ar' | 'fa';
+export type LanguageCode =
+  | 'en' | 'es' | 'fr' | 'pt' | 'ru' | 'tr' | 'ar' | 'fa'
+  | 'hi' | 'ur' | 'mr' | 'gu' | 'te' | 'ta' | 'or' | 'pa' | 'ml' | 'kn' | 'bn';
 
 export interface LanguageInfo {
   code: LanguageCode;
@@ -46,6 +48,19 @@ export const LANGUAGES: readonly LanguageInfo[] = [
   // Neutral Latin-American Spanish: "tú", no "vosotros" — read the same in Madrid and Mexico City.
   { code: 'es', nativeName: 'Español', englishName: 'Spanish', dir: 'ltr', intlLocale: 'es' },
   { code: 'tr', nativeName: 'Türkçe', englishName: 'Turkish', dir: 'ltr', intlLocale: 'tr' },
+  // Indian languages. Western digits and the Gregorian calendar everywhere (Bengali and
+  // Marathi would otherwise default to their own digits, which would sit beside "Page 12").
+  { code: 'bn', nativeName: 'বাংলা', englishName: 'Bengali', dir: 'ltr', intlLocale: 'bn-u-ca-gregory-nu-latn' },
+  { code: 'gu', nativeName: 'ગુજરાતી', englishName: 'Gujarati', dir: 'ltr', intlLocale: 'gu-u-ca-gregory-nu-latn' },
+  { code: 'hi', nativeName: 'हिन्दी', englishName: 'Hindi', dir: 'ltr', intlLocale: 'hi-u-ca-gregory-nu-latn' },
+  { code: 'kn', nativeName: 'ಕನ್ನಡ', englishName: 'Kannada', dir: 'ltr', intlLocale: 'kn-u-ca-gregory-nu-latn' },
+  { code: 'ml', nativeName: 'മലയാളം', englishName: 'Malayalam', dir: 'ltr', intlLocale: 'ml-u-ca-gregory-nu-latn' },
+  { code: 'mr', nativeName: 'मराठी', englishName: 'Marathi', dir: 'ltr', intlLocale: 'mr-u-ca-gregory-nu-latn' },
+  { code: 'or', nativeName: 'ଓଡ଼ିଆ', englishName: 'Odia', dir: 'ltr', intlLocale: 'or-u-ca-gregory-nu-latn' },
+  { code: 'pa', nativeName: 'ਪੰਜਾਬੀ', englishName: 'Punjabi', dir: 'ltr', intlLocale: 'pa-u-ca-gregory-nu-latn' },
+  { code: 'ta', nativeName: 'தமிழ்', englishName: 'Tamil', dir: 'ltr', intlLocale: 'ta-u-ca-gregory-nu-latn' },
+  { code: 'te', nativeName: 'తెలుగు', englishName: 'Telugu', dir: 'ltr', intlLocale: 'te-u-ca-gregory-nu-latn' },
+  { code: 'ur', nativeName: 'اردو', englishName: 'Urdu', dir: 'rtl', intlLocale: 'ur-u-ca-gregory-nu-latn' },
 ];
 
 export const LANGUAGE_CODES: readonly LanguageCode[] = LANGUAGES.map((l) => l.code);

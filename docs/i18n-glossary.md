@@ -50,6 +50,8 @@ MORE and CONT'D labels"), keep the token itself in Latin letters.
 | Turkish (`tr`) | Dotted/dotless `İ i` / `I ı` — never `I` for a capital dotted i. Suffixes after a placeholder or a proper name are hard: reword so none is needed ("Dosya: {{name}}"). |
 | Arabic (`ar`) | Modern Standard. Arabic punctuation `،` `؛` `؟`. Arabic letters `ي` (U+064A) and `ك` (U+0643) — **not** the Persian `ی` `ک`. Western digits (0-9) as in the rest of the app. Keep Latin words (OpenDraft, PDF) as they are; the display handles mixing. |
 | Persian (`fa`) | Persian letters `ی` (U+06CC) and `ک` (U+06A9) — **never** Arabic `ي` `ك`. Half-space (ZWNJ, U+200C) in compounds (*می‌شود*, *پیش‌نویس*). Persian punctuation `،` `؛` `؟`. Western digits (0-9). |
+| Urdu (`ur`) | Right-to-left. Persian-form `ی` (U+06CC) and `ک` (U+06A9), never Arabic `ي` `ك`. Punctuation `،` `؛` `؟` `۔`. Western digits. |
+| Hindi, Marathi, Bengali, Gujarati, Punjabi (Gurmukhi), Odia, Tamil, Telugu, Kannada, Malayalam | Western digits (0-9). English terms writers keep (script, scene, dialogue) are written in the language's own script, not Latin. Marathi is not Hindi: use Marathi vocabulary. |
 
 ## Terms
 

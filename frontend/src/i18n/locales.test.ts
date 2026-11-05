@@ -44,6 +44,17 @@ const SCRIPT: Record<string, RegExp> = {
   ru: /\p{Script=Cyrillic}/u,
   ar: /\p{Script=Arabic}/u,
   fa: /\p{Script=Arabic}/u,
+  ur: /\p{Script=Arabic}/u,
+  hi: /\p{Script=Devanagari}/u,
+  mr: /\p{Script=Devanagari}/u,
+  bn: /\p{Script=Bengali}/u,
+  gu: /\p{Script=Gujarati}/u,
+  pa: /\p{Script=Gurmukhi}/u,
+  or: /\p{Script=Oriya}/u,
+  ta: /\p{Script=Tamil}/u,
+  te: /\p{Script=Telugu}/u,
+  kn: /\p{Script=Kannada}/u,
+  ml: /\p{Script=Malayalam}/u,
 };
 
 describe('English source', () => {

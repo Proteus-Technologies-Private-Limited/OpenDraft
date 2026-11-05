@@ -1,0 +1,107 @@
+{
+  "status": {
+    "save": {
+      "unsaved": "सेव्ह न केलेले बदल",
+      "saving": "सेव्ह होत आहे…",
+      "saved": "सेव्ह झाले",
+      "error": "सेव्ह अयशस्वी झाले"
+    },
+    "linked": {
+      "notSaved": "फाइलमध्ये सेव्ह झाले नाही",
+      "missing": "फाइल सापडली नाही",
+      "conflict": "OpenDraft बाहेर बदलली गेली",
+      "retryHint": "पुन्हा प्रयत्न करण्यासाठी क्लिक करा.",
+      "everySave": "प्रत्येक सेव्हच्या वेळी {{path}} देखील लिहिली जाते"
+    },
+    "acts_one": "{{count}} अंक",
+    "acts_other": "{{count}} अंक",
+    "saveWritesBack": "सेव्ह केल्यावर {{name}} मध्ये परत लिहिले जाते",
+    "actStructure": "अंक रचना",
+    "runtime": {
+      "title": "{{pacing}} गतीनुसार अंदाजे कालावधी — शैली व गती ठरवण्यासाठी क्लिक करा",
+      "est": "अंदाजे {{runtime}}"
+    },
+    "wordsTitle": "स्क्रिप्टमधील शब्द",
+    "words_one": "{{formatted}} शब्द",
+    "words_other": "{{formatted}} शब्द",
+    "revision": "रिव्हिजन: {{color}}",
+    "page": "पृष्ठ {{label}}",
+    "pageOf": "पृष्ठ {{current}} / {{total}}",
+    "pagesLocked": "पृष्ठे लॉक आहेत",
+    "locked": "(लॉक)",
+    "suggesting": {
+      "lockedTitle": "आपण सूचना देण्यासाठी सहभागी झाला आहात: लेखक आपले बदल स्वीकारतो किंवा नाकारतो",
+      "title": "आपले बदल म्हणजे सूचना आहेत. पुन्हा थेट संपादित करण्यासाठी क्लिक करा.",
+      "label": "सूचना देत आहे"
+    }
+  },
+  "resetToDefault": "डीफॉल्टवर रीसेट करा",
+  "richText": {
+    "bold": "ठळक",
+    "italic": "तिरपे",
+    "underline": "अधोरेखित",
+    "bulletList": "बुलेट यादी"
+  },
+  "fontPicker": {
+    "fontFamily": "फॉन्ट कुटुंब",
+    "search": "फॉन्ट शोधा…",
+    "searchLabel": "फॉन्ट शोधा",
+    "noMatch": "“{{query}}” शी जुळणारा फॉन्ट नाही.",
+    "notInstalledTitle": "{{name}} या डिव्हाइसवर इन्स्टॉल केलेला नाही — त्याऐवजी समान फॉन्ट दाखवला आहे",
+    "notInstalled": "इन्स्टॉल केलेला नाही",
+    "manage": "फॉन्ट जोडा किंवा व्यवस्थापित करा…",
+    "group": {
+      "document": "या दस्तऐवजातून",
+      "custom": "सानुकूल फॉन्ट",
+      "screenplay": "पटकथा मानक",
+      "typewriter": "टाइपरायटर",
+      "serif": "सेरिफ",
+      "sansSerif": "सॅन्स सेरिफ",
+      "monospace": "मोनोस्पेस",
+      "display": "डिस्प्ले व शीर्षके",
+      "handwriting": "हस्ताक्षर",
+      "latinExtended": "लॅटिन एक्स्टेंडेड",
+      "indic": "भारतीय / इंडिक",
+      "arabicHebrew": "अरबी व हिब्रू",
+      "cjk": "CJK",
+      "other": "इतर",
+      "device": "या डिव्हाइसवर"
+    }
+  },
+  "languageSelector": {
+    "title": "डायलॉगची भाषा"
+  },
+  "toolbar": {
+    "fontSize": "फॉन्ट आकार",
+    "pt": "{{size}}pt",
+    "bold": "ठळक ({{shortcut}})",
+    "italic": "तिरपे ({{shortcut}})",
+    "underline": "अधोरेखित ({{shortcut}})",
+    "strikethrough": "आडवी रेघ",
+    "subscript": "अधोलेख",
+    "superscript": "उर्ध्वलेख",
+    "textColor": "मजकुराचा रंग",
+    "highlightColor": "हायलाइट रंग",
+    "alignLeft": "डावीकडे संरेखित करा",
+    "alignCenter": "मध्यभागी संरेखित करा",
+    "alignRight": "उजवीकडे संरेखित करा",
+    "justify": "दोन्ही बाजूंनी संरेखित करा",
+    "findReplace": "शोधा व बदला ({{shortcut}})",
+    "goToPage": "पृष्ठावर जा ({{shortcut}})",
+    "scriptNotes": "स्क्रिप्ट टिपा",
+    "productionTags": "प्रोडक्शन टॅग",
+    "zoomOut": "झूम कमी करा",
+    "editZoom": "झूम बदलण्यासाठी क्लिक करा",
+    "zoomIn": "झूम वाढवा",
+    "undo": "पूर्ववत करा ({{shortcut}})",
+    "redo": "पुन्हा करा ({{shortcut}})",
+    "addAvRow": "खाली AV ओळ जोडा (ऑडिओ सेलमधून Tab, किंवा {{shortcut}})",
+    "row": "ओळ",
+    "deleteAvRow": "ही AV ओळ हटवा",
+    "moreFormatting": "आणखी फॉरमॅटिंग पर्याय",
+    "zoom": "झूम",
+    "elementType": "घटक प्रकार",
+    "elementTypeTitlePage": "शीर्षक पृष्ठाचे घटक शीर्षक पृष्ठ एडिटरमध्ये ठरवले जातात; त्यांचे फॉरमॅटिंग टेम्पलेटमध्ये असते",
+    "titlePage": "शीर्षक पृष्ठ"
+  }
+}

@@ -15259,3 +15259,30 @@ button.beat-scene-chip:hover { border-color: var(--fd-accent); color: var(--fd-a
   cursor: pointer;
 }
 .outline-seq-action:hover { color: var(--fd-text); }
+
+/* Settings -> Language: every language one click away, under its own name. */
+.language-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+.language-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 10px 12px;
+  text-align: start;
+  background: transparent;
+  color: inherit;
+  border: 1px solid var(--border-color, rgba(128, 128, 128, 0.4));
+  border-radius: 8px;
+  cursor: pointer;
+  font: inherit;
+}
+.language-tile:hover { background: rgba(128, 128, 128, 0.12); }
+.language-tile:focus-visible { outline: 2px solid var(--accent-color, #4a90d9); outline-offset: 2px; }
+.language-tile.selected { border-color: var(--accent-color, #4a90d9); box-shadow: inset 0 0 0 1px var(--accent-color, #4a90d9); font-weight: 600; }
+.language-tile-name { font-size: 1rem; }
+.language-tile-sub { font-size: 0.75rem; opacity: 0.65; font-weight: 400; }

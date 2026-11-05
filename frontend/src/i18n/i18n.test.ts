@@ -38,12 +38,12 @@ describe('startup', () => {
 describe('language matching', () => {
   it.each([
     ['es', 'es'], ['es-419', 'es'], ['ES-mx', 'es'], ['pt-PT', 'pt'], ['pt_BR', 'pt'],
-    ['fa-AF', 'fa'], ['ar-EG', 'ar'], ['ru-RU', 'ru'], ['tr-TR', 'tr'], ['fr-CA', 'fr'], ['en-IN', 'en'],
+    ['fa-AF', 'fa'], ['ar-EG', 'ar'], ['ru-RU', 'ru'], ['tr-TR', 'tr'], ['fr-CA', 'fr'], ['en-IN', 'en'], ['hi-IN', 'hi'], ['ur-PK', 'ur'], ['bn-BD', 'bn'], ['ta-LK', 'ta'], ['pa-Guru-IN', 'pa'],
   ])('%s → %s', (tag, code) => {
     expect(matchLanguage(tag)).toBe(code);
   });
 
-  it.each(['', 'xx', 'de', 'hi-IN', 'zh-CN', undefined, null])('has no match for %s', (tag) => {
+  it.each(['', 'xx', 'de', 'ja-JP', 'zh-CN', undefined, null])('has no match for %s', (tag) => {
     expect(matchLanguage(tag as string)).toBeNull();
   });
 
@@ -52,7 +52,7 @@ describe('language matching', () => {
   });
 
   it('falls back to English when the device language is not shipped', () => {
-    expect(detectDeviceLanguage(['de-DE', 'hi-IN'])).toBe('en');
+    expect(detectDeviceLanguage(['de-DE', 'ja-JP'])).toBe('en');
     expect(detectDeviceLanguage([])).toBe('en');
   });
 
@@ -132,14 +132,14 @@ describe('document language and direction', () => {
     expect(attrs).toEqual({ lang: 'es', dir: 'ltr' });
   });
 
-  it('marks exactly Arabic and Persian as right-to-left', () => {
-    expect(LANGUAGES.filter((l) => l.dir === 'rtl').map((l) => l.code).sort()).toEqual(['ar', 'fa']);
+  it('marks exactly Arabic, Persian and Urdu as right-to-left', () => {
+    expect(LANGUAGES.filter((l) => l.dir === 'rtl').map((l) => l.code).sort()).toEqual(['ar', 'fa', 'ur']);
   });
 });
 
 describe('formatting', () => {
   it('uses Western digits and the Gregorian calendar for Arabic and Persian', async () => {
-    for (const code of ['ar', 'fa'] as const) {
+    for (const code of ['ar', 'fa', 'ur'] as const) {
       await setLanguage(code);
       expect(formatNumber(1234)).not.toMatch(/[٠-٩۰-۹]/);
       expect(formatDate(new Date(Date.UTC(2026, 10, 5, 12)), { year: 'numeric', timeZone: 'UTC' })).toBe('2026');

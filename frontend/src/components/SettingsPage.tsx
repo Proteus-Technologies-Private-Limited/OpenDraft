@@ -22,6 +22,7 @@ import { t as translate } from '../i18n';
 import { useLanguage } from '../i18n/useLanguage';
 import { formatDateTime } from '../i18n/format';
 import { buildLanguageOptions } from './languageOptions';
+import { LANGUAGES } from '../i18n/languages';
 
 // The value stored is `hours`; the words shown for it are built from unit and count when rendering.
 const EXPIRY_OPTIONS: { hours: number; unit: 'minutes' | 'hours' | 'days'; count: number }[] = [
@@ -571,20 +572,29 @@ const SettingsPage: React.FC = () => {
           <p className="settings-section-desc">{t('language.description')}</p>
 
           <div className="settings-row">
-            <label htmlFor="settings-language">{t('language.title')}</label>
-            <Select
-              id="settings-language"
-              className="dialog-input settings-select"
-              value={languagePreference}
-              onChange={(e) => { void handleLanguageChange(e.target.value); }}
-            >
-              {languageOptions.map((opt) => (
+            <label id="settings-language-label">{t('language.title')}</label>
+          </div>
+          <div className="language-grid" role="radiogroup" aria-labelledby="settings-language-label">
+            {languageOptions.map((opt) => {
+              const selected = opt.value === languagePreference;
+              const english = LANGUAGES.find((l) => l.code === opt.value)?.englishName;
+              return (
                 // i18n-ignore: a language is listed under its own name, never translated
-                <option key={opt.value} value={opt.value} lang={opt.lang} dir={opt.dir}>
-                  {opt.label}
-                </option>
-              ))}
-            </Select>
+                <button
+                  key={opt.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  className={`language-tile${selected ? ' selected' : ''}`}
+                  lang={opt.lang}
+                  dir={opt.dir}
+                  onClick={() => { void handleLanguageChange(opt.value); }}
+                >
+                  <span className="language-tile-name">{opt.label}</span>
+                  {english && english !== opt.label && <span className="language-tile-sub" lang="en" dir="ltr">{english}</span>}
+                </button>
+              );
+            })}
           </div>
         </section>
 

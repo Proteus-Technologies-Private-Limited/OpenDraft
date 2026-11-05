@@ -170,6 +170,9 @@ export function typographyIssues(lang: string, value: string): string[] {
   if (lang === 'fa') {
     if (/[\u064A\u0643]/.test(plain)) out.push('uses Arabic ي/ك — Persian needs ی (U+06CC) and ک (U+06A9)');
   }
+  if (lang === 'ur') {
+    if (/[\u064A\u0643]/.test(plain)) out.push('uses Arabic ي/ك — Urdu needs ی (U+06CC) and ک (U+06A9)');
+  }
   if (lang === 'ar') {
     if (/[\u06CC\u06A9\u200C]/.test(plain)) out.push('uses Persian ی/ک or a half-space — Arabic needs ي (U+064A) and ك (U+0643)');
   }

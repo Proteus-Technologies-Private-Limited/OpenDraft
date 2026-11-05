@@ -1,0 +1,107 @@
+{
+  "status": {
+    "save": {
+      "unsaved": "ન સાચવેલા ફેરફારો",
+      "saving": "સાચવી રહ્યા છીએ…",
+      "saved": "સાચવ્યું",
+      "error": "સાચવવામાં નિષ્ફળ"
+    },
+    "linked": {
+      "notSaved": "ફાઇલમાં સાચવ્યું નથી",
+      "missing": "ફાઇલ મળી નથી",
+      "conflict": "OpenDraft ની બહાર બદલાઈ",
+      "retryHint": "ફરી પ્રયાસ કરવા ક્લિક કરો.",
+      "everySave": "દરેક વખતે સાચવતાં {{path}} પણ લખાય છે"
+    },
+    "acts_one": "{{count}} એક્ટ",
+    "acts_other": "{{count}} એક્ટ",
+    "saveWritesBack": "સાચવતાં {{name}} માં પાછું લખાય છે",
+    "actStructure": "એક્ટ માળખું",
+    "runtime": {
+      "title": "{{pacing}} ગતિ મુજબ અંદાજિત સમયગાળો — જોનર અને ગતિ નક્કી કરવા ક્લિક કરો",
+      "est": "અંદાજે {{runtime}}"
+    },
+    "wordsTitle": "સ્ક્રિપ્ટમાં શબ્દો",
+    "words_one": "{{formatted}} શબ્દ",
+    "words_other": "{{formatted}} શબ્દો",
+    "revision": "રિવિઝન: {{color}}",
+    "page": "પેજ {{label}}",
+    "pageOf": "પેજ {{current}} / {{total}}",
+    "pagesLocked": "પેજ લૉક કરેલાં છે",
+    "locked": "(લૉક)",
+    "suggesting": {
+      "lockedTitle": "આપ સૂચન કરવા જોડાયા છો: લેખક આપના ફેરફારો સ્વીકારશે અથવા નકારશે",
+      "title": "આપના ફેરફારો સૂચન તરીકે નોંધાય છે. સીધું ફેરફાર કરવા ફરી ક્લિક કરો.",
+      "label": "સૂચન"
+    }
+  },
+  "resetToDefault": "ડિફૉલ્ટ પર રીસેટ કરો",
+  "richText": {
+    "bold": "બોલ્ડ",
+    "italic": "ઇટાલિક",
+    "underline": "અંડરલાઇન",
+    "bulletList": "બુલેટ લિસ્ટ"
+  },
+  "fontPicker": {
+    "fontFamily": "ફૉન્ટ ફૅમિલી",
+    "search": "ફૉન્ટ શોધો…",
+    "searchLabel": "ફૉન્ટ શોધો",
+    "noMatch": "“{{query}}” સાથે મેળ ખાતો કોઈ ફૉન્ટ નથી.",
+    "notInstalledTitle": "{{name}} આ ડિવાઇસ પર ઇન્સ્ટૉલ નથી — તેના બદલે મળતો ફૉન્ટ બતાવ્યો છે",
+    "notInstalled": "ઇન્સ્ટૉલ નથી",
+    "manage": "ફૉન્ટ ઉમેરો અથવા મેનેજ કરો…",
+    "group": {
+      "document": "આ ડૉક્યુમેન્ટમાંથી",
+      "custom": "કસ્ટમ ફૉન્ટ",
+      "screenplay": "સ્ક્રીનપ્લે સ્ટાન્ડર્ડ",
+      "typewriter": "ટાઇપરાઇટર",
+      "serif": "સેરિફ",
+      "sansSerif": "સેન્સ સેરિફ",
+      "monospace": "મોનોસ્પેસ",
+      "display": "ડિસ્પ્લે અને ટાઇટલ",
+      "handwriting": "હસ્તાક્ષર",
+      "latinExtended": "લેટિન એક્સટેન્ડેડ",
+      "indic": "ભારતીય / ઇન્ડિક",
+      "arabicHebrew": "અરબી અને હિબ્રૂ",
+      "cjk": "CJK",
+      "other": "અન્ય",
+      "device": "આ ડિવાઇસ પર"
+    }
+  },
+  "languageSelector": {
+    "title": "ડાયલોગની ભાષા"
+  },
+  "toolbar": {
+    "fontSize": "ફૉન્ટ સાઇઝ",
+    "pt": "{{size}}pt",
+    "bold": "બોલ્ડ ({{shortcut}})",
+    "italic": "ઇટાલિક ({{shortcut}})",
+    "underline": "અંડરલાઇન ({{shortcut}})",
+    "strikethrough": "સ્ટ્રાઇકથ્રૂ",
+    "subscript": "સબસ્ક્રિપ્ટ",
+    "superscript": "સુપરસ્ક્રિપ્ટ",
+    "textColor": "ટેક્સ્ટનો રંગ",
+    "highlightColor": "હાઇલાઇટનો રંગ",
+    "alignLeft": "ડાબે ગોઠવો",
+    "alignCenter": "મધ્યમાં ગોઠવો",
+    "alignRight": "જમણે ગોઠવો",
+    "justify": "જસ્ટિફાય",
+    "findReplace": "શોધો અને બદલો ({{shortcut}})",
+    "goToPage": "પેજ પર જાઓ ({{shortcut}})",
+    "scriptNotes": "સ્ક્રિપ્ટ નોંધ",
+    "productionTags": "પ્રોડક્શન ટૅગ",
+    "zoomOut": "ઝૂમ ઘટાડો",
+    "editZoom": "ઝૂમ બદલવા ક્લિક કરો",
+    "zoomIn": "ઝૂમ વધારો",
+    "undo": "પૂર્વવત્ ({{shortcut}})",
+    "redo": "ફરી કરો ({{shortcut}})",
+    "addAvRow": "નીચે AV પંક્તિ ઉમેરો (ઑડિયો સેલમાંથી Tab, અથવા {{shortcut}})",
+    "row": "પંક્તિ",
+    "deleteAvRow": "આ AV પંક્તિ કાઢી નાખો",
+    "moreFormatting": "વધુ ફૉર્મેટિંગ વિકલ્પો",
+    "zoom": "ઝૂમ",
+    "elementType": "એલિમેન્ટનો પ્રકાર",
+    "elementTypeTitlePage": "ટાઇટલ પેજના એલિમેન્ટ ટાઇટલ પેજ એડિટરમાં સેટ થાય છે; તેનું ફૉર્મેટિંગ ટેમ્પલેટમાં છે",
+    "titlePage": "ટાઇટલ પેજ"
+  }
+}

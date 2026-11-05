@@ -1,0 +1,458 @@
+{
+  "avFrame": {
+    "notImage": "कृपया कोई इमेज फ़ाइल चुनें",
+    "needRow": "पहले कर्सर को किसी AV पंक्ति में रखें, फिर फ़्रेम जोड़ें",
+    "failed": "फ़्रेम नहीं जोड़ा जा सका: {{message}}"
+  },
+  "image": {
+    "degraded": "इस इमेज को दस्तावेज़ के अंदर ही रखना पड़ा। उसे रास्ते से हटाने के लिए अपनी लाइब्रेरी में सेव करें।",
+    "couldNotAdd": "\"{{name}}\" नहीं जोड़ी जा सकी।",
+    "fileFallbackName": "इमेज"
+  },
+  "template": {
+    "unreadable": "इस स्क्रिप्ट का सेव किया गया फ़ॉर्मैट OpenDraft के इस वर्ज़न से पढ़ा नहीं जा सकता। दिखाने के लिए एक लोकल फ़ॉर्मैट इस्तेमाल हो रहा है; सेव करने पर मूल फ़ॉर्मैट का डेटा बना रहेगा। सेव किया गया फ़ॉर्मैट इस्तेमाल करने के लिए OpenDraft अपडेट करें।"
+  },
+  "pacing": {
+    "brisk": {
+      "label": "तेज़",
+      "description": "तेज़ बोलचाल, फ़ुर्तीले कट, एक-दूसरे पर चढ़ते डायलॉग — स्क्रीन टाइम पेज से कम चलता है।"
+    },
+    "standard": {
+      "label": "मानक",
+      "description": "एक पेज ≈ एक मिनट। ज़्यादातर स्क्रिप्ट के लिए ठीक।"
+    },
+    "measured": {
+      "label": "ठहरी हुई",
+      "description": "धीमी आँच वाली या चिंतनशील — लंबी खामोशियाँ, ठहरे हुए दृश्य, वे पल जो पढ़ने से ज़्यादा देर तक चलते हैं।"
+    }
+  },
+  "stats": {
+    "bucket": {
+      "under1": "< 1 पेज",
+      "p1to2": "1-2 पेज",
+      "p2to3": "2-3 पेज",
+      "p3to5": "3-5 पेज",
+      "p5plus": "5+ पेज"
+    }
+  },
+  "pdfFonts": {
+    "hebrew": "हिब्रू",
+    "arabic": "अरबी",
+    "thai": "थाई",
+    "cyrillic": "सिरिलिक, यूनानी, अर्मेनियाई और जॉर्जियाई",
+    "chinese": "चीनी",
+    "japanese": "जापानी",
+    "korean": "कोरियाई",
+    "chineseTraditional": "चीनी (पारंपरिक)",
+    "and": " और ",
+    "missing": "{{fonts}} फ़ॉन्ट लोड नहीं हो सका, इसलिए वह टेक्स्ट PDF में खाली है।",
+    "unsupported": "{{scripts}} अभी PDF में नहीं लिखी जा सकती, इसलिए वह टेक्स्ट गायब या बिगड़ा हुआ है। बाकी स्क्रिप्ट सामान्य रूप से एक्सपोर्ट हुई।"
+  },
+  "grammar": {
+    "harper": {
+      "Agreement": {
+        "label": "कर्ता–क्रिया मेल",
+        "description": "क्रिया का रूप कर्ता से मेल खाना चाहिए (\"she walk\" → \"she walks\")।"
+      },
+      "Grammar": {
+        "label": "व्याकरण",
+        "description": "काल, मिलते-जुलते शब्दों की उलझन (their/they're), सर्वनाम का रूप और ऐसी ही गलतियाँ।"
+      },
+      "Capitalization": {
+        "label": "बड़े अक्षर",
+        "description": "व्यक्तिवाचक संज्ञाएँ, वाक्य की शुरुआत, सर्वनाम \"I\"।"
+      },
+      "Repetition": {
+        "label": "दोहराया शब्द",
+        "description": "गलती से लिखा \"the the\"।"
+      },
+      "Punctuation": {
+        "label": "विराम चिह्न",
+        "description": "छूटे अल्पविराम, विराम चिह्नों के आसपास फ़ालतू स्पेस।"
+      },
+      "WordChoice": {
+        "label": "शब्द का चुनाव",
+        "description": "ज़्यादा साफ़ या प्रचलित शब्द सुझाता है।"
+      },
+      "Readability": {
+        "label": "पठनीयता",
+        "description": "लंबे या मुश्किल से समझ आने वाले वाक्य।"
+      },
+      "Typo": {
+        "label": "टाइपो",
+        "description": "संदर्भ से पकड़ी गई संभावित टाइपिंग गलतियाँ (जैसे \"teh\" → \"the\")।"
+      },
+      "Spelling": {
+        "label": "वर्तनी",
+        "description": "गलत वर्तनी वाले शब्द (वर्तनी जाँच से मेल खाता है — एक को बंद रखें)।"
+      },
+      "Style": {
+        "label": "शैली",
+        "description": "शैली के सुझाव (शब्दाडंबर, कमज़ोर अभिव्यक्ति)।"
+      },
+      "Enhancement": {
+        "label": "सुधार",
+        "description": "वैकल्पिक पुनर्लेखन जो अक्सर स्पष्टता बढ़ाते हैं।"
+      },
+      "Formatting": {
+        "label": "फ़ॉर्मैटिंग",
+        "description": "स्पेसिंग, उद्धरण चिह्न, डैश।"
+      },
+      "Regionalism": {
+        "label": "क्षेत्रीय प्रयोग",
+        "description": "ऐसा शब्द-प्रयोग जो किसी खास क्षेत्र के बाहर अटपटा लगता है।"
+      },
+      "Miscellaneous": {
+        "label": "अन्य",
+        "description": "ऊपर की श्रेणियों में न बैठने वाली व्याकरण की दूसरी समस्याएँ।"
+      }
+    },
+    "retext": {
+      "passive": {
+        "label": "कर्मवाच्य",
+        "description": "कर्मवाच्य रचनाओं पर निशान लगाएँ (\"was kicked\")।"
+      },
+      "repeated": {
+        "label": "दोहराया शब्द",
+        "description": "गलती से लिखा \"the the\" पकड़ें।"
+      },
+      "indefiniteArticle": {
+        "label": "A / an",
+        "description": "\"a hour\" / \"an university\" पकड़ें।"
+      },
+      "redundantAcronyms": {
+        "label": "फ़ालतू संक्षिप्त रूप",
+        "description": "जैसे \"ATM machine\"।"
+      },
+      "intensify": {
+        "label": "कमज़ोर बलाघात",
+        "description": "\"very\", \"really\" की जगह ज़्यादा दमदार विकल्प सुझाएँ।"
+      },
+      "simplify": {
+        "label": "शब्दाडंबर वाला वाक्यांश",
+        "description": "\"in order to\" → \"to\" जैसे छोटे रूप सुझाएँ।"
+      }
+    }
+  },
+  "reports": {
+    "count": {
+      "scene_one": "{{count}} सीन",
+      "scene_other": "{{count}} सीन",
+      "speakingCharacter_one": "{{count}} बोलने वाला कैरेक्टर",
+      "speakingCharacter_other": "{{count}} बोलने वाले कैरेक्टर",
+      "location_one": "{{count}} लोकेशन",
+      "location_other": "{{count}} लोकेशन",
+      "castMember_one": "{{count}} कास्ट सदस्य",
+      "castMember_other": "{{count}} कास्ट सदस्य",
+      "taggedItem_one": "{{count}} टैग किया हुआ आइटम",
+      "taggedItem_other": "{{count}} टैग किए हुए आइटम",
+      "category_one": "{{count}} श्रेणी",
+      "category_other": "{{count}} श्रेणियाँ",
+      "openNote_one": "{{count}} खुला नोट",
+      "openNote_other": "{{count}} खुले नोट",
+      "note_one": "{{count}} नोट",
+      "note_other": "{{count}} नोट",
+      "reply_one": "{{count}} जवाब",
+      "reply_other": "{{count}} जवाब"
+    },
+    "scenes": {
+      "label": "सीन रिपोर्ट",
+      "description": "हर सीन अपनी लोकेशन, लंबाई, स्क्रीन टाइम और बोलने वालों के साथ",
+      "summary": "{{scenes}} · {{length}} पेज",
+      "columns": {
+        "scene": "सीन",
+        "heading": "हेडिंग",
+        "intExt": "इंट/एक्स",
+        "location": "लोकेशन",
+        "time": "समय",
+        "length": "लंबाई",
+        "estTime": "अनु. समय",
+        "speaking": "बोलने वाले कैरेक्टर",
+        "words": "शब्द"
+      }
+    },
+    "characters": {
+      "label": "कैरेक्टर रिपोर्ट",
+      "description": "हर बोलने वाले कैरेक्टर के संवाद, शब्द और सीन",
+      "columns": {
+        "character": "कैरेक्टर",
+        "role": "भूमिका",
+        "gender": "लिंग",
+        "speeches": "संवाद",
+        "words": "शब्द",
+        "share": "डायलॉग में हिस्सा",
+        "scenes": "सीन",
+        "sceneNumbers": "सीन नंबर"
+      }
+    },
+    "locations": {
+      "label": "लोकेशन रिपोर्ट",
+      "description": "हर लोकेशन, वह कितनी बार और कितने पेजों के लिए इस्तेमाल हुई",
+      "columns": {
+        "location": "लोकेशन",
+        "intExt": "इंट/एक्स",
+        "times": "दिन के समय",
+        "scenes": "सीन",
+        "totalLength": "कुल लंबाई",
+        "sceneNumbers": "सीन नंबर"
+      }
+    },
+    "cast": {
+      "label": "कास्ट रिपोर्ट",
+      "description": "कैरेक्टर प्रोफ़ाइल, भूमिका, लिंग, उम्र और बोलने वाले सीन के साथ",
+      "columns": {
+        "character": "कैरेक्टर",
+        "role": "भूमिका",
+        "gender": "लिंग",
+        "age": "उम्र",
+        "speakingScenes": "बोलने वाले सीन",
+        "description": "विवरण"
+      }
+    },
+    "breakdown": {
+      "label": "ब्रेकडाउन रिपोर्ट",
+      "description": "टैग किए गए प्रॉप्स, कॉस्ट्यूम, वाहन और बहुत कुछ, उनके सीन के साथ",
+      "summary": "{{categories}} में {{items}}",
+      "columns": {
+        "category": "श्रेणी",
+        "item": "आइटम",
+        "scenes": "सीन",
+        "sceneNumbers": "सीन नंबर",
+        "notes": "नोट्स"
+      }
+    },
+    "notes": {
+      "label": "नोट्स रिपोर्ट",
+      "description": "हर नोट अपने जवाबों के साथ, किसने लिखा, किसे सौंपा गया, और सुलझा है या नहीं",
+      "title": "नोट्स रिपोर्ट",
+      "summary": "{{notes}} · {{open}} खुले · {{resolved}} सुलझे · {{replies}}",
+      "columns": {
+        "number": "#",
+        "scene": "सीन",
+        "on": "किस पर",
+        "from": "किसकी ओर से",
+        "comment": "कमेंट",
+        "status": "स्थिति",
+        "assignedTo": "किसे सौंपा",
+        "date": "तारीख़"
+      },
+      "general": "सामान्य",
+      "open": "खुला",
+      "resolved": "सुलझा हुआ",
+      "resolvedBy": "{{name}} ने सुलझाया",
+      "resolvedAt": "{{status}} {{date}}"
+    },
+    "openNotes": {
+      "label": "खुले नोट्स",
+      "description": "सिर्फ़ वे नोट्स जो अभी सुलझे नहीं हैं, उनके जवाबों के साथ — यानी जो करना बाकी है",
+      "title": "खुले नोट्स",
+      "summary": "{{notes}} · {{replies}}"
+    },
+    "nothing": "रिपोर्ट करने लायक कुछ नहीं है।"
+  },
+  "backup": {
+    "error": {
+      "missingFolder": "बैकअप फ़ोल्डर अब मौजूद नहीं है।",
+      "noPermission": "OpenDraft के पास बैकअप फ़ोल्डर में लिखने की अनुमति नहीं है।",
+      "diskFull": "डिस्क भर गई है।",
+      "noResponse": "बैकअप फ़ोल्डर ने जवाब नहीं दिया (क्या कोई नेटवर्क ड्राइव कटी हुई है?)।"
+    },
+    "failed": "बैकअप विफल रहा — {{reason}}",
+    "paused": "ऑटोमैटिक बैकअप रुके हुए हैं — {{reason}} फिर शुरू करने के लिए सेटिंग्स में फ़ोल्डर ठीक करें।",
+    "notInBrowser": "ब्राउज़र में बैकअप उपलब्ध नहीं हैं।",
+    "onlyInApp": "बैकअप सिर्फ़ OpenDraft ऐप में उपलब्ध हैं।",
+    "noFolder": "कोई बैकअप फ़ोल्डर तय नहीं है।",
+    "revealDesktopOnly": "फ़ाइल मैनेजर में बैकअप दिखाना सिर्फ़ डेस्कटॉप पर उपलब्ध है।",
+    "chooseFolderBrowser": "ब्राउज़र में बैकअप फ़ोल्डर चुनना उपलब्ध नहीं है।"
+  },
+  "sprint": {
+    "finished_one": "स्प्रिंट पूरा हुआ — {{count}} शब्द लिखा गया।",
+    "finished_other": "स्प्रिंट पूरा हुआ — {{count}} शब्द लिखे गए।"
+  },
+  "recovery": {
+    "tooLarge": "यह दस्तावेज़ क्रैश से बचाव के लिहाज़ से बहुत बड़ा है। इसे अपनी लाइब्रेरी में सेव करें ताकि ऑटो-सेव इसे संभाल ले।",
+    "noRoom": "क्रैश से बचाव उपलब्ध नहीं है — रिकवरी कॉपी रखने की जगह नहीं है। अपना काम अपनी लाइब्रेरी में सेव करें।"
+  },
+  "fallbackImport": {
+    "project_one": "{{count}} प्रोजेक्ट",
+    "project_other": "{{count}} प्रोजेक्ट",
+    "script_one": "{{count}} स्क्रिप्ट",
+    "script_other": "{{count}} स्क्रिप्ट",
+    "asset_one": "{{count}} एसेट",
+    "asset_other": "{{count}} एसेट",
+    "template_one": "{{count}} टेम्पलेट",
+    "template_other": "{{count}} टेम्पलेट",
+    "imported": "फ़ाइल-आधारित वैकल्पिक स्टोरेज से {{counts}} इम्पोर्ट हुए",
+    "importedWithErrors": "वैकल्पिक स्टोरेज से {{counts}} इम्पोर्ट हुए। {{failed}} आइटम विफल रहे — ब्योरे के लिए DevTools देखें।",
+    "nothing": "कुछ नहीं"
+  },
+  "dictionary": {
+    "unknownLanguage": "अज्ञात भाषा: {{code}}",
+    "downloadFailed": "\"{{label}}\" डाउनलोड नहीं हो सका — स्रोत कुछ समय के लिए अनुपलब्ध हो सकता है, या नेटवर्क बंद है।",
+    "codeRequired": "भाषा कोड ज़रूरी है।",
+    "urlsRequired": ".aff और .dic दोनों URL ज़रूरी हैं।",
+    "parseFailed": "डाउनलोड या पार्स विफल रहा। URL जाँचें और देखें कि फ़ाइलें मान्य Hunspell .aff/.dic हैं।"
+  },
+  "auth": {
+    "renewFailed": "अभी आपका साइन-इन नवीनीकृत नहीं हो सका। कृपया थोड़ी देर में फिर कोशिश करें।"
+  },
+  "cloud": {
+    "notConfigured": "इस ऐप के लिए OpenDraft Cloud सेट नहीं है। OpenDraft सर्वर URL तय करने के लिए Settings → System Settings खोलें।",
+    "cannotReachNamed": "{{where}} तक नहीं पहुँचा जा सका। जाँचें कि सर्वर चल रहा है और पहुँच में है।",
+    "cannotReach": "OpenDraft Cloud तक नहीं पहुँचा जा सका ({{detail}})।",
+    "invalidResponse": "OpenDraft Cloud ने अमान्य जवाब दिया। हो सकता है सर्वर ठीक से सेट न हो।",
+    "renewUnavailable": "आपका साइन-इन नवीनीकृत करने के लिए OpenDraft सर्वर तक नहीं पहुँचा जा सका। कृपया थोड़ी देर में फिर कोशिश करें।"
+  },
+  "fonts": {
+    "tooLarge": "बहुत बड़ा — फ़ॉन्ट {{mb}} MB से छोटे होने चाहिए।",
+    "empty": "वह फ़ाइल खाली है।",
+    "tooSmall": "वह फ़ाइल फ़ॉन्ट होने के लिए बहुत छोटी है।",
+    "notFont": "वह फ़ाइल TrueType या OpenType फ़ॉन्ट नहीं है।",
+    "installFailed": "यह फ़ॉन्ट इंस्टॉल नहीं हो सका: {{message}}",
+    "noStorage": "इस ब्राउज़र में फ़ॉन्ट के लिए लोकल स्टोरेज नहीं है।",
+    "deleteFailed": "फ़ॉन्ट इस सेशन से हट गया, लेकिन स्टोरेज से हटाया नहीं जा सका।"
+  },
+  "linkedFiles": {
+    "unsupportedExtension": "OpenDraft स्क्रिप्ट .odraft, .fountain, .fdx या .osf फ़ाइलों में रख सकता है, .{{ext}} में नहीं।",
+    "noExtension": "(कोई नहीं)",
+    "cannotWrite": "OpenDraft {{folder}} में नहीं लिख सकता",
+    "cannotWriteReason": "OpenDraft {{folder}} में नहीं लिख सकता — {{reason}}",
+    "notInFolder": "यह प्रोजेक्ट किसी फ़ोल्डर में सेव नहीं है।"
+  },
+  "elements": {
+    "sceneHeading": "सीन हेडिंग",
+    "action": "एक्शन",
+    "character": "कैरेक्टर",
+    "parenthetical": "पैरेंथेटिकल",
+    "dialogue": "डायलॉग",
+    "transition": "ट्रांज़िशन",
+    "shot": "शॉट",
+    "general": "सामान्य",
+    "dualDialogue": "ड्यूल डायलॉग",
+    "lyrics": "लिरिक्स",
+    "newAct": "नया ऐक्ट",
+    "endOfAct": "ऐक्ट का अंत"
+  },
+  "marks": {
+    "bold": "बोल्ड",
+    "italic": "इटैलिक",
+    "underline": "अंडरलाइन",
+    "strike": "स्ट्राइकथ्रू",
+    "subscript": "सबस्क्रिप्ट",
+    "superscript": "सुपरस्क्रिप्ट",
+    "textStyle": "फ़ॉन्ट/आकार",
+    "color": "टेक्स्ट का रंग",
+    "highlight": "हाइलाइट",
+    "formatOverride": "फ़ॉर्मैट बदलाव"
+  },
+  "relativeTime": {
+    "justNow": "अभी-अभी",
+    "minutes_one": "{{count}} मिनट पहले",
+    "minutes_other": "{{count}} मिनट पहले",
+    "hours_one": "{{count}} घंटा पहले",
+    "hours_other": "{{count}} घंटे पहले",
+    "days_one": "{{count}} दिन पहले",
+    "days_other": "{{count}} दिन पहले"
+  },
+  "suggestions": {
+    "insertedBy": "{{name}} का सुझाव",
+    "insertedByAt": "{{name}} का सुझाव · {{when}}",
+    "someone": "किसी ने",
+    "someoneCap": "किसी ने",
+    "deleteBy": "{{name}} ने इसे हटाने का सुझाव दिया",
+    "deleteByAt": "{{name}} ने इसे हटाने का सुझाव दिया · {{when}}",
+    "formatAdd": "{{name}} ने {{format}} जोड़ने का सुझाव दिया",
+    "formatRemove": "{{name}} ने {{format}} हटाने का सुझाव दिया",
+    "joinLabel": "⤒ जोड़ें",
+    "joinTitle": "{{name}} ने इस लाइन को पिछली लाइन से जोड़ने का सुझाव दिया",
+    "wasType": "पहले {{type}} था",
+    "changeTitle": "{{name}} ने इसे {{from}} से {{to}} करने का सुझाव दिया"
+  },
+  "clipboard": {
+    "pasteDeniedIos": "क्लिपबोर्ड पढ़ा नहीं जा सका। iOS हर पेस्ट के लिए अनुमति माँगता है — जब “Paste” दिखे तो उस पर टैप करें, या स्क्रिप्ट में देर तक दबाकर वहाँ से Paste चुनें।",
+    "pasteDenied": "क्लिपबोर्ड पढ़ा नहीं जा सका। OpenDraft को क्लिपबोर्ड की अनुमति दें और फिर कोशिश करें।",
+    "selectFirst": "पहले कॉपी करने के लिए कुछ चुनें।",
+    "copyFailed": "क्लिपबोर्ड पर कॉपी नहीं हो सका।",
+    "empty": "क्लिपबोर्ड खाली है।"
+  },
+  "import": {
+    "archiveNotOpenable": "{{format}} फ़ाइलें कंप्रेस्ड आर्काइव होती हैं और इस प्लैटफ़ॉर्म पर खोली नहीं जा सकतीं। {{app}} से स्क्रिप्ट को .fdx, .fountain या .osf के रूप में एक्सपोर्ट करें और उसे इम्पोर्ट करें।",
+    "expectedText": "{{format}} फ़ाइल के लिए टेक्स्ट सामग्री अपेक्षित थी।",
+    "invalidOdraft": "अमान्य .odraft फ़ाइल: {{message}}",
+    "archiveUnreadable": "{{format}} फ़ाइल पढ़ी नहीं जा सकी — यह मान्य .{{ext}} आर्काइव नहीं है। वह खराब, अधूरी या किसी दूसरे फ़ॉर्मैट में सेव हो सकती है; उसे {{format}} से फिर एक्सपोर्ट करके देखें।",
+    "zipInvalid": "यह फ़ाइल मान्य zip आर्काइव नहीं है",
+    "zipSingleScript": "इस zip में एक अकेली स्क्रिप्ट है, प्रोजेक्ट नहीं। इसे किसी प्रोजेक्ट के अंदर से इम्पोर्ट करें।",
+    "zipNoProject": "अमान्य प्रोजेक्ट आर्काइव: project.json गायब है",
+    "zipNoneImported": "{{count}} में से कोई भी स्क्रिप्ट इम्पोर्ट नहीं हो सकी",
+    "pdfPassword": "यह PDF पासवर्ड से सुरक्षित है। इसे PDF व्यूअर में खोलें, बिना पासवर्ड की कॉपी सेव करें और उसे इम्पोर्ट करें।",
+    "pdfUnreadable": "यह फ़ाइल पढ़ी जा सकने वाली PDF नहीं है — शायद खराब हो गई है।",
+    "pdfNoText": "इस PDF में पढ़ने लायक टेक्स्ट नहीं है — यह स्कैन हो सकती है। सिर्फ़ चुने जा सकने वाले टेक्स्ट वाली PDF इम्पोर्ट हो सकती हैं।",
+    "pdfNothingRecognised": "कोई सीन हेडिंग या डायलॉग पहचाना नहीं गया — हो सकता है PDF स्क्रीनप्ले के रूप में न बनी हो।",
+    "docxTable": "ऐसी टेबल मिली जो ड्यूल-डायलॉग लेआउट नहीं है — सेल को एक्शन में समतल कर दिया गया।",
+    "docxNoDocument": "मान्य .docx फ़ाइल नहीं है: word/document.xml गायब है",
+    "docxNoBody": "मान्य .docx फ़ाइल नहीं है: <w:body> गायब है",
+    "highlandNoFountain": "Highland स्क्रीनप्ले नहीं है: फ़ाइल में text.fountain{{contents}} नहीं है।",
+    "highlandNotFountain": "यह Highland दस्तावेज़ Fountain के बजाय {{name}} के रूप में रखा है, इसलिए इसे Fountain टेक्स्ट की तरह पढ़ा गया; इम्पोर्ट के बाद एलिमेंट के प्रकार जाँच लें।",
+    "highlandImages": "Highland फ़ाइल में रखी इमेज इम्पोर्ट नहीं हुईं।"
+  },
+  "export": {
+    "zipUnreadable_one": "स्क्रिप्ट पढ़ी नहीं जा सकी: {{names}}",
+    "zipUnreadable_other": "स्क्रिप्ट पढ़ी नहीं जा सकीं: {{names}}",
+    "twoUpPageSize": "पेज का आकार मान्य नहीं है, इसलिए पेजों को दो-दो करके एक शीट पर नहीं रखा जा सकता।",
+    "twoUpStructure": "पेजों को दो-दो करके एक शीट पर नहीं रखा जा सका: PDF का ढाँचा अपेक्षित नहीं था।",
+    "twoUpPageStructure": "पेजों को दो-दो करके एक शीट पर नहीं रखा जा सका: पेज {{page}} का ढाँचा अपेक्षित नहीं था।",
+    "avEmpty": "इस दस्तावेज़ में एक्सपोर्ट करने लायक AV सामग्री नहीं है।",
+    "cannotWrite": "OpenDraft .{{format}} फ़ाइलें नहीं लिख सकता।"
+  },
+  "file": {
+    "chooseDifferent": "कॉपी सेव करें के लिए कोई दूसरी जगह चुनें। मूल फ़ाइल जस की तस छोड़ी गई है।",
+    "openBrowser": "ब्राउज़र में फ़ाइल को उसी जगह खोलना उपलब्ध नहीं है।",
+    "saveBrowser": "ब्राउज़र में फ़ाइल को उसी जगह सेव करना उपलब्ध नहीं है।"
+  },
+  "macros": {
+    "notJson": "यह फ़ाइल मान्य JSON नहीं है।",
+    "notMacros": "इस फ़ाइल में OpenDraft के मैक्रो नहीं हैं।"
+  },
+  "avYaml": {
+    "notYaml": "वह फ़ाइल मान्य YAML नहीं है।",
+    "notYamlLine": "वह फ़ाइल मान्य YAML नहीं है (लाइन {{line}})।",
+    "notAvDoc": "वह फ़ाइल OpenDraft AV दस्तावेज़ नहीं है।",
+    "wrongFormat": "वह फ़ाइल OpenDraft AV दस्तावेज़ नहीं है (अपेक्षित फ़ॉर्मैट: {{format}})।",
+    "noVersion": "उस फ़ाइल में नहीं बताया गया कि वह AV स्कीमा का कौन सा वर्ज़न इस्तेमाल करती है।",
+    "tooNew": "वह फ़ाइल AV स्कीमा वर्ज़न {{version}} इस्तेमाल करती है, लेकिन OpenDraft का यह वर्ज़न {{max}} तक पढ़ता है। उसे खोलने के लिए OpenDraft अपडेट करें।",
+    "noSection": "उस AV फ़ाइल में इम्पोर्ट करने के लिए कोई `av:` सेक्शन नहीं है।",
+    "noRows": "AV सेक्शन {{n}} में कोई पंक्ति नहीं है।"
+  },
+  "sides": {
+    "emptyScenes": "चुने हुए सीन खाली हैं।",
+    "noLines": "इस स्क्रिप्ट में {{name}} की कोई लाइन नहीं है।",
+    "noSceneAt": "{{location}} पर कोई सीन नहीं है।",
+    "notTagged": "स्क्रिप्ट में कुछ भी {{label}} से टैग नहीं है।"
+  },
+  "av": {
+    "durationLabel": "शॉट {{shot}} की अवधि",
+    "durationInvalid": "यह समय नहीं है — 0:05, 1:30 या 1:02:03 लिखें",
+    "durationTitle": "शॉट की अवधि",
+    "resizeTitle": "आकार बदलने के लिए खींचें · रीसेट करने के लिए डबल-क्लिक करें"
+  },
+  "tts": {
+    "unreadable": "स्पीच सर्वर ने ऐसा जवाब दिया जो पढ़ा नहीं जा सकता।",
+    "noProvider": "कोई AI आवाज़ प्रोवाइडर सेट नहीं है।",
+    "needGeminiKey": "सेटिंग्स → टेबल रीड आवाज़ें में अपनी Gemini API की जोड़ें।",
+    "needElevenLabsKey": "सेटिंग्स → टेबल रीड आवाज़ें में अपनी ElevenLabs API की जोड़ें।",
+    "needAzureKey": "सेटिंग्स → टेबल रीड आवाज़ें में अपनी Azure Speech की और रीजन जोड़ें।",
+    "noKokoroVoice": "कोई Kokoro आवाज़ नहीं चुनी गई।",
+    "noGeminiVoice": "कोई Gemini आवाज़ नहीं चुनी गई।",
+    "noAzureVoice": "कोई Azure आवाज़ नहीं चुनी गई।",
+    "noElevenLabsVoice": "कोई ElevenLabs आवाज़ नहीं चुनी गई।",
+    "noVoice": "कोई आवाज़ नहीं चुनी गई।",
+    "geminiNoAudio": "Gemini ने इस लाइन के लिए कोई ऑडियो नहीं दिया।",
+    "azureNoAudio": "Azure Speech ने कोई ऑडियो नहीं दिया।",
+    "audioNoStart": "{{provider}} का ऑडियो चलना शुरू नहीं हुआ। हो सकता है यह ब्राउज़र उसके फ़ॉर्मैट का समर्थन न करता हो।",
+    "audioNoPlay": "{{provider}} का ऑडियो चलाया नहीं जा सका।",
+    "audioNoDecode": "{{provider}} का ऑडियो डीकोड नहीं हो सका: {{message}}",
+    "kokoroStopped": "Kokoro आवाज़ इंजन रुक गया: {{message}}",
+    "kokoroUnknown": "अज्ञात त्रुटि",
+    "systemStopped": "सिस्टम स्पीच इंजन ने जवाब देना बंद कर दिया: {{message}}"
+  }
+}

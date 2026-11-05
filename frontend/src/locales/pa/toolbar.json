@@ -1,0 +1,107 @@
+{
+  "status": {
+    "save": {
+      "unsaved": "ਬਿਨਾਂ ਸੰਭਾਲੀਆਂ ਤਬਦੀਲੀਆਂ",
+      "saving": "ਸੰਭਾਲਿਆ ਜਾ ਰਿਹਾ ਹੈ…",
+      "saved": "ਸੰਭਾਲਿਆ ਗਿਆ",
+      "error": "ਸੰਭਾਲਣਾ ਅਸਫਲ ਰਿਹਾ"
+    },
+    "linked": {
+      "notSaved": "ਫਾਈਲ ਵਿੱਚ ਨਹੀਂ ਸੰਭਾਲਿਆ ਗਿਆ",
+      "missing": "ਫਾਈਲ ਨਹੀਂ ਮਿਲੀ",
+      "conflict": "OpenDraft ਤੋਂ ਬਾਹਰ ਬਦਲੀ ਗਈ",
+      "retryHint": "ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰਨ ਲਈ ਕਲਿੱਕ ਕਰੋ।",
+      "everySave": "ਹਰ ਵਾਰ ਸੰਭਾਲਣ 'ਤੇ {{path}} ਵਿੱਚ ਵੀ ਲਿਖਿਆ ਜਾਂਦਾ ਹੈ"
+    },
+    "acts_one": "{{count}} ਐਕਟ",
+    "acts_other": "{{count}} ਐਕਟ",
+    "saveWritesBack": "ਸੰਭਾਲਣ 'ਤੇ {{name}} ਵਿੱਚ ਵਾਪਸ ਲਿਖਿਆ ਜਾਂਦਾ ਹੈ",
+    "actStructure": "ਐਕਟ ਢਾਂਚਾ",
+    "runtime": {
+      "title": "{{pacing}} ਰਫ਼ਤਾਰ 'ਤੇ ਅੰਦਾਜ਼ਨ ਚੱਲਣ ਦਾ ਸਮਾਂ — ਜੌਨਰ ਅਤੇ ਰਫ਼ਤਾਰ ਚੁਣਨ ਲਈ ਕਲਿੱਕ ਕਰੋ",
+      "est": "ਅੰਦਾਜ਼ਨ {{runtime}}"
+    },
+    "wordsTitle": "ਸਕ੍ਰਿਪਟ ਵਿੱਚ ਸ਼ਬਦ",
+    "words_one": "{{formatted}} ਸ਼ਬਦ",
+    "words_other": "{{formatted}} ਸ਼ਬਦ",
+    "revision": "ਰਿਵੀਜ਼ਨ: {{color}}",
+    "page": "ਪੰਨਾ {{label}}",
+    "pageOf": "ਪੰਨਾ {{current}} / {{total}}",
+    "pagesLocked": "ਪੰਨੇ ਲਾਕ ਹਨ",
+    "locked": "(ਲਾਕ)",
+    "suggesting": {
+      "lockedTitle": "ਤੁਸੀਂ ਸੁਝਾਅ ਦੇਣ ਲਈ ਜੁੜੇ ਹੋ: ਲੇਖਕ ਤੁਹਾਡੀਆਂ ਤਬਦੀਲੀਆਂ ਨੂੰ ਮਨਜ਼ੂਰ ਜਾਂ ਰੱਦ ਕਰਦਾ ਹੈ",
+      "title": "ਤੁਹਾਡੀਆਂ ਤਬਦੀਲੀਆਂ ਸੁਝਾਅ ਹਨ। ਸਿੱਧਾ ਸੋਧਣ ਲਈ ਦੁਬਾਰਾ ਕਲਿੱਕ ਕਰੋ।",
+      "label": "ਸੁਝਾਅ ਦੇ ਰਹੇ ਹੋ"
+    }
+  },
+  "resetToDefault": "ਮੂਲ ਵਜੋਂ ਰੀਸੈੱਟ ਕਰੋ",
+  "richText": {
+    "bold": "ਬੋਲਡ",
+    "italic": "ਇਟੈਲਿਕ",
+    "underline": "ਅੰਡਰਲਾਈਨ",
+    "bulletList": "ਬੁਲੇਟ ਸੂਚੀ"
+  },
+  "fontPicker": {
+    "fontFamily": "ਫੌਂਟ ਪਰਿਵਾਰ",
+    "search": "ਫੌਂਟ ਖੋਜੋ…",
+    "searchLabel": "ਫੌਂਟ ਖੋਜੋ",
+    "noMatch": "“{{query}}” ਨਾਲ ਮੇਲ ਖਾਂਦਾ ਕੋਈ ਫੌਂਟ ਨਹੀਂ।",
+    "notInstalledTitle": "{{name}} ਇਸ ਡਿਵਾਈਸ 'ਤੇ ਇੰਸਟਾਲ ਨਹੀਂ ਹੈ — ਇਸ ਦੀ ਥਾਂ ਮਿਲਦਾ-ਜੁਲਦਾ ਫੌਂਟ ਦਿਖਾਇਆ ਗਿਆ ਹੈ",
+    "notInstalled": "ਇੰਸਟਾਲ ਨਹੀਂ ਹੈ",
+    "manage": "ਫੌਂਟ ਜੋੜੋ ਜਾਂ ਪ੍ਰਬੰਧਿਤ ਕਰੋ…",
+    "group": {
+      "document": "ਇਸ ਦਸਤਾਵੇਜ਼ ਵਿੱਚੋਂ",
+      "custom": "ਕਸਟਮ ਫੌਂਟ",
+      "screenplay": "ਸਕ੍ਰੀਨਪਲੇ ਸਟੈਂਡਰਡ",
+      "typewriter": "ਟਾਈਪਰਾਈਟਰ",
+      "serif": "ਸੈਰਿਫ਼",
+      "sansSerif": "ਸੈਨਸ ਸੈਰਿਫ਼",
+      "monospace": "ਮੋਨੋਸਪੇਸ",
+      "display": "ਡਿਸਪਲੇ ਅਤੇ ਸਿਰਲੇਖ",
+      "handwriting": "ਹੱਥ-ਲਿਖਤ",
+      "latinExtended": "ਲਾਤੀਨੀ ਐਕਸਟੈਂਡਡ",
+      "indic": "ਭਾਰਤੀ / ਇੰਡਿਕ",
+      "arabicHebrew": "ਅਰਬੀ ਅਤੇ ਇਬਰਾਨੀ",
+      "cjk": "CJK",
+      "other": "ਹੋਰ",
+      "device": "ਇਸ ਡਿਵਾਈਸ 'ਤੇ"
+    }
+  },
+  "languageSelector": {
+    "title": "ਡਾਇਲਾਗ ਦੀ ਭਾਸ਼ਾ"
+  },
+  "toolbar": {
+    "fontSize": "ਫੌਂਟ ਦਾ ਆਕਾਰ",
+    "pt": "{{size}}pt",
+    "bold": "ਬੋਲਡ ({{shortcut}})",
+    "italic": "ਇਟੈਲਿਕ ({{shortcut}})",
+    "underline": "ਅੰਡਰਲਾਈਨ ({{shortcut}})",
+    "strikethrough": "ਸਟ੍ਰਾਈਕਥਰੂ",
+    "subscript": "ਸਬਸਕ੍ਰਿਪਟ",
+    "superscript": "ਸੁਪਰਸਕ੍ਰਿਪਟ",
+    "textColor": "ਟੈਕਸਟ ਦਾ ਰੰਗ",
+    "highlightColor": "ਹਾਈਲਾਈਟ ਦਾ ਰੰਗ",
+    "alignLeft": "ਖੱਬੇ ਅਲਾਈਨ ਕਰੋ",
+    "alignCenter": "ਵਿਚਕਾਰ ਅਲਾਈਨ ਕਰੋ",
+    "alignRight": "ਸੱਜੇ ਅਲਾਈਨ ਕਰੋ",
+    "justify": "ਜਸਟੀਫ਼ਾਈ ਕਰੋ",
+    "findReplace": "ਲੱਭੋ ਅਤੇ ਬਦਲੋ ({{shortcut}})",
+    "goToPage": "ਪੰਨੇ 'ਤੇ ਜਾਓ ({{shortcut}})",
+    "scriptNotes": "ਸਕ੍ਰਿਪਟ ਨੋਟ",
+    "productionTags": "ਪ੍ਰੋਡਕਸ਼ਨ ਟੈਗ",
+    "zoomOut": "ਛੋਟਾ ਕਰੋ",
+    "editZoom": "ਜ਼ੂਮ ਸੋਧਣ ਲਈ ਕਲਿੱਕ ਕਰੋ",
+    "zoomIn": "ਵੱਡਾ ਕਰੋ",
+    "undo": "ਅਣਕੀਤਾ ਕਰੋ ({{shortcut}})",
+    "redo": "ਦੁਬਾਰਾ ਕਰੋ ({{shortcut}})",
+    "addAvRow": "ਹੇਠਾਂ AV ਕਤਾਰ ਜੋੜੋ (ਆਡੀਓ ਸੈੱਲ ਤੋਂ Tab, ਜਾਂ {{shortcut}})",
+    "row": "ਕਤਾਰ",
+    "deleteAvRow": "ਇਹ AV ਕਤਾਰ ਮਿਟਾਓ",
+    "moreFormatting": "ਹੋਰ ਫਾਰਮੈਟਿੰਗ ਵਿਕਲਪ",
+    "zoom": "ਜ਼ੂਮ",
+    "elementType": "ਐਲੀਮੈਂਟ ਦੀ ਕਿਸਮ",
+    "elementTypeTitlePage": "ਟਾਈਟਲ ਪੰਨੇ ਦੇ ਐਲੀਮੈਂਟ ਟਾਈਟਲ ਪੰਨਾ ਐਡੀਟਰ ਵਿੱਚ ਸੈੱਟ ਹੁੰਦੇ ਹਨ; ਉਨ੍ਹਾਂ ਦੀ ਫਾਰਮੈਟਿੰਗ ਟੈਂਪਲੇਟ ਵਿੱਚ ਹੈ",
+    "titlePage": "ਟਾਈਟਲ ਪੰਨਾ"
+  }
+}

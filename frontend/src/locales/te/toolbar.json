@@ -1,0 +1,107 @@
+{
+  "status": {
+    "save": {
+      "unsaved": "సేవ్ చేయని మార్పులు",
+      "saving": "సేవ్ అవుతోంది…",
+      "saved": "సేవ్ అయింది",
+      "error": "సేవ్ విఫలమైంది"
+    },
+    "linked": {
+      "notSaved": "ఫైల్‌కు సేవ్ కాలేదు",
+      "missing": "ఫైల్ కనుగొనబడలేదు",
+      "conflict": "OpenDraft వెలుపల మారింది",
+      "retryHint": "మళ్లీ ప్రయత్నించడానికి క్లిక్ చేయండి.",
+      "everySave": "ప్రతి సేవ్‌తో {{path}} కూడా రాయబడుతుంది"
+    },
+    "acts_one": "{{count}} యాక్ట్",
+    "acts_other": "{{count}} యాక్ట్‌లు",
+    "saveWritesBack": "సేవ్ చేస్తే {{name}}కు తిరిగి రాయబడుతుంది",
+    "actStructure": "యాక్ట్ నిర్మాణం",
+    "runtime": {
+      "title": "{{pacing}} వేగంతో అంచనా రన్‌టైమ్ — జానర్, వేగం సెట్ చేయడానికి క్లిక్ చేయండి",
+      "est": "అంచనా {{runtime}}"
+    },
+    "wordsTitle": "స్క్రిప్ట్‌లోని పదాలు",
+    "words_one": "{{formatted}} పదం",
+    "words_other": "{{formatted}} పదాలు",
+    "revision": "రివ్: {{color}}",
+    "page": "పేజీ {{label}}",
+    "pageOf": "పేజీ {{current}} / {{total}}",
+    "pagesLocked": "పేజీలు లాక్ చేయబడ్డాయి",
+    "locked": "(లాక్ చేయబడింది)",
+    "suggesting": {
+      "lockedTitle": "మీరు సూచనలు ఇవ్వడానికి చేరారు: రచయిత మీ సవరణలను ఆమోదిస్తారు లేదా తిరస్కరిస్తారు",
+      "title": "మీ సవరణలు సూచనలు. నేరుగా సవరించడానికి మళ్లీ క్లిక్ చేయండి.",
+      "label": "సూచిస్తున్నారు"
+    }
+  },
+  "resetToDefault": "డిఫాల్ట్‌కు రీసెట్ చేయి",
+  "richText": {
+    "bold": "బోల్డ్",
+    "italic": "ఇటాలిక్",
+    "underline": "అండర్‌లైన్",
+    "bulletList": "బుల్లెట్ జాబితా"
+  },
+  "fontPicker": {
+    "fontFamily": "ఫాంట్ ఫ్యామిలీ",
+    "search": "ఫాంట్‌లను శోధించు…",
+    "searchLabel": "ఫాంట్‌లను శోధించు",
+    "noMatch": "“{{query}}”కు సరిపోలే ఫాంట్ లేదు.",
+    "notInstalledTitle": "{{name}} ఈ డివైస్‌లో ఇన్‌స్టాల్ చేయలేదు — బదులుగా ఇలాంటి ఫాంట్ చూపబడుతోంది",
+    "notInstalled": "ఇన్‌స్టాల్ చేయలేదు",
+    "manage": "ఫాంట్‌లను జోడించు లేదా నిర్వహించు…",
+    "group": {
+      "document": "ఈ డాక్యుమెంట్ నుండి",
+      "custom": "అనుకూల ఫాంట్‌లు",
+      "screenplay": "స్క్రీన్‌ప్లే ప్రమాణం",
+      "typewriter": "టైప్‌రైటర్",
+      "serif": "సెరిఫ్",
+      "sansSerif": "సాన్స్ సెరిఫ్",
+      "monospace": "మోనోస్పేస్",
+      "display": "డిస్‌ప్లే & టైటిళ్లు",
+      "handwriting": "చేతివ్రాత",
+      "latinExtended": "లాటిన్ ఎక్స్‌టెండెడ్",
+      "indic": "భారతీయ / ఇండిక్",
+      "arabicHebrew": "అరబిక్ & హీబ్రూ",
+      "cjk": "CJK",
+      "other": "ఇతరాలు",
+      "device": "ఈ డివైస్‌లో"
+    }
+  },
+  "languageSelector": {
+    "title": "డైలాగ్ భాష"
+  },
+  "toolbar": {
+    "fontSize": "ఫాంట్ పరిమాణం",
+    "pt": "{{size}}pt",
+    "bold": "బోల్డ్ ({{shortcut}})",
+    "italic": "ఇటాలిక్ ({{shortcut}})",
+    "underline": "అండర్‌లైన్ ({{shortcut}})",
+    "strikethrough": "స్ట్రైక్‌త్రూ",
+    "subscript": "సబ్‌స్క్రిప్ట్",
+    "superscript": "సూపర్‌స్క్రిప్ట్",
+    "textColor": "టెక్స్ట్ రంగు",
+    "highlightColor": "హైలైట్ రంగు",
+    "alignLeft": "ఎడమకు సర్దు",
+    "alignCenter": "మధ్యకు సర్దు",
+    "alignRight": "కుడికి సర్దు",
+    "justify": "జస్టిఫై",
+    "findReplace": "వెతుకు & భర్తీ చేయి ({{shortcut}})",
+    "goToPage": "పేజీకి వెళ్లు ({{shortcut}})",
+    "scriptNotes": "స్క్రిప్ట్ నోట్స్",
+    "productionTags": "ప్రొడక్షన్ ట్యాగ్‌లు",
+    "zoomOut": "జూమ్ తగ్గించు",
+    "editZoom": "జూమ్ మార్చడానికి క్లిక్ చేయండి",
+    "zoomIn": "జూమ్ పెంచు",
+    "undo": "అన్‌డూ ({{shortcut}})",
+    "redo": "రీడూ ({{shortcut}})",
+    "addAvRow": "దిగువన AV వరుసను జోడించు (ఆడియో సెల్ నుండి Tab, లేదా {{shortcut}})",
+    "row": "వరుస",
+    "deleteAvRow": "ఈ AV వరుసను తొలగించు",
+    "moreFormatting": "మరిన్ని ఫార్మాటింగ్ ఎంపికలు",
+    "zoom": "జూమ్",
+    "elementType": "ఎలిమెంట్ రకం",
+    "elementTypeTitlePage": "టైటిల్ పేజీ ఎలిమెంట్‌లు టైటిల్ పేజీ ఎడిటర్‌లో సెట్ చేయబడతాయి; వాటి ఫార్మాటింగ్ టెంప్లేట్‌లో ఉంటుంది",
+    "titlePage": "టైటిల్ పేజీ"
+  }
+}

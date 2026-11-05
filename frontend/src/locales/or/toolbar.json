@@ -1,0 +1,107 @@
+{
+  "status": {
+    "save": {
+      "unsaved": "ସେଭ୍ ହୋଇନଥିବା ପରିବର୍ତ୍ତନ",
+      "saving": "ସେଭ୍ ହେଉଛି…",
+      "saved": "ସେଭ୍ ହୋଇଛି",
+      "error": "ସେଭ୍ ବିଫଳ ହେଲା"
+    },
+    "linked": {
+      "notSaved": "ଫାଇଲରେ ସେଭ୍ ହୋଇନାହିଁ",
+      "missing": "ଫାଇଲ୍ ମିଳିଲା ନାହିଁ",
+      "conflict": "OpenDraft ବାହାରେ ବଦଳିଛି",
+      "retryHint": "ପୁଣି ଚେଷ୍ଟା କରିବାକୁ କ୍ଲିକ୍ କରନ୍ତୁ।",
+      "everySave": "ପ୍ରତ୍ୟେକ ସେଭ୍ ସହିତ {{path}} ମଧ୍ୟ ଲେଖାଯାଏ"
+    },
+    "acts_one": "{{count}} ଅଙ୍କ",
+    "acts_other": "{{count}} ଅଙ୍କ",
+    "saveWritesBack": "ସେଭ୍ କଲେ {{name}} ରେ ଲେଖାଯାଏ",
+    "actStructure": "ଅଙ୍କ ଗଠନ",
+    "runtime": {
+      "title": "{{pacing}} ଗତିରେ ଆନୁମାନିକ ଚାଲିବା ସମୟ — ଧରଣ ଓ ଗତି ସ୍ଥିର କରିବାକୁ କ୍ଲିକ୍ କରନ୍ତୁ",
+      "est": "ଆନୁ. {{runtime}}"
+    },
+    "wordsTitle": "ସ୍କ୍ରିପ୍ଟରେ ଶବ୍ଦ",
+    "words_one": "{{formatted}} ଶବ୍ଦ",
+    "words_other": "{{formatted}} ଶବ୍ଦ",
+    "revision": "ସଂଶୋ.: {{color}}",
+    "page": "ପୃଷ୍ଠା {{label}}",
+    "pageOf": "ପୃଷ୍ଠା {{current}} / {{total}}",
+    "pagesLocked": "ପୃଷ୍ଠାଗୁଡ଼ିକ ଲକ୍ ହୋଇଛି",
+    "locked": "(ଲକ୍)",
+    "suggesting": {
+      "lockedTitle": "ଆପଣ ପରାମର୍ଶ ଦେବାକୁ ଯୋଗ ଦେଇଛନ୍ତି: ଲେଖକ ଆପଣଙ୍କ ସମ୍ପାଦନା ଗ୍ରହଣ କିମ୍ବା ପ୍ରତ୍ୟାଖ୍ୟାନ କରିବେ",
+      "title": "ଆପଣଙ୍କ ସମ୍ପାଦନା ପରାମର୍ଶ ଅଟେ। ସିଧାସଳଖ ସମ୍ପାଦନା କରିବାକୁ ପୁଣି କ୍ଲିକ୍ କରନ୍ତୁ।",
+      "label": "ପରାମର୍ଶ ମୋଡ୍"
+    }
+  },
+  "resetToDefault": "ଡିଫଲ୍ଟକୁ ରିସେଟ୍ କରନ୍ତୁ",
+  "richText": {
+    "bold": "ମୋଟା",
+    "italic": "ବଙ୍କା",
+    "underline": "ରେଖାଙ୍କିତ",
+    "bulletList": "ବୁଲେଟ୍ ତାଲିକା"
+  },
+  "fontPicker": {
+    "fontFamily": "ଫଣ୍ଟ ପରିବାର",
+    "search": "ଫଣ୍ଟ ଖୋଜନ୍ତୁ…",
+    "searchLabel": "ଫଣ୍ଟ ଖୋଜନ୍ତୁ",
+    "noMatch": "“{{query}}” ସହ କୌଣସି ଫଣ୍ଟ ମେଳ ଖାଉନାହିଁ।",
+    "notInstalledTitle": "ଏହି ଡିଭାଇସରେ {{name}} ଇନଷ୍ଟଲ୍ ହୋଇନାହିଁ — ତା’ ବଦଳରେ ସମାନ ଏକ ଫଣ୍ଟ ଦେଖାଯାଉଛି",
+    "notInstalled": "ଇନଷ୍ଟଲ୍ ହୋଇନାହିଁ",
+    "manage": "ଫଣ୍ଟ ଯୋଡ଼ନ୍ତୁ କିମ୍ବା ପରିଚାଳନା କରନ୍ତୁ…",
+    "group": {
+      "document": "ଏହି ଡକ୍ୟୁମେଣ୍ଟରୁ",
+      "custom": "କଷ୍ଟମ୍ ଫଣ୍ଟ",
+      "screenplay": "ସ୍କ୍ରିନପ୍ଲେ ମାନକ",
+      "typewriter": "ଟାଇପରାଇଟର୍",
+      "serif": "ସେରିଫ୍",
+      "sansSerif": "ସାନ୍ସ ସେରିଫ୍",
+      "monospace": "ମନୋସ୍ପେସ୍",
+      "display": "ଡିସ୍ପ୍ଲେ ଓ ଶୀର୍ଷକ",
+      "handwriting": "ହସ୍ତଲିପି",
+      "latinExtended": "ଲାଟିନ୍ ଏକ୍ସଟେଣ୍ଡେଡ୍",
+      "indic": "ଭାରତୀୟ / ଇଣ୍ଡିକ୍",
+      "arabicHebrew": "ଆରବୀ ଓ ହିବ୍ରୁ",
+      "cjk": "CJK (ଚୀନା, ଜାପାନୀ, କୋରିଆନ୍)",
+      "other": "ଅନ୍ୟାନ୍ୟ",
+      "device": "ଏହି ଡିଭାଇସରେ"
+    }
+  },
+  "languageSelector": {
+    "title": "ଡାଇଲଗ୍ ଭାଷା"
+  },
+  "toolbar": {
+    "fontSize": "ଫଣ୍ଟ ଆକାର",
+    "pt": "{{size}}pt",
+    "bold": "ମୋଟା ({{shortcut}})",
+    "italic": "ବଙ୍କା ({{shortcut}})",
+    "underline": "ରେଖାଙ୍କିତ ({{shortcut}})",
+    "strikethrough": "କଟା ଲେଖା",
+    "subscript": "ନିମ୍ନ ଲିପି",
+    "superscript": "ଊର୍ଦ୍ଧ୍ୱ ଲିପି",
+    "textColor": "ଲେଖାର ରଙ୍ଗ",
+    "highlightColor": "ହାଇଲାଇଟ୍ ରଙ୍ଗ",
+    "alignLeft": "ବାମକୁ ସଜାଡ଼ନ୍ତୁ",
+    "alignCenter": "ମଝିକୁ ସଜାଡ଼ନ୍ତୁ",
+    "alignRight": "ଡାହାଣକୁ ସଜାଡ଼ନ୍ତୁ",
+    "justify": "ଦୁଇପାଖେ ସମାନ କରନ୍ତୁ",
+    "findReplace": "ଖୋଜନ୍ତୁ ଓ ବଦଳାନ୍ତୁ ({{shortcut}})",
+    "goToPage": "ପୃଷ୍ଠାକୁ ଯାଆନ୍ତୁ ({{shortcut}})",
+    "scriptNotes": "ସ୍କ୍ରିପ୍ଟ ଟିପ୍ପଣୀ",
+    "productionTags": "ପ୍ରୋଡକ୍ସନ୍ ଟ୍ୟାଗ୍",
+    "zoomOut": "ଜୁମ୍ ଆଉଟ୍",
+    "editZoom": "ଜୁମ୍ ବଦଳାଇବାକୁ କ୍ଲିକ୍ କରନ୍ତୁ",
+    "zoomIn": "ଜୁମ୍ ଇନ୍",
+    "undo": "ପୂର୍ବବତ୍ କରନ୍ତୁ ({{shortcut}})",
+    "redo": "ପୁନଃକରନ୍ତୁ ({{shortcut}})",
+    "addAvRow": "ତଳେ AV ଧାଡ଼ି ଯୋଡ଼ନ୍ତୁ (ଅଡିଓ ଘରରୁ Tab, କିମ୍ବା {{shortcut}})",
+    "row": "ଧାଡ଼ି",
+    "deleteAvRow": "ଏହି AV ଧାଡ଼ି ଡିଲିଟ୍ କରନ୍ତୁ",
+    "moreFormatting": "ଅଧିକ ଫର୍ମାଟିଂ ବିକଳ୍ପ",
+    "zoom": "ଜୁମ୍",
+    "elementType": "ଉପାଦାନ ପ୍ରକାର",
+    "elementTypeTitlePage": "ଶୀର୍ଷକ ପୃଷ୍ଠାର ଉପାଦାନ ଶୀର୍ଷକ ପୃଷ୍ଠା ଏଡିଟରରେ ସ୍ଥିର ହୁଏ; ସେମାନଙ୍କ ଫର୍ମାଟିଂ ଟେମ୍ପଲେଟରେ ଥାଏ",
+    "titlePage": "ଶୀର୍ଷକ ପୃଷ୍ଠା"
+  }
+}

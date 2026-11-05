@@ -258,5 +258,65 @@
   "toolbar:fontPicker.group.cjk",
   "tools:goals.sprint.title",
   "tools:sides.modes.sides"
+ ],
+ "hi": [],
+ "ur": [],
+ "mr": [
+  "addons:assistant.settings.addressExamples",
+  "collab:login.emailPlaceholder",
+  "settings:auth.emailPlaceholder",
+  "settings:dictionaryConfig.affPlaceholder",
+  "settings:dictionaryConfig.dicPlaceholder",
+  "story:navigator.intExtFilter",
+  "toolbar:fontPicker.group.cjk"
+ ],
+ "gu": [
+  "addons:assistant.settings.addressExamples",
+  "collab:login.emailPlaceholder",
+  "settings:auth.emailPlaceholder",
+  "settings:dictionaryConfig.affPlaceholder",
+  "settings:dictionaryConfig.dicPlaceholder",
+  "toolbar:fontPicker.group.cjk"
+ ],
+ "te": [
+  "collab:login.emailPlaceholder",
+  "settings:auth.emailPlaceholder",
+  "story:navigator.intExtFilter",
+  "toolbar:fontPicker.group.cjk"
+ ],
+ "ta": [],
+ "pa": [
+  "addons:assistant.settings.addressExamples",
+  "collab:login.emailPlaceholder",
+  "messages:reports.locations.columns.intExt",
+  "messages:reports.scenes.columns.intExt",
+  "settings:auth.emailPlaceholder",
+  "settings:dictionaryConfig.affPlaceholder",
+  "settings:dictionaryConfig.dicPlaceholder",
+  "story:navigator.intExtFilter",
+  "toolbar:fontPicker.group.cjk"
+ ],
+ "ml": [
+  "addons:assistant.settings.addressExamples",
+  "collab:login.emailPlaceholder",
+  "settings:auth.emailPlaceholder",
+  "settings:dictionaryConfig.affPlaceholder",
+  "settings:dictionaryConfig.dicPlaceholder",
+  "story:navigator.intExtFilter",
+  "toolbar:fontPicker.group.cjk"
+ ],
+ "kn": [
+  "addons:assistant.settings.addressExamples",
+  "collab:login.emailPlaceholder",
+  "settings:auth.emailPlaceholder",
+  "settings:dictionaryConfig.affPlaceholder",
+  "settings:dictionaryConfig.dicPlaceholder",
+  "story:navigator.intExtFilter",
+  "toolbar:fontPicker.group.cjk"
+ ],
+ "bn": [],
+ "or": [
+  "collab:login.emailPlaceholder",
+  "settings:auth.emailPlaceholder"
  ]
 }

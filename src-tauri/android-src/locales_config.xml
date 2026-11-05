@@ -13,4 +13,15 @@
     <locale android:name="pt-BR" />
     <locale android:name="ru" />
     <locale android:name="tr" />
+    <locale android:name="bn" />
+    <locale android:name="gu" />
+    <locale android:name="hi" />
+    <locale android:name="kn" />
+    <locale android:name="ml" />
+    <locale android:name="mr" />
+    <locale android:name="or" />
+    <locale android:name="pa" />
+    <locale android:name="ta" />
+    <locale android:name="te" />
+    <locale android:name="ur" />
 </locale-config>

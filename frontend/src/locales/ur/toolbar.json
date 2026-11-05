@@ -1,0 +1,107 @@
+{
+  "status": {
+    "save": {
+      "unsaved": "غیر محفوظ تبدیلیاں",
+      "saving": "محفوظ ہو رہا ہے…",
+      "saved": "محفوظ ہو گیا",
+      "error": "محفوظ کرنا ناکام ہوا"
+    },
+    "linked": {
+      "notSaved": "فائل میں محفوظ نہیں ہوا",
+      "missing": "فائل نہیں ملی",
+      "conflict": "OpenDraft کے باہر تبدیل ہو گئی",
+      "retryHint": "دوبارہ کوشش کے لیے کلک کریں۔",
+      "everySave": "ہر بار محفوظ کرنے پر {{path}} بھی لکھا جاتا ہے"
+    },
+    "acts_one": "{{count}} ایکٹ",
+    "acts_other": "{{count}} ایکٹ",
+    "saveWritesBack": "محفوظ کرنے پر {{name}} میں بھی لکھا جاتا ہے",
+    "actStructure": "ایکٹ کی ساخت",
+    "runtime": {
+      "title": "{{pacing}} رفتار پر متوقع دورانیہ — صنف اور رفتار طے کرنے کے لیے کلک کریں",
+      "est": "تقریباً {{runtime}}"
+    },
+    "wordsTitle": "اسکرپٹ میں الفاظ",
+    "words_one": "{{formatted}} لفظ",
+    "words_other": "{{formatted}} الفاظ",
+    "revision": "ریوژن: {{color}}",
+    "page": "صفحہ {{label}}",
+    "pageOf": "صفحہ {{current}} از {{total}}",
+    "pagesLocked": "صفحات مقفل ہیں",
+    "locked": "(مقفل)",
+    "suggesting": {
+      "lockedTitle": "آپ تجاویز دینے کے لیے شامل ہوئے ہیں: مصنف آپ کی ترامیم قبول یا مسترد کرتا ہے",
+      "title": "آپ کی ترامیم تجاویز ہیں۔ دوبارہ براہِ راست ترمیم کے لیے کلک کریں۔",
+      "label": "تجویز دے رہے ہیں"
+    }
+  },
+  "resetToDefault": "ڈیفالٹ پر واپس لائیں",
+  "richText": {
+    "bold": "بولڈ",
+    "italic": "ترچھا",
+    "underline": "انڈر لائن",
+    "bulletList": "نقطے والی فہرست"
+  },
+  "fontPicker": {
+    "fontFamily": "فونٹ فیملی",
+    "search": "فونٹ تلاش کریں…",
+    "searchLabel": "فونٹ تلاش کریں",
+    "noMatch": "“{{query}}” سے مطابقت رکھنے والا کوئی فونٹ نہیں۔",
+    "notInstalledTitle": "{{name}} اس ڈیوائس پر انسٹال نہیں ہے — اس کی جگہ ملتا جلتا فونٹ دکھایا گیا ہے",
+    "notInstalled": "انسٹال نہیں",
+    "manage": "فونٹ شامل یا منظم کریں…",
+    "group": {
+      "document": "اس دستاویز سے",
+      "custom": "حسبِ ضرورت فونٹ",
+      "screenplay": "اسکرین پلے کا معیار",
+      "typewriter": "ٹائپ رائٹر",
+      "serif": "سیرف",
+      "sansSerif": "سینز سیرف",
+      "monospace": "مونو اسپیس",
+      "display": "ڈسپلے اور عنوانات",
+      "handwriting": "ہاتھ کی تحریر",
+      "latinExtended": "لاطینی توسیعی",
+      "indic": "ہندوستانی / انڈک",
+      "arabicHebrew": "عربی اور عبرانی",
+      "cjk": "چینی، جاپانی اور کوریائی",
+      "other": "دیگر",
+      "device": "اس ڈیوائس پر"
+    }
+  },
+  "languageSelector": {
+    "title": "ڈائیلاگ کی زبان"
+  },
+  "toolbar": {
+    "fontSize": "فونٹ سائز",
+    "pt": "{{size}} پوائنٹ",
+    "bold": "بولڈ ({{shortcut}})",
+    "italic": "ترچھا ({{shortcut}})",
+    "underline": "انڈر لائن ({{shortcut}})",
+    "strikethrough": "لفظ پر لکیر",
+    "subscript": "زیرِ حرف",
+    "superscript": "بالائے حرف",
+    "textColor": "متن کا رنگ",
+    "highlightColor": "ہائی لائٹ کا رنگ",
+    "alignLeft": "بائیں سیدھ",
+    "alignCenter": "درمیان میں",
+    "alignRight": "دائیں سیدھ",
+    "justify": "دونوں طرف برابر",
+    "findReplace": "تلاش اور تبدیلی ({{shortcut}})",
+    "goToPage": "صفحے پر جائیں ({{shortcut}})",
+    "scriptNotes": "اسکرپٹ نوٹس",
+    "productionTags": "پروڈکشن ٹیگز",
+    "zoomOut": "زوم کم کریں",
+    "editZoom": "زوم تبدیل کرنے کے لیے کلک کریں",
+    "zoomIn": "زوم بڑھائیں",
+    "undo": "کالعدم کریں ({{shortcut}})",
+    "redo": "دوبارہ کریں ({{shortcut}})",
+    "addAvRow": "نیچے AV قطار شامل کریں (آڈیو سیل سے Tab، یا {{shortcut}})",
+    "row": "قطار",
+    "deleteAvRow": "یہ AV قطار حذف کریں",
+    "moreFormatting": "فارمیٹنگ کے مزید اختیارات",
+    "zoom": "زوم",
+    "elementType": "عنصر کی قسم",
+    "elementTypeTitlePage": "ٹائٹل پیج کے عناصر ٹائٹل پیج ایڈیٹر میں طے ہوتے ہیں؛ ان کی فارمیٹنگ ٹیمپلیٹ میں ہے",
+    "titlePage": "ٹائٹل پیج"
+  }
+}

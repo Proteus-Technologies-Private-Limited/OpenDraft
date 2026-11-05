@@ -15,7 +15,11 @@ describe('buildLanguageOptions', () => {
 
   it('lists every shipped language by its own name, with lang and dir', () => {
     const opts = buildLanguageOptions((n) => n, ['en']).slice(1);
-    expect(opts.map((o) => o.value)).toEqual(LANGUAGES.map((l) => l.code));
+    // Every language, English first and then A-Z by English name, so 19 are easy to scan.
+    expect(opts.map((o) => o.value).sort()).toEqual(LANGUAGES.map((l) => l.code).sort());
+    const english = LANGUAGES.filter((l) => l.code !== 'en').map((l) => l.englishName);
+    expect(opts[0].value).toBe('en');
+    expect(opts.slice(1).map((o) => LANGUAGES.find((l) => l.code === o.value)?.englishName)).toEqual([...english].sort());
     const ar = opts.find((o) => o.value === 'ar');
     expect(ar).toMatchObject({ label: 'العربية', lang: 'ar', dir: 'rtl' });
     const es = opts.find((o) => o.value === 'es');

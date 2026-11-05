@@ -200,6 +200,226 @@ static FA: Labels = Labels {
     close_window: "بستن پنجره",
 };
 
+static HI: Labels = Labels {
+    about: "OpenDraft के बारे में",
+    services: "सेवाएँ",
+    hide: "OpenDraft छिपाएँ",
+    hide_others: "अन्य छिपाएँ",
+    show_all: "सभी दिखाएँ",
+    quit: "OpenDraft छोड़ें",
+    edit: "संपादित करें",
+    undo: "पहले जैसा करें",
+    redo: "फिर से करें",
+    cut: "कट करें",
+    copy: "कॉपी करें",
+    paste: "पेस्ट करें",
+    select_all: "सभी चुनें",
+    window: "विंडो",
+    minimize: "छोटा करें",
+    zoom: "ज़ूम",
+    close_window: "विंडो बंद करें",
+};
+
+static UR: Labels = Labels {
+    about: "OpenDraft کے بارے میں",
+    services: "سروسز",
+    hide: "OpenDraft چھپائیں",
+    hide_others: "دوسروں کو چھپائیں",
+    show_all: "سب دکھائیں",
+    quit: "OpenDraft بند کریں",
+    edit: "ترمیم",
+    undo: "کالعدم کریں",
+    redo: "دوبارہ کریں",
+    cut: "کاٹیں",
+    copy: "کاپی کریں",
+    paste: "چسپاں کریں",
+    select_all: "سب منتخب کریں",
+    window: "ونڈو",
+    minimize: "چھوٹا کریں",
+    zoom: "زوم",
+    close_window: "ونڈو بند کریں",
+};
+
+static MR: Labels = Labels {
+    about: "OpenDraft बद्दल",
+    services: "सेवा",
+    hide: "OpenDraft लपवा",
+    hide_others: "इतर लपवा",
+    show_all: "सर्व दाखवा",
+    quit: "OpenDraft बंद करा",
+    edit: "संपादन",
+    undo: "पूर्ववत करा",
+    redo: "पुन्हा करा",
+    cut: "कट करा",
+    copy: "कॉपी करा",
+    paste: "पेस्ट करा",
+    select_all: "सर्व निवडा",
+    window: "विंडो",
+    minimize: "लहान करा",
+    zoom: "झूम",
+    close_window: "विंडो बंद करा",
+};
+
+static GU: Labels = Labels {
+    about: "OpenDraft વિશે",
+    services: "સેવાઓ",
+    hide: "OpenDraft છુપાવો",
+    hide_others: "અન્ય છુપાવો",
+    show_all: "બધું બતાવો",
+    quit: "OpenDraft છોડો",
+    edit: "સંપાદન",
+    undo: "પૂર્વવત્ કરો",
+    redo: "ફરી કરો",
+    cut: "કાપો",
+    copy: "કૉપિ કરો",
+    paste: "પેસ્ટ કરો",
+    select_all: "બધું પસંદ કરો",
+    window: "વિન્ડો",
+    minimize: "નાનું કરો",
+    zoom: "ઝૂમ",
+    close_window: "વિન્ડો બંધ કરો",
+};
+
+static TE: Labels = Labels {
+    about: "OpenDraft గురించి",
+    services: "సేవలు",
+    hide: "OpenDraft దాచు",
+    hide_others: "ఇతరాలను దాచు",
+    show_all: "అన్నీ చూపు",
+    quit: "OpenDraft నుండి నిష్క్రమించు",
+    edit: "సవరించు",
+    undo: "రద్దు చేయి",
+    redo: "మళ్ళీ చేయి",
+    cut: "కత్తిరించు",
+    copy: "కాపీ చేయి",
+    paste: "అతికించు",
+    select_all: "అన్నీ ఎంచుకో",
+    window: "విండో",
+    minimize: "కుదించు",
+    zoom: "జూమ్",
+    close_window: "విండోను మూసివేయి",
+};
+
+static TA: Labels = Labels {
+    about: "OpenDraft பற்றி",
+    services: "சேவைகள்",
+    hide: "OpenDraft ஐ மறை",
+    hide_others: "மற்றவற்றை மறை",
+    show_all: "அனைத்தையும் காட்டு",
+    quit: "OpenDraft ஐ விட்டு வெளியேறு",
+    edit: "திருத்து",
+    undo: "செயல்தவிர்",
+    redo: "மீண்டும் செய்",
+    cut: "வெட்டு",
+    copy: "நகலெடு",
+    paste: "ஒட்டு",
+    select_all: "அனைத்தையும் தேர்ந்தெடு",
+    window: "சாளரம்",
+    minimize: "சிறிதாக்கு",
+    zoom: "பெரிதாக்கு",
+    close_window: "சாளரத்தை மூடு",
+};
+
+static OR: Labels = Labels {
+    about: "OpenDraft ବିଷୟରେ",
+    services: "ସେବାଗୁଡ଼ିକ",
+    hide: "OpenDraft ଲୁଚାନ୍ତୁ",
+    hide_others: "ଅନ୍ୟମାନଙ୍କୁ ଲୁଚାନ୍ତୁ",
+    show_all: "ସବୁ ଦେଖାନ୍ତୁ",
+    quit: "OpenDraft ବନ୍ଦ କରନ୍ତୁ",
+    edit: "ସମ୍ପାଦନ",
+    undo: "ପୂର୍ବବତ୍ କରନ୍ତୁ",
+    redo: "ପୁନଃ କରନ୍ତୁ",
+    cut: "କାଟନ୍ତୁ",
+    copy: "କପି କରନ୍ତୁ",
+    paste: "ଲଗାନ୍ତୁ",
+    select_all: "ସବୁ ବାଛନ୍ତୁ",
+    window: "ୱିଣ୍ଡୋ",
+    minimize: "ଛୋଟ କରନ୍ତୁ",
+    zoom: "ଜୁମ୍",
+    close_window: "ୱିଣ୍ଡୋ ବନ୍ଦ କରନ୍ତୁ",
+};
+
+static PA: Labels = Labels {
+    about: "OpenDraft ਬਾਰੇ",
+    services: "ਸੇਵਾਵਾਂ",
+    hide: "OpenDraft ਲੁਕਾਓ",
+    hide_others: "ਹੋਰ ਲੁਕਾਓ",
+    show_all: "ਸਭ ਦਿਖਾਓ",
+    quit: "OpenDraft ਬੰਦ ਕਰੋ",
+    edit: "ਸੋਧ",
+    undo: "ਅਣਕੀਤਾ ਕਰੋ",
+    redo: "ਮੁੜ ਕਰੋ",
+    cut: "ਕੱਟੋ",
+    copy: "ਕਾਪੀ ਕਰੋ",
+    paste: "ਪੇਸਟ ਕਰੋ",
+    select_all: "ਸਭ ਚੁਣੋ",
+    window: "ਵਿੰਡੋ",
+    minimize: "ਛੋਟਾ ਕਰੋ",
+    zoom: "ਜ਼ੂਮ",
+    close_window: "ਵਿੰਡੋ ਬੰਦ ਕਰੋ",
+};
+
+static ML: Labels = Labels {
+    about: "OpenDraft നെക്കുറിച്ച്",
+    services: "സേവനങ്ങൾ",
+    hide: "OpenDraft മറയ്ക്കുക",
+    hide_others: "മറ്റുള്ളവ മറയ്ക്കുക",
+    show_all: "എല്ലാം കാണിക്കുക",
+    quit: "OpenDraft ക്വിറ്റ് ചെയ്യുക",
+    edit: "എഡിറ്റ്",
+    undo: "പൂർവസ്ഥിതിയിലാക്കുക",
+    redo: "വീണ്ടും ചെയ്യുക",
+    cut: "മുറിക്കുക",
+    copy: "പകർത്തുക",
+    paste: "ഒട്ടിക്കുക",
+    select_all: "എല്ലാം തിരഞ്ഞെടുക്കുക",
+    window: "വിൻഡോ",
+    minimize: "ചെറുതാക്കുക",
+    zoom: "സൂം",
+    close_window: "വിൻഡോ അടയ്ക്കുക",
+};
+
+static KN: Labels = Labels {
+    about: "OpenDraft ಕುರಿತು",
+    services: "ಸೇವೆಗಳು",
+    hide: "OpenDraft ಮರೆಮಾಡಿ",
+    hide_others: "ಇತರವನ್ನು ಮರೆಮಾಡಿ",
+    show_all: "ಎಲ್ಲವನ್ನೂ ತೋರಿಸಿ",
+    quit: "OpenDraft ನಿಂದ ನಿರ್ಗಮಿಸಿ",
+    edit: "ಸಂಪಾದಿಸಿ",
+    undo: "ರದ್ದುಮಾಡಿ",
+    redo: "ಮತ್ತೆ ಮಾಡಿ",
+    cut: "ಕತ್ತರಿಸಿ",
+    copy: "ನಕಲಿಸಿ",
+    paste: "ಅಂಟಿಸಿ",
+    select_all: "ಎಲ್ಲವನ್ನೂ ಆಯ್ಕೆಮಾಡಿ",
+    window: "ವಿಂಡೋ",
+    minimize: "ಕಿರಿದಾಗಿಸಿ",
+    zoom: "ಜೂಮ್",
+    close_window: "ವಿಂಡೋ ಮುಚ್ಚಿ",
+};
+
+static BN: Labels = Labels {
+    about: "OpenDraft সম্পর্কে",
+    services: "সার্ভিস",
+    hide: "OpenDraft লুকান",
+    hide_others: "অন্যগুলি লুকান",
+    show_all: "সব দেখান",
+    quit: "OpenDraft ছাড়ুন",
+    edit: "সম্পাদনা",
+    undo: "পূর্বাবস্থায় ফেরান",
+    redo: "পুনরায় করুন",
+    cut: "কাট",
+    copy: "কপি",
+    paste: "পেস্ট",
+    select_all: "সব নির্বাচন করুন",
+    window: "উইন্ডো",
+    minimize: "ছোট করুন",
+    zoom: "জুম",
+    close_window: "উইন্ডো বন্ধ করুন",
+};
+
 /// The labels for a language code (`es`, `pt`, …). Unknown codes — and English —
 /// get the English set.
 pub fn labels_for(lang: &str) -> &'static Labels {
@@ -211,6 +431,17 @@ pub fn labels_for(lang: &str) -> &'static Labels {
         "tr" => &TR,
         "ar" => &AR,
         "fa" => &FA,
+        "hi" => &HI,
+        "ur" => &UR,
+        "mr" => &MR,
+        "gu" => &GU,
+        "te" => &TE,
+        "ta" => &TA,
+        "or" => &OR,
+        "pa" => &PA,
+        "ml" => &ML,
+        "kn" => &KN,
+        "bn" => &BN,
         _ => &EN,
     }
 }
@@ -317,7 +548,9 @@ pub use mac::{build, window_items};
 mod tests {
     use super::*;
 
-    const SHIPPED: [&str; 7] = ["es", "fr", "pt", "ru", "tr", "ar", "fa"];
+    const SHIPPED: [&str; 18] = [
+        "es", "fr", "pt", "ru", "tr", "ar", "fa", "hi", "ur", "mr", "gu", "te", "ta", "or", "pa", "ml", "kn", "bn",
+    ];
 
     fn all(l: &Labels) -> Vec<&'static str> {
         vec![
