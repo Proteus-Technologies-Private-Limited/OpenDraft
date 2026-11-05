@@ -68,6 +68,7 @@ import MenuBar from './MenuBar';
 import Toolbar from './Toolbar';
 import SceneNavigator from './SceneNavigator';
 import IndexCards from './IndexCards';
+import StoryMap from './StoryMap';
 import BeatBoard from './BeatBoard';
 import OutlineView from './OutlineView';
 import ScriptStatistics from './ScriptStatistics';
@@ -549,7 +550,8 @@ const ScreenplayEditor: React.FC = () => {
     setActiveElement, setScenes, setPageCount, setCurrentPage,
     zoomLevel, setZoomLevel, fontFamily, fontSize, pageLayout, tagsVisible, notesVisible,
     viewLayout,
-    beatBoardOpen, statisticsOpen,
+    beatBoardOpen, statisticsOpen, indexCardsOpen,
+    storyMapOpen, toggleStoryMap,
     outlineOpen,
     navigatorOpen, toggleNavigator, scriptNotesOpen, toggleScriptNotes,
     characterProfilesOpen, tagsPanelOpen, locationDatabaseOpen, dialogueTunerOpen,
@@ -5685,13 +5687,14 @@ const ScreenplayEditor: React.FC = () => {
           <div className="panel-resize-handle" onPointerDown={(e) => handleResizePointerDown('left', e)} style={{ touchAction: 'none' }} />
         )}
         <div className="editor-center">
-          {!isHistoryMode && <IndexCards editor={editor} scrollContainer={editorMainRef.current} />}
           {!isHistoryMode && outlineOpen && editor ? (
             <OutlineView editor={editor} />
           ) : !isHistoryMode && statisticsOpen && editor ? (
             <ScriptStatistics editor={editor} />
           ) : !isHistoryMode && beatBoardOpen ? (
             <BeatBoard editor={editor} />
+          ) : !isHistoryMode && indexCardsOpen && editor ? (
+            <IndexCards editor={editor} />
           ) : (
             <div className={`editor-main${phoneView ? ' phone-layout' : ''}`} ref={editorMainRef} onDragOver={handleEditorDragOver} onDragLeave={handleEditorDragLeave} onDrop={handleEditorDrop}>
               <div
@@ -5912,6 +5915,11 @@ const ScreenplayEditor: React.FC = () => {
               </div>
               </div>
             </div>
+          )}
+          {/* The scenes as one strip under the script; the same component is
+              the timeline inside the Index Cards view. */}
+          {!isHistoryMode && storyMapOpen && editor && !outlineOpen && !statisticsOpen && !beatBoardOpen && (
+            <StoryMap editor={editor} onRequestClose={toggleStoryMap} scrollContainer={editorMainRef.current} />
           )}
           {/* Table Read docks over the bottom of the script it is reading. */}
           {storyTimelineOpen && editor && (

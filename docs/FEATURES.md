@@ -23,7 +23,7 @@ A complete list of features in OpenDraft.
 
 ## Story Planning
 
-- **Beat Board & Index Cards** -- Visual story planning with drag-and-drop scene organization
+- **Beat Board & Index Cards** -- Visual story planning with drag-and-drop scene organization; Index Cards opens as a view that fills the writing area, with a page-or-time scene timeline under the cards
 - **Plotlines & Story Timeline** -- Name the story's threads, put scenes and beats in them, and see every plotline across the script by screen time
 - **Beats Linked to Scenes** -- Link a Beat Board beat to the scenes that carry it and jump straight to them; linked beats show on the Story Timeline
 - **Character Profiles** -- Track characters with role types, highlight colors, and rich descriptions
