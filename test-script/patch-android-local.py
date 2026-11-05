@@ -15,6 +15,8 @@ a local build does not, so a locally-built APK is missing:
     undeclared activity cannot be started at all
   - the TTS_SERVICE <queries> entry, without which Android 11+ hides every
     text-to-speech engine and Table Read finds no voices (issue #131)
+  - locales_config.xml + android:localeConfig, so Android 13+ lists the app's
+    languages in its per-app language setting
 
 Run this after `tauri android init` and before `tauri android build`. It is
 idempotent — patching an already-patched manifest changes nothing.
@@ -48,6 +50,8 @@ def copy_sources() -> None:
     xml_dir.mkdir(parents=True, exist_ok=True)
     shutil.copy(SRC / "file_paths.xml", xml_dir / "file_paths.xml")
     print("copied file_paths.xml")
+    shutil.copy(SRC / "locales_config.xml", xml_dir / "locales_config.xml")
+    print("copied locales_config.xml")
 
 
 TTS_QUERY = (
@@ -72,6 +76,20 @@ def patch_tts_query() -> None:
         sys.exit("<application> not found in the manifest — cannot add the TTS query")
     MANIFEST.write_text(content)
     print("manifest patched with the TTS_SERVICE query")
+
+
+def patch_locale_config() -> None:
+    content = MANIFEST.read_text()
+    if "android:localeConfig" in content:
+        print("manifest already declares localeConfig — nothing to do")
+        return
+    if "<application" not in content:
+        sys.exit("<application> not found in the manifest — cannot add localeConfig")
+    content = content.replace(
+        "<application", '<application android:localeConfig="@xml/locales_config"', 1
+    )
+    MANIFEST.write_text(content)
+    print("manifest patched with android:localeConfig")
 
 
 def patch_manifest() -> None:
@@ -126,3 +144,4 @@ if __name__ == "__main__":
     copy_sources()
     patch_manifest()
     patch_tts_query()
+    patch_locale_config()

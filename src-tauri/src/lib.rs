@@ -1,6 +1,8 @@
 mod safe_file;
 use std::sync::Mutex;
 
+/// The macOS menu bar's words, per interface language.
+mod native_menu;
 /// Platform text-to-speech for Table Read (issue #131).
 mod tts;
 mod dictation;
@@ -2500,6 +2502,24 @@ async fn set_window_title(window: tauri::WebviewWindow, title: String) -> Result
     Ok(())
 }
 
+/// Put the macOS menu bar (App / Edit / Window) into the interface language.
+/// Called by the frontend at start-up and whenever the language changes. A
+/// no-op on every other platform, which has no native menu bar.
+#[tauri::command]
+fn set_native_menu_language(app: tauri::AppHandle, lang: String) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        native_menu::set_language(&lang);
+        let menu = native_menu::build(&app).map_err(|e| format!("{}", e))?;
+        app.set_menu(menu.clone()).map_err(|e| format!("{}", e))?;
+        // The rebuilt menu has no list of open windows yet.
+        rebuild_window_menu(&app, &menu);
+    }
+    #[cfg(not(target_os = "macos"))]
+    { let _ = (app, lang); }
+    Ok(())
+}
+
 /// Open a URL in the user's default browser.
 #[tauri::command]
 fn open_url(url: String) -> Result<(), String> {
@@ -2540,12 +2560,13 @@ fn rebuild_window_menu(app: &tauri::AppHandle, _menu: &Menu<tauri::Wry>) {
     #[cfg(target_os = "macos")]
     {
         // Build a fresh Window submenu with standard items + window list
-        let mut items: Vec<Box<dyn tauri::menu::IsMenuItem<tauri::Wry>>> = vec![
-            Box::new(PredefinedMenuItem::minimize(app, None).unwrap()),
-            Box::new(PredefinedMenuItem::maximize(app, None).unwrap()),
-            Box::new(PredefinedMenuItem::separator(app).unwrap()),
-            Box::new(PredefinedMenuItem::close_window(app, None).unwrap()),
-        ];
+        let mut items: Vec<Box<dyn tauri::menu::IsMenuItem<tauri::Wry>>> = match native_menu::window_items(app) {
+            Ok(items) => items,
+            Err(e) => {
+                eprintln!("[menu] could not build the Window menu: {e}");
+                return;
+            }
+        };
 
         // Add all open windows
         let windows = app.webview_windows();
@@ -2570,14 +2591,14 @@ fn rebuild_window_menu(app: &tauri::AppHandle, _menu: &Menu<tauri::Wry>) {
             .map(|b| b.as_ref())
             .collect();
 
-        if let Ok(new_window_sub) = Submenu::with_items(app, "Window", true, &item_refs) {
+        if let Ok(new_window_sub) = Submenu::with_id_and_items(app, native_menu::WINDOW_MENU_ID, native_menu::current().window, true, &item_refs) {
             // Replace the Window submenu in the app menu
             if let Some(menu) = app.menu() {
                 // Remove old Window submenu and append new one
                 if let Ok(menu_items) = menu.items() {
                     for item in &menu_items {
                         if let tauri::menu::MenuItemKind::Submenu(sub) = item {
-                            if sub.text().unwrap_or_default() == "Window" {
+                            if sub.id().as_ref() == native_menu::WINDOW_MENU_ID {
                                 let _ = menu.remove(item);
                                 break;
                             }
@@ -3005,6 +3026,7 @@ pub fn run() {
             list_windows,
             focus_window,
             set_window_title,
+            set_native_menu_language,
             open_url,
             dictation::dictation_native_start,
             dictation::dictation_native_stop,
@@ -3027,48 +3049,10 @@ pub fn run() {
         let builder = builder.menu(|app_handle| {
             #[cfg(target_os = "macos")]
             {
-                let app_submenu = Submenu::with_items(
-                    app_handle,
-                    "OpenDraft",
-                    true,
-                    &[
-                        &PredefinedMenuItem::about(app_handle, Some("About OpenDraft"), None)?,
-                        &PredefinedMenuItem::separator(app_handle)?,
-                        &PredefinedMenuItem::services(app_handle, None)?,
-                        &PredefinedMenuItem::separator(app_handle)?,
-                        &PredefinedMenuItem::hide(app_handle, None)?,
-                        &PredefinedMenuItem::hide_others(app_handle, None)?,
-                        &PredefinedMenuItem::show_all(app_handle, None)?,
-                        &PredefinedMenuItem::separator(app_handle)?,
-                        &PredefinedMenuItem::quit(app_handle, None)?,
-                    ],
-                )?;
-                let edit_submenu = Submenu::with_items(
-                    app_handle,
-                    "Edit",
-                    true,
-                    &[
-                        &PredefinedMenuItem::undo(app_handle, None)?,
-                        &PredefinedMenuItem::redo(app_handle, None)?,
-                        &PredefinedMenuItem::separator(app_handle)?,
-                        &PredefinedMenuItem::cut(app_handle, None)?,
-                        &PredefinedMenuItem::copy(app_handle, None)?,
-                        &PredefinedMenuItem::paste(app_handle, None)?,
-                        &PredefinedMenuItem::select_all(app_handle, None)?,
-                    ],
-                )?;
-                let window_submenu = Submenu::with_items(
-                    app_handle,
-                    "Window",
-                    true,
-                    &[
-                        &PredefinedMenuItem::minimize(app_handle, None)?,
-                        &PredefinedMenuItem::maximize(app_handle, None)?,
-                        &PredefinedMenuItem::separator(app_handle)?,
-                        &PredefinedMenuItem::close_window(app_handle, None)?,
-                    ],
-                )?;
-                Menu::with_items(app_handle, &[&app_submenu, &edit_submenu, &window_submenu])
+                // App, Edit and Window — in the writer's language once the
+                // frontend has said which (set_native_menu_language), English
+                // until then. See native_menu.rs.
+                native_menu::build(app_handle)
             }
             #[cfg(not(target_os = "macos"))]
             {

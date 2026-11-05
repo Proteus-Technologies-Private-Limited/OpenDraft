@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The languages OpenDraft is translated into. Android 13+ lists exactly these
+  under Settings > Apps > OpenDraft > Language. Keep in step with LANGUAGES in
+  frontend/src/i18n/languages.ts (frontend/src/i18n/native.test.ts checks it).
+-->
+<locale-config xmlns:android="http://schemas.android.com/apk/res/android">
+    <locale android:name="en" />
+    <locale android:name="ar" />
+    <locale android:name="es" />
+    <locale android:name="fa" />
+    <locale android:name="fr" />
+    <locale android:name="pt-BR" />
+    <locale android:name="ru" />
+    <locale android:name="tr" />
+</locale-config>

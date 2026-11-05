@@ -497,6 +497,11 @@ jobs:
           cp src-tauri/android-src/file_paths.xml "$XML_DIR/file_paths.xml"
           echo "file_paths.xml copied to $XML_DIR"
 
+          # The languages the app is translated into, for Android 13+'s
+          # per-app language setting (the manifest points at it below).
+          cp src-tauri/android-src/locales_config.xml "$XML_DIR/locales_config.xml"
+          echo "locales_config.xml copied to $XML_DIR"
+
           # ProGuard keep rules for JNI-called classes (R8 can't trace JNI reflection)
           cp src-tauri/android-src/jni-keep-rules.pro src-tauri/gen/android/app/jni-keep-rules.pro
           echo "JNI ProGuard rules copied"
@@ -634,11 +639,28 @@ jobs:
                   )
               print("Android manifest patched with the TTS_SERVICE query")
 
+          # ── Per-app language (Android 13+) ───────────────────────────────
+          # Points the app at res/xml/locales_config.xml, so the system lists
+          # OpenDraft's languages in its own language settings.
+          if "android:localeConfig" not in content:
+              if "<application" not in content:
+                  sys.exit(
+                      "::error::No <application> in the generated AndroidManifest.xml — "
+                      "the per-app language list cannot be declared. The Tauri "
+                      "template has changed shape; update this patch."
+                  )
+              content = content.replace(
+                  "<application", '<application android:localeConfig="@xml/locales_config"', 1
+              )
+              print("Android manifest patched with android:localeConfig")
+
           with open(manifest_path, "w") as f:
               f.write(content)
 
           # Read back what was written rather than trusting the replaces above.
           written = open(manifest_path).read()
+          if 'android:localeConfig="@xml/locales_config"' not in written:
+              sys.exit("::error::android:localeConfig missing from the patched manifest.")
           missing = [n for n in (1, 2, 3) if 'android:name=".WindowActivity%d"' % n not in written]
           if missing:
               sys.exit(
