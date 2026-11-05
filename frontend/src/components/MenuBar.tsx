@@ -4150,12 +4150,12 @@ const MenuBar: React.FC<MenuBarProps> = ({
           <div className="dialog-body about-body">
             <div className="about-title">Open Draft</div>{/* i18n-ignore: product name */}
             {/* i18n-ignore: release.sh rewrites these two literals each release */}
-            <div className="about-version">Version 2.9.0</div>
+            <div className="about-version">Version 2.10.0</div>
             <div className="about-tagline">{t('menu:about.tagline')}</div>
 
             <div className="about-whats-new">
               {/* i18n-ignore: release.sh rewrites this literal each release */}
-              <div className="about-section-title">What's New in 2.9.0</div>
+              <div className="about-section-title">What's New in 2.10.0</div>
               <div className="about-changelog">
               {/* i18n-ignore-start: release notes stay English in phase 1 */}
               <div className="about-subsection-title">v2.10.0</div>
