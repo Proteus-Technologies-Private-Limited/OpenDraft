@@ -1,22 +1,13 @@
-See your whole story at a glance, print just the scenes you need, and write by voice.
+Write in your own language. OpenDraft's menus, dialogs and settings now speak 18 languages.
 
-THE OUTLINE
-See your acts, sequences and scenes in one list, with each scene's length. Move scenes around and group them into sequences.
+NEW LANGUAGES
+Spanish, French, Brazilian Portuguese, Russian, Turkish, Arabic, Persian, Hindi, Urdu, Marathi, Gujarati, Telugu, Tamil, Odia, Punjabi, Malayalam, Kannada and Bengali.
 
-PRINT ONLY THE SCENES YOU NEED
-Export a range of scenes, or pick any you like, and choose the title page, page numbers, scene numbers and a watermark for that copy.
+PICK YOURS IN SECONDS
+OpenDraft follows your device's language. To change it, open Settings > Language and tap your language, shown in its own name.
 
-DICTATION
-Speak your scene, check the words, then add them to your script. Simple voice commands start a new scene or a character's line. It's off until you turn it on.
+RIGHT TO LEFT
+Arabic, Persian and Urdu flip the whole app to read from right to left. Your script keeps the format's layout, and nothing in your scripts or exports changes when you switch language.
 
-FASTER TYPING
-Character names, locations and transitions you've already used are offered as you type.
-
-SEE WHAT CHANGED BETWEEN DRAFTS
-Comparing drafts now shows rewritten lines word by word, and which lines moved to another scene.
-
-YOUR OWN SCRIPT FORMATS, EVERYWHERE
-A script keeps its custom format when you open it on another device or share it with a co-writer.
-
-ALSO NEW
-Suggest bold, italic and other styling for a co-writer to accept. Line numbers can be locked for a recording or shooting script. Long speeches continue neatly onto the next page. The status bar shows your total word count. Delete a script right from the File menu. PDFs in Tamil, Hindi and other Indian languages now print exactly as typed.
+TELL US WHAT TO IMPROVE
+These translations were made with AI and are still being reviewed by native speakers. If a word could be better, we want to hear it.

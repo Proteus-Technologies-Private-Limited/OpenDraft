@@ -4158,6 +4158,12 @@ const MenuBar: React.FC<MenuBarProps> = ({
               <div className="about-section-title">What's New in 2.9.0</div>
               <div className="about-changelog">
               {/* i18n-ignore-start: release notes stay English in phase 1 */}
+              <div className="about-subsection-title">v2.10.0</div>
+              <ul className="about-list">
+                <li><strong>OpenDraft in Your Language</strong> &mdash; Menus, toolbars, dialogs, settings and messages are now translated into Spanish, French, Brazilian Portuguese, Russian, Turkish, Arabic, Persian, Hindi, Urdu, Marathi, Gujarati, Telugu, Tamil, Odia, Punjabi, Malayalam, Kannada and Bengali. It follows your device&rsquo;s language, and <em>Settings &rarr; Language</em> changes it: every language is one click, under its own name.</li>
+                <li><strong>Right-to-Left</strong> &mdash; Arabic, Persian and Urdu mirror the whole app. The script page itself is laid out exactly as the format says, and your scripts and exports never change when you switch language.</li>
+                <li><strong>On Every Device</strong> &mdash; The Mac menu bar is translated too, and Android 13+ lists OpenDraft&rsquo;s languages under the app&rsquo;s own language setting. These translations were written with AI and have not yet been reviewed by native screenwriters, so tell us where a word could be better. Release notes and the user manual stay in English for now.</li>
+              </ul>
               <div className="about-subsection-title">v2.9.0</div>
               <ul className="about-list">
                 <li><strong>The Outline</strong> &mdash; <em>View &rarr; Panels &rarr; Outline</em> shows the whole script as structure: acts, sequences, Fountain sections and scenes, each scene with its number, synopsis and length in pages. Drag a scene to move it (one undo step), add an act break, a sequence or a section from the header, and group scenes into named sequences. Click a scene to jump to it (#195).</li>
