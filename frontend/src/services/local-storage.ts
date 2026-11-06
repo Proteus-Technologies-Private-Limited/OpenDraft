@@ -80,6 +80,45 @@ function shortHash(id: string): string {
   return id.slice(0, 7);
 }
 
+type Db = Awaited<ReturnType<typeof getDb>>;
+
+/**
+ * Overwrite the space that deleted rows leave behind (discussion #183).
+ *
+ * SQLite's DELETE only marks a row's pages as free: the text stays in the
+ * database file, and in the WAL beside it, until something reuses the space.
+ * `PRAGMA secure_delete` would zero them at delete time, but it is per
+ * connection and the SQL plugin hands each statement to any connection in its
+ * pool. VACUUM is database-wide: it rewrites every page and drops the free
+ * ones, and the TRUNCATE checkpoint then copies that into the main file and
+ * empties the WAL.
+ *
+ * Runs after the rows are already gone, so failing here does not undo the
+ * delete. It is retried once (another pooled connection can briefly hold a
+ * lock) and otherwise logged; the next delete erases whatever was left.
+ */
+async function eraseFreedSpace(db: Db, reason: string): Promise<void> {
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      await db.execute('VACUUM');
+      const [cp] = await db.select<Array<{ busy: number; log: number; checkpointed: number }>>(
+        'PRAGMA wal_checkpoint(TRUNCATE)',
+      );
+      if (cp && cp.busy) {
+        console.warn(`[local-storage] ${reason}: WAL still in use, it is emptied at the next checkpoint`, cp);
+      }
+      return;
+    } catch (err) {
+      if (attempt === 2) {
+        console.error(`[local-storage] ${reason}: rows deleted but freed space could not be erased`, err);
+        return;
+      }
+      console.warn(`[local-storage] ${reason}: erasing freed space failed, retrying`, err);
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+  }
+}
+
 const EMPTY_PROPS: ProjectProperties = {
   genre: '', logline: '', synopsis: '', author: '', contact: '',
   copyright: '', draft: '', language: 'en', format: 'screenplay',
@@ -725,6 +764,7 @@ export async function createLocalStorage() {
 
       await db.execute('DELETE FROM version_scripts WHERE commit_id = $1', [hash]);
       await db.execute('DELETE FROM version_commits WHERE id = $1', [hash]);
+      await eraseFreedSpace(db, `delete version ${shortHash(hash)}`);
       return { message: `Deleted version ${shortHash(hash)}` };
     },
 

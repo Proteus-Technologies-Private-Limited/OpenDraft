@@ -8,6 +8,9 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createRequire } from 'node:module';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 type SqliteDatabase = import('node:sqlite').DatabaseSync;
 type SqliteConstructor = new (path: string) => SqliteDatabase;
@@ -63,10 +66,10 @@ vi.mock('@tauri-apps/api/path', () => ({ appDataDir: async () => '/tmp/opendraft
 const PROJECT = 'p1';
 let clock = Date.parse('2026-01-01T00:00:00Z');
 
-async function setup() {
+async function setup(dbPath = ':memory:') {
   vi.resetModules();
   if (!DatabaseSync) throw new Error('node:sqlite is not available');
-  sqlite = new DatabaseSync(':memory:');
+  sqlite = new DatabaseSync(dbPath);
   const { createLocalStorage } = await import('./local-storage');
   const storage = await createLocalStorage();
   const db = adapter(sqlite);
@@ -126,6 +129,57 @@ describeSqlite('local storage deleteVersion', () => {
     expect(await textAt(v1.hash, 'a')).toBe('x1');
     expect(await textAt(v3.hash, 'a')).toBe('x2');
     await expect(storage.getScriptAtVersion(PROJECT, v2.hash, 'a')).rejects.toThrow();
+  });
+
+  it('erases the deleted text from the database file and its WAL', async () => {
+    // A real file in WAL mode, as the app runs it: DELETE alone leaves the
+    // text in free pages of opendraft.db and in opendraft.db-wal.
+    const dir = mkdtempSync(join(tmpdir(), 'od-erase-'));
+    const dbPath = join(dir, 'opendraft.db');
+    try {
+      const { storage, write, checkin, textAt } = await setup(dbPath);
+      const secret = 'SECRET-SCENE-TEXT-'.repeat(50);
+      await write('a', secret);
+      const v1 = await checkin('one');
+      await write('a', 'later');
+      const v2 = await checkin('two');
+
+      const onDisk = () => [dbPath, `${dbPath}-wal`]
+        .filter((f) => existsSync(f))
+        .some((f) => readFileSync(f).includes('SECRET-SCENE-TEXT'));
+      expect(onDisk()).toBe(true);
+
+      await storage.deleteVersion(PROJECT, v1.hash);
+
+      expect(onDisk()).toBe(false);
+      expect(await textAt(v2.hash, 'a')).toBe('later');
+      expect((await storage.getVersions(PROJECT)).map((v) => v.message)).toEqual(['two']);
+    } finally {
+      sqlite.close();
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('still deletes the version when erasing the freed space fails', async () => {
+    const { storage, write, checkin } = await setup();
+    await write('a', 'x1'); const v1 = await checkin('one');
+    await write('a', 'x2'); await checkin('two');
+    vi.useRealTimers(); // the retry waits on a real timer
+    const original = sqlite.prepare.bind(sqlite);
+    const prepare = vi.spyOn(sqlite, 'prepare').mockImplementation((sql: string) => {
+      if (sql === 'VACUUM') throw new Error('database is locked');
+      return original(sql);
+    });
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      await storage.deleteVersion(PROJECT, v1.hash);
+      expect((await storage.getVersions(PROJECT)).map((v) => v.message)).toEqual(['two']);
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('retrying'), expect.any(Error));
+      expect(error).toHaveBeenCalledWith(expect.stringContaining('could not be erased'), expect.any(Error));
+    } finally {
+      prepare.mockRestore(); error.mockRestore(); warn.mockRestore();
+    }
   });
 
   it('refuses an unknown version', async () => {

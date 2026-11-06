@@ -5,6 +5,7 @@ system `git` binary — critical for macOS App Sandbox compliance.
 """
 
 import logging
+import shutil
 import time
 from pathlib import Path
 
@@ -308,7 +309,114 @@ def delete_version(project_path: Path, commit_hash: str) -> dict:
 
     short = commit_hash[:7]
     logger.info("Deleted version %s from %s (%d later versions re-parented)", short, project_path, len(newer))
+
+    # Rewriting the branch only unlinks the old commits: Git keeps them, and
+    # the script text they point at, as unreachable objects until a gc runs —
+    # which OpenDraft never does. Erase them now, so a deleted version cannot
+    # be dug back out of .git (discussion #183). The history change above has
+    # already happened, so a failure here is logged rather than reported as a
+    # failed delete; the next delete sweeps whatever was left.
+    try:
+        _purge_unreachable(Repo(str(project_path)))
+    except Exception:
+        logger.exception("Version %s was deleted from %s but its data could not be erased", short, project_path)
+
     return {"message": f"Deleted version {short}"}
+
+
+_ZERO_SHA = b"0" * 40
+
+
+def _purge_unreachable(repo: Repo) -> None:
+    """Erase every object no ref or index entry leads to, and their reflog lines.
+
+    dulwich's own gc walks refs only, so the index is added as a root here:
+    after the only version is deleted the branch is empty, and the blobs the
+    index still lists are what the next check-in will commit. Deleting them
+    would leave that commit pointing at missing content.
+
+    There is no grace period, unlike ``git gc``. The backend runs as a single
+    process and these calls are synchronous inside the request handlers, so no
+    check-in can be half-written while this runs.
+    """
+    from dulwich.gc import find_reachable_objects
+
+    store = repo.object_store
+    reachable = find_reachable_objects(store, repo.refs, include_reflogs=False)
+    index = repo.open_index()
+    for path in index:
+        reachable.add(index[path].sha)
+
+    unreachable = {sha for sha in store if sha not in reachable}
+    loose = {sha for sha in unreachable if store.contains_loose(sha)}
+    packed = unreachable - loose
+
+    for sha in loose:
+        store.delete_loose_object(sha)
+    if packed:
+        # Objects in a pack (only if something outside OpenDraft ran git gc)
+        # can't be removed one by one; rewrite the packs without them.
+        store.repack(exclude=packed)
+
+    if unreachable:
+        _drop_object_caches(Path(store.path))
+
+    scrubbed = _scrub_reflogs(Path(repo.controldir()), reachable)
+    logger.info(
+        "Erased %d unreachable objects (%d packed) and %d reflog entries from %s",
+        len(unreachable), len(packed), scrubbed, repo.path,
+    )
+
+
+def _drop_object_caches(objects_dir: Path) -> None:
+    """Remove Git's optional lookup caches, which may name erased objects.
+
+    ``git gc`` (run outside OpenDraft) writes a commit-graph listing every
+    commit with its tree, parents and date, and may write a multi-pack index.
+    After erasing objects both are stale, and git refuses to read a repository
+    whose commit-graph names missing commits. Git rebuilds them when needed;
+    dulwich does not use them.
+    """
+    for cache in (
+        objects_dir / "info" / "commit-graph",
+        objects_dir / "info" / "commit-graphs",
+        objects_dir / "pack" / "multi-pack-index",
+    ):
+        if cache.is_dir():
+            shutil.rmtree(cache)
+        elif cache.exists():
+            cache.unlink()
+
+
+def _scrub_reflogs(controldir: Path, reachable: set[bytes]) -> int:
+    """Drop reflog lines that name a commit that no longer exists.
+
+    A reflog line carries the commit's message, which is the version label the
+    writer typed, so leaving it would keep part of a deleted version on disk.
+    Lines are ``<old sha> <new sha> <who> <when>\\t<message>``. Returns how
+    many lines were dropped.
+    """
+    logs_dir = controldir / "logs"
+    if not logs_dir.is_dir():
+        return 0
+    dropped = 0
+    for log_file in logs_dir.rglob("*"):
+        if not log_file.is_file():
+            continue
+        lines = log_file.read_bytes().splitlines(keepends=True)
+        kept = []
+        for line in lines:
+            parts = line.split(b" ", 2)
+            shas = parts[:2] if len(parts) == 3 else []
+            if shas and all(s == _ZERO_SHA or s in reachable for s in shas):
+                kept.append(line)
+        if len(kept) == len(lines):
+            continue
+        dropped += len(lines) - len(kept)
+        tmp = log_file.with_name(log_file.name + ".tmp")
+        tmp.write_bytes(b"".join(kept))
+        tmp.replace(log_file)
+    return dropped
 
 
 def _restore_tree(repo, tree, base_path: Path) -> None:
