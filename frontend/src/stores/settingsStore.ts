@@ -162,6 +162,16 @@ interface SettingsState {
    */
   printViaPdf: boolean;
   setPrintViaPdf: (v: boolean) => void;
+
+  /**
+   * Print text colours and highlights in PDFs (#226) — the "Text colors and
+   * highlights" box in File → Export → PDF. The dialog opens on the writer's
+   * last answer, and every other PDF (print, revised pages, sides) follows it
+   * too, since none of those has a dialog of its own to ask in. On by default:
+   * the PDF shows what the page shows, as the Word export does.
+   */
+  pdfTextColors: boolean;
+  setPdfTextColors: (v: boolean) => void;
 }
 
 const STORAGE_KEY_URL = 'opendraft:collabServerUrl';
@@ -184,6 +194,7 @@ const STORAGE_KEY_DEFAULT_PROJECT_FOLDER = 'opendraft:defaultProjectFolder';
 const STORAGE_KEY_DEFAULT_FILE_FORMAT = 'opendraft:defaultFileFormat';
 const STORAGE_KEY_ELEMENT_MENU_ON_ENTER = 'opendraft:elementMenuOnEnter';
 const STORAGE_KEY_PRINT_VIA_PDF = 'opendraft:printViaPdf';
+const STORAGE_KEY_PDF_TEXT_COLORS = 'opendraft:pdfTextColors';
 const STORAGE_KEY_ELEMENT_MENU_SHORTCUT = 'opendraft:elementMenuShortcut';
 const STORAGE_KEY_MACROS = 'opendraft:macros';
 const STORAGE_KEY_SMARTTYPE = 'opendraft:smartTypeLists';
@@ -253,9 +264,15 @@ function loadString(key: string, fallback: string): string {
 }
 
 function loadBool(key: string, fallback: boolean): boolean {
-  const raw = localStorage.getItem(key);
-  if (raw === null) return fallback;
-  return raw === '1';
+  // Storage that throws (blocked, or a private window) must not take the whole
+  // settings store down with it at load — the neighbouring loaders guard too.
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw === null) return fallback;
+    return raw === '1';
+  } catch {
+    return fallback;
+  }
 }
 
 function loadEnabledScriptFormats(): string[] {
@@ -449,6 +466,12 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   setPrintViaPdf: (v) => {
     try { localStorage.setItem(STORAGE_KEY_PRINT_VIA_PDF, v ? '1' : '0'); } catch { /* ignore */ }
     set({ printViaPdf: v });
+  },
+
+  pdfTextColors: loadBool(STORAGE_KEY_PDF_TEXT_COLORS, true),
+  setPdfTextColors: (v) => {
+    try { localStorage.setItem(STORAGE_KEY_PDF_TEXT_COLORS, v ? '1' : '0'); } catch { /* ignore */ }
+    set({ pdfTextColors: v });
   },
 
   elementMenuShortcut: loadElementMenuShortcut(),

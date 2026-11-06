@@ -33,6 +33,13 @@ export interface WrapRun {
    */
   fontFamily?: string;
   /**
+   * Strikethrough, text colour and highlight (CSS colours), carried for the
+   * PDF to draw (#226). Like the typeface, none of them moves a line break.
+   */
+  strike?: boolean;
+  color?: string;
+  highlight?: string;
+  /**
    * Revision Mode marked this text. Carried so the PDF can put an asterisk in
    * the margin of every line holding revised words; like the typeface it never
    * affects where a line breaks.
@@ -143,7 +150,8 @@ export function sliceColumns(text: string, max: number): string {
 /** Would merging these two runs change how either is drawn? */
 function drawsAlike(a: WrapRun, b: WrapRun): boolean {
   return a.bold === b.bold && a.italic === b.italic
-    && a.underline === b.underline && a.fontFamily === b.fontFamily;
+    && a.underline === b.underline && a.fontFamily === b.fontFamily
+    && !!a.strike === !!b.strike && a.color === b.color && a.highlight === b.highlight;
 }
 
 /**
@@ -302,6 +310,9 @@ export function wordWrapRuns(
           italic: run.italic,
           underline: run.underline,
           fontFamily: run.fontFamily,
+          ...(run.strike ? { strike: true } : {}),
+          ...(run.color ? { color: run.color } : {}),
+          ...(run.highlight ? { highlight: run.highlight } : {}),
           ...(run.revised ? { revised: true } : {}),
           ...(run.revised && run.revision ? { revision: run.revision } : {}),
         });
@@ -377,6 +388,9 @@ export function wordWrapRuns(
     const asRun = (text: string): WrapRun => ({
       text, bold: word.bold, italic: word.italic, underline: word.underline,
       fontFamily: word.fontFamily, ...(word.marker ? { marker: word.marker } : {}),
+      ...(word.strike ? { strike: true } : {}),
+      ...(word.color ? { color: word.color } : {}),
+      ...(word.highlight ? { highlight: word.highlight } : {}),
       ...(word.revised ? { revised: true } : {}),
       ...(word.revised && word.revision ? { revision: word.revision } : {}),
     });

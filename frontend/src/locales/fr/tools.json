@@ -141,6 +141,7 @@
     "pageNumbers": "Numéros de page",
     "sceneNumbers": "Numéros de scène",
     "oneScenePerPage": "Une scène par page",
+    "textColors": "Couleurs du texte et surlignages",
     "watermark": "Filigrane",
     "watermarkText": "Texte du filigrane",
     "hint": "Une plage exporte ces scènes ; Choisir des scènes exporte n’importe quelle combinaison. Dans les deux cas, les pages repartent de 1, et Une scène par page commence chaque scène sur une nouvelle feuille.",

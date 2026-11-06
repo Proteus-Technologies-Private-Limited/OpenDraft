@@ -141,6 +141,7 @@
     "pageNumbers": "Números de página",
     "sceneNumbers": "Números de cena",
     "oneScenePerPage": "Uma cena por página",
+    "textColors": "Cores do texto e destaques",
     "watermark": "Marca d'água",
     "watermarkText": "Texto da marca d'água",
     "hint": "Um intervalo exporta essas cenas; Escolher cenas exporta qualquer combinação. De qualquer forma, as páginas recomeçam em 1, e Uma cena por página inicia cada cena em uma folha nova.",

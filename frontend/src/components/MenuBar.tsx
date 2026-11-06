@@ -2138,6 +2138,9 @@ const MenuBar: React.FC<MenuBarProps> = ({
       revisionSettings: store.revisionSettings,
       colorRevisedPages: store.revisionSettings.colorPages,
       pageLabels: store.pageLabels,
+      // The writer's last answer in the Export PDF dialog, so print, revised
+      // pages and sides — which have no dialog — follow it as well (#226).
+      textColors: useSettingsStore.getState().pdfTextColors,
     };
   }, [pageLayout]);
 
@@ -2335,6 +2338,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
         includeTitlePage: choice.includeTitlePage,
         sceneNumbersVisible: choice.sceneNumbers,
         pageNumbers: choice.pageNumbers,
+        textColors: choice.textColors,
         pageLabels: keepsPageLabels ? base.pageLabels : null,
         watermark: choice.watermark
           ? { text: choice.watermarkText.trim(), opacity: 0.15, style: 'diagonal' }

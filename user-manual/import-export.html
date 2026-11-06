@@ -294,6 +294,8 @@
     <p>Dual dialogue exports both speeches in a borderless two-column table, keeping cues, parentheticals, inline styles and line breaks. Word controls pagination for long exchanges. Importing the file restores the two dialogue columns.</p>
     <p>Go to <strong>File &gt; Export &gt; Microsoft Word (.docx)</strong> for a formatted document to share with people who do not use screenwriting software.</p>
 
+    <p>Text colour and highlighting are kept, in the exact colours you picked. A highlight is written as shading behind the text, because Word&rsquo;s own highlighter offers only sixteen colours. Importing a Word file brings colours and highlights back, whether they were made in OpenDraft or with Word&rsquo;s highlighter.</p>
+
     <p>The title page is included unless you have turned it off in <strong>Format &gt; Title Page</strong> &mdash; see <a href="title-page.html#include-in-output">Leaving the Title Page Out</a>.</p>
 
     <h3 id="export-odraft">OpenDraft (.odraft)</h3>
@@ -318,6 +320,7 @@
       <li><strong>Page numbers</strong> &mdash; on by default. Turned off, only the page-number fields are taken out of your header and footer; the rest of the line stays as you wrote it, so <code>Page {page} - Draft:</code> prints as <code>Draft:</code>.</li>
       <li><strong>Scene numbers</strong> &mdash; starts with whether scene numbers are showing in the script.</li>
       <li><strong>One scene per page</strong> &mdash; starts every scene on a fresh sheet. The first scene follows the title page (or the opening <code>FADE IN:</code>) as usual rather than getting a page to itself.</li>
+      <li><strong>Text colors and highlights</strong> &mdash; on by default: text prints in the colours you gave it, with its highlights behind. Untick it for a clean black-on-white copy. OpenDraft remembers your choice, so the dialog opens the way you left it, and printing, revised pages and sides follow the same choice. Bold, italic, underline and strikethrough print either way.</li>
       <li><strong>Watermark</strong> &mdash; prints faint diagonal text across every page. The text starts as <code>CONFIDENTIAL</code> and can be changed. For a password or a separate copy for each recipient, use <a href="#export-pdf-secure">PDF with a Watermark or Password</a> instead.</li>
     </ul>
     <p>These choices apply only to this export. They don&rsquo;t change the script&rsquo;s own settings, and the dialog starts fresh each time. A partial export numbers its pages from 1, and its file name says what it holds, for example <em>My Script - Scenes 3-7</em> or <em>My Script - Selected Scenes</em>. The opening matter before the first scene heading is included only when scene 1 is. An act break just before a scene goes with that scene. To keep the full script&rsquo;s page and scene numbers on a few pages, for an actor&rsquo;s sides, use <a href="#export-sides">Sides &amp; Selected Pages</a>.</p>

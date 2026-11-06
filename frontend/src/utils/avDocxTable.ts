@@ -31,6 +31,7 @@ import type { AvExportBody } from './avDocument';
 import { avParaStyle } from './avDocument';
 import { avRowNodes, avFrameKey, type AvRowNodes } from './avPdfTable';
 import { runFont } from './docxScriptFonts';
+import { docxColorProps } from './docxColors';
 
 /** A loaded storyboard frame, keyed by `avFrameKey`. */
 export interface AvDocxImage {
@@ -72,6 +73,7 @@ function cellParagraphs(
           smallCaps: style.smallCaps,
           underline: r.underline ? {} : undefined,
           break: r.isBreak ? 1 : undefined,
+          ...docxColorProps(r),
         });
       });
     out.push(new Paragraph({ children: children.length ? children : [new TextRun({ text: '', font, size: sizeHalfPt })] }));

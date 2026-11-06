@@ -131,6 +131,7 @@
     "pageNumbers": "Sayfa numaraları",
     "sceneNumbers": "Sahne numaraları",
     "oneScenePerPage": "Sayfa başına bir sahne",
+    "textColors": "Yazı renkleri ve vurgular",
     "watermark": "Filigran",
     "watermarkText": "Filigran metni",
     "hint": "Bir aralık o sahneleri dışa aktarır; Sahne seç ise istediğiniz birleşimi. Her iki durumda da sayfalar yeniden 1'den başlar ve Sayfa başına bir sahne her sahneyi yeni bir sayfada başlatır.",

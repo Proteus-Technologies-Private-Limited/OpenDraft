@@ -55,6 +55,7 @@ import { avRowNodes, avFrameKey } from './avPdfTable';
 import { readColumnConfig } from '../editor/extensions/AvBlock';
 import { isNonPrintingType } from './nonPrinting';
 import { runFont } from './docxScriptFonts';
+import { docxColorProps } from './docxColors';
 import { DUAL_PADDING, DOCX_DUAL_SEPARATOR_STYLE } from './dualDialogue';
 import { withElementNumbers, elementNumberOf } from './elementNumbers';
 
@@ -179,6 +180,8 @@ export function buildTextRuns(
             italics: r.italic || undefined,
             underline: r.underline ? {} : undefined,
             strike: r.strike || undefined,
+            // Text colour and highlight as the writer set them (#226).
+            ...docxColorProps(r),
           }),
     );
 }
@@ -507,6 +510,7 @@ function buildRunsWithReferences(
     italics: r.italic || undefined,
     underline: r.underline ? {} : undefined,
     strike: r.strike || undefined,
+    ...docxColorProps(r),
   });
 
   let pos = 0;

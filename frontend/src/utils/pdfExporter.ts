@@ -8,6 +8,7 @@ import { getForceBreakIds, startsOwnPage, elementIdOf, laysItselfOut } from './p
 import { getSpaceBefore } from './elementSpacing';
 import { resolveImageUrl, loadImageData } from './imageAsset';
 import { jsonBlockRuns } from './nodeText';
+import { parseCssColor } from './inkColor';
 import { lineRevision, revisionMarkXPt } from './revisionPdf';
 import { blockRevision } from './revisionExport';
 import {
@@ -134,6 +135,9 @@ export function extractRuns(node: JSONContent): TextRun[] {
     underline: r.underline,
     isBreak: r.isBreak,
     fontFamily: r.fontFamily,
+    ...(r.strike ? { strike: true } : {}),
+    ...(r.color ? { color: r.color } : {}),
+    ...(r.highlight ? { highlight: r.highlight } : {}),
     ...(r.revision ? { revised: true, revision: r.revision } : {}),
   }));
   // A block Revision Mode flagged for an edit that left no text to mark (a
@@ -224,6 +228,8 @@ interface FontContext {
    * by lowercased family name. Empty when the script uses none.
    */
   embedded: Map<string, EmbeddedFace>;
+  /** Draw runs' text colours and highlights — PDFExportOptions.textColors. */
+  textColors: boolean;
 }
 
 /**
@@ -452,6 +458,10 @@ function measurePieces(pdf: jsPDF, pieces: DrawnPiece[], bold: boolean, italic: 
   return total;
 }
 
+/** A highlight's box, measured from the baseline: one 12pt line. */
+const HIGHLIGHT_ASCENT_PT = 9.5;
+const HIGHLIGHT_HEIGHT_PT = 12;
+
 /**
  * Render a line of TextRun segments at (x, y), using FD Courier character spacing.
  */
@@ -466,11 +476,55 @@ function renderLine(
   for (const run of lineRuns) {
     if (run.text.length === 0) continue;
     const pieces = drawnPieces(run.text, run.fontFamily, fonts);
+    const ink = fonts.textColors && run.color ? parseCssColor(run.color) : null;
+    const fill = fonts.textColors && run.highlight ? parseCssColor(run.highlight) : null;
+    // Wrapping hangs the space after a word on the word itself, even when that
+    // space was typed unformatted. A highlight or strikethrough that ran on
+    // through it would cover a gap the editor leaves bare, so both stop at the
+    // last letter. Measured in the run's own faces, as Tamil and the other
+    // shaped scripts are proportional.
+    const inkWidth = (fill || run.strike)
+      ? (() => {
+        const trimmed = run.text.replace(/ +$/, '');
+        return trimmed === run.text
+          ? measurePieces(pdf, pieces, run.bold, run.italic)
+          : measurePieces(pdf, drawnPieces(trimmed, run.fontFamily, fonts), run.bold, run.italic);
+      })()
+      : 0;
+    if (fill) {
+      // Behind the text, so it is painted first. One line of 12pt type, from
+      // just above the capitals to just below the descenders: neighbouring
+      // runs' boxes meet edge to edge, as the editor's highlight does.
+      const width = inkWidth;
+      const prevFill = pdf.getFillColor();
+      pdf.setFillColor(fill[0], fill[1], fill[2]);
+      pdf.rect(cursorX, y - HIGHLIGHT_ASCENT_PT, width, HIGHLIGHT_HEIGHT_PT, 'F');
+      pdf.setFillColor(prevFill);
+    }
+    // Restored afterwards rather than assumed black: a caller may be drawing
+    // in its own ink (the greyed header of a revised page, say).
+    const prevText = ink ? pdf.getTextColor() : '';
+    const prevDraw = ink ? pdf.getDrawColor() : '';
+    if (ink) {
+      pdf.setTextColor(ink[0], ink[1], ink[2]);
+      // The underline and strikethrough are drawn in the text's own colour.
+      pdf.setDrawColor(ink[0], ink[1], ink[2]);
+    }
     const nextX = drawPieces(pdf, pieces, cursorX, y, run.bold, run.italic);
     if (run.underline) {
       const ulY = y + 1.5;
       pdf.setLineWidth(0.5);
       pdf.line(cursorX, ulY, nextX, ulY);
+    }
+    if (run.strike) {
+      // Through the middle of the lowercase letters.
+      const stY = y - 3.5;
+      pdf.setLineWidth(0.5);
+      pdf.line(cursorX, stY, cursorX + inkWidth, stY);
+    }
+    if (ink) {
+      pdf.setTextColor(prevText);
+      pdf.setDrawColor(prevDraw);
     }
     cursorX = nextX;
     if (run.marker) {
@@ -498,6 +552,13 @@ function measureLine(pdf: jsPDF, lineRuns: TextRun[], fonts: FontContext): numbe
 
 export interface PDFExportOptions {
   sceneNumbersVisible?: boolean;
+  /**
+   * Print text in the colours the writer gave it, with its highlights behind
+   * (#226). Absent or true prints them, as the Word export does; false prints
+   * everything in black on white, for a script going out as a clean copy.
+   * The writer's choice is remembered in settingsStore.pdfTextColors.
+   */
+  textColors?: boolean;
   /**
    * Print the numbers the active format puts on elements other than scene
    * headings (utils/elementNumbers). Absent or false prints none, so a caller
@@ -956,6 +1017,7 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
       onProgress: options?.onFontProgress,
     }),
     embedded: embedCustomFonts(pdf, usedFamilies),
+    textColors: options?.textColors !== false,
   };
 
   let currentY = topMarginPt;

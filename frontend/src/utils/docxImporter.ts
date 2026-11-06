@@ -17,6 +17,7 @@
 import JSZip from 'jszip';
 import { DOCX_DUAL_SEPARATOR_STYLE } from './dualDialogue';
 import { singleLine } from './nodeText';
+import { docxHexToCss, wordHighlightToCss } from './docxColors';
 import { buildTitlePageBlocks, type TitlePageFields } from './titlePageBlocks';
 import { t } from '../i18n';
 
@@ -168,6 +169,50 @@ function parseRPrFlags(rPr: Element | null): { bold?: boolean; italic?: boolean;
   return out;
 }
 
+/**
+ * A run's own text colour and highlight, as CSS colours (#226).
+ *
+ * Only direct run formatting is read, never a paragraph style's: Word's
+ * built-in styles colour whole headings blue, and inheriting that would paint
+ * every scene heading of an ordinary Word file.
+ *
+ * Pure black is not kept as a colour. It is the paper's default ink, and Word
+ * and Final Draft write `w:color="000000"` onto every run they emit, which would
+ * otherwise stamp a colour mark on the entire script for no visible change.
+ *
+ * A highlight may arrive as `<w:highlight>` (sixteen named colours, what Word's
+ * highlighter writes) or as run shading `<w:shd>` (any colour, what OpenDraft
+ * writes). The named highlight wins when both are present, as it does when Word
+ * draws the run. White shading is the absence of a highlight, written out.
+ */
+function parseRunColors(rPr: Element | null): { color?: string; highlight?: string } {
+  if (!rPr) return {};
+  const out: { color?: string; highlight?: string } = {};
+
+  const colorEl = firstChildNS(rPr, 'color');
+  const color = colorEl ? docxHexToCss(getAttrNS(colorEl, 'val')) : null;
+  if (color && color !== '#000000') out.color = color;
+
+  const hlEl = firstChildNS(rPr, 'highlight');
+  const named = hlEl ? wordHighlightToCss(getAttrNS(hlEl, 'val')) : null;
+  if (named) {
+    out.highlight = named;
+    return out;
+  }
+
+  const shd = firstChildNS(rPr, 'shd');
+  if (shd) {
+    const pattern = (getAttrNS(shd, 'val') || '').toLowerCase();
+    // `solid` paints the pattern colour over the whole run; `clear` (and the
+    // other percentage patterns, approximated) show the fill.
+    const fill = pattern === 'nil'
+      ? null
+      : docxHexToCss(pattern === 'solid' ? getAttrNS(shd, 'color') : getAttrNS(shd, 'fill'));
+    if (fill && fill !== '#ffffff') out.highlight = fill;
+  }
+  return out;
+}
+
 function buildStyleMap(stylesXml: Document | null): StyleMap {
   const map: StyleMap = new Map();
   if (!stylesXml) return map;
@@ -230,6 +275,10 @@ interface RunInfo {
   italic: boolean;
   underline: boolean;
   strike: boolean;
+  /** Direct text colour, as a CSS colour. */
+  color?: string;
+  /** Direct highlight or run shading, as a CSS colour. */
+  highlight?: string;
   /** A `<w:br/>` line break — becomes a hardBreak node, carries no text. */
   isBreak?: boolean;
 }
@@ -272,6 +321,7 @@ function readRun(r: Element, paraStyle: StyleProps): RunInfo[] {
     italic: !!(flags.italic ?? paraStyle.italic),
     underline: !!flags.underline,
     strike: !!flags.strike,
+    ...parseRunColors(rPr),
   };
 
   const out: RunInfo[] = [];
@@ -595,6 +645,8 @@ function runsToTextNodes(runs: RunInfo[], typeName: string): TipTapNode[] {
     if (r.italic && !stripItalic) marks.push({ type: 'italic' });
     if (r.underline && !stripUnderline) marks.push({ type: 'underline' });
     if (r.strike) marks.push({ type: 'strike' });
+    if (r.color) marks.push({ type: 'textStyle', attrs: { color: r.color } });
+    if (r.highlight) marks.push({ type: 'highlight', attrs: { color: r.highlight } });
     const node: TipTapNode = { type: 'text', text: r.text };
     if (marks.length > 0) node.marks = marks;
     out.push(node);

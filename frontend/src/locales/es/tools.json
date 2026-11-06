@@ -141,6 +141,7 @@
     "pageNumbers": "Números de página",
     "sceneNumbers": "Números de escena",
     "oneScenePerPage": "Una escena por página",
+    "textColors": "Colores del texto y resaltados",
     "watermark": "Marca de agua",
     "watermarkText": "Texto de la marca de agua",
     "hint": "Un rango exporta esas escenas; Elegir escenas exporta cualquier combinación. En ambos casos las páginas vuelven a empezar en 1, y Una escena por página inicia cada escena en una hoja nueva.",

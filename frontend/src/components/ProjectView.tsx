@@ -40,6 +40,7 @@ import { exportPDF } from '../utils/pdfExporter';
 import { downloadOdraft } from '../utils/odraftFormat';
 import { exportProjectAsZip } from '../utils/zipExport';
 import { DEFAULT_PAGE_LAYOUT, DEFAULT_TAG_CATEGORIES, useEditorStore } from '../stores/editorStore';
+import { useSettingsStore } from '../stores/settingsStore';
 import { useProjectStore } from '../stores/projectStore';
 import AssetManager from './AssetManager';
 import ProjectPropertiesDialog from './ProjectPropertiesDialog';
@@ -1058,6 +1059,8 @@ const ProjectView: React.FC = () => {
           case 'pdf':
             await exportPDF(labelSavedContent(content as any, content), title, DEFAULT_PAGE_LAYOUT, {
               revisionSettings: readRevisionState(content).revisionSettings,
+              // The writer's last answer in File → Export → PDF (#226).
+              textColors: useSettingsStore.getState().pdfTextColors,
             });
             break;
           case 'odraft':

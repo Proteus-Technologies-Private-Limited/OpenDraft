@@ -9,6 +9,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useEditorStore } from '../stores/editorStore';
+import { useSettingsStore } from '../stores/settingsStore';
 import Select from './Select';
 
 export interface PdfExportChoice {
@@ -25,6 +26,8 @@ export interface PdfExportChoice {
   oneScenePerPage: boolean;
   watermark: boolean;
   watermarkText: string;
+  /** Print text colours and highlights (#226). */
+  textColors: boolean;
 }
 
 interface Props {
@@ -57,6 +60,11 @@ const PdfExportDialog: React.FC<Props> = ({ scenes, onClose, onExport }) => {
   const [watermark, setWatermark] = useState(false);
   // i18n-ignore: watermark text is written into the PDF, so it stays as it always was
   const [watermarkText, setWatermarkText] = useState('CONFIDENTIAL');
+  // Opens on the writer's last answer; saved when they export, not on every
+  // tick, so a dialog they cancel leaves the remembered choice alone.
+  const rememberedTextColors = useSettingsStore((s) => s.pdfTextColors);
+  const setPdfTextColors = useSettingsStore((s) => s.setPdfTextColors);
+  const [textColors, setTextColors] = useState(rememberedTextColors);
 
   const options = useMemo(() => scenes.map((heading, index) => ({
     value: String(index),
@@ -116,6 +124,7 @@ const PdfExportDialog: React.FC<Props> = ({ scenes, onClose, onExport }) => {
   const nothingPicked = mode === 'pick' && picked.size === 0;
 
   const exportNow = () => {
+    if (textColors !== rememberedTextColors) setPdfTextColors(textColors);
     onExport({
       mode,
       fromIndex,
@@ -127,6 +136,7 @@ const PdfExportDialog: React.FC<Props> = ({ scenes, onClose, onExport }) => {
       oneScenePerPage,
       watermark,
       watermarkText,
+      textColors,
     });
   };
 
@@ -233,6 +243,10 @@ const PdfExportDialog: React.FC<Props> = ({ scenes, onClose, onExport }) => {
             <label className="pdf-export-check">
               <input type="checkbox" checked={oneScenePerPage} onChange={(e) => setOneScenePerPage(e.target.checked)} />
               <span>{t('pdfExport.oneScenePerPage')}</span>
+            </label>
+            <label className="pdf-export-check">
+              <input type="checkbox" checked={textColors} onChange={(e) => setTextColors(e.target.checked)} />
+              <span>{t('pdfExport.textColors')}</span>
             </label>
             <label className="pdf-export-check">
               <input type="checkbox" checked={watermark} onChange={(e) => setWatermark(e.target.checked)} />

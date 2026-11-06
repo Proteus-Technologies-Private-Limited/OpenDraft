@@ -87,7 +87,21 @@ export interface Run {
    * FDX's RevisionID. Absent on unrevised text.
    */
   revision?: string;
+  /**
+   * Text colour the writer gave this run (`textStyle.color`), as stored — a CSS
+   * colour. Absent means the document's ink.
+   */
+  color?: string;
+  /**
+   * Highlight behind this run (the `highlight` mark's colour), as a CSS colour.
+   * A highlight carrying no colour of its own is reported as
+   * {@link DEFAULT_HIGHLIGHT}, which is what the editor draws for it.
+   */
+  highlight?: string;
 }
+
+/** The highlighter's own default, and what a colourless `<mark>` shows as. */
+export const DEFAULT_HIGHLIGHT = '#ffff00';
 
 const EMPTY_RUN: Run = { text: '', bold: false, italic: false, underline: false, strike: false, isBreak: false };
 
@@ -100,6 +114,8 @@ export function jsonBlockRuns(node: JSONContent | null | undefined): Run[] {
     let bold = false, italic = false, underline = false, strike = false;
     let fontFamily: string | undefined;
     let revision: string | undefined;
+    let color: string | undefined;
+    let highlight: string | undefined;
     if (child.marks) {
       for (const mark of child.marks) {
         if (mark.type === 'bold') bold = true;
@@ -113,11 +129,20 @@ export function jsonBlockRuns(node: JSONContent | null | undefined): Run[] {
         if (mark.type === 'textStyle' && typeof mark.attrs?.revision === 'string' && mark.attrs.revision) {
           revision = mark.attrs.revision;
         }
+        if (mark.type === 'textStyle' && typeof mark.attrs?.color === 'string' && mark.attrs.color.trim()) {
+          color = mark.attrs.color;
+        }
+        if (mark.type === 'highlight') {
+          const c = mark.attrs?.color;
+          highlight = typeof c === 'string' && c.trim() ? c : DEFAULT_HIGHLIGHT;
+        }
       }
     }
     return {
       text: child.text || '', bold, italic, underline, strike, isBreak: false, fontFamily,
       ...(revision ? { revision } : {}),
+      ...(color ? { color } : {}),
+      ...(highlight ? { highlight } : {}),
     };
   });
 }
@@ -132,6 +157,10 @@ export function jsonBlockRuns(node: JSONContent | null | undefined): Run[] {
  * which no longer parses back as one bold run.
  *
  * Breaks are never merged — they are boundaries, not text.
+ *
+ * Colour and highlight are deliberately not compared: the only caller is the
+ * Fountain exporter, which cannot write either, and splitting on them would
+ * bring back exactly the `****` seams this exists to prevent.
  */
 export function mergeRuns(runs: Run[]): Run[] {
   const merged: Run[] = [];

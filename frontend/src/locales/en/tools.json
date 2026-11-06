@@ -131,6 +131,7 @@
     "pageNumbers": "Page numbers",
     "sceneNumbers": "Scene numbers",
     "oneScenePerPage": "One scene per page",
+    "textColors": "Text colors and highlights",
     "watermark": "Watermark",
     "watermarkText": "Watermark text",
     "hint": "A range exports those scenes; Pick scenes exports any combination. Either way the pages start again at 1, and One scene per page starts every scene on a fresh sheet.",
