@@ -1,13 +1,19 @@
-Write in your own language. OpenDraft's menus, dialogs and settings now speak 18 languages.
+Write in your own language, and keep your colours when you export.
 
-NEW LANGUAGES
-Spanish, French, Brazilian Portuguese, Russian, Turkish, Arabic, Persian, Hindi, Urdu, Marathi, Gujarati, Telugu, Tamil, Odia, Punjabi, Malayalam, Kannada and Bengali.
+OPENDRAFT IN 18 LANGUAGES
+Menus, dialogs and settings now speak Spanish, French, Brazilian Portuguese, Russian, Turkish, Arabic, Persian, Hindi, Urdu, Marathi, Gujarati, Telugu, Tamil, Odia, Punjabi, Malayalam, Kannada and Bengali. OpenDraft follows your Mac's language, or pick yours in Settings > Language, and the menu bar is translated too. Arabic, Persian and Urdu read from right to left, and your scripts never change when you switch.
 
-PICK YOURS IN SECONDS
-OpenDraft follows your device's language. To change it, open Settings > Language and tap your language, shown in its own name.
+COLOURS AND HIGHLIGHTS IN EXPORTS
+Coloured and highlighted text now stays that way in Word and PDF. Want a plain black-and-white copy? Switch colours off when you export a PDF.
 
-RIGHT TO LEFT
-Arabic, Persian and Urdu flip the whole app to read from right to left. Your script keeps the format's layout, and nothing in your scripts or exports changes when you switch language. Your Mac's menu bar is translated too.
+DELETED MEANS DELETED
+When you delete a saved version of a script, its text is now erased from your Mac too.
+
+SMARTER SCENE HEADINGS
+SmartType now understands intros like DREAM SEQUENCE: before INT. or EXT., suggests longer prefixes you've saved, and completes your own scene times.
+
+ALSO FIXED
+The AI Assistant and Dictation add-ons are back in Settings > Add-ons.
 
 TELL US WHAT TO IMPROVE
-These translations were made with AI and are still being reviewed by native speakers. If a word could be better, we want to hear it.
+The translations were made with AI and are still being reviewed by native speakers. If a word could be better, we want to hear it.

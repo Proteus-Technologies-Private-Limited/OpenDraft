@@ -4162,6 +4162,14 @@ const MenuBar: React.FC<MenuBarProps> = ({
               <div className="about-section-title">What's New in 2.10.0</div>
               <div className="about-changelog">
               {/* i18n-ignore-start: release notes stay English in phase 1 */}
+              <div className="about-subsection-title">v2.11.0</div>
+              <ul className="about-list">
+                <li><strong>Colours and Highlights in Word and PDF</strong> &mdash; Text colour and highlighting now reach your exports; before, every export came out as plain black text. Word files keep them when you import them back, and PDFs print strikethrough too. A new <em>Text colors and highlights</em> box in <em>File &rarr; Export &rarr; PDF</em> turns colour off for a black-on-white copy. It remembers your choice, and printing, revised pages and sides follow it (#226).</li>
+                <li><strong>Deleted Versions Are Really Gone</strong> &mdash; Deleting a version in Version History now erases its text from disk as well as from the list, in the desktop and mobile apps and on the web. Before, the deleted text could still be recovered from OpenDraft&rsquo;s files (#183).</li>
+                <li><strong>SmartType Understands Scene Intros</strong> &mdash; An intro from your SmartType lists, such as <code>DREAM SEQUENCE:</code>, can come before <code>INT.</code>/<code>EXT.</code> or another intro. SmartType offers the prefixes after it and then your locations, and <code>DREAM SEQUENCE: INT. CASTLE</code> adds <code>CASTLE</code> to your locations. A longer prefix such as <code>INT. DREAM:</code> is suggested after <code>INT. D</code>, and your own scene times complete after a dot as well as a dash, as in <code>INT. ROOM. NOON</code> (#223).</li>
+                <li><strong>Admin Console for Collaboration Servers</strong> &mdash; A self-hosted collaboration server can show its health, its database and who is signed in at <code>/admin</code>, for the accounts listed in <code>ADMIN_EMAILS</code>. Every refused sign-in renewal is now logged with its reason, so frequent sign-outs can be traced.</li>
+                <li><strong>Also Fixed</strong> &mdash; The AI Assistant and Dictation add-ons were missing from <em>Settings &rarr; Add-ons</em> and the Tools menu in 2.10.0. They are back, with their settings as you left them.</li>
+              </ul>
               <div className="about-subsection-title">v2.10.0</div>
               <ul className="about-list">
                 <li><strong>OpenDraft in Your Language</strong> &mdash; Menus, toolbars, dialogs, settings and messages are now translated into Spanish, French, Brazilian Portuguese, Russian, Turkish, Arabic, Persian, Hindi, Urdu, Marathi, Gujarati, Telugu, Tamil, Odia, Punjabi, Malayalam, Kannada and Bengali. It follows your device&rsquo;s language, and <em>Settings &rarr; Language</em> changes it: every language is one click, under its own name.</li>
