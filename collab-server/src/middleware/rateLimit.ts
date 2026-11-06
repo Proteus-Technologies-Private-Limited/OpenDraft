@@ -1,5 +1,7 @@
 import rateLimit from 'express-rate-limit';
 import { config } from '../config';
+import { recordRefreshFailure } from '../services/liveStats';
+import { logEvent } from '../services/auditService';
 
 export const standardLimiter = rateLimit({
   windowMs: config.rateLimitWindowMs,
@@ -27,6 +29,12 @@ export const refreshLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests, please try again later' },
+  // A refused refresh signs the user out, so the admin console needs to see it.
+  handler: (req, res, _next, options) => {
+    recordRefreshFailure('rate_limited', req.ip || 'unknown');
+    void logEvent('refresh_rate_limited', null, null, null, req.ip || null);
+    res.status(options.statusCode).send(options.message);
+  },
 });
 
 export const veryStrictLimiter = rateLimit({

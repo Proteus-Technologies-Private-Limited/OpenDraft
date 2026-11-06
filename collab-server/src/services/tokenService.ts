@@ -153,3 +153,25 @@ export async function revokeRefreshToken(token: string): Promise<boolean> {
   if (!row) return false;
   return claimRefreshToken(row.id);
 }
+
+/**
+ * Why a refresh token was refused — for the admin console, never for the
+ * client (which only learns "invalid"). Reading the row without the live
+ * filters tells a spent or revoked token apart from one that never existed.
+ */
+export async function diagnoseRefreshToken(token: string): Promise<string> {
+  try {
+    if (!REFRESH_TOKEN_PATTERN.test(token)) return 'malformed_token';
+    const row = await getDB().get<{ revoked: number; expires_at: string }>(
+      'SELECT revoked, expires_at FROM refresh_tokens WHERE token_hash = ?',
+      [hashRefreshToken(token)],
+    );
+    if (!row) return 'unknown_token';
+    if (row.revoked) return 'already_used_or_revoked';
+    if (row.expires_at <= new Date().toISOString()) return 'expired';
+    return 'user_missing';
+  } catch (err) {
+    console.error('diagnoseRefreshToken failed:', err);
+    return 'diagnosis_failed';
+  }
+}

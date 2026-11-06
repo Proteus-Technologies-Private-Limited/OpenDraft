@@ -29,6 +29,8 @@ import * as auditService from './services/auditService';
 import { checkSuggesterUpdate, suggesterIdOf, updateInMessage, SUGGESTION_REFUSED_CLOSE_CODE, SUGGESTION_REFUSED_REASON, type YjsLike } from './services/suggestionGuard';
 import authRoutes from './routes/auth';
 import collabRoutes from './routes/collab';
+import adminRoutes from './routes/admin';
+import * as liveStats from './services/liveStats';
 import { standardLimiter } from './middleware/rateLimit';
 
 // ── Data directory for Yjs documents ──
@@ -218,6 +220,20 @@ const hocuspocus = new Hocuspocus({
       _connKey: userKey, // internal: for tracking disconnections
     };
 
+    liveStats.addConnection({
+      socketId: data.socketId,
+      userId,
+      name: session.collaborator_name,
+      email: userEmail,
+      role: session.role || 'editor',
+      document: data.documentName,
+      projectId: session.project_id,
+      scriptId: session.script_id,
+      ip: String(data.requestHeaders['x-forwarded-for'] || data.request.socket.remoteAddress || 'unknown').split(',')[0].trim(),
+      since: Date.now(),
+    });
+    data.request.socket.once('close', () => liveStats.removeConnection(data.socketId));
+
     await auditService.logEvent('connect', userId, data.documentName, {
       name: session.collaborator_name,
       role: session.role,
@@ -237,6 +253,7 @@ const hocuspocus = new Hocuspocus({
 
   async onDisconnect(data: onDisconnectPayload) {
     reviewGate.leave(data.documentName, data.socketId);
+    liveStats.removeConnection(data.socketId);
     data.document.broadcastStateless(JSON.stringify({ type: 'review-capability', enabled: !reviewGate.hasLegacy(data.documentName) }));
     const user = data.context?.user;
     console.log(`Client disconnected from document: ${data.documentName} (${user?.name || 'unknown'})`);
@@ -371,6 +388,17 @@ app.use(cors({
   credentials: true,
 }));
 app.use(express.json());
+
+// Admin console: mounted ahead of the request logger and the general limiter
+// because it polls every few seconds and has a limiter of its own.
+app.use('/admin', adminRoutes);
+
+// Request metrics for the admin console
+app.use((req, res, next) => {
+  const started = Date.now();
+  res.on('finish', () => liveStats.recordRequest(res.statusCode, Date.now() - started));
+  next();
+});
 
 // Request logger — logs all incoming HTTP requests
 app.use((req, _res, next) => {
@@ -522,6 +550,8 @@ async function main(): Promise<void> {
 
   // Start document eviction timer
   startDocumentEviction();
+  liveStats.startSampling();
+  liveStats.setDocumentCountProvider(() => hocuspocus.documents.size);
 
   httpServer.listen(PORT, HOST, () => {
     const protocol = config.tlsCert ? 'wss' : 'ws';
@@ -530,6 +560,7 @@ async function main(): Promise<void> {
     console.log(`  REST API:  ${config.tlsCert ? 'https' : 'http'}://${HOST}:${PORT}`);
     console.log(`  Backend:   ${config.backendUrl}`);
     console.log(`  Database:  ${config.dbType}`);
+    console.log(`  Admin:     ${config.adminEmails.length ? `/admin (${config.adminEmails.length} admin account(s))` : 'disabled (set ADMIN_EMAILS to enable)'}`);
     console.log(`  WS limits: ${config.wsMaxConnectionsPerIp}/IP, ${config.wsMaxConnectionsPerUser}/user`);
   });
 }

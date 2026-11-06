@@ -6,6 +6,7 @@ import type { UserRow } from '../db';
 import * as tokenService from '../services/tokenService';
 import * as emailService from '../services/emailService';
 import * as auditService from '../services/auditService';
+import * as liveStats from '../services/liveStats';
 import * as deviceService from '../services/deviceService';
 import * as passwordResetService from '../services/passwordResetService';
 import type { DeviceInfo } from '../services/deviceService';
@@ -435,10 +436,14 @@ router.post('/refresh', refreshLimiter, async (req, res) => {
 
     const result = await tokenService.rotateRefreshToken(parsed.data.refreshToken);
     if (!result) {
+      const reason = await tokenService.diagnoseRefreshToken(parsed.data.refreshToken);
+      liveStats.recordRefreshFailure(reason, getClientIp(req) || 'unknown');
+      await auditService.logEvent('token_refresh_failed', null, null, { reason }, getClientIp(req));
       res.status(401).json({ error: 'Invalid or expired refresh token' });
       return;
     }
 
+    liveStats.touchUser(result.userId);
     await auditService.logEvent('token_refresh', result.userId, null, null, getClientIp(req));
 
     res.json({
