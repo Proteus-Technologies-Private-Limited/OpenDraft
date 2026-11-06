@@ -46,7 +46,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="OpenDraft API",
     description="Backend API for OpenDraft screenwriting application",
-    version="2.10.0",
+    version="2.11.0",
     lifespan=lifespan,
 )
 
