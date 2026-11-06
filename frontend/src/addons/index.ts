@@ -17,8 +17,13 @@
  *   folder exists to prevent.
  *
  * App.tsx imports this module, so the add-ons are registered in the core app
- * and in OpenDraft-Pro (which reuses core's App) alike.
+ * and in OpenDraft-Pro (which reuses core's App) alike. They are registered
+ * once i18next has started, not on import: an add-on's description and privacy
+ * statement are translated text, which reads as empty until then, and the
+ * check below would refuse every add-on. App.tsx is imported before main.tsx
+ * awaits initI18n(), so registering on import did exactly that.
  */
+import { i18next } from '../i18n';
 import { pluginRegistry, type OpenDraftPlugin } from '../plugins/registry';
 import aiAssistant from './ai-assistant';
 import dictation from './dictation';
@@ -59,4 +64,23 @@ export function registerCoreAddOns(addOns: readonly OpenDraftPlugin[] = CORE_ADD
   if (addOns === CORE_ADDONS) registered = true;
 }
 
-registerCoreAddOns();
+type I18nEvents = Pick<typeof i18next, 'isInitialized' | 'on' | 'off'>;
+
+/** Run `fn` now if i18next has started, otherwise as soon as it has. */
+export function whenTranslationsReady(i18n: I18nEvents, fn: () => void): void {
+  if (i18n.isInitialized) {
+    fn();
+    return;
+  }
+  const ready = () => {
+    i18n.off('initialized', ready);
+    try {
+      fn();
+    } catch (err) {
+      console.error('[add-ons] could not register the core add-ons', err);
+    }
+  };
+  i18n.on('initialized', ready);
+}
+
+whenTranslationsReady(i18next, () => registerCoreAddOns());

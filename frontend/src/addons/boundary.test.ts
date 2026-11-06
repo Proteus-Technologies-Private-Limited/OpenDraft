@@ -7,7 +7,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
-import { CORE_ADDONS, addOnProblem, registerCoreAddOns } from './index';
+import i18next from 'i18next';
+import { CORE_ADDONS, addOnProblem, registerCoreAddOns, whenTranslationsReady } from './index';
 import { pluginRegistry, type OpenDraftPlugin } from '../plugins/registry';
 
 const SRC = join(__dirname, '..');
@@ -49,6 +50,40 @@ describe('core add-ons', () => {
     registerCoreAddOns([alwaysOn]);
     expect(pluginRegistry.getAll().some((p) => p.id === 'always-on-assistant')).toBe(false);
     expect(error).toHaveBeenCalledWith(expect.stringContaining('not marked optIn'));
+    error.mockRestore();
+  });
+
+  it('are registered, not refused, when the app imports them before i18n starts', async () => {
+    // main.tsx imports App (and so this module) before it awaits initI18n().
+    // The shared test setup has already started the global i18next, so use a
+    // fresh instance to stand in for the app at import time.
+    const i18n = i18next.createInstance();
+    // The app's typed keys don't cover this test-only namespace.
+    const translated = (key: string): string => (i18n.t as unknown as (k: string) => string)(key);
+    const plugin: OpenDraftPlugin = {
+      id: 'translated-add-on', name: 'Translated', version: '1.0.0', optIn: true,
+      get description() { return translated('demo:description'); },
+      get privacy() { return translated('demo:privacy'); },
+    };
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const register = vi.fn(() => registerCoreAddOns([plugin]));
+
+    // What registering on import did: the description reads empty.
+    expect(addOnProblem(plugin)).toContain('no description');
+
+    whenTranslationsReady(i18n, register);
+    expect(register).not.toHaveBeenCalled();
+
+    await i18n.init({
+      lng: 'en', ns: ['demo'],
+      resources: { en: { demo: { description: 'Does a thing.', privacy: 'Nothing leaves the device.' } } },
+    });
+    expect(register).toHaveBeenCalledTimes(1);
+    expect(error).not.toHaveBeenCalled();
+    expect(pluginRegistry.getAll().some((p) => p.id === 'translated-add-on')).toBe(true);
+
+    whenTranslationsReady(i18n, register);
+    expect(register).toHaveBeenCalledTimes(2);
     error.mockRestore();
   });
 });
