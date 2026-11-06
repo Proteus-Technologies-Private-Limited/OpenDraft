@@ -47,6 +47,9 @@ services:
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASS: ${SMTP_PASS:-}
       SMTP_FROM: ${SMTP_FROM:-}
+      # Accounts allowed into the admin console at https://$COLLAB_HOST/admin
+      # (comma-separated). Unset, /admin answers 404. See docs/ADMIN_CONSOLE.md.
+      ADMIN_EMAILS: ${ADMIN_EMAILS:-}
       # Optional demo seeding — leave SEED_DEMO_USER unset in real prod.
       SEED_DEMO_USER: ${SEED_DEMO_USER:-}
       SEED_DEMO_USER_EMAIL: ${SEED_DEMO_USER_EMAIL:-}

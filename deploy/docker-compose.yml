@@ -55,6 +55,9 @@ services:
       # collab server falls back to http://localhost:5173 and every emailed
       # link points at the reader's own machine.
       APP_URL: ${APP_URL:-https://${DEMO_HOST}}
+      # Accounts allowed into the admin console at https://$COLLAB_HOST/admin
+      # (comma-separated). Unset, /admin answers 404. See docs/ADMIN_CONSOLE.md.
+      ADMIN_EMAILS: ${ADMIN_EMAILS:-}
     volumes:
       - collab_data:/app/data
 
