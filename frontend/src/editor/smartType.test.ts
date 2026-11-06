@@ -13,6 +13,7 @@ import {
   type BlockNodeLike,
 } from './smartType';
 import { pmDoc } from '../test/screenplaySchema';
+import { DEFAULT_SMARTTYPE_LISTS } from '../utils/smartTypeLists';
 
 const items = (element: string, text: string, index: ScriptIndex = emptyScriptIndex()) => {
   const result = suggestSmartType(element, text, text.length, index);
@@ -344,7 +345,7 @@ describe('custom SmartType lists', () => {
   it('still recognizes standard prefixes after they are removed from suggestions', () => {
     const script = buildScriptIndex([{ type: 'sceneHeading', text: 'INT. DINER - DAY' }], lists);
     expect(script.locations).toEqual(['DINER']);
-    expect(customItems('sceneHeading', 'INT. D', script)).toEqual(['DINER']);
+    expect(customItems('sceneHeading', 'INT. D', script)).toEqual(['DREAM: ', 'DINER']);
   });
 
   it('continues suggesting script-used times and transitions with empty saved lists', () => {
@@ -362,4 +363,82 @@ describe('custom SmartType lists', () => {
     const script = { characters: [], locations: [], times: ['NOON', 'NIGHT'], transitions: [] };
     expect(customItems('sceneHeading', 'INT. ROOM - ', script)).toEqual(['MAGIC HOUR', 'NOON', 'NIGHT']);
   });
+});
+
+describe('SmartType intros and prefix continuations', () => {
+  const lists = {
+    ...DEFAULT_SMARTTYPE_LISTS,
+    scenePrefixes: [...DEFAULT_SMARTTYPE_LISTS.scenePrefixes, 'DREAM SEQUENCE: ', 'FLASHBACK: ', 'INT. DREAM: '],
+    times: [...DEFAULT_SMARTTYPE_LISTS.times, 'NOON', 'MID.[NIGHT]+'],
+  };
+  const suggest = (text: string, script = emptyScriptIndex()) =>
+    suggestSmartType('sceneHeading', text, text.length, script, lists);
+  const apply = (text: string, item: string, script = emptyScriptIndex()) => {
+    const result = suggest(text, script);
+    expect(result?.items).toContain(item);
+    return text.slice(0, result!.from) + item;
+  };
+
+  it('indexes the location after an intro and a standard prefix', () => {
+    const script = buildScriptIndex([
+      { type: 'sceneHeading', text: 'DREAM SEQUENCE: INT. CASTLE - NIGHT' },
+      { type: 'sceneHeading', text: 'DREAM SEQUENCE: FLASHBACK: EXT. GARDEN - DAY' },
+    ], lists);
+    expect(script.locations).toEqual(['CASTLE', 'GARDEN']);
+    expect(script.times).toEqual(['NIGHT', 'DAY']);
+  });
+
+  it('completes the prefix after an intro, then the location without losing either prefix', () => {
+    const script = { ...emptyScriptIndex(), locations: ['CASTLE'] };
+    const prefix = apply('DREAM SEQUENCE: I', 'INT. ', script);
+    expect(prefix).toBe('DREAM SEQUENCE: INT. ');
+    expect(apply(prefix + 'C', 'CASTLE', script)).toBe('DREAM SEQUENCE: INT. CASTLE');
+  });
+
+  it('supports another custom intro followed by a standard prefix', () => {
+    expect(apply('DREAM SEQUENCE: FL', 'FLASHBACK: ')).toBe('DREAM SEQUENCE: FLASHBACK: ');
+    expect(apply('DREAM SEQUENCE: FLASHBACK: E', 'EXT. ')).toBe('DREAM SEQUENCE: FLASHBACK: EXT. ');
+  });
+
+  it('offers a longer prefix alongside locations using the same replacement offset', () => {
+    const script = { ...emptyScriptIndex(), locations: ['DINER'] };
+    expect(suggest('INT. D', script)).toEqual({ from: 5, items: ['DREAM: ', 'DINER'] });
+    expect(apply('INT. D', 'DREAM: ', script)).toBe('INT. DREAM: ');
+    expect(apply('INT. D', 'DINER', script)).toBe('INT. DINER');
+    expect(apply('DREAM SEQUENCE: INT. D', 'DREAM: ', script)).toBe('DREAM SEQUENCE: INT. DREAM: ');
+  });
+
+  it('still recognizes a standard prefix after an intro when omitted from saved suggestions', () => {
+    const sparse = { ...lists, scenePrefixes: ['DREAM SEQUENCE: '] };
+    const script = buildScriptIndex([{ type: 'sceneHeading', text: 'DREAM SEQUENCE: INT. CASTLE - NIGHT' }], sparse);
+    const text = 'DREAM SEQUENCE: INT. C';
+    expect(suggestSmartType('sceneHeading', text, text.length, script, sparse)?.items).toEqual(['CASTLE']);
+    const partial = 'DREAM SEQUENCE: I';
+    expect(suggestSmartType('sceneHeading', partial, partial.length, script, sparse)).toBeNull();
+  });
+
+  it('indexes saved dot-separated times and preserves literal punctuation', () => {
+    const script = buildScriptIndex([
+      { type: 'sceneHeading', text: 'DREAM SEQUENCE: INT. CASTLE. NOON [FLASHBACK]' },
+      { type: 'sceneHeading', text: 'INT. ST. JAMES. MID.[NIGHT]+' },
+    ], lists);
+    expect(script.locations).toEqual(['CASTLE', 'ST. JAMES']);
+    expect(script.times).toEqual(['NOON', 'MID.[NIGHT]+']);
+  });
+
+  it('completes custom times after a dot without replacing the intro or location', () => {
+    expect(apply('DREAM SEQUENCE: INT. ST. JAMES. NO', 'NOON')).toBe('DREAM SEQUENCE: INT. ST. JAMES. NOON');
+    expect(apply('INT. ROOM. MID.', 'MID.[NIGHT]+')).toBe('INT. ROOM. MID.[NIGHT]+');
+  });
+});
+
+
+it('prefers an unfinished longer prefix over a dot-separated time', () => {
+  const lists = {
+    ...DEFAULT_SMARTTYPE_LISTS,
+    scenePrefixes: [...DEFAULT_SMARTTYPE_LISTS.scenePrefixes, 'INT. DREAM.FOO: '],
+  };
+  const text = 'INT. DREAM.';
+  expect(suggestSmartType('sceneHeading', text, text.length, emptyScriptIndex(), lists))
+    .toEqual({ from: 5, items: ['DREAM.FOO: '] });
 });

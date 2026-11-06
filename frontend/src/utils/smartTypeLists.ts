@@ -56,3 +56,31 @@ export function matchScenePrefix(text: string, prefixes: readonly string[]): { p
   }
   return best;
 }
+
+const STANDARD_SCENE_PREFIX = /^(INT\.?\/?EXT\.?|EXT\.?\/?INT\.?|INT\.?|EXT\.?|I\/E\.?|EST\.?)\s+/i;
+
+export function isStandardScenePrefix(prefix: string): boolean {
+  const text = `${prefix.trim()} `;
+  return STANDARD_SCENE_PREFIX.exec(text)?.[0].length === text.length;
+}
+
+/** Consume an intro followed by further intros or an INT./EXT. prefix. */
+export function matchScenePrefixChain(text: string, prefixes: readonly string[]): Array<{
+  prefix: string; from: number; to: number; standard: boolean;
+}> {
+  const matches: Array<{ prefix: string; from: number; to: number; standard: boolean }> = [];
+  let from = 0;
+  while (from < text.length) {
+    const rest = text.slice(from);
+    const custom = matchScenePrefix(rest, prefixes);
+    const standard = STANDARD_SCENE_PREFIX.exec(rest)?.[0];
+    const match = custom && custom.length >= (standard?.length ?? 0)
+      ? custom
+      : standard ? { prefix: standard.trim(), length: standard.length } : null;
+    if (!match) break;
+    const to = from + match.length;
+    matches.push({ prefix: match.prefix, from, to, standard: isStandardScenePrefix(match.prefix) });
+    from = to;
+  }
+  return matches;
+}
