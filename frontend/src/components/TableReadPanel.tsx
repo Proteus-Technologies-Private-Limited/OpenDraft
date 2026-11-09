@@ -21,6 +21,7 @@ import { onKokoroProgress, type KokoroProgress } from '../services/tts/kokoroCli
 import { activeEngineKind, availableEngineKinds, selectedEngineKind } from '../services/tts/engines';
 import { primeAudioPlayback } from '../services/tts/aiEngine';
 import * as player from '../services/tts/player';
+import { tableReadMediaSession } from '../services/tts/mediaSession';
 import type { ReadLine } from '../services/tts/script';
 import VoicePicker from './VoicePicker';
 
@@ -70,6 +71,36 @@ const TableReadPanel: React.FC<{ editor: Editor }> = ({ editor }) => {
   useEffect(() => {
     player.prepare(editor);
     return () => player.teardown();
+  }, [editor]);
+
+  useEffect(() => {
+    if (!navigator.mediaSession) return;
+    const media = tableReadMediaSession(navigator.mediaSession, {
+      play: () => {
+        if (useTableReadStore.getState().status === 'paused') player.resume();
+        else player.play(editor, useTableReadStore.getState().current);
+      },
+      pause: player.pause,
+      stop: player.stop,
+      nexttrack: () => player.step(1),
+      previoustrack: () => player.step(-1),
+    });
+    const update = () => {
+      const state = useTableReadStore.getState();
+      const line = state.lines[state.current];
+      // Read scene metadata from the script even when headings aren't spoken.
+      let title = useEditorStore.getState().documentTitle;
+      if (line) editor.state.doc.descendants((node, pos) => {
+        if (pos > line.from) return false;
+        if (node.type.name === 'sceneHeading') title = node.textContent;
+      });
+      media.update({ status: state.status, title, speaker: line?.cue ?? line?.speaker ?? '' });
+    };
+    const unsubscribe = useTableReadStore.subscribe((state, previous) => {
+      if (state.status !== previous.status || state.current !== previous.current || state.lines !== previous.lines) update();
+    });
+    update();
+    return () => { unsubscribe(); media.dispose(); };
   }, [editor]);
 
   // A change of voice source (Settings, the provider dialog) takes effect on the next line.
