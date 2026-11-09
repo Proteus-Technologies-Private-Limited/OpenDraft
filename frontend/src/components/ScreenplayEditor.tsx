@@ -75,6 +75,9 @@ import BeatBoard from './BeatBoard';
 import OutlineView from './OutlineView';
 import ScriptStatistics from './ScriptStatistics';
 import TableReadPanel from './TableReadPanel';
+import FoldablePanelDock from './FoldablePanelDock';
+import { useFoldState } from '../hooks/useFoldState';
+import { foldLayout } from '../utils/foldLayout';
 import VoiceProviderDialog from './VoiceProviderDialog';
 import { TableReadHighlight } from '../editor/extensions/TableReadHighlight';
 import { useTableReadStore } from '../stores/tableReadStore';
@@ -577,6 +580,11 @@ const ScreenplayEditor: React.FC = () => {
     showRevisionColors,
     saveStatus, saveError, setSaveStatus,
   } = useEditorStore();
+  const foldState = useFoldState();
+  const foldToolbarMode = useEditorStore(s => s.toolbarMode);
+  const [foldPluginLabel, setFoldPluginLabel] = useState<string | null>(null);
+  const foldDock = foldState.foldable && (foldState.size === 'wide' || foldState.fold !== 'flat');
+  const tableReadHome = useRef<HTMLDivElement>(null);
   const tableReadOpen = useTableReadStore((s) => s.open);
   const storyTimelineOpen = useEditorStore((s) => s.storyTimelineOpen);
 
@@ -1066,7 +1074,7 @@ const ScreenplayEditor: React.FC = () => {
   const pageLayoutRef = useRef(pageLayout);
   pageLayoutRef.current = pageLayout;
   // Phone view: the same pages, reflowed to the screen (see ViewLayout).
-  const phoneView = viewLayout === 'phone';
+  const phoneView = viewLayout === 'phone' || (foldState.foldable && foldState.fold === 'book');
   const phoneViewRef = useRef(phoneView);
   phoneViewRef.current = phoneView;
 
@@ -1213,13 +1221,23 @@ const ScreenplayEditor: React.FC = () => {
   const autoZoomApplied = useRef(false);
   useEffect(() => {
     const handleAutoZoom = () => {
+      const layoutRoot = document.querySelector<HTMLElement>('.editor-layout');
+      if (foldState.foldable && layoutRoot) layoutRoot.style.setProperty('--fold-content-top', `${layoutRoot.getBoundingClientRect().top}px`);
       // The phone view has no sheet to fit: its zoom is the size of the text,
       // and the writer's own.
       if (phoneView) {
         autoZoomApplied.current = false;
         return;
       }
-      if (window.innerWidth <= 768 && editorMainRef.current) {
+      if (foldState.foldable && foldState.size === 'wide' && foldState.fold === 'flat' && editorMainRef.current) {
+        const layout = foldLayout(window.innerWidth, pageLayout.pageWidth * 96, navWidth, navigatorOpen, rightPanelVisible || tableReadOpen || !!foldPluginLabel);
+        const root = document.querySelector('.editor-layout');
+        root?.classList.toggle('fold-nav-docked', layout.dockNavigator);
+        root?.classList.toggle('fold-nav-overlay', !layout.dockNavigator);
+        const fit = Math.floor((editorMainRef.current.clientWidth - 16) / (pageLayout.pageWidth * 96) * 100);
+        setZoomLevel(Math.max(70, Math.min(100, fit)));
+        autoZoomApplied.current = true;
+      } else if (window.innerWidth <= 768 && editorMainRef.current) {
         const containerWidth = editorMainRef.current.clientWidth - 16; // small padding
         const pageWidthPx = pageLayout.pageWidth * 96; // 1in = 96px
         const fitZoom = Math.floor((containerWidth / pageWidthPx) * 100);
@@ -1239,7 +1257,7 @@ const ScreenplayEditor: React.FC = () => {
       window.removeEventListener('resize', handleAutoZoom);
       window.removeEventListener('orientationchange', handleAutoZoom);
     };
-  }, [pageLayout.pageWidth, setZoomLevel, phoneView]);
+  }, [pageLayout.pageWidth, setZoomLevel, phoneView, foldState.foldable, foldState.size, foldState.fold, navWidth, navigatorOpen, rightPanelVisible, tableReadOpen, foldPluginLabel, foldToolbarMode]);
 
   // ── Handle /collab/:token route — resolve token to project/script, then enter collab mode ──
   const collabInitDone = useRef(false);
@@ -5716,7 +5734,7 @@ const ScreenplayEditor: React.FC = () => {
       )}
       {!isHistoryMode && <MenuBar editor={editor} onDocumentSaved={handleDocumentSaved} onCollaborate={handleCollaborate} onJoinCollab={openJoinCollab} isCollabActive={collabMode} isCollabGuest={collabMode && !isCollabHost} canEditDocumentFormat={!collabMode || collabRole === 'editor'} />}
       {!isHistoryMode && <Toolbar editor={editor} />}
-      <div className="editor-layout">
+      <div className={`editor-layout${foldDock ? ' fold-layout' : ''}${foldDock && foldState.fold === 'flat' ? (foldLayout(window.innerWidth, pageLayout.pageWidth * 96, navWidth, navigatorOpen, rightPanelVisible || tableReadOpen || !!foldPluginLabel).dockNavigator ? ' fold-nav-docked' : ' fold-nav-overlay') : ''}`}>
         {!isHistoryMode && <SceneNavigator editor={editor} scrollContainer={editorMainEl} style={navStyle} />}
         {!isHistoryMode && navigatorOpen && (
           <div className="panel-resize-handle" onPointerDown={(e) => handleResizePointerDown('left', e)} style={{ touchAction: 'none' }} />
@@ -5957,28 +5975,26 @@ const ScreenplayEditor: React.FC = () => {
           )}
           {/* Table Read docks over the bottom of the script it is reading. */}
           {storyTimelineOpen && editor && (
-            <StoryTimeline editor={editor} onClose={() => useEditorStore.getState().setStoryTimelineOpen(false)} />
+            <StoryTimeline editor={editor} docked={foldDock} onClose={() => useEditorStore.getState().setStoryTimelineOpen(false)} />
           )}
-          {!isHistoryMode && tableReadOpen && editor && !statisticsOpen && !beatBoardOpen && (
-            <TableReadPanel editor={editor} />
-          )}
+          <div className="fold-panel-home" ref={tableReadHome} />
         </div>
         {!isHistoryMode && rightPanelVisible && (
           <div className="panel-resize-handle" onPointerDown={(e) => handleResizePointerDown('right', e)} style={{ touchAction: 'none' }} />
         )}
-        {!isHistoryMode && <ScriptNotes editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} />}
-        {!isHistoryMode && <CharacterProfiles editor={editor} projectId={currentProject?.id || ''} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} />}
-        {!isHistoryMode && <TagsPanel editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} />}
-        {!isHistoryMode && <LocationDatabase editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} />}
-        {!isHistoryMode && <DialogueTuner editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} />}
-        {!isHistoryMode && <SuggestionsPanel editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} />}
-        {!isHistoryMode && (
-          <PluginPanelTabs
-            editor={editor}
-            width={rightPanelWidth}
-            onResizePointerDown={(e) => handleResizePointerDown('right', e)}
-          />
-        )}
+        {!isHistoryMode && <FoldablePanelDock active={foldDock} panels={[
+          { id: 'notes', label: tg('menu:view.notesPanel'), open: scriptNotesOpen, content: <ScriptNotes editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} /> },
+          { id: 'characters', label: tg('menu:view.characters'), open: characterProfilesOpen, content: <CharacterProfiles editor={editor} projectId={currentProject?.id || ''} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} /> },
+          { id: 'tags', label: tg('menu:view.tags'), open: tagsPanelOpen, content: <TagsPanel editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} /> },
+          { id: 'locations', label: tg('menu:view.locations'), open: locationDatabaseOpen, content: <LocationDatabase editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} /> },
+          { id: 'tuner', label: tg('menu:view.dialogueTuner'), open: dialogueTunerOpen, content: <DialogueTuner editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} /> },
+          { id: 'suggestions', label: tg('menu:view.suggestions'), open: suggestionsPanelOpen, content: <SuggestionsPanel editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} /> },
+          { id: 'plugin', label: foldPluginLabel ?? tg('menu:pluginPanels.tabs'), open: !!foldPluginLabel, keepHomeWhenClosed: true,
+            content: <PluginPanelTabs editor={editor} width={rightPanelWidth} onActiveChange={setFoldPluginLabel} onResizePointerDown={(e) => handleResizePointerDown('right', e)} /> },
+          { id: 'table-read', label: tg('menu:tools.tableRead'), open: tableReadOpen && !statisticsOpen && !beatBoardOpen, home: tableReadHome,
+            content: tableReadOpen && editor && !statisticsOpen && !beatBoardOpen ? <TableReadPanel editor={editor} /> : null },
+        ]} />}
+
       </div>
       {!isHistoryMode && (
         <div className="status-bar-row" style={{ display: 'flex', alignItems: 'center', width: '100%' }}>

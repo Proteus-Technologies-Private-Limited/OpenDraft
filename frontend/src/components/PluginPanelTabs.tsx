@@ -33,6 +33,7 @@ export const PLUGIN_PANEL_CLOSE_EVENT = 'plugin-panel:close';
 interface Props {
   editor: any;
   width: number;
+  onActiveChange?: (label: string | null) => void;
   /** Optional drag-to-resize handler. When provided, a vertical handle
    *  is rendered on the LEFT edge of the active panel content so the
    *  user can resize the right sidebar by dragging — same UX as the
@@ -46,6 +47,7 @@ export const PluginPanelTabs: React.FC<Props> = ({
   editor,
   width,
   onResizePointerDown,
+  onActiveChange,
 }) => {
   const { t } = useTranslation('menu');
   const [panels, setPanels] = useState<PluginPanelEntry[]>(() =>
@@ -88,6 +90,11 @@ export const PluginPanelTabs: React.FC<Props> = ({
       document.removeEventListener(PLUGIN_PANEL_CLOSE_EVENT, closeHandler);
     };
   }, [panels]);
+
+  useEffect(() => {
+    const active = panels.find(p => p.id === activeId);
+    onActiveChange?.(active ? resolvePluginText(active.labelKey, active.label) : null);
+  }, [activeId, panels, onActiveChange]);
 
   if (panels.length === 0) return null;
 
