@@ -25,6 +25,7 @@ import { useTranslation } from 'react-i18next';
 
 import { pluginRegistry, resolvePluginText, type PluginPanelEntry } from '../plugins/registry';
 import './PluginPanelTabs.css';
+import { useEditorTransactions } from '../hooks/useEditorTransactions';
 
 export const PLUGIN_PANEL_OPEN_EVENT = 'plugin-panel:open';
 export const PLUGIN_PANEL_CLOSE_EVENT = 'plugin-panel:close';
@@ -51,6 +52,7 @@ export const PluginPanelTabs: React.FC<Props> = ({
     pluginRegistry.getPanels('right-sidebar'),
   );
   const [activeId, setActiveId] = useState<string | null>(null);
+  useEditorTransactions(editor, activeId !== null);
 
   // Track the registry so panels appear and disappear as plugins come and
   // go. Plugins usually register at boot, but a lazy loader can register

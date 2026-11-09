@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { Editor } from '@tiptap/react';
 import { cleanBookmarkName, MAX_BOOKMARK_NAME, setBookmark, uniqueBookmarkName } from '../utils/bookmarks';
 import { removeBookmark } from './bookmarkActions';
+import { useEditorTransactions } from '../hooks/useEditorTransactions';
 
 interface BookmarkDialogProps {
   editor: Editor;
@@ -15,6 +16,7 @@ interface BookmarkDialogProps {
 /** Name a new bookmark, or rename or remove an existing one. */
 const BookmarkDialog: React.FC<BookmarkDialogProps> = ({ editor, pos, initialName, isNew, onClose }) => {
   const { t } = useTranslation(['dialogs', 'common']);
+  useEditorTransactions(editor);
   const [name, setName] = useState(initialName);
   const inputRef = useRef<HTMLInputElement>(null);
 

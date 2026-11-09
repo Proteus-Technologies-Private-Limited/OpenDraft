@@ -5,6 +5,7 @@ import { useEditorStore, type SceneInfo } from '../stores/editorStore';
 import { computeSceneLengths, activeTemplateHints } from '../editor/pagination';
 import { computeSceneTiming, formatSceneDuration, getTimingColor } from '../utils/scriptTiming';
 import SynopsisModal from './SynopsisModal';
+import { useEditorDoc } from '../hooks/useEditorTransactions';
 
 interface IndexCardsProps {
   editor: Editor | null;
@@ -14,6 +15,7 @@ interface IndexCardsProps {
 const IndexCards: React.FC<IndexCardsProps> = ({ editor, scrollContainer }) => {
   const { t } = useTranslation(['story', 'common']);
   const { scenes, indexCardsOpen, updateSceneSynopsis, updateSceneColor, toggleIndexCards, pageLayout } = useEditorStore();
+  const doc = useEditorDoc(editor, indexCardsOpen);
 
   const [fullscreen, setFullscreen] = useState(false);
   const [dragMode, setDragMode] = useState(false);
@@ -134,20 +136,20 @@ const IndexCards: React.FC<IndexCardsProps> = ({ editor, scrollContainer }) => {
 
   // Scene page lengths and timing
   const sceneLengths = useMemo(() => {
-    if (!editor) return [];
+    if (!doc) return [];
     try {
       return computeSceneLengths(
-        editor.state.doc,
+        doc,
         pageLayout,
         activeTemplateHints(),
       );
     } catch { return []; }
-  }, [editor, scenes, pageLayout]);
+  }, [doc, pageLayout]);
 
   const sceneTimings = useMemo(() => {
-    if (!editor) return [];
-    try { return computeSceneTiming(editor.getJSON()).scenes; } catch { return []; }
-  }, [editor, scenes]);
+    if (!doc) return [];
+    try { return computeSceneTiming(doc.toJSON()).scenes; } catch { return []; }
+  }, [doc]);
 
   // Map from scene ID to its original 1-based position (for showing "was #N")
   const originalIndexMap = useRef(new Map<string, number>());

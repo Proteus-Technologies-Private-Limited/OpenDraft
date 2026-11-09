@@ -1,4 +1,4 @@
-import type { JSONContent } from '@tiptap/react';
+import type { Editor, JSONContent } from '@tiptap/react';
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useEditorStore, ELEMENT_LABELS, type BuiltInElementType } from '../stores/editorStore';
@@ -15,6 +15,7 @@ import WritingProgress from './WritingProgress';
 import { useSuggestModeStore } from '../stores/suggestModeStore';
 import { formatNumber } from '../i18n/format';
 import { elementLabel as translateElement } from '../editor/elementLabels';
+import { useEditorDoc } from '../hooks/useEditorTransactions';
 
 const SAVE_STATUS_CLASS: Record<string, string> = {
   idle: '',
@@ -25,11 +26,13 @@ const SAVE_STATUS_CLASS: Record<string, string> = {
 };
 
 interface StatusBarProps {
-  editorDoc?: Record<string, unknown> | null;
+  editor: Editor | null;
 }
 
-const StatusBar: React.FC<StatusBarProps> = ({ editorDoc = null }) => {
+const StatusBar: React.FC<StatusBarProps> = ({ editor }) => {
   const { t } = useTranslation('toolbar');
+  const doc = useEditorDoc(editor);
+  const editorDoc = useMemo(() => doc?.toJSON() ?? null, [doc]);
   const {
     activeElement,
     pageCount,

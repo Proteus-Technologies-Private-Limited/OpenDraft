@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Editor } from '@tiptap/react';
+import { Editor, useEditorState } from '@tiptap/react';
 import type { Mark } from '@tiptap/pm/model';
 import {
   FaBold,
@@ -65,6 +65,32 @@ const shortcutFor = (id: string): string | undefined => {
 };
 
 const FONT_SIZES = [8, 9, 10, 11, 12, 13, 14, 16, 18, 20, 24, 28, 32, 36, 48, 60, 72, 96];
+
+const CARET_MARKS = ['bold', 'italic', 'underline', 'strike', 'subscript', 'superscript'] as const;
+type CaretMark = typeof CARET_MARKS[number];
+const ALIGNMENTS = ['left', 'center', 'right', 'justify'] as const;
+
+const orFalse = (read: () => boolean) => { try { return read(); } catch { return false; } };
+
+/** What the toolbar shows of the caret's place in the script. */
+function selectCaret(ed: Editor | null) {
+  if (!ed) return null;
+  const { state } = ed;
+  const can = ed.can() as unknown as { undo?: () => boolean; redo?: () => boolean };
+  let avCellSide: 'video' | 'audio' = 'video';
+  try { avCellSide = avCellSideAt(state) || 'video'; } catch { /* ignore */ }
+  return {
+    marks: Object.fromEntries(CARET_MARKS.map((m) => [m, ed.isActive(m)])) as Record<CaretMark, boolean>,
+    align: ALIGNMENTS.find((a) => ed.isActive({ textAlign: a })) ?? null,
+    canUndo: orFalse(() => typeof can.undo === 'function' && can.undo()),
+    canRedo: orFalse(() => typeof can.redo === 'function' && can.redo()),
+    inAvCell: orFalse(() => isInAvCell(state)),
+    avCellSide,
+    // A storyboard frame is an atom, so clicking one leaves a NodeSelection on
+    // the frame and no avCell in its ancestry; the row controls test the row.
+    inAvRow: orFalse(() => isInAvRow(state)),
+  };
+}
 
 // Priority groups — higher number = hidden first when toolbar shrinks.
 // Priority 1 = zoom-out (just the minus button area)
@@ -287,63 +313,18 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
   /** True when the selection is inside an AV cell — used to scope the element dropdown. */
   const isInTitlePage = isTitlePageRuleId(String(activeElement));
 
-  // The live state, so anything derived from where the caret is re-runs when
-  // the caret (or the document) actually moves. See isInsideAvCell below.
-  const editorState = editor?.state ?? null;
-
-  /**
-   * Keyed on the editor STATE, not on `activeElement`.
-   *
-   * ProseMirror builds a new EditorState for every transaction and reuses it
-   * across plain re-renders, so its identity is exactly the right key: the walk
-   * runs when the document or the selection moved, and not otherwise.
-   *
-   * `activeElement` was the wrong key because it is only ever written from
-   * `onSelectionUpdate`, and a wholesale content replacement — restoring a
-   * session, opening a file — need not fire one: Tiptap raises it only when the
-   * mapped selection differs from the old one. When it did not fire, this memo
-   * held a value computed against a document that no longer existed, and every
-   * control gated on it (the element list, the AV row buttons) was answering
-   * for the wrong place in the wrong script.
-   */
-  const isInsideAvCell = React.useMemo(() => {
-    if (!editorState) return false;
-    try {
-      return isInAvCell(editorState);
-    } catch { /* ignore */ }
-    return false;
-  }, [editorState]);
-
+  // Selected rather than read while rendering, so the toolbar re-renders when
+  // one of these changes and not on every keystroke (#229). Read off the live
+  // state on each transaction: a wholesale content replacement — restoring a
+  // session, opening a file — need not fire a selection update, and anything
+  // keyed on `activeElement` answered for a document that no longer existed.
+  const caret = useEditorState({ editor, selector: ({ editor: ed }) => selectCaret(ed) });
+  const isInsideAvCell = caret?.inAvCell ?? false;
   /** Which column the caret is in — the element list differs between them. */
-  const avCellSide = React.useMemo<'video' | 'audio'>(() => {
-    if (!editorState) return 'video';
-    try {
-      return avCellSideAt(editorState) || 'video';
-    } catch { /* ignore */ }
-    return 'video';
-  }, [editorState]);
-
-  /**
-   * The same question one level out, for the row controls.
-   *
-   * A storyboard frame is an atom, so clicking one leaves a NodeSelection on
-   * the frame and no avCell in the ancestry — and the Row buttons disappeared
-   * out from under a writer who had simply clicked the frame in the row they
-   * were working on. The element dropdown above stays on the CELL test, where
-   * it belongs: a selected frame is not text, and has no element type to pick.
-   */
-  const isInsideAvRow = React.useMemo(() => {
-    if (!editorState) return false;
-    try {
-      return isInAvRow(editorState);
-    } catch { /* ignore */ }
-    return false;
-  }, [editorState]);
-
-  const isActive = (format: string) => {
-    if (!editor) return false;
-    return editor.isActive(format);
-  };
+  const avCellSide = caret?.avCellSide ?? 'video';
+  /** The same question one level out, for the row controls. */
+  const isInsideAvRow = caret?.inAvRow ?? false;
+  const isActive = (format: CaretMark) => caret?.marks[format] ?? false;
 
   // Editable zoom input
   const [zoomInput, setZoomInput] = useState(String(zoomLevel));
@@ -783,12 +764,12 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
 
       <LanguageSelector editor={editor} activeElement={activeElement} />
     </React.Fragment>
-  ), [editor, isOverrideMode, activeTemplate, activeElement, textColorOpen, bgColorOpen, currentTextColor, currentBgColor, locked, t]);
+  ), [editor, caret, isOverrideMode, activeTemplate, activeElement, textColorOpen, bgColorOpen, currentTextColor, currentBgColor, locked, t]);
 
   const renderAlignment = useCallback((_inOverflow = false) => (
     <div className="toolbar-group" key="alignment">
       <button
-        className={`toolbar-btn ${editor?.isActive({ textAlign: 'left' }) ? 'active' : ''}`}
+        className={`toolbar-btn ${caret?.align === 'left' ? 'active' : ''}`}
         title={t('toolbar.alignLeft')}
         onClick={() => editor?.chain().focus().setTextAlign('left').run()}
         disabled={locked.textAlign}
@@ -796,7 +777,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
         <FaAlignLeft />
       </button>
       <button
-        className={`toolbar-btn ${editor?.isActive({ textAlign: 'center' }) ? 'active' : ''}`}
+        className={`toolbar-btn ${caret?.align === 'center' ? 'active' : ''}`}
         title={t('toolbar.alignCenter')}
         onClick={() => editor?.chain().focus().setTextAlign('center').run()}
         disabled={locked.textAlign}
@@ -804,7 +785,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
         <FaAlignCenter />
       </button>
       <button
-        className={`toolbar-btn ${editor?.isActive({ textAlign: 'right' }) ? 'active' : ''}`}
+        className={`toolbar-btn ${caret?.align === 'right' ? 'active' : ''}`}
         title={t('toolbar.alignRight')}
         onClick={() => editor?.chain().focus().setTextAlign('right').run()}
         disabled={locked.textAlign}
@@ -812,7 +793,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
         <FaAlignRight />
       </button>
       <button
-        className={`toolbar-btn ${editor?.isActive({ textAlign: 'justify' }) ? 'active' : ''}`}
+        className={`toolbar-btn ${caret?.align === 'justify' ? 'active' : ''}`}
         title={t('toolbar.justify')}
         onClick={() => editor?.chain().focus().setTextAlign('justify').run()}
         disabled={locked.textAlign}
@@ -820,7 +801,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
         <FaAlignJustify />
       </button>
     </div>
-  ), [editor, locked, t]);
+  ), [editor, caret, locked, t]);
 
   const renderSearchGoto = useCallback((inOverflow = false) => (
     <div className="toolbar-group" key="search-goto">
@@ -977,7 +958,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
           className="toolbar-btn"
           title={t('toolbar.undo', { shortcut: '⌘Z' })}
           onClick={() => { try { editor?.chain().focus().undo().run(); } catch {} }}
-          disabled={!editor || typeof (editor.can() as any).undo !== 'function' || !(editor.can() as any).undo()}
+          disabled={!caret?.canUndo}
         >
           <FaUndo />
         </button>
@@ -985,7 +966,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
           className="toolbar-btn"
           title={t('toolbar.redo', { shortcut: '⇧⌘Z' })}
           onClick={() => { try { editor?.chain().focus().redo().run(); } catch {} }}
-          disabled={!editor || typeof (editor.can() as any).redo !== 'function' || !(editor.can() as any).redo()}
+          disabled={!caret?.canRedo}
         >
           <FaRedo />
         </button>
@@ -1177,4 +1158,4 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
   );
 };
 
-export default Toolbar;
+export default React.memo(Toolbar);
