@@ -2866,14 +2866,32 @@ async fn open_new_window(app: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+/// Kernel drivers whose Mesa stack hands WebKitGTK working DMA-BUFs.
+#[cfg(target_os = "linux")]
+const DMABUF_SAFE_DRIVERS: &[&str] = &["i915", "xe", "amdgpu"];
+
 /// WebKitGTK renders the window on the GPU, and some Linux drivers can't take it.
 /// Its DMA-BUF renderer leaves a blank window on a range of drivers, and nouveau
 /// (old NVIDIA cards the proprietary driver no longer supports) can lock the GPU
-/// outright, freezing the whole desktop (issue #132). Both are WebKit's own
-/// switches, so a variable the user has already set, `=0` included, is left alone.
+/// outright, freezing the whole desktop (issue #132).
+///
+/// Switching DMA-BUF off is not free, though: on a current WebKitGTK it is the
+/// accelerated path on Wayland, and without it every frame is painted the slow
+/// way. Typing in a long script then lags badly while the rest of the window
+/// still feels fine (issue #229, Fedora + Wayland on i915). So it is only kept
+/// on when every card is on a driver known to handle it; anything else — NVIDIA
+/// in a hybrid laptop, a VM's virtual GPU, or nothing detected — stays off.
+///
+/// Both are WebKit's own switches, so a variable the user has already set, `=0`
+/// included, is left alone.
 #[cfg(target_os = "linux")]
 fn webkit_env_for_drivers(drivers: &[String]) -> Vec<(&'static str, &'static str)> {
-    let mut vars = vec![("WEBKIT_DISABLE_DMABUF_RENDERER", "1")];
+    let mut vars = Vec::new();
+    let dmabuf_safe = !drivers.is_empty()
+        && drivers.iter().all(|d| DMABUF_SAFE_DRIVERS.contains(&d.as_str()));
+    if !dmabuf_safe {
+        vars.push(("WEBKIT_DISABLE_DMABUF_RENDERER", "1"));
+    }
     if drivers.iter().any(|d| d == "nouveau") {
         vars.push(("WEBKIT_DISABLE_COMPOSITING_MODE", "1"));
     }
@@ -3342,15 +3360,24 @@ mod webkit_env_tests {
     }
 
     #[test]
-    fn dmabuf_renderer_is_always_disabled() {
-        assert_eq!(
-            webkit_env_for_drivers(&drivers(&["i915"])),
-            vec![("WEBKIT_DISABLE_DMABUF_RENDERER", "1")]
-        );
-        assert_eq!(
-            webkit_env_for_drivers(&[]),
-            vec![("WEBKIT_DISABLE_DMABUF_RENDERER", "1")]
-        );
+    fn intel_and_amd_keep_the_dmabuf_renderer() {
+        // Issue #229: forcing it off on i915 made typing lag under Wayland.
+        assert!(webkit_env_for_drivers(&drivers(&["i915"])).is_empty());
+        assert!(webkit_env_for_drivers(&drivers(&["xe"])).is_empty());
+        assert!(webkit_env_for_drivers(&drivers(&["amdgpu"])).is_empty());
+        assert!(webkit_env_for_drivers(&drivers(&["amdgpu", "i915"])).is_empty());
+    }
+
+    #[test]
+    fn other_or_unknown_drivers_disable_the_dmabuf_renderer() {
+        let off = vec![("WEBKIT_DISABLE_DMABUF_RENDERER", "1")];
+        // Hybrid laptop with the proprietary NVIDIA driver alongside Intel.
+        assert_eq!(webkit_env_for_drivers(&drivers(&["i915", "nvidia"])), off);
+        assert_eq!(webkit_env_for_drivers(&drivers(&["nvidia"])), off);
+        // Virtual GPUs, and a machine where /sys/class/drm said nothing.
+        assert_eq!(webkit_env_for_drivers(&drivers(&["virtio_gpu"])), off);
+        assert_eq!(webkit_env_for_drivers(&drivers(&["vmwgfx"])), off);
+        assert_eq!(webkit_env_for_drivers(&[]), off);
     }
 
     #[test]
