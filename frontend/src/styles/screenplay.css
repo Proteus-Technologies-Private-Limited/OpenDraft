@@ -10974,9 +10974,15 @@ body.selection-bands-active .page .ProseMirror::selection { background: transpar
      same clearance. */
   html.android .script-notes-panel,
   html.android .char-profiles-panel,
-  html.android .tags-panel,
-  html.android .location-db-panel {
+  html.android .tags-panel {
     padding-top: max(env(safe-area-inset-top), 28px);
+  }
+
+  @media (max-width: 900px) {
+    html.android .location-database {
+      padding-top: max(env(safe-area-inset-top), 28px);
+      padding-right: env(safe-area-inset-right, 0px);
+    }
   }
 
   /* The scene navigator is the same story on the other side, and was missed:
@@ -11089,7 +11095,7 @@ body.selection-bands-active .page .ProseMirror::selection { background: transpar
   /* Scene navigator overlay styles already applied at ≤1100px */
 
   /* Side panels: slide-in overlay from right */
-  .script-notes-panel, .char-profiles-panel, .tags-panel {
+  .script-notes-panel, .char-profiles-panel, .tags-panel, .location-database {
     position: fixed;
     right: 0;
     top: 0;
@@ -11103,14 +11109,16 @@ body.selection-bands-active .page .ProseMirror::selection { background: transpar
   }
   .script-notes-panel.panel-open,
   .char-profiles-panel.panel-open,
-  .tags-panel.panel-open { transform: translateX(0); }
+  .tags-panel.panel-open,
+  .location-database.panel-open { transform: translateX(0); }
   .script-notes-panel.panel-closing,
   .char-profiles-panel.panel-closing,
-  .tags-panel.panel-closing { transform: translateX(100%); }
+  .tags-panel.panel-closing,
+  .location-database.panel-closing { transform: translateX(100%); }
 
   /* Backdrop for right panels — positioned outside panel to the left */
-  .script-notes-panel, .char-profiles-panel, .tags-panel { overflow: visible; }
-  .script-notes-panel::before, .char-profiles-panel::before, .tags-panel::before {
+  .script-notes-panel, .char-profiles-panel, .tags-panel, .location-database { overflow: visible; }
+  .script-notes-panel::before, .char-profiles-panel::before, .tags-panel::before, .location-database::before {
     content: '';
     position: absolute;
     top: 0;
@@ -11124,7 +11132,15 @@ body.selection-bands-active .page .ProseMirror::selection { background: transpar
   }
   .script-notes-panel.panel-open::before,
   .char-profiles-panel.panel-open::before,
-  .tags-panel.panel-open::before { opacity: 1; pointer-events: auto; }
+  .tags-panel.panel-open::before,
+  .location-database.panel-open::before { opacity: 1; pointer-events: auto; }
+
+  /* Location carries the desktop resize handle's inline dimensions. */
+  .location-database {
+    width: 280px !important;
+    min-width: 0 !important;
+    max-width: 90vw;
+  }
 
   /* Tags tab bar: larger touch targets on mobile */
   .tags-tab-bar {
@@ -11177,6 +11193,8 @@ body.selection-bands-active .page .ProseMirror::selection { background: transpar
   .script-notes-panel, .char-profiles-panel, .tags-panel {
     width: min(280px, 80vw);
   }
+
+  .location-database { width: min(280px, 80vw) !important; }
 
   /* Toolbar: no wrap; hidden items go into overflow (3-dot) menu */
   .toolbar {
@@ -11546,10 +11564,12 @@ body.selection-bands-active .page .ProseMirror::selection { background: transpar
   .editor-main { padding: 4px 0 8px; }
 
   /* Side panels: full-screen on phone */
-  .script-notes-panel, .char-profiles-panel, .tags-panel {
+  .script-notes-panel, .char-profiles-panel, .tags-panel, .location-database {
     width: 100vw !important;
     border-left: none;
   }
+  .location-database { max-width: 100vw; }
+
 
   /* Dialogs: full-width sheet anchored to the TOP of the screen. We used to
      anchor to the bottom (flex-end) like a bottom sheet, but Android Tauri
@@ -14043,7 +14063,8 @@ del.suggestion-delete {
   @media (max-width: 900px) {
     html.ios .script-notes-panel,
     html.ios .char-profiles-panel,
-    html.ios .tags-panel {
+    html.ios .tags-panel,
+    html.ios .location-database {
       padding-top: env(safe-area-inset-top, 0px);
       padding-right: env(safe-area-inset-right, 0px);
     }
