@@ -5,6 +5,10 @@
 # Single combined container exposes backend on :8080 and collab on :8081.
 {$DEMO_HOST} {
 	encode gzip zstd
+	# The admin console lives on the collab server; send /admin there instead
+	# of letting the editor's catch-all render an empty page.
+	@admin path /admin /admin/*
+	redir @admin https://{$COLLAB_HOST}{uri} 302
 	reverse_proxy opendraft:8080
 }
 

@@ -12632,6 +12632,45 @@ del.suggestion-delete {
   font-weight: 600;
 }
 
+/* ── Sign-in: "you need an account first" ──
+   Shown above the Sign In fields on a device that has never signed in, and
+   after a sign-in fails because the email has no account. Informational, so
+   accent-tinted rather than warning yellow or error red. */
+.settings-auth-notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  background: var(--fd-accent-bg, rgba(59,130,246,0.12));
+  color: var(--fd-text);
+  border: 1px solid var(--fd-accent);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.settings-auth-notice strong {
+  font-weight: 600;
+  word-break: break-all;
+}
+
+.settings-auth-notice-action {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--fd-accent);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.settings-auth-notice-action:hover {
+  text-decoration: none;
+}
+
 .settings-demo-notice code {
   background: rgba(0,0,0,0.08);
   padding: 1px 5px;

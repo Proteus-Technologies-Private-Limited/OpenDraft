@@ -18,6 +18,7 @@
 import React, { useEffect } from 'react';
 import { collabAuthApi } from '../services/collabAuth';
 import { useSettingsStore } from '../stores/settingsStore';
+import { markSignedUp } from '../services/accountMarker';
 
 const AuthBootstrap: React.FC = () => {
   useEffect(() => {
@@ -29,6 +30,10 @@ const AuthBootstrap: React.FC = () => {
         setAuthVerified(false);
         return;
       }
+      // Users signed in before the marker existed never pass through
+      // handleAuthResponse again while their session lasts; mark them now so
+      // they don't get the new-user note after their next sign-out.
+      markSignedUp();
       try {
         const user = await collabAuthApi.getMe();
         if (cancelled) return;

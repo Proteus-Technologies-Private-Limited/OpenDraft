@@ -2,8 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import { useGoBack } from '../hooks/useGoBack';
 import { useSettingsStore } from '../stores/settingsStore';
-import { collabAuthApi, handleAuthResponse, performLogout, isDeviceChallenge, useSigningOut } from '../services/collabAuth';
+import { collabAuthApi, handleAuthResponse, performLogout, isDeviceChallenge, isUnknownAccountError, useSigningOut } from '../services/collabAuth';
 import type { CollabServerConfig, DeviceRecord } from '../services/collabAuth';
+import { hasSignedUpBefore } from '../services/accountMarker';
 import { initDemoInfo, isDemoMode } from '../services/demoInfo';
 import { showToast } from './Toast';
 import { getApiBase } from '../config';
@@ -96,6 +97,15 @@ const SettingsPage: React.FC = () => {
   const [loginEmail, setLoginEmail] = useState(savedEmail);
   const [loginPassword, setLoginPassword] = useState('');
   const [regEmail, setRegEmail] = useState(savedEmail);
+  // First visit on this device → Sign In needs an account first. After a
+  // sign-in that failed for want of one → say so, naming the email.
+  const [knownUser] = useState(hasSignedUpBefore);
+  const [noAccountEmail, setNoAccountEmail] = useState<string | null>(null);
+  const goToCreateAccount = (email?: string) => {
+    if (email) setRegEmail(email);
+    setNoAccountEmail(null);
+    setAuthTab('register');
+  };
   const [regPassword, setRegPassword] = useState('');
   const [regConfirm, setRegConfirm] = useState('');
   const [regName, setRegName] = useState('');
@@ -243,12 +253,12 @@ const SettingsPage: React.FC = () => {
       setLoginEmail('');
       setLoginPassword('');
     } catch (err: any) {
-      const msg = err.message || t('auth.loginFailed');
-      if (isDemoServer && (msg.toLowerCase().includes('user not found') || msg.includes('404'))) {
-        showToast(t('auth.userNotFound'), 'error');
-        showToast(t('auth.demoReset'), 'info');
+      if (isUnknownAccountError(err)) {
+        setNoAccountEmail(loginEmail);
+        showToast(t('auth.noAccountToast'), 'error');
+        if (isDemoServer) showToast(t('auth.demoReset'), 'info');
       } else {
-        showToast(msg, 'error');
+        showToast(err?.message || t('auth.loginFailed'), 'error');
       }
     } finally {
       setAuthLoading(false);
@@ -819,13 +829,30 @@ const SettingsPage: React.FC = () => {
                   </div>
                 ) : (
                 <div className="settings-auth-form">
+                  {noAccountEmail ? (
+                    <div className="settings-auth-notice" role="alert">
+                      <span>
+                        <Trans ns="settings" i18nKey="auth.noAccount" values={{ email: noAccountEmail }} components={{ strong: <strong /> }} />
+                      </span>
+                      <button type="button" className="settings-auth-notice-action" onClick={() => goToCreateAccount(noAccountEmail)}>
+                        {t('auth.createAccount')}
+                      </button>
+                    </div>
+                  ) : !knownUser && (
+                    <div className="settings-auth-notice">
+                      <span>{t('auth.newUserNotice')}</span>
+                      <button type="button" className="settings-auth-notice-action" onClick={() => goToCreateAccount(loginEmail)}>
+                        {t('auth.createAccount')}
+                      </button>
+                    </div>
+                  )}
                   <div className="settings-field">
                     <label>{t('auth.email')}</label>
                     <input
                       className="dialog-input"
                       type="email"
                       value={loginEmail}
-                      onChange={(e) => setLoginEmail(e.target.value)}
+                      onChange={(e) => { setLoginEmail(e.target.value); setNoAccountEmail(null); }}
                       placeholder={t('auth.emailPlaceholder')}
                       onKeyDown={(e) => handleKeyDown(e, handleLogin)}
                     />

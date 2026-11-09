@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
-import { collabAuthApi, handleAuthResponse, isDeviceChallenge } from '../services/collabAuth';
+import { collabAuthApi, handleAuthResponse, isDeviceChallenge, isUnknownAccountError } from '../services/collabAuth';
 import type { CollabServerConfig } from '../services/collabAuth';
+import { hasSignedUpBefore } from '../services/accountMarker';
 import { initDemoInfo, isDemoMode } from '../services/demoInfo';
 import { showToast } from './Toast';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
@@ -70,6 +71,18 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
   const [forgotMode, setForgotMode] = useState<'form' | 'sent' | null>(null);
   const [forgotEmail, setForgotEmail] = useState(savedEmail);
 
+  // First visit on this device → tell them Sign In needs an account first.
+  // After a sign-in that failed for want of one → say so, naming the email.
+  const [knownUser] = useState(hasSignedUpBefore);
+  const [noAccountEmail, setNoAccountEmail] = useState<string | null>(null);
+
+  const goToCreateAccount = (email?: string) => {
+    if (email) setRegEmail(email);
+    setNoAccountEmail(null);
+    setForgotMode(null);
+    setTab('register');
+  };
+
   useEffect(() => {
     // One-time migration: purge the legacy key that stored email+password in
     // plaintext. The email-only replacement is under opendraft:rememberedEmail.
@@ -95,12 +108,12 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
       showToast(t('login.toast.signedIn'), 'success');
       onSuccess();
     } catch (err: any) {
-      const msg = err.message || t('login.toast.loginFailed');
-      if (isDemoServer && (msg.toLowerCase().includes('user not found') || msg.includes('404'))) {
-        showToast(t('login.toast.userNotFound'), 'error');
-        showToast(t('login.toast.demoReset'), 'info');
+      if (isUnknownAccountError(err)) {
+        setNoAccountEmail(loginEmail);
+        showToast(t('login.toast.noAccount'), 'error');
+        if (isDemoServer) showToast(t('login.toast.demoReset'), 'info');
       } else {
-        showToast(msg, 'error');
+        showToast(err?.message || t('login.toast.loginFailed'), 'error');
       }
     } finally {
       setLoading(false);
@@ -346,13 +359,30 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
               </div>
             ) : (
             <div className="settings-auth-form">
+              {noAccountEmail ? (
+                <div className="settings-auth-notice" role="alert">
+                  <span>
+                    <Trans ns="collab" i18nKey="login.noAccount" values={{ email: noAccountEmail }} components={{ strong: <strong /> }} />
+                  </span>
+                  <button type="button" className="settings-auth-notice-action" onClick={() => goToCreateAccount(noAccountEmail)}>
+                    {t('login.createAccount')}
+                  </button>
+                </div>
+              ) : !knownUser && (
+                <div className="settings-auth-notice">
+                  <span>{t('login.newUserNotice')}</span>
+                  <button type="button" className="settings-auth-notice-action" onClick={() => goToCreateAccount(loginEmail)}>
+                    {t('login.createAccount')}
+                  </button>
+                </div>
+              )}
               <div className="settings-field">
                 <label>{t('login.email')}</label>
                 <input
                   className="dialog-input"
                   type="email"
                   value={loginEmail}
-                  onChange={(e) => setLoginEmail(e.target.value)}
+                  onChange={(e) => { setLoginEmail(e.target.value); setNoAccountEmail(null); }}
                   placeholder={t('login.emailPlaceholder')}
                   autoFocus
                 />

@@ -5,6 +5,7 @@ import type { CollabAuth, CollabUser } from '../stores/settingsStore';
 import { platformFetch } from './platform';
 import { authedFetch, accessTokenExpired, refreshAccessToken } from './authedFetch';
 import { getDeviceInfo, getDeviceId } from './deviceId';
+import { markSignedUp } from './accountMarker';
 import { t } from '../i18n';
 
 // ── URL helpers ──
@@ -176,6 +177,14 @@ export interface DeviceChallengeResponse {
 }
 
 export type LoginResponse = AuthResponse | DeviceChallengeResponse;
+
+/** /login answers 404 "User not found" for an email with no account. Match the
+ *  message too, so a misconfigured API base (FastAPI's bare 404 "Not Found")
+ *  isn't mistaken for a missing account. */
+export function isUnknownAccountError(err: unknown): boolean {
+  const e = err as { status?: number; message?: string } | null;
+  return Boolean(e && e.status === 404 && /user not found/i.test(e.message || ''));
+}
 
 export function isDeviceChallenge(r: LoginResponse): r is DeviceChallengeResponse {
   return (r as DeviceChallengeResponse).deviceVerificationRequired === true;
@@ -424,6 +433,9 @@ export function handleAuthResponse(response: AuthResponse): CollabAuth {
   };
   console.log('[collabAuth] Authenticated as', auth.user?.displayName);
   useSettingsStore.getState().setCollabAuth(auth);
+  // Every sign-in and sign-up path ends here, so this is the one place that
+  // needs to remember an account exists on this device.
+  markSignedUp();
   return auth;
 }
 
