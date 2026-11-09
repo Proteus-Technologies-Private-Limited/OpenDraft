@@ -411,6 +411,12 @@
     "viaPdf": "Imprimer le PDF, pour que les pages correspondent à celles de l’écran",
     "viaPdfHint": "L’éditeur dessine ses sauts de page au lieu de les créer ; imprimer la page demande donc au navigateur de remettre le scénario en page une seconde fois, et il peut terminer ses pages ailleurs. Imprimer le PDF donne les pages que vous avez sous les yeux, et le même document que lirait quiconque reçoit votre export. Désactivez cette option pour utiliser la boîte de dialogue d’impression du navigateur, plus rapide sur un long scénario et à laquelle s’appliquent ses réglages de marges et de mise à l’échelle."
   },
+  "wordExport": {
+    "title": "Export Word",
+    "description": "La façon dont Fichier → Exporter → Word écrit votre script.",
+    "exactHighlights": "Garder les couleurs exactes du surlignage",
+    "exactHighlightsHint": "Désactivé : les surlignages deviennent de vrais surlignages Word, dans la couleur Word la plus proche, que le surligneur de Word peut donc retirer ou changer. Activé : chaque surlignage garde exactement la couleur choisie, mais Word le traite comme une trame de fond derrière le texte et non comme un surlignage. Pour le retirer dans Word, passez par Bordure et trame → Trame de fond → Remplissage : Aucune couleur."
+  },
   "tableRead": {
     "title": "Voix de la lecture à la table",
     "descriptionDevice": "Les voix qu’Outils → Lecture à la table utilise pour lire le scénario à voix haute : celles installées sur cet appareil, ou un fournisseur de voix IA. La voix de chaque personnage se choisit dans sa fiche, dans le panneau Personnages.",

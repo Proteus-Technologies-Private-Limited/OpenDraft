@@ -400,6 +400,12 @@
     "viaPdf": "Print the PDF, so the pages match the ones on screen",
     "viaPdfHint": "The editor draws its page turns rather than making them, so printing the page asks the browser to lay the script out a second time — and it can end its pages somewhere else. Printing the PDF gives the pages you have been looking at, and the same document anyone you send the export to would read. Turn this off to use the browser's own print dialog instead, which is quicker on a long script and is what its margin and scaling controls apply to."
   },
+  "wordExport": {
+    "title": "Word Export",
+    "description": "How File → Export → Word writes your script.",
+    "exactHighlights": "Keep the exact highlight colors",
+    "exactHighlightsHint": "Off: highlights become Word's own highlights, in the nearest of Word's colors, so Word's highlighter can remove or change them. On: every highlight keeps the exact color you picked, but Word treats it as shading behind the text rather than a highlight. To remove it in Word, use Borders and Shading → Shading → Fill: No Color."
+  },
   "tableRead": {
     "title": "Table Read Voices",
     "descriptionDevice": "The voices Tools → Table Read uses to read the script aloud: the ones installed on this device, or an AI voice provider. Each character’s voice is chosen on their profile in the Characters panel.",

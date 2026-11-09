@@ -31,7 +31,7 @@ import type { AvExportBody } from './avDocument';
 import { avParaStyle } from './avDocument';
 import { avRowNodes, avFrameKey, type AvRowNodes } from './avPdfTable';
 import { runFont } from './docxScriptFonts';
-import { docxColorProps } from './docxColors';
+import { docxColorProps, type DocxHighlightOptions } from './docxColors';
 
 /** A loaded storyboard frame, keyed by `avFrameKey`. */
 export interface AvDocxImage {
@@ -47,6 +47,7 @@ function cellParagraphs(
   cellNode: JSONContent | null | undefined,
   font: string,
   sizeHalfPt: number,
+  highlightOpts: DocxHighlightOptions = {},
 ): Paragraph[] {
   const out: Paragraph[] = [];
   const paras = Array.isArray(cellNode?.content) ? cellNode!.content : [];
@@ -73,7 +74,7 @@ function cellParagraphs(
           smallCaps: style.smallCaps,
           underline: r.underline ? {} : undefined,
           break: r.isBreak ? 1 : undefined,
-          ...docxColorProps(r),
+          ...docxColorProps(r, highlightOpts),
         });
       });
     out.push(new Paragraph({ children: children.length ? children : [new TextRun({ text: '', font, size: sizeHalfPt })] }));
@@ -120,6 +121,8 @@ export function buildAvTable(
     font: string;
     sizeHalfPt: number;
     images?: Map<string, AvDocxImage>;
+    /** How highlights are written — see utils/docxColors. */
+    highlightOpts?: DocxHighlightOptions;
   },
 ): Table {
   const keys: ('cue' | 'video' | 'audio' | 'image')[] = [];
@@ -163,9 +166,9 @@ export function buildAvTable(
         }));
         if (!children.length) children = [new Paragraph({ children: [new TextRun({ text: '', font: opts.font, size: opts.sizeHalfPt })] })];
       } else if (k === 'video') {
-        children = cellParagraphs(rn.video, opts.font, opts.sizeHalfPt);
+        children = cellParagraphs(rn.video, opts.font, opts.sizeHalfPt, opts.highlightOpts);
       } else if (k === 'audio') {
-        children = cellParagraphs(rn.audio, opts.font, opts.sizeHalfPt);
+        children = cellParagraphs(rn.audio, opts.font, opts.sizeHalfPt, opts.highlightOpts);
       } else {
         // Storyboard frame. An unresolved or deliberately blank frame writes an
         // empty cell rather than failing the export — the slot still exists in

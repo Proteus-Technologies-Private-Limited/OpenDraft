@@ -172,6 +172,15 @@ interface SettingsState {
    */
   pdfTextColors: boolean;
   setPdfTextColors: (v: boolean) => void;
+
+  /**
+   * Write highlights to Word as shading in their exact colours (#226), rather
+   * than as Word's own highlights in the nearest of its colours. Off by
+   * default: only a real highlight is one Word's highlighter can remove, and
+   * a writer opening the file in Word expects to be able to.
+   */
+  docxExactHighlights: boolean;
+  setDocxExactHighlights: (v: boolean) => void;
 }
 
 const STORAGE_KEY_URL = 'opendraft:collabServerUrl';
@@ -195,6 +204,7 @@ const STORAGE_KEY_DEFAULT_FILE_FORMAT = 'opendraft:defaultFileFormat';
 const STORAGE_KEY_ELEMENT_MENU_ON_ENTER = 'opendraft:elementMenuOnEnter';
 const STORAGE_KEY_PRINT_VIA_PDF = 'opendraft:printViaPdf';
 const STORAGE_KEY_PDF_TEXT_COLORS = 'opendraft:pdfTextColors';
+const STORAGE_KEY_DOCX_EXACT_HIGHLIGHTS = 'opendraft:docxExactHighlights';
 const STORAGE_KEY_ELEMENT_MENU_SHORTCUT = 'opendraft:elementMenuShortcut';
 const STORAGE_KEY_MACROS = 'opendraft:macros';
 const STORAGE_KEY_SMARTTYPE = 'opendraft:smartTypeLists';
@@ -472,6 +482,12 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   setPdfTextColors: (v) => {
     try { localStorage.setItem(STORAGE_KEY_PDF_TEXT_COLORS, v ? '1' : '0'); } catch { /* ignore */ }
     set({ pdfTextColors: v });
+  },
+
+  docxExactHighlights: loadBool(STORAGE_KEY_DOCX_EXACT_HIGHLIGHTS, false),
+  setDocxExactHighlights: (v) => {
+    try { localStorage.setItem(STORAGE_KEY_DOCX_EXACT_HIGHLIGHTS, v ? '1' : '0'); } catch { /* ignore */ }
+    set({ docxExactHighlights: v });
   },
 
   elementMenuShortcut: loadElementMenuShortcut(),

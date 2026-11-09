@@ -400,6 +400,12 @@
     "viaPdf": "PDF'yi yazdır; böylece sayfalar ekrandakilerle eşleşir",
     "viaPdfHint": "Düzenleyici sayfa geçişlerini yapmak yerine çizer; bu yüzden sayfayı yazdırmak tarayıcıdan senaryoyu ikinci kez dizmesini ister — ve sayfalarını başka bir yerde bitirebilir. PDF'yi yazdırmak, baktığınız sayfaları ve dışa aktarımı gönderdiğiniz herkesin okuyacağı aynı belgeyi verir. Bunun yerine tarayıcının kendi yazdırma penceresini kullanmak için kapatın; uzun bir senaryoda daha hızlıdır ve kenar boşluğu ile ölçekleme denetimleri bunun için geçerlidir."
   },
+  "wordExport": {
+    "title": "Word'e Aktarma",
+    "description": "Dosya → Dışa Aktar → Word'ün senaryonuzu nasıl yazdığı.",
+    "exactHighlights": "Vurgu renklerini birebir koru",
+    "exactHighlightsHint": "Kapalı: vurgular Word'ün kendi vurgusuna dönüşür, Word'ün en yakın renginde; böylece Word'ün vurgulayıcısı onları kaldırabilir ya da değiştirebilir. Açık: her vurgu seçtiğiniz rengi birebir korur, ama Word onu vurgu değil, metnin arkasındaki gölgelendirme olarak görür. Word'de kaldırmak için Kenarlıklar ve Gölgelendirme → Gölgelendirme → Dolgu: Renk Yok yolunu kullanın."
+  },
   "tableRead": {
     "title": "Masa okuması sesleri",
     "descriptionDevice": "Araçlar → Masa okuması'nın senaryoyu sesli okumak için kullandığı sesler: bu cihazda yüklü olanlar ya da bir yapay zekâ ses sağlayıcısı. Her karakterin sesi, Karakterler panelindeki profilinden seçilir.",

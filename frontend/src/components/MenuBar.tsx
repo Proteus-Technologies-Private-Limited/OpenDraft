@@ -2523,6 +2523,9 @@ const MenuBar: React.FC<MenuBarProps> = ({
         includeTitlePage: store.includeTitlePageInOutput,
         elementNumbersVisible: store.elementNumbersVisible,
         sceneNumbersVisible: store.sceneNumbersVisible,
+        // Settings → Word export: Word's own highlights unless the writer
+        // asked for exact colours (#226).
+        exactHighlights: useSettingsStore.getState().docxExactHighlights,
       });
     } catch (err) {
       console.error('Word export failed:', err);

@@ -10,7 +10,7 @@ import { DOMParser as XmldomDOMParser } from '@xmldom/xmldom';
 import JSZip from 'jszip';
 import type { JSONContent } from '@tiptap/react';
 import { doc, block, marked } from '../test/screenplaySchema';
-import { cssToDocxHex, docxHexToCss, wordHighlightToCss, docxColorProps } from './docxColors';
+import { cssToDocxHex, docxHexToCss, wordHighlightToCss, docxColorProps, nearestWordHighlight } from './docxColors';
 import { jsonBlockRuns, mergeRuns, DEFAULT_HIGHLIGHT } from './nodeText';
 
 // parseDocx reads OOXML with the platform DOMParser; the node environment has none.
@@ -31,10 +31,10 @@ beforeEach(() => {
 const red = { type: 'textStyle', attrs: { color: '#ff0000' } };
 const yellow = { type: 'highlight', attrs: { color: '#ffe599' } };
 
-async function exportBytes(input: JSONContent): Promise<Uint8Array> {
+async function exportBytes(input: JSONContent, options?: { exactHighlights?: boolean }): Promise<Uint8Array> {
   const { exportDocx } = await import('./docxExporter');
   const { DEFAULT_PAGE_LAYOUT } = await import('../stores/editorStore');
-  await exportDocx(input, 'Test', DEFAULT_PAGE_LAYOUT);
+  await exportDocx(input, 'Test', DEFAULT_PAGE_LAYOUT, options);
   const bytes = saved.buf;
   if (!bytes) throw new Error('exportDocx wrote nothing');
   return bytes.slice();
@@ -94,6 +94,34 @@ describe('colour conversion', () => {
     expect(docxColorProps({ color: 'nonsense' })).toEqual({});
   });
 
+  it('writes a Word highlight by default and exact shading only when asked', () => {
+    expect(docxColorProps({ highlight: '#ffe599' })).toEqual({ highlight: 'yellow' });
+    expect(docxColorProps({ highlight: '#ffe599' }, { exactHighlights: true }))
+      .toEqual({ shading: { type: 'clear', color: 'auto', fill: 'FFE599' } });
+    expect(docxColorProps({ highlight: 'nonsense' })).toEqual({});
+  });
+
+  it('matches a picked highlight to the Word colour it looks like', () => {
+    // Every swatch in the editor's colour picker, and the pastels a writer
+    // usually highlights with, which plain colour distance sends to grey.
+    const cases: [string, string | null][] = [
+      ['#ffff00', 'yellow'], ['#ffe599', 'yellow'], ['#ffff66', 'yellow'], ['#ffcc00', 'yellow'],
+      ['#ffcc66', 'yellow'], ['#fde68a', 'yellow'],
+      ['#ff0000', 'red'], ['#ff6666', 'red'], ['#ff6600', 'red'], ['#cc0000', 'red'],
+      ['#33cc33', 'green'], ['#66ff66', 'green'], ['#006600', 'darkGreen'],
+      ['#66ccff', 'cyan'], ['#008080', 'darkCyan'],
+      ['#0066ff', 'blue'], ['#003399', 'darkBlue'],
+      ['#cc66ff', 'magenta'], ['#660099', 'darkMagenta'],
+      ['#999900', 'darkYellow'],
+      ['#000000', 'black'], ['#333333', 'black'], ['#666666', 'darkGray'], ['#999999', 'darkGray'],
+      ['#cccccc', 'lightGray'],
+      ['#ffffff', null], ['rgb(250, 250, 250)', null],
+    ];
+    for (const [css, name] of cases) expect([css, nearestWordHighlight(css)]).toEqual([css, name]);
+    expect(nearestWordHighlight('nonsense')).toBeNull();
+    expect(nearestWordHighlight(undefined)).toBeNull();
+  });
+
   it('reads Word hex and named highlights back as CSS', () => {
     expect(docxHexToCss('FF0000')).toBe('#ff0000');
     expect(docxHexToCss('auto')).toBeNull();
@@ -134,13 +162,23 @@ describe('runs carry colour and highlight', () => {
 });
 
 describe('Word export writes colour and highlight', () => {
-  it('writes the text colour and the highlight as shading', async () => {
+  it('writes the text colour, and the highlight as Word’s own', async () => {
     const xml = await documentXml(await exportBytes(doc(
       marked('action', 'Red words.', red),
       marked('action', 'Marked words.', yellow),
     )));
     expect(xml).toMatch(/<w:color w:val="FF0000"\/>/);
+    // A real highlight, which Word's highlighter can take off again.
+    expect(xml).toMatch(/<w:highlight w:val="yellow"\/>/);
+    expect(xml).not.toMatch(/<w:shd /);
+  });
+
+  it('writes the highlight as exact-colour shading when asked', async () => {
+    const xml = await documentXml(await exportBytes(doc(
+      marked('action', 'Marked words.', yellow),
+    ), { exactHighlights: true }));
     expect(xml).toMatch(/<w:shd [^>]*w:fill="FFE599"/);
+    expect(xml).not.toMatch(/<w:highlight /);
   });
 
   it('keeps them on a dialogue line and through the type styles', async () => {
@@ -150,21 +188,31 @@ describe('Word export writes colour and highlight', () => {
       marked('sceneHeading', 'INT. HOUSE - DAY', red),
     )));
     expect(xml.match(/<w:color w:val="FF0000"\/>/g)).toHaveLength(2);
-    expect(xml).toMatch(/w:fill="FFE599"/);
+    expect(xml).toMatch(/<w:highlight w:val="yellow"\/>/);
   });
 
   it('writes nothing for text the writer did not colour', async () => {
     const xml = await documentXml(await exportBytes(doc(block('action', 'Plain.'))));
     expect(xml).not.toMatch(/<w:color /);
     expect(xml).not.toMatch(/<w:shd /);
+    expect(xml).not.toMatch(/<w:highlight /);
   });
 });
 
 describe('Word import reads colour and highlight', () => {
-  it('round-trips both through OpenDraft’s own export', async () => {
+  it('round-trips a highlight as the Word colour it was written in', async () => {
     const back = await importBytes(await exportBytes(doc(
       block('action', 'Before ', { type: 'text', text: 'hot', marks: [red, yellow] }, ' after.'),
     )));
+    const hot = nodeWith(back, 'hot');
+    expect(markOf(hot, 'textStyle')?.attrs?.color).toBe('#ff0000');
+    expect(markOf(hot, 'highlight')?.attrs?.color).toBe('#ffff00');
+  });
+
+  it('round-trips both exactly through an exact-colour export', async () => {
+    const back = await importBytes(await exportBytes(doc(
+      block('action', 'Before ', { type: 'text', text: 'hot', marks: [red, yellow] }, ' after.'),
+    ), { exactHighlights: true }));
     const hot = nodeWith(back, 'hot');
     expect(markOf(hot, 'textStyle')?.attrs?.color).toBe('#ff0000');
     expect(markOf(hot, 'highlight')?.attrs?.color).toBe('#ffe599');

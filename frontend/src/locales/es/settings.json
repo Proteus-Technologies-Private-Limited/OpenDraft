@@ -411,6 +411,12 @@
     "viaPdf": "Imprimir el PDF, para que las páginas coincidan con las de la pantalla",
     "viaPdfHint": "El editor dibuja los saltos de página en lugar de crearlos, así que al imprimir la página se pide al navegador que distribuya el guion por segunda vez, y puede terminar sus páginas en otro punto. Imprimir el PDF da las páginas que has estado viendo y el mismo documento que leería cualquiera a quien envíes la exportación. Desactiva esta opción para usar el diálogo de impresión del propio navegador, que es más rápido con un guion largo y es a lo que se aplican sus controles de márgenes y escala."
   },
+  "wordExport": {
+    "title": "Exportación a Word",
+    "description": "Cómo escribe tu guion Archivo → Exportar → Word.",
+    "exactHighlights": "Conservar los colores exactos del resaltado",
+    "exactHighlightsHint": "Desactivado: los resaltados pasan a ser resaltados propios de Word, en el color de Word más parecido, así que el resaltador de Word puede quitarlos o cambiarlos. Activado: cada resaltado conserva el color exacto que elegiste, pero Word lo trata como un sombreado detrás del texto, no como un resaltado. Para quitarlo en Word, usa Bordes y sombreado → Sombreado → Relleno: Sin color."
+  },
   "tableRead": {
     "title": "Voces de la lectura de mesa",
     "descriptionDevice": "Las voces que Herramientas → Lectura de mesa usa para leer el guion en voz alta: las instaladas en este dispositivo o un proveedor de voz con IA. La voz de cada personaje se elige en su ficha, en el panel Personajes.",

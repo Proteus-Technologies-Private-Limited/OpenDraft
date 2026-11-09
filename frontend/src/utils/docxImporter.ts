@@ -181,8 +181,8 @@ function parseRPrFlags(rPr: Element | null): { bold?: boolean; italic?: boolean;
  * otherwise stamp a colour mark on the entire script for no visible change.
  *
  * A highlight may arrive as `<w:highlight>` (sixteen named colours, what Word's
- * highlighter writes) or as run shading `<w:shd>` (any colour, what OpenDraft
- * writes). The named highlight wins when both are present, as it does when Word
+ * highlighter and OpenDraft's default export write) or as run shading `<w:shd>`
+ * (any colour, what OpenDraft writes when exact highlight colours are on). The named highlight wins when both are present, as it does when Word
  * draws the run. White shading is the absence of a highlight, written out.
  */
 function parseRunColors(rPr: Element | null): { color?: string; highlight?: string } {

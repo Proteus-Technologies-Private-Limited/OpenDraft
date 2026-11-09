@@ -55,7 +55,7 @@ import { avRowNodes, avFrameKey } from './avPdfTable';
 import { readColumnConfig } from '../editor/extensions/AvBlock';
 import { isNonPrintingType } from './nonPrinting';
 import { runFont } from './docxScriptFonts';
-import { docxColorProps } from './docxColors';
+import { docxColorProps, type DocxHighlightOptions } from './docxColors';
 import { DUAL_PADDING, DOCX_DUAL_SEPARATOR_STYLE } from './dualDialogue';
 import { withElementNumbers, elementNumberOf } from './elementNumbers';
 
@@ -156,9 +156,11 @@ export function buildTextRuns(
    */
   refs: readonly FootnoteRef[] = [],
   isEndnote: (noteId: string) => boolean = () => false,
+  /** How highlights are written — Word's own, or exact-colour shading. */
+  highlightOpts: DocxHighlightOptions = {},
 ): (TextRun | FootnoteReferenceRun | EndnoteReferenceRun)[] {
   if (refs.length > 0) {
-    return buildRunsWithReferences(runs, docFont, refs, isEndnote);
+    return buildRunsWithReferences(runs, docFont, refs, isEndnote, highlightOpts);
   }
   if (runs.length === 0 || (runs.length === 1 && runs[0].text === '' && !runs[0].isBreak)) {
     return [new TextRun({ text: '', font: docFont, size: FONT_SIZE_HALFPT })];
@@ -181,7 +183,7 @@ export function buildTextRuns(
             underline: r.underline ? {} : undefined,
             strike: r.strike || undefined,
             // Text colour and highlight as the writer set them (#226).
-            ...docxColorProps(r),
+            ...docxColorProps(r, highlightOpts),
           }),
     );
 }
@@ -393,6 +395,7 @@ function buildElementParagraph(
   /** How revised paragraphs are marked; null writes no marks. */
   revisionMarks: RevisionSettings | null = null,
   dualColumn?: { width: number; first: boolean },
+  highlightOpts: DocxHighlightOptions = {},
 ): Paragraph {
   const typeName = node.type || 'general';
   const padding = DUAL_PADDING[typeName] ?? [0.3, 0.1];
@@ -401,7 +404,7 @@ function buildElementParagraph(
   let alignment = alignmentForType(typeName);
   const sb = dualColumn ? (dualColumn.first && typeName === 'character' ? LINE_HEIGHT_PT : 0) : isFirst ? 0 : (spaceBeforeLines[typeName] ?? 0) * LINE_HEIGHT_PT;
   const styledRuns = applyTypeStyles(extractRuns(node), typeName);
-  let children: (TextRun | FootnoteReferenceRun | EndnoteReferenceRun)[] = buildTextRuns(styledRuns, docFont, refs, isEndnote);
+  let children: (TextRun | FootnoteReferenceRun | EndnoteReferenceRun)[] = buildTextRuns(styledRuns, docFont, refs, isEndnote, highlightOpts);
 
   // A revised paragraph's mark, in the right margin where the PDF prints it.
   // Word wraps the text itself, so it is one mark on the paragraph's last
@@ -494,6 +497,7 @@ function buildRunsWithReferences(
   docFont: string,
   refs: readonly FootnoteRef[],
   isEndnote: (noteId: string) => boolean,
+  highlightOpts: DocxHighlightOptions = {},
 ): (TextRun | FootnoteReferenceRun | EndnoteReferenceRun)[] {
   const sorted = [...refs].sort((a, b) => a.charOffset - b.charOffset);
   const out: (TextRun | FootnoteReferenceRun | EndnoteReferenceRun)[] = [];
@@ -510,7 +514,7 @@ function buildRunsWithReferences(
     italics: r.italic || undefined,
     underline: r.underline ? {} : undefined,
     strike: r.strike || undefined,
-    ...docxColorProps(r),
+    ...docxColorProps(r, highlightOpts),
   });
 
   let pos = 0;
@@ -572,6 +576,10 @@ export interface DocxExportOptions {
   /** Scene numbers are shown — only for the 12.3 element-number style; Word
    *  export writes no scene numbers of its own. */
   sceneNumbersVisible?: boolean;
+  /** Write highlights as shading in their exact colours rather than as Word's
+   *  own highlights in the nearest of its colours, which Word can remove.
+   *  Absent or false: Word highlights. See utils/docxColors. */
+  exactHighlights?: boolean;
 }
 
 export async function exportDocx(
@@ -650,6 +658,7 @@ export async function exportDocx(
     ? null
     : (options?.revisionSettings ?? DEFAULT_REVISION_SETTINGS);
   const docFont = options?.documentFont || FONT_FAMILY;
+  const highlightOpts: DocxHighlightOptions = { exactHighlights: options?.exactHighlights === true };
 
   // Printing notes reach a file only when the writer asked them to.
   const plan = options?.footnotes && options.footnotes.settings.includeInExports
@@ -811,7 +820,7 @@ export async function exportDocx(
             verticalAlign: VerticalAlign.TOP,
             children: columns[col]?.content?.length ? columns[col].content!.map((child, index) =>
               buildElementParagraph(child, layout, false, jsonStartsOwnPage(child, forceBreakIds), docFont, spaceBeforeLines,
-                [], undefined, revisionMarks, { width, first: index === 0 })) : [new Paragraph({ children: [] })],
+                [], undefined, revisionMarks, { width, first: index === 0 }, highlightOpts)) : [new Paragraph({ children: [] })],
           })),
         })],
       }));
@@ -837,6 +846,7 @@ export async function exportDocx(
           font: docFont,
           sizeHalfPt: FONT_SIZE_HALFPT,
           images: avImageMap,
+          highlightOpts,
         }));
         const total = buildAvTotalParagraph(body, docFont, FONT_SIZE_HALFPT);
         if (total) bodyParagraphs.push(total);
@@ -861,6 +871,8 @@ export async function exportDocx(
         plan?.refsByNode.get(bodySrcIndex[i]) ?? [],
         (noteId) => !!plan && !plan.footnoteIds.has(noteId),
         revisionMarks,
+        undefined,
+        highlightOpts,
       ),
     );
   }

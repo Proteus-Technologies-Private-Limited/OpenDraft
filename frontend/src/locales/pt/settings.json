@@ -411,6 +411,12 @@
     "viaPdf": "Imprimir o PDF, para que as páginas sejam iguais às da tela",
     "viaPdfHint": "O editor desenha as quebras de página em vez de criá-las, então imprimir a página pede ao navegador que diagrame o roteiro uma segunda vez — e ele pode terminar as páginas em outro ponto. Imprimir o PDF dá as páginas que você tem visto e o mesmo documento que qualquer pessoa para quem você envie a exportação leria. Desative para usar a caixa de impressão do próprio navegador, que é mais rápida em um roteiro longo e é a que aceita os controles de margem e escala dele."
   },
+  "wordExport": {
+    "title": "Exportação para Word",
+    "description": "Como Arquivo → Exportar → Word escreve o seu roteiro.",
+    "exactHighlights": "Manter as cores exatas do realce",
+    "exactHighlightsHint": "Desligado: os realces viram realces do próprio Word, na cor do Word mais próxima, e assim o marcador do Word pode removê-los ou trocá-los. Ligado: cada realce mantém a cor exata que você escolheu, mas o Word o trata como sombreamento atrás do texto, e não como realce. Para removê-lo no Word, use Bordas e Sombreamento → Sombreamento → Preenchimento: Sem Cor."
+  },
   "tableRead": {
     "title": "Vozes da leitura de mesa",
     "descriptionDevice": "As vozes que Ferramentas → Leitura de mesa usa para ler o roteiro em voz alta: as instaladas neste dispositivo ou um provedor de voz com IA. A voz de cada personagem é escolhida na ficha dele, no painel Personagens.",

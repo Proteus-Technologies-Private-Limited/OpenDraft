@@ -59,6 +59,7 @@ const SettingsPage: React.FC = () => {
     collabAuth, defaultInviteExpiry, setDefaultInviteExpiry,
     elementMenuOnEnter, setElementMenuOnEnter,
     printViaPdf, setPrintViaPdf,
+    docxExactHighlights, setDocxExactHighlights,
     elementMenuShortcut, setElementMenuShortcut,
   } = useSettingsStore();
 
@@ -1240,6 +1241,29 @@ const SettingsPage: React.FC = () => {
           </div>
         </section>
         )}
+
+        {/* ── Word export (#226) ──
+            Every platform exports Word, so unlike Printing this is always shown. */}
+        <section className="settings-section">
+          <h2 className="settings-section-title">{t('wordExport.title')}</h2>
+          <p className="settings-section-desc">
+            {t('wordExport.description')}
+          </p>
+
+          <div className="settings-row">
+            <label>
+              <input
+                type="checkbox"
+                checked={docxExactHighlights}
+                onChange={(e) => setDocxExactHighlights(e.target.checked)}
+              />{' '}
+              {t('wordExport.exactHighlights')}
+            </label>
+            <div className="settings-hint">
+              {t('wordExport.exactHighlightsHint')}
+            </div>
+          </div>
+        </section>
 
         {/* ── Table Read (issue #131) ── */}
         <section className="settings-section">
