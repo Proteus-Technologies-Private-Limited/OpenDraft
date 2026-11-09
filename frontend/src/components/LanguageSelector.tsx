@@ -2,7 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Editor } from '@tiptap/react';
 import Select from './Select';
-import { useEditorTransactions } from '../hooks/useEditorTransactions';
+import { useEditorSelector } from '../hooks/useEditorTransactions';
 
 interface LanguageOption {
   code: string | null;
@@ -45,14 +45,18 @@ const DIALOGUE_ELEMENTS = ['dialogue', 'parenthetical', 'character'];
 
 const LanguageSelector: React.FC<LanguageSelectorProps> = ({ editor, activeElement }) => {
   const { t } = useTranslation(['toolbar', 'common']);
-  useEditorTransactions(editor, DIALOGUE_ELEMENTS.includes(activeElement));
+  const isDialogue = DIALOGUE_ELEMENTS.includes(activeElement);
+  // Selected, so the menu re-renders when the language changes rather than on every key.
+  const currentLang = useEditorSelector<string>(
+    isDialogue ? editor : null,
+    (ed) => ed.getAttributes(activeElement)?.lang || '',
+    '',
+    'the dialogue language',
+  );
   // Only show for dialogue-related elements
-  if (!DIALOGUE_ELEMENTS.includes(activeElement)) return null;
+  if (!isDialogue) return null;
   if (!editor) return null;
 
-  // Read the current lang attribute from the active node
-  const currentAttrs = editor.getAttributes(activeElement);
-  const currentLang = currentAttrs?.lang || '';
 
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const selectedCode = e.target.value || null;
