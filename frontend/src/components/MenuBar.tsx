@@ -6,9 +6,9 @@ import { isTauri as isNativeApp, getOS as nativeOS } from '../services/platform'
 import { ExternalSaveCancelled, externalScreenplay } from '../services/externalSave';
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Editor, useEditorState } from '@tiptap/react';
+import { Editor } from '@tiptap/react';
 import type { JSONContent } from '@tiptap/core';
-import { useEditorStore, DEFAULT_PAGE_LAYOUT, printedPageNumber, resolveHeaderFooter } from '../stores/editorStore';
+import { useEditorStore, DEFAULT_PAGE_LAYOUT, printedPageNumber, resolveHeaderFooter, useEditorFields } from '../stores/editorStore';
 import type { DocumentOrigin } from '../stores/editorStore';
 import { useProjectStore } from '../stores/projectStore';
 import { useAssetStore } from '../stores/assetStore';
@@ -267,7 +267,7 @@ import type { EditorState, Transaction } from '@tiptap/pm/state';
 import type { Node as PMNode } from '@tiptap/pm/model';
 import { omitSceneTransaction, sceneOmittedAt } from '../editor/omitScene';
 import { elementLabel, elementDescription } from '../editor/elementLabels';
-import { useEditorTransactions } from '../hooks/useEditorTransactions';
+import { useEditorSelector, useEditorTransactions } from '../hooks/useEditorTransactions';
 
 /** What Fade In carries beyond the text: Revision Mode's colour and marks,
  *  and how scenes are numbered. */
@@ -448,7 +448,78 @@ const MenuBar: React.FC<MenuBarProps> = ({
     elementNumbersVisible,
     setElementNumbersVisible,
     pageLabels,
-  } = useEditorStore();
+  } = useEditorFields(
+    'navigatorOpen',
+    'toggleNavigator',
+    'indexCardsOpen',
+    'toggleIndexCards',
+    'beatBoardOpen',
+    'toggleBeatBoard',
+    'outlineOpen',
+    'toggleOutline',
+    'scriptNotesOpen',
+    'toggleScriptNotes',
+    'characterProfilesOpen',
+    'toggleCharacterProfiles',
+    'tagsPanelOpen',
+    'toggleTagsPanel',
+    'locationDatabaseOpen',
+    'toggleLocationDatabase',
+    'dialogueTunerOpen',
+    'openDialogueTuner',
+    'closeDialogueTuner',
+    'notesVisible',
+    'setNotesVisible',
+    'tagsVisible',
+    'setTagsVisible',
+    'revisionMode',
+    'setRevisionMode',
+    'revisionColor',
+    'setRevisionColor',
+    'advanceRevisionColor',
+    'showRevisionColors',
+    'setShowRevisionColors',
+    'documentTitle',
+    'pageLayout',
+    'setSearchOpen',
+    'setGoToPageOpen',
+    'spellCheckEnabled',
+    'toggleSpellCheck',
+    'setSpellModalOpen',
+    'grammarCheckEnabled',
+    'toggleGrammarCheck',
+    'setGrammarModalOpen',
+    'setGrammarRulesPanelOpen',
+    'setOpenFileOpen',
+    'setPostSaveAction',
+    'setSaveAsOpen',
+    'appearance',
+    'setAppearance',
+    'toolbarMode',
+    'setToolbarMode',
+    'focusMode',
+    'setFocusMode',
+    'focusTypewriter',
+    'setFocusTypewriter',
+    'focusDim',
+    'setFocusDim',
+    'viewLayout',
+    'setViewLayout',
+    'zoomLevel',
+    'setZoomLevel',
+    'navPanelWidth',
+    'trackChangesEnabled',
+    'setTrackChangesEnabled',
+    'setTrackChangesLabel',
+    'setCompareVersionOpen',
+    'sceneNumbersVisible',
+    'setSceneNumbersVisible',
+    'sceneNumbersLocked',
+    'setSceneNumbersLocked',
+    'elementNumbersVisible',
+    'setElementNumbersVisible',
+    'pageLabels',
+  );
   // Focus Mode puts the menus away the way Hidden does, without changing the saved choice.
   const toolbarMode = focusMode ? 'hidden' : savedToolbarMode;
 
@@ -2094,7 +2165,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
   /** Whether the open document contains an AV body, which gates the AV-only
    *  export formats. Selected rather than kept in state: a state update per
    *  edit re-rendered the whole menu bar on most keystrokes (#229). */
-  const hasAv = useEditorState({ editor, selector: ({ editor: ed }) => (ed ? docHasAvBody(ed.state.doc) : false) }) ?? false;
+  const hasAv = useEditorSelector(editor, (ed) => docHasAvBody(ed.state.doc), false, 'whether the script has an AV body');
 
   const handleExportAv = useCallback(async (kind: 'xlsx' | 'csv' | 'txt' | 'yaml') => {
     if (!editor) return;

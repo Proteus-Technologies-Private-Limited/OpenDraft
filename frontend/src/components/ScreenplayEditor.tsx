@@ -1052,6 +1052,14 @@ const ScreenplayEditor: React.FC = () => {
   const [editorKey, setEditorKey] = useState(0);
 
   const editorMainRef = useRef<HTMLDivElement>(null);
+  // The same element as state, for the memoised panels that scroll it. Read
+  // from the ref while rendering, they got null on the render that mounted it,
+  // and this screen no longer re-renders per edit to hand them the real one.
+  const [editorMainEl, setEditorMainEl] = useState<HTMLDivElement | null>(null);
+  const attachEditorMain = useCallback((el: HTMLDivElement | null) => {
+    editorMainRef.current = el;
+    setEditorMainEl(el);
+  }, []);
   const pageRef = useRef<HTMLDivElement>(null);
   const setPageCountRef = useRef(setPageCount);
   setPageCountRef.current = setPageCount;
@@ -5709,12 +5717,12 @@ const ScreenplayEditor: React.FC = () => {
       {!isHistoryMode && <MenuBar editor={editor} onDocumentSaved={handleDocumentSaved} onCollaborate={handleCollaborate} onJoinCollab={openJoinCollab} isCollabActive={collabMode} isCollabGuest={collabMode && !isCollabHost} canEditDocumentFormat={!collabMode || collabRole === 'editor'} />}
       {!isHistoryMode && <Toolbar editor={editor} />}
       <div className="editor-layout">
-        {!isHistoryMode && <SceneNavigator editor={editor} scrollContainer={editorMainRef.current} style={navStyle} />}
+        {!isHistoryMode && <SceneNavigator editor={editor} scrollContainer={editorMainEl} style={navStyle} />}
         {!isHistoryMode && navigatorOpen && (
           <div className="panel-resize-handle" onPointerDown={(e) => handleResizePointerDown('left', e)} style={{ touchAction: 'none' }} />
         )}
         <div className="editor-center">
-          {!isHistoryMode && <IndexCards editor={editor} scrollContainer={editorMainRef.current} />}
+          {!isHistoryMode && <IndexCards editor={editor} scrollContainer={editorMainEl} />}
           {!isHistoryMode && outlineOpen && editor ? (
             <OutlineView editor={editor} />
           ) : !isHistoryMode && statisticsOpen && editor ? (
@@ -5722,7 +5730,7 @@ const ScreenplayEditor: React.FC = () => {
           ) : !isHistoryMode && beatBoardOpen ? (
             <BeatBoard editor={editor} />
           ) : (
-            <div className={`editor-main${phoneView ? ' phone-layout' : ''}`} ref={editorMainRef} onDragOver={handleEditorDragOver} onDragLeave={handleEditorDragLeave} onDrop={handleEditorDrop}>
+            <div className={`editor-main${phoneView ? ' phone-layout' : ''}`} ref={attachEditorMain} onDragOver={handleEditorDragOver} onDragLeave={handleEditorDragLeave} onDrop={handleEditorDrop}>
               <div
                 className="page-sizer"
                 style={phoneView ? {

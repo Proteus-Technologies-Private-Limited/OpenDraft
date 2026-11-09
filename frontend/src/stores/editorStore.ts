@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { useShallow } from 'zustand/react/shallow';
 import { skipUnchanged } from './skipUnchanged';
 import { uuid } from '../utils/uuid';
 import { characterKey } from '../utils/nodeText';
@@ -2018,3 +2019,18 @@ export const useEditorStore = create<EditorState>()(skipUnchanged((set, get) => 
   setDocumentOrigin: (origin) =>
     set(origin ? { documentOrigin: origin, saveStatus: 'idle', saveError: null } : { documentOrigin: null }),
 })));
+
+/**
+ * The named fields of the editor store, re-rendering the caller only when one
+ * of them changes. Reading the store whole (`useEditorStore()`) re-renders on
+ * any change at all — the save status on every autosave, the current page as
+ * the caret crosses a break — which is what kept the menu bar and toolbar
+ * rendering while the writer typed (#229).
+ */
+export function useEditorFields<K extends keyof EditorState>(...keys: K[]): Pick<EditorState, K> {
+  return useEditorStore(useShallow((s: EditorState) => {
+    const picked = {} as Pick<EditorState, K>;
+    for (const key of keys) picked[key] = s[key];
+    return picked;
+  }));
+}

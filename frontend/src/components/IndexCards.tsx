@@ -1,11 +1,11 @@
 import React, { useCallback, useState, useRef, useEffect, useMemo } from 'react';
 import { Editor } from '@tiptap/react';
 import { useTranslation } from 'react-i18next';
-import { useEditorStore, type SceneInfo } from '../stores/editorStore';
+import { type SceneInfo, useEditorFields } from '../stores/editorStore';
 import { computeSceneLengths, activeTemplateHints } from '../editor/pagination';
 import { computeSceneTiming, formatSceneDuration, getTimingColor } from '../utils/scriptTiming';
 import SynopsisModal from './SynopsisModal';
-import { useEditorDoc } from '../hooks/useEditorTransactions';
+import { docJSON, useEditorDoc } from '../hooks/useEditorTransactions';
 
 interface IndexCardsProps {
   editor: Editor | null;
@@ -14,7 +14,7 @@ interface IndexCardsProps {
 
 const IndexCards: React.FC<IndexCardsProps> = ({ editor, scrollContainer }) => {
   const { t } = useTranslation(['story', 'common']);
-  const { scenes, indexCardsOpen, updateSceneSynopsis, updateSceneColor, toggleIndexCards, pageLayout } = useEditorStore();
+  const { scenes, indexCardsOpen, updateSceneSynopsis, updateSceneColor, toggleIndexCards, pageLayout } = useEditorFields('scenes', 'indexCardsOpen', 'updateSceneSynopsis', 'updateSceneColor', 'toggleIndexCards', 'pageLayout');
   const doc = useEditorDoc(editor, indexCardsOpen);
 
   const [fullscreen, setFullscreen] = useState(false);
@@ -148,7 +148,7 @@ const IndexCards: React.FC<IndexCardsProps> = ({ editor, scrollContainer }) => {
 
   const sceneTimings = useMemo(() => {
     if (!doc) return [];
-    try { return computeSceneTiming(doc.toJSON()).scenes; } catch { return []; }
+    try { return computeSceneTiming(docJSON(doc)).scenes; } catch { return []; }
   }, [doc]);
 
   // Map from scene ID to its original 1-based position (for showing "was #N")

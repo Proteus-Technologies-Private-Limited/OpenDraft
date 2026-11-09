@@ -15,7 +15,7 @@ import { RelationshipMap, relTypeLabel, relDynamicLabel, characterRoleLabel } fr
 import VoicePicker from './VoicePicker';
 import { useTableReadStore } from '../stores/tableReadStore';
 import Select from './Select';
-import { useEditorTransactions } from '../hooks/useEditorTransactions';
+import { useEditorDoc } from '../hooks/useEditorTransactions';
 
 // Default colors for auto-assignment (VIBGYOR palette)
 const DEFAULT_HIGHLIGHT_COLORS = [
@@ -873,7 +873,8 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
   };
 
   const { shouldRender, animationState } = useDelayedUnmount(characterProfilesOpen, 250);
-  useEditorTransactions(editor, shouldRender);
+  // Its lists are read off the document, so a selection that moves needs no render.
+  useEditorDoc(editor, shouldRender);
   const panelRef = useRef<HTMLDivElement>(null);
   useSwipeDismiss(panelRef, { direction: 'right', onDismiss: toggleCharacterProfiles, enabled: shouldRender && !isFullscreen });
 

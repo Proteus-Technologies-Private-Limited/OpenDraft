@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { formatNumber } from '../i18n/format';
 import { useDelayedUnmount, useSwipeDismiss } from '../hooks/useTouch';
-import { useEditorStore } from '../stores/editorStore';
+import { useEditorStore, useEditorFields } from '../stores/editorStore';
 import { computeSceneLengths, computePageBlocks, activeTemplateHints, type PageContentInfo } from '../editor/pagination';
 import { getSpaceBefore } from '../utils/elementSpacing';
 import { computeSceneTiming, formatSceneDuration, getTimingColor } from '../utils/scriptTiming';
@@ -17,7 +17,7 @@ import Select from './Select';
 import { listBookmarks } from '../utils/bookmarks';
 import { goToBookmark, removeBookmark } from './bookmarkActions';
 import { elementLabel } from '../editor/elementLabels';
-import { useEditorDoc } from '../hooks/useEditorTransactions';
+import { docJSON, useEditorDoc } from '../hooks/useEditorTransactions';
 
 interface SceneNavigatorProps {
   editor: Editor | null;
@@ -277,7 +277,7 @@ const SectionOutline: React.FC<SectionOutlineProps> = ({
 
 const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer, style }) => {
   const { t } = useTranslation(['story', 'common']);
-  const { scenes, navigatorOpen, toggleNavigator, updateSceneSynopsis, updateSceneColor, pageLabels } = useEditorStore();
+  const { scenes, navigatorOpen, toggleNavigator, updateSceneSynopsis, updateSceneColor, pageLabels } = useEditorFields('scenes', 'navigatorOpen', 'toggleNavigator', 'updateSceneSynopsis', 'updateSceneColor', 'pageLabels');
   const { shouldRender, animationState } = useDelayedUnmount(navigatorOpen, 250);
   // What the panel lists is read off the document, so it follows every edit while showing.
   const doc = useEditorDoc(editor, shouldRender);
@@ -432,7 +432,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
   const sceneTimings = useMemo(() => {
     if (!doc) return [];
     try {
-      return computeSceneTiming(doc.toJSON()).scenes;
+      return computeSceneTiming(docJSON(doc)).scenes;
     } catch {
       return [];
     }
@@ -446,7 +446,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
     };
     if (!doc) return empty;
     try {
-      return computeScriptStructure(doc.toJSON());
+      return computeScriptStructure(docJSON(doc));
     } catch {
       return empty;
     }
@@ -474,14 +474,16 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
 
   // ── Compute page blocks for page preview ──
 
+  // Only the Pages tab shows them, and laying out every page is a walk of the
+  // whole script per edit (#229).
   const pageContent = useMemo((): PageContentInfo[] => {
-    if (!doc) return [];
+    if (!doc || activeTab !== 'pages') return [];
     return computePageBlocks(
       doc,
       pageLayout,
       activeTemplateHints(),
     );
-  }, [doc, pageLayout]);
+  }, [doc, pageLayout, activeTab]);
 
   // ── Exact-match page layout for thumbnails ──
 

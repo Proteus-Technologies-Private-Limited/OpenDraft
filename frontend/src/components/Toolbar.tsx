@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Editor, useEditorState } from '@tiptap/react';
+import { Editor } from '@tiptap/react';
 import type { Mark } from '@tiptap/pm/model';
 import {
   FaBold,
@@ -27,7 +27,8 @@ import {
   FaPlus,
   FaTrashAlt,
 } from 'react-icons/fa';
-import { useEditorStore } from '../stores/editorStore';
+import { useEditorStore, useEditorFields } from '../stores/editorStore';
+import { useEditorSelector } from '../hooks/useEditorTransactions';
 import type { ElementType } from '../stores/editorStore';
 import { addScriptNoteAtSelection, scriptNoteAtSelection } from '../utils/addScriptNote';
 import { panelButtonAction } from '../utils/panelButton';
@@ -119,7 +120,26 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
     setEditingTagId,
     toolbarMode: savedToolbarMode,
     focusMode,
-  } = useEditorStore();
+  } = useEditorFields(
+    'activeElement',
+    'setActiveElement',
+    'zoomLevel',
+    'setZoomLevel',
+    'zoomPanelOpen',
+    'setZoomPanelOpen',
+    'fontFamily',
+    'fontSize',
+    'setSearchOpen',
+    'setGoToPageOpen',
+    'scriptNotesOpen',
+    'toggleScriptNotes',
+    'tagsPanelOpen',
+    'toggleTagsPanel',
+    'setPendingTagSelection',
+    'setEditingTagId',
+    'toolbarMode',
+    'focusMode',
+  );
   // Focus Mode hides the toolbar like Hidden does, keeping the saved choice.
   const toolbarMode = focusMode ? 'hidden' : savedToolbarMode;
 
@@ -318,7 +338,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
   // state on each transaction: a wholesale content replacement — restoring a
   // session, opening a file — need not fire a selection update, and anything
   // keyed on `activeElement` answered for a document that no longer existed.
-  const caret = useEditorState({ editor, selector: ({ editor: ed }) => selectCaret(ed) });
+  const caret = useEditorSelector(editor, selectCaret, null, 'the toolbar state');
   const isInsideAvCell = caret?.inAvCell ?? false;
   /** Which column the caret is in — the element list differs between them. */
   const avCellSide = caret?.avCellSide ?? 'video';

@@ -1,7 +1,7 @@
 import type { Editor, JSONContent } from '@tiptap/react';
-import React, { useMemo } from 'react';
+import React, { useDeferredValue, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useEditorStore, ELEMENT_LABELS, type BuiltInElementType } from '../stores/editorStore';
+import { ELEMENT_LABELS, type BuiltInElementType, useEditorFields } from '../stores/editorStore';
 import { useProjectStore } from '../stores/projectStore';
 import { useLinkedFileStore } from '../stores/linkedFileStore';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
@@ -15,7 +15,7 @@ import WritingProgress from './WritingProgress';
 import { useSuggestModeStore } from '../stores/suggestModeStore';
 import { formatNumber } from '../i18n/format';
 import { elementLabel as translateElement } from '../editor/elementLabels';
-import { useEditorDoc } from '../hooks/useEditorTransactions';
+import { docJSON, useEditorDoc } from '../hooks/useEditorTransactions';
 
 const SAVE_STATUS_CLASS: Record<string, string> = {
   idle: '',
@@ -31,8 +31,10 @@ interface StatusBarProps {
 
 const StatusBar: React.FC<StatusBarProps> = ({ editor }) => {
   const { t } = useTranslation('toolbar');
-  const doc = useEditorDoc(editor);
-  const editorDoc = useMemo(() => doc?.toJSON() ?? null, [doc]);
+  // Deferred: the timing, structure and word count below walk the whole
+  // script, and need not hold up the keystroke that changed it (#229).
+  const doc = useDeferredValue(useEditorDoc(editor));
+  const editorDoc = useMemo(() => (doc ? docJSON(doc) : null), [doc]);
   const {
     activeElement,
     pageCount,
@@ -47,7 +49,21 @@ const StatusBar: React.FC<StatusBarProps> = ({ editor }) => {
     sceneHeadingSpaceBefore,
     scriptProfile,
     setScriptProfileOpen,
-  } = useEditorStore();
+  } = useEditorFields(
+    'activeElement',
+    'pageCount',
+    'currentPage',
+    'revisionMode',
+    'revisionColor',
+    'documentTitle',
+    'saveStatus',
+    'documentOrigin',
+    'pageLabels',
+    'pageLayout',
+    'sceneHeadingSpaceBefore',
+    'scriptProfile',
+    'setScriptProfileOpen',
+  );
   // Locked pages read by their label ("Page 12A"), which is what the writer
   // will be asked for by the production.
   const currentLabel = pageLabels?.[currentPage - 1];
