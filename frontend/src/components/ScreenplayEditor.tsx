@@ -534,7 +534,14 @@ interface OverlayInfo {
   isTitlePage: boolean;
 }
 
-
+/** Overlays are re-measured after every edit; most edits move no page break. */
+function sameOverlays(a: OverlayInfo[], b: OverlayInfo[]): boolean {
+  return a.length === b.length && a.every((x, i) => {
+    const y = b[i];
+    return x.top === y.top && x.pageNumber === y.pageNumber && x.isDialogueSplit === y.isDialogueSplit
+      && x.characterName === y.characterName && x.isTitlePage === y.isTitlePage;
+  });
+}
 
 const ScreenplayEditor: React.FC = () => {
   const { t: tl, i18n: i18nInstance } = useTranslation(['editor', 'common']);
@@ -1655,7 +1662,7 @@ const ScreenplayEditor: React.FC = () => {
     const titleEnd = breaks.find((b) => b.isTitlePage)?.nodeIndex ?? 0;
     children.forEach((el, i) => el.classList.toggle('sp-title-region', i < titleEnd));
 
-    if (breaks.length === 0) { setOverlays([]); return; }
+    if (breaks.length === 0) { setOverlays((prev) => (prev.length === 0 ? prev : [])); return; }
 
     // getBoundingClientRect returns coordinates in viewport space (affected by
     // CSS transform: scale), but the overlay top is in the page's local
@@ -1697,7 +1704,8 @@ const ScreenplayEditor: React.FC = () => {
         isTitlePage: brk.isTitlePage,
       });
     }
-    setOverlays(newOverlays);
+    // Each new array re-renders the whole editor screen (#229).
+    setOverlays((prev) => (sameOverlays(prev, newOverlays) ? prev : newOverlays));
   }, []);
 
   // Which notes print, where, and how much room they need. Null — and free —
@@ -2235,6 +2243,10 @@ const ScreenplayEditor: React.FC = () => {
       // editor/stripNoteBackgrounds.
       transformPastedHTML: (html) => stripNoteBackgrounds(html),
     },
+    // Components that read editor state while rendering subscribe with
+    // useEditorTransactions. Re-rendering this whole screen per transaction
+    // made every keystroke cost a full menu bar and toolbar render (#229).
+    shouldRerenderOnTransaction: false,
     onCreate: () => {
       if (!collabMode) rejectedCollabDocRef.current = null;
     },
@@ -5503,6 +5515,36 @@ const ScreenplayEditor: React.FC = () => {
     return topMarginPx + m.pageContentPx;
   }, [overlays, pageLayout]);
 
+  // MenuBar, Toolbar and SceneNavigator are memoised: this screen re-renders on
+  // most edits, and rendering the menu bar with it made typing lag (#229).
+  // Their props have to keep their identity for that to hold.
+  const openShareDialog = useCallback(async () => {
+    // Check the user is signed in, renewing an expired access token first.
+    // A session that just could not be renewed right now is still a
+    // session — say so instead of showing the sign-in form.
+    const authStatus = await ensureCollabAuthenticated();
+    if (authStatus === 'unavailable') {
+      showToast(collabAuthUnavailableMessage(), 'error');
+      return;
+    }
+    if (authStatus === 'signed-out') {
+      setCollabLoginOpen(true);
+      return;
+    }
+    setShareDialogOpen(true);
+  }, []);
+  const handleCollaborate = useCallback(async () => {
+    if (!currentProject || !currentScriptId) {
+      showToast(tg('editor:toast.saveAsFirst'), 'info');
+      useEditorStore.getState().setSaveAsOpen(true);
+      return;
+    }
+    await openShareDialog();
+  }, [currentProject, currentScriptId, openShareDialog]);
+  const handleDocumentSaved = useCallback((json: string) => { lastSavedJsonRef.current = json; }, []);
+  const openJoinCollab = useCallback(() => setJoinCollabOpen(true), []);
+  const navStyle = useMemo(() => ({ width: navWidth, minWidth: navWidth }), [navWidth]);
+
   // Show loading screen while collab session is being set up
   if (collabLoading) {
     return (
@@ -5567,19 +5609,10 @@ const ScreenplayEditor: React.FC = () => {
             ))}
           </div>
           {isCollabHost && (
-            <button className="collab-banner-btn" onClick={async () => {
+            <button className="collab-banner-btn" onClick={() => {
               // Close any stale login dialog before reopening share dialog
               setCollabLoginOpen(false);
-              const authStatus = await ensureCollabAuthenticated();
-              if (authStatus === 'unavailable') {
-                showToast(collabAuthUnavailableMessage(), 'error');
-                return;
-              }
-              if (authStatus === 'signed-out') {
-                setCollabLoginOpen(true);
-                return;
-              }
-              setShareDialogOpen(true);
+              void openShareDialog();
             }}>
               {tl('collab.invite')}
             </button>
@@ -5673,29 +5706,10 @@ const ScreenplayEditor: React.FC = () => {
           </button>
         </div>
       )}
-      {!isHistoryMode && <MenuBar editor={editor} onDocumentSaved={(json) => { lastSavedJsonRef.current = json; }} onCollaborate={async () => {
-        if (!currentProject || !currentScriptId) {
-          showToast(tg('editor:toast.saveAsFirst'), 'info');
-          useEditorStore.getState().setSaveAsOpen(true);
-          return;
-        }
-        // Check the user is signed in, renewing an expired access token first.
-        // A session that just could not be renewed right now is still a
-        // session — say so instead of showing the sign-in form.
-        const authStatus = await ensureCollabAuthenticated();
-        if (authStatus === 'unavailable') {
-          showToast(collabAuthUnavailableMessage(), 'error');
-          return;
-        }
-        if (authStatus === 'signed-out') {
-          setCollabLoginOpen(true);
-          return;
-        }
-        setShareDialogOpen(true);
-      }} onJoinCollab={() => setJoinCollabOpen(true)} isCollabActive={collabMode} isCollabGuest={collabMode && !isCollabHost} canEditDocumentFormat={!collabMode || collabRole === 'editor'} />}
+      {!isHistoryMode && <MenuBar editor={editor} onDocumentSaved={handleDocumentSaved} onCollaborate={handleCollaborate} onJoinCollab={openJoinCollab} isCollabActive={collabMode} isCollabGuest={collabMode && !isCollabHost} canEditDocumentFormat={!collabMode || collabRole === 'editor'} />}
       {!isHistoryMode && <Toolbar editor={editor} />}
       <div className="editor-layout">
-        {!isHistoryMode && <SceneNavigator editor={editor} scrollContainer={editorMainRef.current} style={{ width: navWidth, minWidth: navWidth }} />}
+        {!isHistoryMode && <SceneNavigator editor={editor} scrollContainer={editorMainRef.current} style={navStyle} />}
         {!isHistoryMode && navigatorOpen && (
           <div className="panel-resize-handle" onPointerDown={(e) => handleResizePointerDown('left', e)} style={{ touchAction: 'none' }} />
         )}
@@ -5960,7 +5974,7 @@ const ScreenplayEditor: React.FC = () => {
       </div>
       {!isHistoryMode && (
         <div className="status-bar-row" style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-          <StatusBar editorDoc={editor?.getJSON()} />
+          <StatusBar editor={editor} />
           {pluginRegistry.getPanels('status-bar').map((p) => (
             <p.component key={p.id} />
           ))}

@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { skipUnchanged } from './skipUnchanged';
 import { uuid } from '../utils/uuid';
 import { characterKey } from '../utils/nodeText';
 import { newPlotline, normalizePlotlines, type Plotline } from '../utils/plotlines';
@@ -481,6 +482,16 @@ export interface SceneInfo {
   /** The plotlines the scene carries (utils/plotlines). */
   plotlineIds?: string[];
 }
+
+/** Lists the editor rebuilds from the document on every edit, which mostly leaves them as they were. */
+function sameItems<T>(a: T[], b: T[], eq: (x: T, y: T) => boolean = Object.is): boolean {
+  return a.length === b.length && a.every((x, i) => eq(x, b[i]));
+}
+
+const sameScene = (x: SceneInfo, y: SceneInfo) =>
+  x.id === y.id && x.heading === y.heading && x.sceneNumber === y.sceneNumber
+  && x.color === y.color && x.synopsis === y.synopsis
+  && sameItems(x.plotlineIds ?? [], y.plotlineIds ?? []);
 
 export const NOTE_COLORS = [
   { name: 'Yellow', hex: '#f4d35e' },
@@ -1204,7 +1215,7 @@ function _pushBeatSnapshot(get: () => EditorState, force = false) {
   useEditorStore.setState({ _beatUndoStack: stack, _beatRedoStack: [], _beatSnapshotTime: now, canBeatUndo: true, canBeatRedo: false } as any);
 }
 
-export const useEditorStore = create<EditorState>((set, get) => ({
+export const useEditorStore = create<EditorState>()(skipUnchanged((set, get) => ({
   activeElement: 'action',
   setActiveElement: (el) => set({ activeElement: el }),
 
@@ -1232,7 +1243,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   }),
 
   scenes: [],
-  setScenes: (scenes) => set({ scenes }),
+  setScenes: (scenes) => { if (!sameItems(get().scenes, scenes, sameScene)) set({ scenes }); },
   navigatorOpen: _vs.navigatorOpen ?? (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0 ? false : true),
   toggleNavigator: () => set((s) => {
     const v = !s.navigatorOpen;
@@ -1555,7 +1566,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   }),
 
   characters: [],
-  setCharacters: (names) => set({ characters: names }),
+  setCharacters: (names) => { if (!sameItems(get().characters, names)) set({ characters: names }); },
   addCharacter: (name) =>
     set((s) => ({
       characters: s.characters.includes(name.toUpperCase())
@@ -2006,4 +2017,4 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   // file nobody had touched.
   setDocumentOrigin: (origin) =>
     set(origin ? { documentOrigin: origin, saveStatus: 'idle', saveError: null } : { documentOrigin: null }),
-}));
+})));

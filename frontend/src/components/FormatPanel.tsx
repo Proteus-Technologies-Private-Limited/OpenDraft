@@ -7,6 +7,7 @@ import { useEditorStore } from '../stores/editorStore';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { getCurrentElementRule, getLockedFormatting } from '../utils/effectiveFormatting';
 import Select from './Select';
+import { useEditorTransactions } from '../hooks/useEditorTransactions';
 
 const FONT_SIZES = [8, 9, 10, 11, 12, 13, 14, 16, 18, 20, 24, 28, 32, 36, 48, 60, 72, 96];
 
@@ -17,6 +18,7 @@ interface FormatPanelProps {
 
 const FormatPanel: React.FC<FormatPanelProps> = ({ editor, onClose }) => {
   const { t } = useTranslation(['format', 'common']);
+  useEditorTransactions(editor);
   const { fontFamily: pageFont, fontSize: pageFontSize } = useEditorStore();
 
   // Per-attribute locking from active template

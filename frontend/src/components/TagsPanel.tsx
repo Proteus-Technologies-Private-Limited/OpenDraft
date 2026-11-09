@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { panelCloseDelay, useDelayedUnmount, useSwipeDismiss } from '../hooks/useTouch';
 import { useEditorStore } from '../stores/editorStore';
+import { useEditorTransactions } from '../hooks/useEditorTransactions';
 
 interface TagsPanelProps {
   editor: Editor | null;
@@ -420,6 +421,7 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor, style }) => {
   }, [newCatName, newCatColor, addTagCategory]);
 
   const { shouldRender, animationState } = useDelayedUnmount(tagsPanelOpen, panelCloseDelay());
+  useEditorTransactions(editor, shouldRender);
   const panelRef = useRef<HTMLDivElement>(null);
   useSwipeDismiss(panelRef, { direction: 'right', onDismiss: toggleTagsPanel, enabled: shouldRender });
 

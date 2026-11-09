@@ -6,7 +6,7 @@ import { isTauri as isNativeApp, getOS as nativeOS } from '../services/platform'
 import { ExternalSaveCancelled, externalScreenplay } from '../services/externalSave';
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Editor } from '@tiptap/react';
+import { Editor, useEditorState } from '@tiptap/react';
 import type { JSONContent } from '@tiptap/core';
 import { useEditorStore, DEFAULT_PAGE_LAYOUT, printedPageNumber, resolveHeaderFooter } from '../stores/editorStore';
 import type { DocumentOrigin } from '../stores/editorStore';
@@ -264,8 +264,10 @@ import {
   sceneAlternateTargetAt,
 } from '../editor/sceneAlternates';
 import type { EditorState, Transaction } from '@tiptap/pm/state';
+import type { Node as PMNode } from '@tiptap/pm/model';
 import { omitSceneTransaction, sceneOmittedAt } from '../editor/omitScene';
 import { elementLabel, elementDescription } from '../editor/elementLabels';
+import { useEditorTransactions } from '../hooks/useEditorTransactions';
 
 /** What Fade In carries beyond the text: Revision Mode's colour and marks,
  *  and how scenes are numbered. */
@@ -333,6 +335,23 @@ const DiagRow: React.FC<{ label: string; value: string; mono?: boolean }> = ({ l
   </tr>
 );
 
+const avBodyCache = new WeakMap<PMNode, boolean>();
+
+/** Whether `doc` holds an AV body, walking blocks only and stopping at the first. */
+function docHasAvBody(doc: PMNode): boolean {
+  let found = avBodyCache.get(doc);
+  if (found === undefined) {
+    found = false;
+    doc.descendants((node) => {
+      if (found) return false;
+      if (node.type.name === 'avBlock') { found = true; return false; }
+      return node.isBlock;
+    });
+    avBodyCache.set(doc, found);
+  }
+  return found;
+}
+
 const MenuBar: React.FC<MenuBarProps> = ({
   editor,
   onCollaborate,
@@ -347,6 +366,8 @@ const MenuBar: React.FC<MenuBarProps> = ({
   useTranslation('menu');
   const navigate = useNavigate();
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
+  // Menu items read the selection and document as they render (#229).
+  useEditorTransactions(editor, activeMenu !== null);
   const [openSubmenu, setOpenSubmenu] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   // Platform-aware modifier key symbol for shortcut labels
@@ -2071,38 +2092,9 @@ const MenuBar: React.FC<MenuBarProps> = ({
    * screenplay elements — while production tools exchange CSV and xlsx.
    */
   /** Whether the open document contains an AV body, which gates the AV-only
-   *  export formats. Recomputed when the document changes rather than on every
-   *  render — walking the doc is cheap but not free, and the menu re-renders
-   *  on hover. */
-  const [hasAv, setHasAv] = useState(false);
-  useEffect(() => {
-    if (!editor) { setHasAv(false); return; }
-    // Walked straight off the ProseMirror doc, stopping at the first AV body.
-    // It used to serialise the whole document with getJSON() and then read
-    // every AV body out of it in full, twice per keystroke, to answer a yes/no
-    // that only changes when a body is inserted or removed.
-    const recompute = () => {
-      try {
-        let found = false;
-        editor.state.doc.descendants((node) => {
-          if (found) return false;
-          if (node.type.name === 'avBlock') { found = true; return false; }
-          // Inline content cannot hold a body, so there is no reason to enter it.
-          return node.isBlock;
-        });
-        setHasAv(found);
-      } catch (err) {
-        console.warn('[av] could not check the document for AV bodies', err);
-        setHasAv(false);
-      }
-    };
-    recompute();
-    const onUpdate = ({ transaction }: { transaction: { docChanged: boolean } }) => {
-      if (transaction.docChanged) recompute();
-    };
-    editor.on('update', onUpdate);
-    return () => { editor.off('update', onUpdate); };
-  }, [editor]);
+   *  export formats. Selected rather than kept in state: a state update per
+   *  edit re-rendered the whole menu bar on most keystrokes (#229). */
+  const hasAv = useEditorState({ editor, selector: ({ editor: ed }) => (ed ? docHasAvBody(ed.state.doc) : false) }) ?? false;
 
   const handleExportAv = useCallback(async (kind: 'xlsx' | 'csv' | 'txt' | 'yaml') => {
     if (!editor) return;
@@ -4907,4 +4899,4 @@ const MenuBar: React.FC<MenuBarProps> = ({
   );
 };
 
-export default MenuBar;
+export default React.memo(MenuBar);

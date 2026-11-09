@@ -13,6 +13,7 @@ import {
 import Select from './Select';
 import { showToast } from './Toast';
 import { elementLabel } from '../editor/elementLabels';
+import { useEditorTransactions } from '../hooks/useEditorTransactions';
 
 interface DialogueTunerProps {
   editor: Editor | null;
@@ -85,6 +86,7 @@ const DialogueTuner: React.FC<DialogueTunerProps> = ({ editor, style }) => {
   const [showBefore, setShowBefore] = useState(true);
   const panelRef = useRef<HTMLDivElement>(null);
   const { shouldRender, animationState } = useDelayedUnmount(open, 250);
+  useEditorTransactions(editor, shouldRender);
   useSwipeDismiss(panelRef, { direction: 'right', onDismiss: close, enabled: shouldRender });
 
   const doc = editor?.state.doc;

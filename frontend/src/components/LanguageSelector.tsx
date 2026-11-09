@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Editor } from '@tiptap/react';
 import Select from './Select';
+import { useEditorTransactions } from '../hooks/useEditorTransactions';
 
 interface LanguageOption {
   code: string | null;
@@ -44,6 +45,7 @@ const DIALOGUE_ELEMENTS = ['dialogue', 'parenthetical', 'character'];
 
 const LanguageSelector: React.FC<LanguageSelectorProps> = ({ editor, activeElement }) => {
   const { t } = useTranslation(['toolbar', 'common']);
+  useEditorTransactions(editor, DIALOGUE_ELEMENTS.includes(activeElement));
   // Only show for dialogue-related elements
   if (!DIALOGUE_ELEMENTS.includes(activeElement)) return null;
   if (!editor) return null;

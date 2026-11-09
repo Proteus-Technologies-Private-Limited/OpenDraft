@@ -17,6 +17,7 @@ import Select from './Select';
 import { listBookmarks } from '../utils/bookmarks';
 import { goToBookmark, removeBookmark } from './bookmarkActions';
 import { elementLabel } from '../editor/elementLabels';
+import { useEditorDoc } from '../hooks/useEditorTransactions';
 
 interface SceneNavigatorProps {
   editor: Editor | null;
@@ -277,6 +278,9 @@ const SectionOutline: React.FC<SectionOutlineProps> = ({
 const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer, style }) => {
   const { t } = useTranslation(['story', 'common']);
   const { scenes, navigatorOpen, toggleNavigator, updateSceneSynopsis, updateSceneColor, pageLabels } = useEditorStore();
+  const { shouldRender, animationState } = useDelayedUnmount(navigatorOpen, 250);
+  // What the panel lists is read off the document, so it follows every edit while showing.
+  const doc = useEditorDoc(editor, shouldRender);
   const pageLayout = useEditorStore((s) => s.pageLayout);
   const plotlines = useEditorStore((s) => s.plotlines);
   const fontFamily = useEditorStore((s) => s.fontFamily);
@@ -376,8 +380,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
   // ── Compute scene details (characters, location, length) ──
 
   const sceneDetails = useMemo((): SceneDetail[] => {
-    if (!editor) return [];
-    const doc = editor.state.doc;
+    if (!doc) return [];
     const lengths = computeSceneLengths(
       doc,
       pageLayout,
@@ -422,19 +425,18 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
       });
     }
     return details;
-  }, [editor, scenes, pageLayout]);
+  }, [doc, pageLayout]);
 
   // ── Compute scene timing ──
 
   const sceneTimings = useMemo(() => {
-    if (!editor) return [];
+    if (!doc) return [];
     try {
-      const doc = editor.getJSON();
-      return computeSceneTiming(doc).scenes;
+      return computeSceneTiming(doc.toJSON()).scenes;
     } catch {
       return [];
     }
-  }, [editor, scenes]);
+  }, [doc]);
 
   // ── Compute act/sequence structure ──
 
@@ -442,13 +444,13 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
     const empty: ScriptStructure = {
       acts: [], sections: [], totalSections: 0, sceneActMap: new Map(), totalScenes: 0,
     };
-    if (!editor) return empty;
+    if (!doc) return empty;
     try {
-      return computeScriptStructure(editor.getJSON());
+      return computeScriptStructure(doc.toJSON());
     } catch {
       return empty;
     }
-  }, [editor, scenes]);
+  }, [doc]);
 
   // ── Collapsed acts / sequences (Structure tab state) ──
   const [collapsedActs, setCollapsedActs] = useState<Set<number>>(new Set());
@@ -473,13 +475,13 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
   // ── Compute page blocks for page preview ──
 
   const pageContent = useMemo((): PageContentInfo[] => {
-    if (!editor) return [];
+    if (!doc) return [];
     return computePageBlocks(
-      editor.state.doc,
+      doc,
       pageLayout,
       activeTemplateHints(),
     );
-  }, [editor, scenes, pageLayout]);
+  }, [doc, pageLayout]);
 
   // ── Exact-match page layout for thumbnails ──
 
@@ -686,10 +688,8 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
   // ── Bookmarks ──
   const setBookmarkEditing = useEditorStore((s) => s.setBookmarkEditing);
   const bookmarks = useMemo(
-    () => (editor && activeTab === 'bookmarks' ? listBookmarks(editor.state.doc) : []),
-    // The doc is the real input: `editor` stays the same object as the script changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [editor, editor?.state.doc, activeTab],
+    () => (doc && activeTab === 'bookmarks' ? listBookmarks(doc) : []),
+    [doc, activeTab],
   );
 
   // ── Navigate to a document position ──
@@ -791,7 +791,6 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
     setExpandedLocation(newName.toUpperCase());
   }, [editor, renamingLocation, renameValue, t]);
 
-  const { shouldRender, animationState } = useDelayedUnmount(navigatorOpen, 250);
   const navPanelRef = useRef<HTMLDivElement>(null);
   useSwipeDismiss(navPanelRef, { direction: 'left', onDismiss: toggleNavigator, enabled: shouldRender });
 
@@ -1293,4 +1292,4 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
   );
 };
 
-export default SceneNavigator;
+export default React.memo(SceneNavigator);

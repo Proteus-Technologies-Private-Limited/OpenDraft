@@ -49,6 +49,7 @@ import { REVISION_COLORS } from '../editor/revisionColors';
 import { bookmarkTargetAt } from '../utils/bookmarks';
 import { editBookmarkAtSelection, removeBookmark } from './bookmarkActions';
 import { speakerAt } from '../utils/dialogueTuner';
+import { useEditorTransactions } from '../hooks/useEditorTransactions';
 
 const isMac = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform);
 const mod = isMac ? '⌘' : 'Ctrl+';
@@ -178,6 +179,7 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
   overrideSelection,
 }) => {
   const { t } = useTranslation(['editor', 'common']);
+  useEditorTransactions(editor);
   const setGrammarRuleEnabled = useEditorStore((s) => s.setGrammarRuleEnabled);
   const menuRef = useRef<HTMLDivElement>(null);
   // Only one submenu is open at a time.
