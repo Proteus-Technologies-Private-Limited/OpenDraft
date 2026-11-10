@@ -26,6 +26,7 @@ import { addScriptNoteAtSelection } from '../utils/addScriptNote';
 import { FOCUS_MODE_SHORTCUT } from '../editor/extensions/FocusMode';
 import { showToast } from './Toast';
 import { useTranslation, Trans } from 'react-i18next';
+import { useSpellcheckLanguages } from '../hooks/useSpellcheckLanguages';
 import { t } from '../i18n';
 import { useSuggestModeStore } from '../stores/suggestModeStore';
 import { hasSuggestions, withoutSuggestionsJSON } from '../editor/suggestions';
@@ -365,6 +366,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
   // Re-renders the bar when the language changes; the strings come from the module-level t,
   // which also serves the handlers below at the moment they run.
   useTranslation('menu');
+  const spellcheckLanguages = useSpellcheckLanguages(editor);
   const navigate = useNavigate();
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   // Menu items read the selection and document as they render (#229).
@@ -3164,6 +3166,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
           icon: <FaSpellCheck />, label: t('menu:edit.spellingGrammar'),
           children: [
             { icon: <FaSpellCheck />, label: check(spellCheckEnabled, t('menu:edit.autoSpellCheck')), action: toggleSpellCheck },
+            { icon: <FaSpellCheck />, label: t('menu:edit.spellcheckLanguages'), children: spellcheckLanguages },
             { icon: <FaSpellCheck />, label: t('menu:edit.spellCheck'), shortcut: 'F7', action: () => setSpellModalOpen(true) },
             { separator: true, label: '' },
             { icon: <FaSpellCheck />, label: check(grammarCheckEnabled, t('menu:edit.autoWritingSuggestions')), action: toggleGrammarCheck },
