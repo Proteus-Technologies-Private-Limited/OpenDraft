@@ -15,6 +15,7 @@ import {
   getCachedPage,
   getCachedPages,
   getManualStatus,
+  dropOtherPlatformText,
   getManualStylesheet,
   isUpdateAvailable,
   removeManual,
@@ -240,6 +241,8 @@ const UserManualDialog: React.FC<UserManualDialogProps> = ({ onClose }) => {
     content.innerHTML = DOMPurify.sanitize(html, {
       ADD_ATTR: ['target', 'loading', MANUAL_IMG_ATTR],
     });
+    // A page cached by a build that kept it may still hold Android-only text.
+    dropOtherPlatformText(content);
     main.appendChild(content);
 
     shadow.replaceChildren(style, main);
