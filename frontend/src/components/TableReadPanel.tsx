@@ -55,6 +55,18 @@ function titleCase(name: string): string {
   return name.toLowerCase().replace(/(^|[\s'-])(\p{L})/gu, (_, sep: string, ch: string) => sep + ch.toUpperCase());
 }
 
+/**
+ * Resume a paused read, or start one from the current line. Shared by the
+ * panel's Play button and the system media controls (headset, lock screen,
+ * media keys), so both unlock the provider's audio the same way.
+ */
+function startReading(editor: Editor) {
+  // Inside the gesture, so Safari will let the provider's audio play later.
+  if (activeEngineKind() === 'ai') primeAudioPlayback();
+  if (useTableReadStore.getState().status === 'paused') player.resume();
+  else player.play(editor, useTableReadStore.getState().current);
+}
+
 const TableReadPanel: React.FC<{ editor: Editor }> = ({ editor }) => {
   const { t } = useTranslation('tools');
   const {
@@ -77,8 +89,10 @@ const TableReadPanel: React.FC<{ editor: Editor }> = ({ editor }) => {
     if (!navigator.mediaSession) return;
     const media = tableReadMediaSession(navigator.mediaSession, {
       play: () => {
-        if (useTableReadStore.getState().status === 'paused') player.resume();
-        else player.play(editor, useTableReadStore.getState().current);
+        // Already reading: a stray "play" must not restart the line.
+        const s = useTableReadStore.getState().status;
+        if (s === 'playing' || s === 'loading') return;
+        startReading(editor);
       },
       pause: player.pause,
       stop: player.stop,
@@ -90,8 +104,8 @@ const TableReadPanel: React.FC<{ editor: Editor }> = ({ editor }) => {
       const line = state.lines[state.current];
       // Read scene metadata from the script even when headings aren't spoken.
       let title = useEditorStore.getState().documentTitle;
-      if (line) editor.state.doc.descendants((node, pos) => {
-        if (pos > line.from) return false;
+      // Bounded to the text before the line, so it does not walk the whole script.
+      if (line) editor.state.doc.nodesBetween(0, Math.min(line.from, editor.state.doc.content.size), (node) => {
         if (node.type.name === 'sceneHeading') title = node.textContent;
       });
       media.update({ status: state.status, title, speaker: line?.cue ?? line?.speaker ?? '' });
@@ -138,12 +152,9 @@ const TableReadPanel: React.FC<{ editor: Editor }> = ({ editor }) => {
   const sceneTotal = useMemo(() => lines.reduce((m, l) => Math.max(m, l.sceneIndex), -1) + 1, [lines]);
 
   const togglePlay = useCallback(() => {
-    // Inside the click, so Safari will let the provider's audio play later.
-    if (activeEngineKind() === 'ai') primeAudioPlayback();
     const s = useTableReadStore.getState().status;
     if (s === 'playing' || s === 'loading') player.pause();
-    else if (s === 'paused') player.resume();
-    else player.play(editor, useTableReadStore.getState().current);
+    else startReading(editor);
   }, [editor]);
 
   const selectedSource = selectedEngineKind(voiceSettings);
