@@ -2,7 +2,7 @@
 from playwright.sync_api import sync_playwright
 import json, os
 with sync_playwright() as p:
- b=p.chromium.launch(executable_path='/usr/bin/chromium',args=['--no-sandbox','--enable-experimental-web-platform-features'])
+ b=p.chromium.launch(executable_path=os.environ.get('OPENDRAFT_CHROMIUM') or ('/usr/bin/chromium' if os.path.isfile('/usr/bin/chromium') else None),args=['--no-sandbox','--enable-experimental-web-platform-features'])
  page=b.new_page(no_viewport=True);errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
  page.add_init_script("if(!localStorage.getItem('opendraft:viewState'))localStorage.setItem('opendraft:viewState',JSON.stringify({navigatorOpen:false}));")
  cd=page.context.new_cdp_session(page)

@@ -77,6 +77,7 @@ import ScriptStatistics from './ScriptStatistics';
 import TableReadPanel from './TableReadPanel';
 import FoldablePanelDock from './FoldablePanelDock';
 import { useFoldState } from '../hooks/useFoldState';
+import { FOLD_WILL_CHANGE_EVENT, isFoldableDevice } from '../utils/foldPosture';
 import { foldLayout } from '../utils/foldLayout';
 import VoiceProviderDialog from './VoiceProviderDialog';
 import { TableReadHighlight } from '../editor/extensions/TableReadHighlight';
@@ -84,7 +85,7 @@ import { useTableReadStore } from '../stores/tableReadStore';
 import ScriptNotes from './ScriptNotes';
 import CharacterProfiles from './CharacterProfiles';
 import TagsPanel from './TagsPanel';
-import { PluginPanelTabs } from './PluginPanelTabs';
+import { PluginPanelTabs, type ActivePluginPanel } from './PluginPanelTabs';
 import LocationDatabase from './LocationDatabase';
 import DialogueTuner from './DialogueTuner';
 import SuggestionsPanel from './SuggestionsPanel';
@@ -582,7 +583,7 @@ const ScreenplayEditor: React.FC = () => {
   } = useEditorStore();
   const foldState = useFoldState();
   const foldToolbarMode = useEditorStore(s => s.toolbarMode);
-  const [foldPluginLabel, setFoldPluginLabel] = useState<string | null>(null);
+  const [foldPlugin, setFoldPlugin] = useState<ActivePluginPanel | null>(null);
   const foldDock = foldState.foldable && (foldState.size === 'wide' || foldState.fold !== 'flat');
   const tableReadHome = useRef<HTMLDivElement>(null);
   const tableReadOpen = useTableReadStore((s) => s.open);
@@ -1136,6 +1137,36 @@ const ScreenplayEditor: React.FC = () => {
   const zoomAnchorRef = useRef<ZoomAnchor | null>(null);
   // Until then, later reflows (fonts, remeasured page breaks) re-apply it.
   const zoomAnchorUntilRef = useRef(0);
+  const postureAnchorHeldRef = useRef(false);
+  useEffect(() => {
+    const beforeFold = () => {
+      if (!isFoldableDevice()) return;
+      const container = editorMainRef.current;
+      const root = pageRef.current?.querySelector('.ProseMirror');
+      if (!container || !root) return;
+      zoomAnchorRef.current = captureZoomAnchor(container, root);
+      // Pagination and font layout can finish much later on a long script.
+      // Keep this anchor until the writer navigates, rather than timing out.
+      postureAnchorHeldRef.current = true;
+      zoomAnchorUntilRef.current = performance.now() + 500;
+    };
+    const release = () => { postureAnchorHeldRef.current = false; zoomAnchorUntilRef.current = 0; };
+    const onInput = (event: Event) => {
+      if (event instanceof TouchEvent && event.touches.length > 1) return;
+      release();
+    };
+    const events = ['pointerdown', 'keydown', 'wheel', 'touchstart'];
+    window.addEventListener(FOLD_WILL_CHANGE_EVENT, beforeFold);
+    events.forEach(name => window.addEventListener(name, onInput, { capture: true, passive: true }));
+    const stopRead = useTableReadStore.subscribe((state, previous) => {
+      if (state.current !== previous.current || state.status !== previous.status) release();
+    });
+    return () => {
+      window.removeEventListener(FOLD_WILL_CHANGE_EVENT, beforeFold);
+      events.forEach(name => window.removeEventListener(name, onInput, true));
+      stopRead();
+    };
+  }, []);
   useEffect(() => {
     const unsub = useEditorStore.subscribe((state, prev) => {
       if (state.zoomLevel === prev.zoomLevel && state.viewLayout === prev.viewLayout) return;
@@ -1148,7 +1179,8 @@ const ScreenplayEditor: React.FC = () => {
         // Mid-pinch, keep the anchor taken at the first step: re-capturing
         // after every step would let rounding creep the place away.
         const held = zoomAnchorRef.current;
-        if (!(focus && held && held.el.isConnected && performance.now() < zoomAnchorUntilRef.current)) {
+        const holdingPosture = held && held.el.isConnected && postureAnchorHeldRef.current;
+        if (!holdingPosture && !(focus && held && held.el.isConnected && performance.now() < zoomAnchorUntilRef.current)) {
           zoomAnchorRef.current = captureZoomAnchor(container, root, focus?.y);
         }
         zoomAnchorUntilRef.current = performance.now() + 500;
@@ -1169,14 +1201,14 @@ const ScreenplayEditor: React.FC = () => {
       console.warn('[zoom] could not restore scroll anchor', err);
       zoomAnchorRef.current = null;
     }
-  }, [zoomLevel, viewLayout]);
+  }, [zoomLevel, viewLayout, phoneView, foldState]);
   useEffect(() => {
     const container = editorMainRef.current;
     const page = pageRef.current;
     if (!container || !page || typeof ResizeObserver === 'undefined') return;
     const ro = new ResizeObserver(() => {
       const anchor = zoomAnchorRef.current;
-      if (!anchor || performance.now() > zoomAnchorUntilRef.current) return;
+      if (!anchor || (!postureAnchorHeldRef.current && performance.now() > zoomAnchorUntilRef.current)) return;
       try {
         restoreZoomAnchor(container, anchor);
       } catch (err) {
@@ -1188,11 +1220,14 @@ const ScreenplayEditor: React.FC = () => {
     const release = (e: Event) => {
       if (e instanceof TouchEvent && e.touches.length > 1) return;
       zoomAnchorUntilRef.current = 0;
+      postureAnchorHeldRef.current = false;
     };
+    container.addEventListener('keydown', release);
     container.addEventListener('wheel', release, { passive: true });
     container.addEventListener('touchstart', release, { passive: true });
     return () => {
       ro.disconnect();
+      container.removeEventListener('keydown', release);
       container.removeEventListener('wheel', release);
       container.removeEventListener('touchstart', release);
     };
@@ -1230,7 +1265,7 @@ const ScreenplayEditor: React.FC = () => {
         return;
       }
       if (foldState.foldable && foldState.size === 'wide' && foldState.fold === 'flat' && editorMainRef.current) {
-        const layout = foldLayout(window.innerWidth, pageLayout.pageWidth * 96, navWidth, navigatorOpen, rightPanelVisible || tableReadOpen || !!foldPluginLabel);
+        const layout = foldLayout(window.innerWidth, pageLayout.pageWidth * 96, navWidth, navigatorOpen, rightPanelVisible || tableReadOpen || !!foldPlugin);
         const root = document.querySelector('.editor-layout');
         root?.classList.toggle('fold-nav-docked', layout.dockNavigator);
         root?.classList.toggle('fold-nav-overlay', !layout.dockNavigator);
@@ -1257,7 +1292,7 @@ const ScreenplayEditor: React.FC = () => {
       window.removeEventListener('resize', handleAutoZoom);
       window.removeEventListener('orientationchange', handleAutoZoom);
     };
-  }, [pageLayout.pageWidth, setZoomLevel, phoneView, foldState.foldable, foldState.size, foldState.fold, navWidth, navigatorOpen, rightPanelVisible, tableReadOpen, foldPluginLabel, foldToolbarMode]);
+  }, [pageLayout.pageWidth, setZoomLevel, phoneView, foldState.foldable, foldState.size, foldState.fold, navWidth, navigatorOpen, rightPanelVisible, tableReadOpen, foldPlugin, foldToolbarMode]);
 
   // ── Handle /collab/:token route — resolve token to project/script, then enter collab mode ──
   const collabInitDone = useRef(false);
@@ -2290,6 +2325,12 @@ const ScreenplayEditor: React.FC = () => {
 
   // Keep editor ref updated for onSynced callback
   collabEditorRef.current = editor;
+  useEffect(() => {
+    if (!editor) return;
+    const release = () => { postureAnchorHeldRef.current = false; zoomAnchorUntilRef.current = 0; };
+    editor.on('selectionUpdate', release);
+    return () => { editor.off('selectionUpdate', release); };
+  }, [editor]);
 
   // Route native undo/redo (e.g. iOS shake-to-undo) to the editor
   useEffect(() => {
@@ -5734,7 +5775,7 @@ const ScreenplayEditor: React.FC = () => {
       )}
       {!isHistoryMode && <MenuBar editor={editor} onDocumentSaved={handleDocumentSaved} onCollaborate={handleCollaborate} onJoinCollab={openJoinCollab} isCollabActive={collabMode} isCollabGuest={collabMode && !isCollabHost} canEditDocumentFormat={!collabMode || collabRole === 'editor'} />}
       {!isHistoryMode && <Toolbar editor={editor} />}
-      <div className={`editor-layout${foldDock ? ' fold-layout' : ''}${foldDock && foldState.fold === 'flat' ? (foldLayout(window.innerWidth, pageLayout.pageWidth * 96, navWidth, navigatorOpen, rightPanelVisible || tableReadOpen || !!foldPluginLabel).dockNavigator ? ' fold-nav-docked' : ' fold-nav-overlay') : ''}`}>
+      <div className={`editor-layout${foldDock ? ' fold-layout' : ''}${foldDock && foldState.fold === 'flat' ? (foldLayout(window.innerWidth, pageLayout.pageWidth * 96, navWidth, navigatorOpen, rightPanelVisible || tableReadOpen || !!foldPlugin).dockNavigator ? ' fold-nav-docked' : ' fold-nav-overlay') : ''}`}>
         {!isHistoryMode && <SceneNavigator editor={editor} scrollContainer={editorMainEl} style={navStyle} />}
         {!isHistoryMode && navigatorOpen && (
           <div className="panel-resize-handle" onPointerDown={(e) => handleResizePointerDown('left', e)} style={{ touchAction: 'none' }} />
@@ -5989,8 +6030,8 @@ const ScreenplayEditor: React.FC = () => {
           { id: 'locations', label: tg('menu:view.locations'), open: locationDatabaseOpen, content: <LocationDatabase editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} /> },
           { id: 'tuner', label: tg('menu:view.dialogueTuner'), open: dialogueTunerOpen, content: <DialogueTuner editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} /> },
           { id: 'suggestions', label: tg('menu:view.suggestions'), open: suggestionsPanelOpen, content: <SuggestionsPanel editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} /> },
-          { id: 'plugin', label: foldPluginLabel ?? tg('menu:pluginPanels.tabs'), open: !!foldPluginLabel, keepHomeWhenClosed: true,
-            content: <PluginPanelTabs editor={editor} width={rightPanelWidth} onActiveChange={setFoldPluginLabel} onResizePointerDown={(e) => handleResizePointerDown('right', e)} /> },
+          { id: 'plugin', label: foldPlugin?.label ?? tg('menu:pluginPanels.tabs'), open: !!foldPlugin, activationKey: foldPlugin?.activation, keepHomeWhenClosed: true,
+            content: <PluginPanelTabs editor={editor} width={rightPanelWidth} onActiveChange={setFoldPlugin} onResizePointerDown={(e) => handleResizePointerDown('right', e)} /> },
           { id: 'table-read', label: tg('menu:tools.tableRead'), open: tableReadOpen && !statisticsOpen && !beatBoardOpen, home: tableReadHome,
             content: tableReadOpen && editor && !statisticsOpen && !beatBoardOpen ? <TableReadPanel editor={editor} /> : null },
         ]} />}

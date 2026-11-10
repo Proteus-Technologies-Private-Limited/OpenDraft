@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { foldFromSegments, getFoldState, isFoldableDevice, watchFoldPosture } from './foldPosture';
+import { FOLD_WILL_CHANGE_EVENT, foldFromSegments, getFoldState, isFoldableDevice, watchFoldPosture } from './foldPosture';
 class Rect {
   x: number; y: number; width: number; height: number;
   constructor(x = 0, y = 0, width = 0, height = 0) { this.x=x; this.y=y; this.width=width; this.height=height; }
@@ -69,4 +69,21 @@ describe('browser detection', () => {
     vi.runAllTimers(); win.dispatchEvent(new Event('resize')); vi.runAllTimers();
     expect(seen).toHaveBeenCalledTimes(2);
   });
+  it('notifies readers before changing posture classes', () => {
+    const win = Object.assign(new EventTarget(), { innerWidth: 800, innerHeight: 800, matchMedia: () => ({ matches: true }) });
+    vi.stubGlobal('window', win);
+    vi.stubGlobal('navigator', {});
+    let wide = false;
+    const before: boolean[] = [];
+    vi.stubGlobal('document', { documentElement: {
+      classList: { toggle: (name: string, value: boolean) => { if (name === 'wide') wide = value; } },
+      style: { setProperty: vi.fn() },
+    } });
+    win.addEventListener(FOLD_WILL_CHANGE_EVENT, () => before.push(wide));
+    const stop = watchFoldPosture(() => {});
+    expect(before).toEqual([false]);
+    expect(wide).toBe(true);
+    stop();
+  });
+
 });

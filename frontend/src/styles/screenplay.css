@@ -15425,3 +15425,7 @@ html.fold-book :is(.menu-bar, .toolbar) { width: var(--fold-left); max-width: va
 html.fold-book .fold-panel-content .plugin-panel-tabs__content,
 html.fold-laptop .fold-panel-content .plugin-panel-tabs__content,
 html.foldable.wide .fold-panel-content .plugin-panel-tabs__content { flex: 1; width: 100% !important; min-width: 0 !important; }
+
+.fold-panel-content > .fold-panel-host:not([hidden]) { display: flex; flex: 1; min-width: 0; min-height: 0; }
+.fold-panel-content > .fold-panel-host:focus-visible,
+.fold-panel-tabs button:focus-visible { outline: 2px solid var(--fd-accent); outline-offset: -2px; }

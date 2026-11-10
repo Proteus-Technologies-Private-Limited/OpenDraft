@@ -7,6 +7,8 @@ export interface FoldState {
   foldRect: DOMRect | null;
 }
 export const FOLD_CHANGE_EVENT = 'opendraft:foldchange';
+/** Capture reading position before posture classes reflow the script. */
+export const FOLD_WILL_CHANGE_EVENT = 'opendraft:beforefoldchange';
 const CAPABILITY_KEY = 'opendraft:foldable';
 interface Segment { left: number; top: number; width: number; height: number }
 type SegmentViewport = { segments?: readonly Segment[] };
@@ -68,6 +70,7 @@ export function watchFoldPosture(onChange: (state: FoldState) => void): () => vo
     const next = signature(state);
     if (next === last) return;
     last = next;
+    window.dispatchEvent(new CustomEvent(FOLD_WILL_CHANGE_EVENT, { detail: state }));
     const root = document.documentElement;
     root.classList.toggle('foldable', isFoldableDevice());
     root.classList.toggle('wide', state.size === 'wide');
