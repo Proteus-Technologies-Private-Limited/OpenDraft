@@ -101,6 +101,7 @@ See `docs/RELEASE.md` for the full checklist. Key points:
 - GitHub Actions builds **all platforms**: macOS (.dmg), Windows (.exe/.msi), Linux (.deb/.AppImage), Android (.apk/.aab), iOS (.ipa)
 - macOS builds are signed and notarized via Apple secrets in GitHub
 - Update "What's New" content in MenuBar.tsx and user-manual before releasing
+- **Never name Android in text the iOS or Mac app shows** (release notes, manual, translations) — App Review rejects it under guideline 2.3.10. Use `<NotOnApple>` in MenuBar.tsx and `data-platform="android"` in the manual; see `docs/RELEASE.md` step 3
 
 ---
 

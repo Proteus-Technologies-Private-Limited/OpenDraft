@@ -1,10 +1,11 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { getOS, isTauri } from '../../services/platform';
-import { availableEngines, localCaptureProblem } from './capabilities';
-vi.mock('../../services/platform', () => ({ getOS: vi.fn(), isTauri: vi.fn() }));
+import { getOS, hidesOtherMobilePlatforms, isTauri } from '../../services/platform';
+import { availableEngines, enginePrivacy, localCaptureProblem } from './capabilities';
+vi.mock('../../services/platform', () => ({ getOS: vi.fn(), isTauri: vi.fn(), hidesOtherMobilePlatforms: vi.fn() }));
 beforeEach(() => {
   vi.mocked(isTauri).mockReturnValue(false);
   vi.mocked(getOS).mockReturnValue('macos');
+  vi.mocked(hidesOtherMobilePlatforms).mockReturnValue(false);
   vi.stubGlobal('window', { SpeechRecognition: class {} });
   vi.stubGlobal('navigator', { mediaDevices: { getUserMedia: vi.fn() } });
   vi.stubGlobal('Worker', class {});
@@ -51,4 +52,15 @@ it('uses the native iOS engine instead of a webview speech constructor', () => {
   vi.mocked(isTauri).mockReturnValue(true);
   vi.mocked(getOS).mockReturnValue('ios');
   expect(availableEngines()).toEqual(['local', 'device']);
+});
+
+// App Review rejects an iOS build whose text names Android (guideline 2.3.10).
+it('describes device recognition without naming Android in the Apple apps', () => {
+  vi.mocked(hidesOtherMobilePlatforms).mockReturnValue(true);
+  expect(enginePrivacy('device')).toMatch(/Apple/);
+  expect(enginePrivacy('device')).not.toMatch(/android/i);
+});
+
+it('still names the Android speech provider everywhere else', () => {
+  expect(enginePrivacy('device')).toMatch(/Android/);
 });

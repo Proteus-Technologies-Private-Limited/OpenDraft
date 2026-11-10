@@ -1,9 +1,28 @@
 name: Foldable browser tests
 
 on:
+  workflow_dispatch:
   pull_request:
     paths:
-      - 'frontend/**'
+      - 'frontend/src/utils/foldPosture*.ts'
+      - 'frontend/src/utils/foldLayout*.ts'
+      - 'frontend/src/utils/foldPanelSelection*.ts'
+      - 'frontend/src/utils/movePanelHost*.ts'
+      - 'frontend/src/utils/posturePreferences*.ts'
+      - 'frontend/src/utils/phoneDevice*.ts'
+      - 'frontend/src/utils/zoomAnchor*.ts'
+      - 'frontend/src/hooks/useFold*.ts'
+      - 'frontend/src/components/FoldablePanelDock.tsx'
+      - 'frontend/src/components/PluginPanelTabs.tsx'
+      - 'frontend/src/components/ScreenplayEditor.tsx'
+      - 'frontend/src/components/MenuBar.tsx'
+      - 'frontend/src/components/Toolbar.tsx'
+      - 'frontend/src/stores/editorStore.ts'
+      - 'frontend/src/stores/foldPosturePreferences.test.ts'
+      - 'frontend/src/main.tsx'
+      - 'frontend/src/styles/screenplay.css'
+      - 'frontend/package*.json'
+      - 'frontend/vite.config.ts'
       - 'test-script/foldables/**'
       - '.github/workflows/test-foldables.yml'
 
@@ -48,6 +67,7 @@ jobs:
         run: |
           python test-script/foldables/posture.py
           python test-script/foldables/regressions.py
+          python test-script/foldables/review_regressions.py
       - name: Upload Vite log on failure
         if: failure()
         uses: actions/upload-artifact@v4

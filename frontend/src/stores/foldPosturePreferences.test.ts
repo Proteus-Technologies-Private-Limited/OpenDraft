@@ -21,11 +21,11 @@ describe('editor store posture memory', () => {
     expect(store.getState()).toMatchObject({ toolbarMode: 'comfortable', viewLayout: 'phone' });
     expect(saved().toolbarMode).toBeUndefined(); expect(saved().viewLayout).toBeUndefined();
   });
-  it('seeds legacy choices into folded once, even on an open first launch', async () => {
+  it('seeds legacy choices into both postures once, even on an open first launch', async () => {
     localStorage.setItem('opendraft:viewState', JSON.stringify({ toolbarMode: 'comfortable', viewLayout: 'page' }));
     const { useEditorStore: store } = await import('./editorStore');
     posture.key = 'open'; store.getState().followFoldPosture();
-    expect(store.getState().toolbarMode).toBe('compact');
+    expect(store.getState().toolbarMode).toBe('comfortable');
     posture.key = 'folded'; store.getState().followFoldPosture();
     expect(store.getState()).toMatchObject({ toolbarMode: 'comfortable', viewLayout: 'page' });
     store.getState().setToolbarMode('hidden');

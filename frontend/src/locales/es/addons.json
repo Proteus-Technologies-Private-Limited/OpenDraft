@@ -4,7 +4,8 @@
       "name": "Dictado",
       "menu": "Dictado…",
       "description": "Dicta una frase corta, revisa la transcripción e insértala en tu guion. Los comandos de voz opcionales en inglés inician elementos nuevos.",
-      "privacy": "Whisper local mantiene el audio en este dispositivo. El primer uso descarga recursos del modelo desde huggingface.co, que ve tu dirección IP. El reconocimiento de voz del navegador puede enviar la voz grabada a Google, Apple o Microsoft. El reconocimiento del dispositivo puede enviar la voz grabada a Apple o al proveedor de voz de Android (normalmente Google). Se solicita el reconocimiento en el propio dispositivo donde es compatible; la preferencia sin conexión de Android no es una garantía. Elige el motor abajo antes de activar el dictado. Las preferencias permanecen en este dispositivo y pueden eliminarse al desactivar el complemento."
+      "privacy": "Whisper local mantiene el audio en este dispositivo. El primer uso descarga recursos del modelo desde huggingface.co, que ve tu dirección IP. El reconocimiento de voz del navegador puede enviar la voz grabada a Google, Apple o Microsoft. El reconocimiento del dispositivo puede enviar la voz grabada a Apple o al proveedor de voz de Android (normalmente Google). Se solicita el reconocimiento en el propio dispositivo donde es compatible; la preferencia sin conexión de Android no es una garantía. Elige el motor abajo antes de activar el dictado. Las preferencias permanecen en este dispositivo y pueden eliminarse al desactivar el complemento.",
+      "privacyApple": "Whisper local mantiene el audio en este dispositivo. El primer uso descarga recursos del modelo desde huggingface.co, que ve tu dirección IP. El reconocimiento del dispositivo puede enviar la voz grabada a Apple. Se solicita el reconocimiento en el propio dispositivo donde es compatible. Elige el motor abajo antes de activar el dictado. Las preferencias permanecen en este dispositivo y pueden eliminarse al desactivar el complemento."
     },
     "engine": {
       "local": "Whisper local",
@@ -14,7 +15,8 @@
     "privacy": {
       "local": "El audio permanece en este dispositivo. El primer uso descarga recursos del modelo desde huggingface.co, que ve tu dirección IP.",
       "browser": "Tu voz grabada puede enviarse a los servidores de voz del fabricante del navegador (Google, Apple o Microsoft).",
-      "device": "Tu voz grabada puede enviarse a Apple o a tu proveedor de voz de Android (normalmente Google). Se solicita el reconocimiento en el propio dispositivo donde es compatible; una preferencia sin conexión no es una garantía."
+      "device": "Tu voz grabada puede enviarse a Apple o a tu proveedor de voz de Android (normalmente Google). Se solicita el reconocimiento en el propio dispositivo donde es compatible; una preferencia sin conexión no es una garantía.",
+      "deviceApple": "Tu voz grabada puede enviarse a Apple. Se solicita el reconocimiento en el propio dispositivo donde es compatible."
     },
     "problem": {
       "linux": "Esta compilación de escritorio para Linux no ofrece captura de micrófono compatible con WebKit. Usa OpenDraft en un navegador con micrófono para Whisper local.",

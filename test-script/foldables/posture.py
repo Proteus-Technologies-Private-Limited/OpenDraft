@@ -14,7 +14,11 @@ with sync_playwright() as p:
   cd.send('Emulation.setTouchEmulationEnabled',{'enabled':True})
   cd.send('Emulation.setDevicePostureOverride',{'posture':{'type':fold}})
   page.wait_for_timeout(250)
-  if page.url!='about:blank':assert page.evaluate('innerWidth')==width
+  if page.url!='about:blank':
+   assert page.evaluate('innerWidth')==width
+   expected = 'fold-book' if fold=='folded' and axis=='vertical' else 'fold-laptop' if fold=='folded' and axis=='horizontal' else None
+   page.wait_for_function("expected=>expected ? document.documentElement.classList.contains(expected) : !document.documentElement.matches('.fold-book,.fold-laptop')",arg=expected)
+   page.wait_for_function("state=>{const root=document.documentElement,layout=document.querySelector('.editor-layout');return root.classList.contains('wide')===state.wide && root.classList.contains('phone')===!state.wide && layout?.classList.contains('fold-layout')===(state.wide||state.folded);}",arg={'wide':min(width,height)>=600,'folded':bool(fold=='folded' and axis)})
  posture()
  page.goto(os.environ.get('OPENDRAFT_TEST_URL','http://127.0.0.1:5173/'),wait_until='domcontentloaded')
  page.locator('.editor-main').wait_for()

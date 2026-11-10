@@ -1,4 +1,4 @@
-import { getOS, isTauri } from '../../services/platform';
+import { getOS, hidesOtherMobilePlatforms, isTauri } from '../../services/platform';
 import { browserRecognitionConstructor } from './services/recognition';
 import type { Engine } from './settings';
 import { t } from '../../i18n';
@@ -14,7 +14,11 @@ export function engineName(engine: Engine): string {
 export function enginePrivacy(engine: Engine): string {
   switch (engine) {
     case 'browser': return t('addons:dictation.privacy.browser');
-    case 'device': return t('addons:dictation.privacy.device');
+    // The Apple wording leaves Android out: App Review rejects an iOS build
+    // that names it (guideline 2.3.10), and iOS only ever reaches Apple anyway.
+    case 'device': return hidesOtherMobilePlatforms()
+      ? t('addons:dictation.privacy.deviceApple')
+      : t('addons:dictation.privacy.device');
     default: return t('addons:dictation.privacy.local');
   }
 }

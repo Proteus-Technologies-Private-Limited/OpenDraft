@@ -199,6 +199,24 @@ Write the feature list / changelog for this version in:
 | 2 | `user-manual/index.html` | The `<h2 id="whats-new">What's New in vX.Y.Z</h2>` section |
 | 3 | `user-manual/search.js` | Update the search index entry for "What's New" |
 
+**Never name Android where the iOS or Mac app will show it.** App Review
+rejects an Apple build that mentions another mobile platform anywhere a user
+can see it (guideline 2.3.10) — and it reads Help → About and the user manual,
+not just the store's release notes. Write "phones and tablets" where that is
+true, and wrap anything that has to say Android:
+
+- `MenuBar.tsx`: `<NotOnApple>…</NotOnApple>`, or
+  `<NotOnApple apple="iPhone and iPad">iPhone, iPad and Android</NotOnApple>`
+  when the sentence needs different words on Apple
+- `user-manual/*.html`: `data-platform="android"` on the element (a `<span>`
+  for a few words, an `<li>`, or a whole section), worded so the sentence still
+  reads correctly without it
+
+`src/services/appleReviewText.test.ts` fails, quoting the text, if a release
+note or manual page names Android outside those. Run
+`test-script/generate_manual_manifest.py` after editing the manual so
+installed copies pick the change up.
+
 ### 4. Update user manual footer version
 
 All HTML pages in `user-manual/` have a footer with the version:

@@ -1,13 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { foldLayout } from './foldLayout';
-describe('open foldable page fit', () => {
-  it('fits a page without Navigator, then overlays it if docking would fall below 80%', () => {
-    expect(foldLayout(951, 816, 240, false, false)).toEqual({ dockNavigator: false, zoom: 100 });
-    expect(foldLayout(951, 816, 240, true, false)).toEqual({ dockNavigator: true, zoom: 85 });
-    expect(foldLayout(800, 816, 240, true, false)).toEqual({ dockNavigator: false, zoom: 96 });
+describe('open foldable Navigator docking', () => {
+  it('docks Navigator only when the remaining page fits at 80%', () => {
+    expect(foldLayout(951, 816, 240, false, false)).toEqual({ dockNavigator: false });
+    expect(foldLayout(951, 816, 240, true, false)).toEqual({ dockNavigator: true });
+    expect(foldLayout(800, 816, 240, true, false)).toEqual({ dockNavigator: false });
   });
-  it('reserves one column and keeps page zoom at least 70%', () => {
-    expect(foldLayout(951, 816, 240, true, true)).toEqual({ dockNavigator: false, zoom: 77 });
-    expect(foldLayout(690, 816, 240, true, true)).toEqual({ dockNavigator: false, zoom: 70 });
+  it('accounts for the right column before deciding whether Navigator docks', () => {
+    expect(foldLayout(951, 816, 240, true, true)).toEqual({ dockNavigator: false });
+    expect(foldLayout(690, 816, 240, true, true)).toEqual({ dockNavigator: false });
   });
+  it('handles the exact 80% docking boundary', () => {
+    expect(foldLayout(909, 816, 240, true, false).dockNavigator).toBe(true);
+    expect(foldLayout(908, 816, 240, true, false).dockNavigator).toBe(false);
+  });
+
 });

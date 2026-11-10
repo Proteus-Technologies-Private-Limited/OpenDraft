@@ -9,19 +9,19 @@ export interface FoldState {
 export const FOLD_CHANGE_EVENT = 'opendraft:foldchange';
 /** Capture reading position before posture classes reflow the script. */
 export const FOLD_WILL_CHANGE_EVENT = 'opendraft:beforefoldchange';
-const CAPABILITY_KEY = 'opendraft:foldable';
+// Detection lasts for this document only: disable DevTools emulation and reload
+// to return to ordinary-device behavior. Discard the old persistent marker.
+try { localStorage.removeItem('opendraft:foldable'); } catch { /* storage unavailable */ }
 interface Segment { left: number; top: number; width: number; height: number }
 type SegmentViewport = { segments?: readonly Segment[] };
 type PostureNavigator = Navigator & { devicePosture?: EventTarget & { type?: string } };
 let confirmed = false;
 
 export function isFoldableDevice(): boolean {
-  if (confirmed) return true;
-  try { return localStorage.getItem(CAPABILITY_KEY) === '1'; } catch { return false; }
+  return confirmed;
 }
 function rememberFoldable() {
   confirmed = true;
-  try { localStorage.setItem(CAPABILITY_KEY, '1'); } catch { /* private browsing */ }
 }
 
 /** Pure geometry shared by browser detection and tests. */
@@ -57,7 +57,7 @@ export function getFoldState(): FoldState {
 
 function signature(state: FoldState) {
   const r = state.foldRect;
-  return [state.size, state.fold, r?.x, r?.y, r?.width, r?.height, isFoldableDevice()].join(':');
+  return [window.innerWidth, window.innerHeight, state.size, state.fold, r?.x, r?.y, r?.width, r?.height, isFoldableDevice()].join(':');
 }
 
 /** Start once before React mounts. Returns complete listener/timer cleanup. */

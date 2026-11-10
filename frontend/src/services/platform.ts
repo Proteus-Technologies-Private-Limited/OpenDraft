@@ -153,6 +153,23 @@ export async function supportsMultipleWindows(): Promise<boolean> {
   }
 }
 
+/**
+ * Whether user-facing text must not name another mobile platform.
+ *
+ * App Review rejects an iOS or Mac App Store build that mentions Android
+ * anywhere a user can see it — release notes, help text, the user manual —
+ * under guideline 2.3.10. So the iOS and macOS apps leave out wording that
+ * names Android (`<NotOnApple>` in release notes, `data-platform="android"` in
+ * the manual). The Mac download shares the Mac App Store's frontend, so it is
+ * covered too; nobody on a Mac misses an Android fix. The browser and every
+ * other app keep the full text.
+ */
+export function hidesOtherMobilePlatforms(): boolean {
+  if (!isTauri()) return false;
+  const os = getOS();
+  return os === 'ios' || os === 'macos';
+}
+
 /** True when the window uses a custom titlebar (decorations: false).
  *  On Tauri desktop the MenuBar acts as the titlebar with window controls. */
 export function hasCustomTitlebar(): boolean {

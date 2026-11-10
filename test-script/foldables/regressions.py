@@ -180,7 +180,20 @@ class FoldableRegressions(unittest.TestCase):
         self.page.locator('.plugin-panel-tabs__strip').wait_for(state='detached')
         self.assertTrue(self.page.locator('.ProseMirror').evaluate('el=>el===document.activeElement'))
 
+    def test_docking_reacts_to_wide_resizes_without_live_segments(self):
+        self.page.evaluate("document.dispatchEvent(new CustomEvent('plugin-panel:close'))")
+        self.page.evaluate('testStore.getState().toggleNavigator()')
+        for width, expected in [(951,'fold-nav-docked'),(800,'fold-nav-overlay'),(951,'fold-nav-docked')]:
+            self.posture(width=width, axis=None)
+            classes = self.page.locator('.editor-layout').get_attribute('class').split()
+            self.assertIn(expected, classes)
+            self.assertNotIn('fold-nav-overlay' if expected=='fold-nav-docked' else 'fold-nav-docked', classes)
+
     def test_long_script_keeps_selection_and_reading_anchor(self):
+        # The probe supplies the editor reference; close it for the reading
+        # check. Focused/open panel preservation is exercised separately.
+        self.page.evaluate("document.dispatchEvent(new CustomEvent('plugin-panel:close'))")
+        self.page.locator('.plugin-panel-tabs__content').wait_for(state='detached')
         self.page.evaluate("""() => {
             const text = n => `Marker ${n}: A writer walks past the station and studies the changing light. `.repeat(3);
             testEditor.commands.setContent({type:'doc', content:Array.from({length:240},(_,n)=>({
@@ -197,21 +210,33 @@ class FoldableRegressions(unittest.TestCase):
             const main=document.querySelector('.editor-main');
             const el=[...document.querySelector('.ProseMirror').children].find(el=>el.textContent.startsWith('Marker 143:'));
             main.scrollTop+=el.getBoundingClientRect().top-main.getBoundingClientRect().top-140;
-            window.testAnchor=el;
             window.testSelection={...testEditor.state.selection.toJSON()};
         }""")
         for kwargs in [dict(fold='folded'), dict(axis='horizontal',fold='folded'),
                        dict(width=390,height=800,axis=None), dict()]:
+            # Follow the actual reading point for each transition. The selected
+            # paragraph can be elsewhere after text reflows; selection itself
+            # is checked independently below.
+            self.page.evaluate("""() => {
+                const main=document.querySelector('.editor-main').getBoundingClientRect();
+                const y=main.top+main.height/2;
+                const blocks=[...document.querySelector('.ProseMirror').children];
+                const el=blocks.find(el=>el.getBoundingClientRect().bottom>=y) ?? blocks.at(-1);
+                const box=el.getBoundingClientRect();
+                window.testAnchor=el;
+                window.testAnchorFraction=Math.max(0,Math.min(1,(y-box.top)/Math.max(1,box.height)));
+            }""")
             self.posture(**kwargs)
             actual = self.page.evaluate("""() => {
                 const main=document.querySelector('.editor-main').getBoundingClientRect();
                 const rect=testAnchor.getBoundingClientRect();
-                return {offset:rect.top-main.top, height:main.height,
+                return {offset:rect.top+testAnchorFraction*rect.height-main.top, height:main.height, connected:testAnchor.isConnected,
                     selection:testEditor.state.selection.toJSON(),scroll:document.querySelector('.editor-main').scrollTop};
             }""")
             self.assertEqual(actual['selection'], self.page.evaluate('testSelection'), actual)
-            self.assertGreater(actual['offset'], -20, actual)
-            self.assertLess(actual['offset'], actual['height']-20, actual)
+            self.assertTrue(actual['connected'],(kwargs,actual))
+            self.assertGreater(actual['offset'], -20, (kwargs,actual))
+            self.assertLess(actual['offset'], actual['height']-20, (kwargs,actual))
         before = self.page.evaluate('testEditor.state.doc.textContent')
         start = self.page.evaluate('testEditor.state.selection.from')
         self.page.keyboard.type('continued')

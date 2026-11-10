@@ -12,7 +12,9 @@ export function currentPostureKey(): PostureKey | null {
 }
 export function migratePosturePreferences(saved: PosturePreferences): PosturePreferences['byPosture'] {
   if (saved.byPosture) return saved.byPosture;
-  return { folded: { toolbarMode: saved.toolbarMode, viewLayout: saved.viewLayout } };
+  // A pre-existing explicit choice outranks either posture's defaults.
+  const choices = { toolbarMode: saved.toolbarMode, viewLayout: saved.viewLayout };
+  return { folded: { ...choices }, open: { ...choices } };
 }
 export function postureChoices(saved: PosturePreferences, key: PostureKey): Required<PostureChoices> {
   const choice = migratePosturePreferences(saved)?.[key];

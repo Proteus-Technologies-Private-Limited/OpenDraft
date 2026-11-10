@@ -1,14 +1,20 @@
-/** Coarse-pointer phones use the screen short side. On iPhone only, use the
- * window so an inner-display Split View pane can return to phone chrome.
- * iPad Slide Over and narrow desktop windows retain the screen rule. */
+/**
+ * Is this a phone, as opposed to a tablet or a computer?
+ *
+ * A touch screen whose SHORT side is under 600 CSS px. The short side, not the
+ * window width: a phone turned on its side is 900px wide and still a phone,
+ * while an iPad mini is 744px on its short side and a 7" Android tablet 600px —
+ * both have room for a real page. The screen, not the window: a narrow desktop
+ * window or an iPad Slide Over pane is not a phone, and has a mouse or the
+ * space to reach for the page view anyway.
+ *
+ * The same rule on Android and iOS, in the app and in a mobile browser alike.
+ */
 export function isPhoneDevice(): boolean {
   try {
     if (typeof window === 'undefined' || typeof matchMedia !== 'function') return false;
     if (!matchMedia('(pointer: coarse)').matches) return false;
-    const iphone = typeof navigator !== 'undefined' && /iphone/i.test(navigator.userAgent);
-    const shortSide = iphone
-      ? Math.min(window.innerWidth, window.innerHeight)
-      : Math.min(window.screen?.width ?? Infinity, window.screen?.height ?? Infinity);
+    const shortSide = Math.min(window.screen?.width ?? Infinity, window.screen?.height ?? Infinity);
     return shortSide < 600;
   } catch {
     // matchMedia or screen unavailable (a test runner) — assume not a phone.

@@ -4,7 +4,8 @@
       "name": "Dictée",
       "menu": "Dictée…",
       "description": "Dictez une courte phrase, relisez la transcription, puis insérez-la dans votre scénario. Des commandes vocales facultatives en anglais créent de nouveaux éléments.",
-      "privacy": "Whisper local garde l’audio sur cet appareil. La première utilisation télécharge des ressources de modèle depuis huggingface.co, qui voit votre adresse IP. La reconnaissance vocale du navigateur peut envoyer la voix enregistrée à Google, Apple ou Microsoft. La reconnaissance de l’appareil peut envoyer la voix enregistrée à Apple ou au fournisseur vocal d’Android (généralement Google). La reconnaissance sur l’appareil est demandée lorsqu’elle est prise en charge ; la préférence hors ligne d’Android n’est pas une garantie. Choisissez le moteur ci-dessous avant d’activer la dictée. Les préférences restent sur cet appareil et peuvent être supprimées quand le module complémentaire est désactivé."
+      "privacy": "Whisper local garde l’audio sur cet appareil. La première utilisation télécharge des ressources de modèle depuis huggingface.co, qui voit votre adresse IP. La reconnaissance vocale du navigateur peut envoyer la voix enregistrée à Google, Apple ou Microsoft. La reconnaissance de l’appareil peut envoyer la voix enregistrée à Apple ou au fournisseur vocal d’Android (généralement Google). La reconnaissance sur l’appareil est demandée lorsqu’elle est prise en charge ; la préférence hors ligne d’Android n’est pas une garantie. Choisissez le moteur ci-dessous avant d’activer la dictée. Les préférences restent sur cet appareil et peuvent être supprimées quand le module complémentaire est désactivé.",
+      "privacyApple": "Whisper local garde l’audio sur cet appareil. La première utilisation télécharge des ressources de modèle depuis huggingface.co, qui voit votre adresse IP. La reconnaissance de l’appareil peut envoyer la voix enregistrée à Apple. La reconnaissance sur l’appareil est demandée lorsqu’elle est prise en charge. Choisissez le moteur ci-dessous avant d’activer la dictée. Les préférences restent sur cet appareil et peuvent être supprimées quand le module complémentaire est désactivé."
     },
     "engine": {
       "local": "Whisper local",
@@ -14,7 +15,8 @@
     "privacy": {
       "local": "L’audio reste sur cet appareil. La première utilisation télécharge des ressources de modèle depuis huggingface.co, qui voit votre adresse IP.",
       "browser": "Votre voix enregistrée peut être envoyée aux serveurs vocaux de l’éditeur du navigateur (Google, Apple ou Microsoft).",
-      "device": "Votre voix enregistrée peut être envoyée à Apple ou à votre fournisseur vocal Android (généralement Google). La reconnaissance sur l’appareil est demandée lorsqu’elle est prise en charge ; une préférence hors ligne n’est pas une garantie."
+      "device": "Votre voix enregistrée peut être envoyée à Apple ou à votre fournisseur vocal Android (généralement Google). La reconnaissance sur l’appareil est demandée lorsqu’elle est prise en charge ; une préférence hors ligne n’est pas une garantie.",
+      "deviceApple": "Votre voix enregistrée peut être envoyée à Apple. La reconnaissance sur l’appareil est demandée lorsqu’elle est prise en charge."
     },
     "problem": {
       "linux": "Cette version de bureau pour Linux n’expose pas de capture de microphone WebKit prise en charge. Utilisez OpenDraft dans un navigateur compatible avec le microphone pour Whisper local.",

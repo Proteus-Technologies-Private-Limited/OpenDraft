@@ -86,4 +86,36 @@ describe('browser detection', () => {
     stop();
   });
 
+  it('forgets confirmed capability on a new document and discards the legacy marker', async () => {
+    vi.stubGlobal('window', { innerWidth: 800, innerHeight: 800, matchMedia: () => ({ matches: true }), viewport: { segments: vertical } });
+    vi.stubGlobal('navigator', {});
+    vi.resetModules();
+    const first = await import('./foldPosture');
+    first.getFoldState();
+    expect(first.isFoldableDevice()).toBe(true);
+    vi.stubGlobal('window', { innerWidth: 1200, innerHeight: 800, matchMedia: () => ({ matches: false }) });
+    expect(first.isFoldableDevice()).toBe(true); // retained for folding within this page
+    localStorage.setItem('opendraft:foldable', '1');
+    vi.resetModules();
+    const reloaded = await import('./foldPosture');
+    reloaded.getFoldState();
+    expect(reloaded.isFoldableDevice()).toBe(false);
+    expect(localStorage.getItem('opendraft:foldable')).toBeNull();
+  });
+
+  it('reports a wide-window resize even when segment and size classes stay unchanged', () => {
+    vi.useFakeTimers();
+    const win = Object.assign(new EventTarget(), { innerWidth: 951, innerHeight: 669, matchMedia: () => ({ matches: true }) });
+    vi.stubGlobal('window', win);
+    vi.stubGlobal('navigator', {});
+    vi.stubGlobal('document', { documentElement: { classList: { toggle: vi.fn() }, style: { setProperty: vi.fn() } } });
+    const changed = vi.fn();
+    const stop = watchFoldPosture(changed);
+    win.innerWidth = 800;
+    win.dispatchEvent(new Event('resize')); vi.advanceTimersByTime(150);
+    expect(changed).toHaveBeenCalledTimes(2);
+    expect(changed).toHaveBeenLastCalledWith({ size: 'wide', fold: 'flat', foldRect: null });
+    stop();
+  });
+
 });

@@ -30,13 +30,15 @@ describe('isPhoneDevice', () => {
     expect(isPhoneDevice()).toBe(false);
   });
 
-  it('uses the iPhone window for Split View, but keeps the iPad screen rule', () => {
+  it('keeps the screen rule for ordinary iPhone and iPad windows', () => {
     device('coarse', 951, 669);
     vi.stubGlobal('navigator', { userAgent: 'iPhone' });
     vi.stubGlobal('window', { screen: { width: 951, height: 669 }, innerWidth: 475, innerHeight: 669 });
-    expect(isPhoneDevice()).toBe(true);
+    expect(isPhoneDevice()).toBe(false);
     vi.stubGlobal('window', { screen: { width: 951, height: 669 }, innerWidth: 951, innerHeight: 669 });
     expect(isPhoneDevice()).toBe(false);
+    vi.stubGlobal('window', { screen: { width: 390, height: 844 }, innerWidth: 951, innerHeight: 669 });
+    expect(isPhoneDevice()).toBe(true);
     vi.stubGlobal('navigator', { userAgent: 'iPad' });
     vi.stubGlobal('window', { screen: { width: 820, height: 1180 }, innerWidth: 375, innerHeight: 900 });
     expect(isPhoneDevice()).toBe(false);

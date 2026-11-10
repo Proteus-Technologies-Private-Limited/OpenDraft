@@ -79,6 +79,8 @@ interface SwipeEdgeConfig {
   thresholdPx?: number;
   onSwipe: () => void;
   enabled?: boolean;
+  /** Check the live viewport at both ends of a gesture, including after resize. */
+  maxWidthPx?: number;
   /**
    * Element whose edge the gesture starts from. Omitted, it is the screen's,
    * and the gesture yields to anything marked `data-swipe-zone`. Given one,
@@ -95,6 +97,7 @@ export function useSwipeEdge(config: SwipeEdgeConfig) {
     thresholdPx = 60,
     onSwipe,
     enabled = true,
+    maxWidthPx = Infinity,
     root,
   } = config;
 
@@ -107,7 +110,10 @@ export function useSwipeEdge(config: SwipeEdgeConfig) {
     const target: HTMLElement | Document = el ?? document;
 
     const handleStart = (e: TouchEvent) => {
+      startRef.current = null;
+      if (window.innerWidth > maxWidthPx) return;
       const touch = e.touches[0];
+      if (!touch) return;
       // An element that owns its swipes owns every touch that starts on it.
       // On a phone the right-hand panels are 100vw, so their own left edge sits
       // exactly where the navigator's open-gesture zone is: swiping a note
@@ -129,8 +135,10 @@ export function useSwipeEdge(config: SwipeEdgeConfig) {
     };
 
     const handleEnd = (e: TouchEvent) => {
+      if (window.innerWidth > maxWidthPx) startRef.current = null;
       if (!startRef.current) return;
       const touch = e.changedTouches[0];
+      if (!touch) { startRef.current = null; return; }
       const dx = touch.clientX - startRef.current.x;
       const dy = Math.abs(touch.clientY - startRef.current.y);
       startRef.current = null;
@@ -159,7 +167,7 @@ export function useSwipeEdge(config: SwipeEdgeConfig) {
     // this effect first runs — the manual's layout appears only once its
     // status has loaded — and a ref changing does not re-render on its own.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [edge, edgeZonePx, thresholdPx, onSwipe, enabled, root, root?.current]);
+  }, [edge, edgeZonePx, thresholdPx, onSwipe, enabled, maxWidthPx, root, root?.current]);
 }
 
 // ── Swipe on a panel to dismiss it ──────────────────────────────────────────

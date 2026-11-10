@@ -13,7 +13,7 @@ import { initCustomFonts } from './services/customFonts';
 import { detectDeviceFonts } from './utils/deviceFonts';
 import { applyAppearance, applyNativeTheme, readAppearance } from './utils/appearance';
 import { initI18n } from './i18n';
-import { watchFoldPosture, isFoldableDevice, getFoldState } from './utils/foldPosture';
+import { watchFoldPosture, isFoldableDevice } from './utils/foldPosture';
 
 /**
  * Keep the `ios-windowed` class in sync with whether the app is running in an
@@ -96,7 +96,9 @@ async function init() {
   // open page (DevTools device mode). The toolbar re-measures what fits on
   // the event, since its buttons change size without its width changing.
   watchPhoneDevice((phone) => {
-    if (isFoldableDevice()) phone = getFoldState().size === 'phone';
+    // Confirmed foldables update chrome together with the debounced posture,
+    // after readers have captured their place and before the layout reflows.
+    if (isFoldableDevice()) return;
     document.documentElement.classList.toggle('phone', phone);
     useEditorStore.getState().followDevice(phone);
     window.dispatchEvent(new Event(PHONE_DEVICE_CHANGE_EVENT));

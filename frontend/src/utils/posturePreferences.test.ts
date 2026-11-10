@@ -6,10 +6,10 @@ describe('foldable posture choices', () => {
     expect(postureChoices({}, 'folded')).toEqual({ toolbarMode: 'hidden', viewLayout: 'phone' });
     expect(postureChoices({}, 'open')).toEqual({ toolbarMode: 'compact', viewLayout: 'page' });
   });
-  it('migrates existing choices to folded only, without mutating ordinary settings', () => {
+  it('migrates explicit choices to both postures without mutating ordinary settings', () => {
     const saved: PosturePreferences = { toolbarMode: 'comfortable', viewLayout: 'page' };
-    expect(migratePosturePreferences(saved)).toEqual({ folded: saved });
-    expect(postureChoices(saved, 'open')).toEqual({ toolbarMode: 'compact', viewLayout: 'page' });
+    expect(migratePosturePreferences(saved)).toEqual({ folded: saved, open: saved });
+    expect(postureChoices(saved, 'open')).toEqual({ toolbarMode: 'comfortable', viewLayout: 'page' });
     expect(saved.byPosture).toBeUndefined();
   });
   it('keeps each posture and each setting independent across repeated choices', () => {
@@ -23,4 +23,10 @@ describe('foldable posture choices', () => {
   it('does not reseed a migrated empty posture map from legacy settings', () => {
     expect(postureChoices({ byPosture: {}, toolbarMode: 'comfortable' }, 'folded').toolbarMode).toBe('hidden');
   });
+  it('uses posture defaults only for settings with no legacy choice', () => {
+    expect(postureChoices({ toolbarMode: 'comfortable' }, 'folded')).toEqual({ toolbarMode: 'comfortable', viewLayout: 'phone' });
+    expect(postureChoices({ toolbarMode: 'comfortable' }, 'open')).toEqual({ toolbarMode: 'comfortable', viewLayout: 'page' });
+    expect(postureChoices({ viewLayout: 'phone' }, 'open')).toEqual({ toolbarMode: 'compact', viewLayout: 'phone' });
+  });
+
 });

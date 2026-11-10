@@ -660,6 +660,12 @@ const ScreenplayEditor: React.FC = () => {
 
   const suggestionsPanelOpen = useSuggestModeStore((s) => s.panelOpen);
   const rightPanelVisible = scriptNotesOpen || characterProfilesOpen || tagsPanelOpen || locationDatabaseOpen || dialogueTunerOpen || suggestionsPanelOpen;
+  const foldOpen = foldState.foldable && foldState.size === 'wide' && foldState.fold === 'flat';
+  const foldRightColumnVisible = rightPanelVisible || tableReadOpen || !!foldPlugin;
+  const foldNavigatorDocked = foldOpen && foldLayout(
+    foldState.viewportWidth, pageLayout.pageWidth * 96, navWidth, navigatorOpen, foldRightColumnVisible,
+  ).dockNavigator;
+  const foldNavigationClass = foldOpen ? (foldNavigatorDocked ? ' fold-nav-docked' : ' fold-nav-overlay') : '';
 
   // Yjs document & provider — stable across renders while collab is active
   const ydocRef = useRef<Y.Doc | null>(null);
@@ -1084,7 +1090,8 @@ const ScreenplayEditor: React.FC = () => {
   useSwipeEdge({
     edge: 'left',
     onSwipe: toggleNavigator,
-    enabled: isTouch && !navigatorOpen && typeof window !== 'undefined' && window.innerWidth <= 1100,
+    enabled: isTouch && !navigatorOpen,
+    maxWidthPx: 1100,
   });
   useSwipeEdge({
     edge: 'right',
@@ -1256,23 +1263,14 @@ const ScreenplayEditor: React.FC = () => {
   const autoZoomApplied = useRef(false);
   useEffect(() => {
     const handleAutoZoom = () => {
-      const layoutRoot = document.querySelector<HTMLElement>('.editor-layout');
-      if (foldState.foldable && layoutRoot) layoutRoot.style.setProperty('--fold-content-top', `${layoutRoot.getBoundingClientRect().top}px`);
+      if (isFoldableDevice()) return; // dedicated fitting below owns foldable layouts
       // The phone view has no sheet to fit: its zoom is the size of the text,
       // and the writer's own.
       if (phoneView) {
         autoZoomApplied.current = false;
         return;
       }
-      if (foldState.foldable && foldState.size === 'wide' && foldState.fold === 'flat' && editorMainRef.current) {
-        const layout = foldLayout(window.innerWidth, pageLayout.pageWidth * 96, navWidth, navigatorOpen, rightPanelVisible || tableReadOpen || !!foldPlugin);
-        const root = document.querySelector('.editor-layout');
-        root?.classList.toggle('fold-nav-docked', layout.dockNavigator);
-        root?.classList.toggle('fold-nav-overlay', !layout.dockNavigator);
-        const fit = Math.floor((editorMainRef.current.clientWidth - 16) / (pageLayout.pageWidth * 96) * 100);
-        setZoomLevel(Math.max(70, Math.min(100, fit)));
-        autoZoomApplied.current = true;
-      } else if (window.innerWidth <= 768 && editorMainRef.current) {
+      if (window.innerWidth <= 768 && editorMainRef.current) {
         const containerWidth = editorMainRef.current.clientWidth - 16; // small padding
         const pageWidthPx = pageLayout.pageWidth * 96; // 1in = 96px
         const fitZoom = Math.floor((containerWidth / pageWidthPx) * 100);
@@ -1292,7 +1290,31 @@ const ScreenplayEditor: React.FC = () => {
       window.removeEventListener('resize', handleAutoZoom);
       window.removeEventListener('orientationchange', handleAutoZoom);
     };
-  }, [pageLayout.pageWidth, setZoomLevel, phoneView, foldState.foldable, foldState.size, foldState.fold, navWidth, navigatorOpen, rightPanelVisible, tableReadOpen, foldPlugin, foldToolbarMode]);
+  }, [pageLayout.pageWidth, setZoomLevel, phoneView]);
+
+  // Foldable panel/toolbar changes must never refit an ordinary user's page.
+  useEffect(() => {
+    if (!foldState.foldable) return;
+    const fit = () => {
+      const root = document.querySelector<HTMLElement>('.editor-layout');
+      if (root) root.style.setProperty('--fold-content-top', `${root.getBoundingClientRect().top}px`);
+      if (phoneView || !editorMainRef.current) return;
+      if (foldOpen || window.innerWidth <= 768) {
+        const available = editorMainRef.current.clientWidth - 16;
+        const zoom = Math.floor(available / (pageLayout.pageWidth * 96) * 100);
+        setZoomLevel(Math.max(foldOpen ? 70 : 50, Math.min(100, zoom)));
+      }
+    };
+    // React has already applied the single render-time docking decision.
+    const timer = setTimeout(fit, 100);
+    window.addEventListener('resize', fit);
+    window.addEventListener('orientationchange', fit);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', fit);
+      window.removeEventListener('orientationchange', fit);
+    };
+  }, [foldState, foldOpen, foldNavigatorDocked, foldRightColumnVisible, foldToolbarMode, navWidth, pageLayout.pageWidth, setZoomLevel, phoneView]);
 
   // ── Handle /collab/:token route — resolve token to project/script, then enter collab mode ──
   const collabInitDone = useRef(false);
@@ -5775,7 +5797,7 @@ const ScreenplayEditor: React.FC = () => {
       )}
       {!isHistoryMode && <MenuBar editor={editor} onDocumentSaved={handleDocumentSaved} onCollaborate={handleCollaborate} onJoinCollab={openJoinCollab} isCollabActive={collabMode} isCollabGuest={collabMode && !isCollabHost} canEditDocumentFormat={!collabMode || collabRole === 'editor'} />}
       {!isHistoryMode && <Toolbar editor={editor} />}
-      <div className={`editor-layout${foldDock ? ' fold-layout' : ''}${foldDock && foldState.fold === 'flat' ? (foldLayout(window.innerWidth, pageLayout.pageWidth * 96, navWidth, navigatorOpen, rightPanelVisible || tableReadOpen || !!foldPlugin).dockNavigator ? ' fold-nav-docked' : ' fold-nav-overlay') : ''}`}>
+      <div className={`editor-layout${foldDock ? ' fold-layout' : ''}${foldNavigationClass}`}>
         {!isHistoryMode && <SceneNavigator editor={editor} scrollContainer={editorMainEl} style={navStyle} />}
         {!isHistoryMode && navigatorOpen && (
           <div className="panel-resize-handle" onPointerDown={(e) => handleResizePointerDown('left', e)} style={{ touchAction: 'none' }} />
