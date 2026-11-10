@@ -2778,10 +2778,10 @@ const MenuBar: React.FC<MenuBarProps> = ({
    * so there is nothing to place and inline coordinates would break the
    * stacked layout.
    */
-  const positionSubmenu = (el: HTMLElement) => {
+  const positionSubmenu = useCallback((el: HTMLElement) => {
     const row = el.parentElement;
     if (!row) return;
-    if (window.matchMedia('(max-width: 600px)').matches) {
+    if (window.matchMedia('(max-width: 768px)').matches) {
       el.style.position = '';
       el.style.left = '';
       el.style.top = '';
@@ -2803,7 +2803,16 @@ const MenuBar: React.FC<MenuBarProps> = ({
     if (top + box.height > window.innerHeight - 8) top = window.innerHeight - 8 - box.height;
     el.style.left = `${Math.max(8, left)}px`;
     el.style.top = `${Math.max(8, top)}px`;
-  };
+  }, []);
+
+  // An open menu survives a resize/fold. Reapply or clear the flyout styles
+  // when crossing the same breakpoint used by the inline-submenu CSS.
+  useEffect(() => {
+    if (!openSubmenu) return;
+    const reposition = () => document.querySelectorAll<HTMLElement>('.menu-submenu').forEach(positionSubmenu);
+    window.addEventListener('resize', reposition);
+    return () => window.removeEventListener('resize', reposition);
+  }, [openSubmenu, positionSubmenu]);
 
   /**
    * One dropdown row, at any depth.

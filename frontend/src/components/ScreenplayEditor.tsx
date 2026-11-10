@@ -1075,7 +1075,8 @@ const ScreenplayEditor: React.FC = () => {
   useSwipeEdge({
     edge: 'left',
     onSwipe: toggleNavigator,
-    enabled: isTouch && !navigatorOpen && typeof window !== 'undefined' && window.innerWidth <= 1100,
+    enabled: isTouch && !navigatorOpen,
+    maxWidthPx: 1100,
   });
   useSwipeEdge({
     edge: 'right',
