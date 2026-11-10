@@ -18,6 +18,7 @@
  */
 
 import DOMPurify from 'dompurify';
+import { hidesOtherMobilePlatforms } from './platform';
 
 const REPO = 'Proteus-Technologies-Private-Limited/OpenDraft';
 const BRANCH = 'main';
@@ -250,6 +251,18 @@ async function fetchBlob(url: string, what: string): Promise<Blob> {
 }
 
 /**
+ * Manual text that only makes sense on Android is marked
+ * `data-platform="android"` — a whole paragraph, a list item, or a few words
+ * inside a sentence written to read correctly without them. The iOS and macOS
+ * apps drop it, because App Review rejects an Apple build that shows the word
+ * Android anywhere (guideline 2.3.10). The published web manual keeps it.
+ */
+export function dropOtherPlatformText(root: ParentNode): void {
+  if (!hidesOtherMobilePlatforms()) return;
+  root.querySelectorAll('[data-platform="android"]').forEach((el) => el.remove());
+}
+
+/**
  * Pull the readable part out of a manual page and note the images it wants.
  * The manual's own chrome (header, sidebar, search) is dropped — the viewer
  * supplies its own.
@@ -260,6 +273,7 @@ function extractPage(rawHtml: string, images: Set<string>): { html: string; text
   if (!content) return { html: '', text: '' };
 
   content.querySelectorAll('script, style, link, .header, .sidebar, .search-results').forEach((el) => el.remove());
+  dropOtherPlatformText(content);
 
   // Images are referenced as ../images/... relative to user-manual/. Record the
   // repo-relative path and swap in the cache scheme.

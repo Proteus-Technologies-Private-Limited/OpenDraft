@@ -4,7 +4,8 @@
       "name": "Dictation",
       "menu": "Dictation…",
       "description": "Dictate a short phrase, review the transcript, then insert it into your screenplay. Optional English voice commands start new elements.",
-      "privacy": "Local Whisper keeps audio on this device. First use downloads model assets from huggingface.co, which sees your IP address. Browser speech recognition may send recorded voice to Google, Apple or Microsoft. Device recognition may send recorded voice to Apple or the Android speech provider (usually Google). On-device recognition is requested where supported; Android’s offline preference is not a guarantee. Choose the engine below before turning dictation on. Preferences stay on this device and can be deleted when the add-on is turned off."
+      "privacy": "Local Whisper keeps audio on this device. First use downloads model assets from huggingface.co, which sees your IP address. Browser speech recognition may send recorded voice to Google, Apple or Microsoft. Device recognition may send recorded voice to Apple or the Android speech provider (usually Google). On-device recognition is requested where supported; Android’s offline preference is not a guarantee. Choose the engine below before turning dictation on. Preferences stay on this device and can be deleted when the add-on is turned off.",
+      "privacyApple": "Local Whisper keeps audio on this device. First use downloads model assets from huggingface.co, which sees your IP address. Device recognition may send recorded voice to Apple. On-device recognition is requested where supported. Choose the engine below before turning dictation on. Preferences stay on this device and can be deleted when the add-on is turned off."
     },
     "engine": {
       "local": "Local Whisper",
@@ -14,7 +15,8 @@
     "privacy": {
       "local": "Audio stays on this device. First use downloads model assets from huggingface.co, which sees your IP address.",
       "browser": "Your recorded voice may be sent to the browser vendor’s speech servers (Google, Apple or Microsoft).",
-      "device": "Your recorded voice may be sent to Apple or your Android speech provider (usually Google). On-device recognition is requested where supported; an offline preference is not a guarantee."
+      "device": "Your recorded voice may be sent to Apple or your Android speech provider (usually Google). On-device recognition is requested where supported; an offline preference is not a guarantee.",
+      "deviceApple": "Your recorded voice may be sent to Apple. On-device recognition is requested where supported."
     },
     "problem": {
       "linux": "This Linux desktop build does not expose supported WebKit microphone capture. Use OpenDraft in a microphone-capable browser for Local Whisper.",

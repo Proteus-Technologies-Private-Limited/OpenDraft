@@ -3,6 +3,7 @@ import { FaMicrophone } from 'react-icons/fa';
 import type { OpenDraftPlugin } from '../../plugins/registry';
 import { PLUGIN_PANEL_OPEN_EVENT } from '../../components/PluginPanelTabs';
 import { t } from '../../i18n';
+import { hidesOtherMobilePlatforms } from '../../services/platform';
 import DictationPanel from './panel';
 import DictationSettingsForm from './DictationSettingsForm';
 import { forgetSettings } from './settings';
@@ -13,7 +14,13 @@ const dictation: OpenDraftPlugin = {
   // Getters, so the text is looked up when it is shown and follows the interface language.
   get name() { return t('addons:dictation.plugin.name'); },
   get description() { return t('addons:dictation.plugin.description'); },
-  get privacy() { return t('addons:dictation.plugin.privacy'); },
+  // iOS and macOS get wording without Android in it — App Review rejects an
+  // Apple build that names another mobile platform (guideline 2.3.10).
+  get privacy() {
+    return hidesOtherMobilePlatforms()
+      ? t('addons:dictation.plugin.privacyApple')
+      : t('addons:dictation.plugin.privacy');
+  },
   settings: DictationSettingsForm,
   onDeactivate: ({ forgetSettings: forget }) => {
     stopDictation(); disposeLocalRecognition();

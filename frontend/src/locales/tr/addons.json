@@ -4,7 +4,8 @@
       "name": "Dikte",
       "menu": "Dikte…",
       "description": "Kısa bir cümle dikte edin, yazıya dökümünü gözden geçirin, sonra senaryonuza ekleyin. İsteğe bağlı İngilizce sesli komutlar yeni öğeler başlatır.",
-      "privacy": "Yerel Whisper sesi bu cihazda tutar. İlk kullanım, IP adresinizi gören huggingface.co sitesinden model dosyalarını indirir. Tarayıcı konuşma tanıma, kaydedilen sesi Google, Apple veya Microsoft'a gönderebilir. Cihaz tanıma, kaydedilen sesi Apple'a veya Android konuşma sağlayıcısına (genellikle Google) gönderebilir. Desteklenen yerlerde cihaz üzerinde tanıma istenir; Android'in çevrimdışı tercihi bir garanti değildir. Dikteyi açmadan önce aşağıdan motoru seçin. Tercihler bu cihazda kalır ve eklenti kapatıldığında silinebilir."
+      "privacy": "Yerel Whisper sesi bu cihazda tutar. İlk kullanım, IP adresinizi gören huggingface.co sitesinden model dosyalarını indirir. Tarayıcı konuşma tanıma, kaydedilen sesi Google, Apple veya Microsoft'a gönderebilir. Cihaz tanıma, kaydedilen sesi Apple'a veya Android konuşma sağlayıcısına (genellikle Google) gönderebilir. Desteklenen yerlerde cihaz üzerinde tanıma istenir; Android'in çevrimdışı tercihi bir garanti değildir. Dikteyi açmadan önce aşağıdan motoru seçin. Tercihler bu cihazda kalır ve eklenti kapatıldığında silinebilir.",
+      "privacyApple": "Yerel Whisper sesi bu cihazda tutar. İlk kullanım, IP adresinizi gören huggingface.co sitesinden model dosyalarını indirir. Cihaz tanıma, kaydedilen sesi Apple'a gönderebilir. Desteklenen yerlerde cihaz üzerinde tanıma istenir. Dikteyi açmadan önce aşağıdan motoru seçin. Tercihler bu cihazda kalır ve eklenti kapatıldığında silinebilir."
     },
     "engine": {
       "local": "Yerel Whisper",
@@ -14,7 +15,8 @@
     "privacy": {
       "local": "Ses bu cihazda kalır. İlk kullanım, IP adresinizi gören huggingface.co sitesinden model dosyalarını indirir.",
       "browser": "Kaydedilen sesiniz tarayıcı sağlayıcısının konuşma sunucularına (Google, Apple veya Microsoft) gönderilebilir.",
-      "device": "Kaydedilen sesiniz Apple'a veya Android konuşma sağlayıcınıza (genellikle Google) gönderilebilir. Desteklenen yerlerde cihaz üzerinde tanıma istenir; çevrimdışı tercih bir garanti değildir."
+      "device": "Kaydedilen sesiniz Apple'a veya Android konuşma sağlayıcınıza (genellikle Google) gönderilebilir. Desteklenen yerlerde cihaz üzerinde tanıma istenir; çevrimdışı tercih bir garanti değildir.",
+      "deviceApple": "Kaydedilen sesiniz Apple'a gönderilebilir. Desteklenen yerlerde cihaz üzerinde tanıma istenir."
     },
     "problem": {
       "linux": "Bu Linux masaüstü sürümü desteklenen WebKit mikrofon kaydını sunmuyor. Yerel Whisper için OpenDraft'ı mikrofon destekli bir tarayıcıda kullanın.",
