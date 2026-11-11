@@ -78,7 +78,9 @@ mod native_tests {
     fn native_failure_leaves_existing_directory_intact() {
         let dir = dir();
         let target = dir.join("missing/parent/script.pdf");
-        assert!(macos_file::replace(&target, b"data").is_err());
+        let error = macos_file::replace(&target, b"data").unwrap_err();
+        // Help -> Diagnostics reads the stage from this prefix.
+        assert!(error.starts_with("Save failed during "), "{error}");
         assert!(!target.exists());
         fs::remove_dir_all(dir).unwrap();
     }

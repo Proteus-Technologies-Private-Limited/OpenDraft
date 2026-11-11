@@ -150,15 +150,20 @@ pub fn replace_selected(
     recovery_dir: &Path,
     write: impl FnOnce(&Path, &[u8]) -> Result<(), String>,
 ) -> Result<(), String> {
-    let target = resolve_target(path)?;
+    let target = resolve_target(path).map_err(|error| save_error("destination", error))?;
     match fs::metadata(&target) {
-        Ok(meta) if !meta.is_file() => return Err("Save destination is not a file".into()),
-        Err(error) if error.kind() != std::io::ErrorKind::NotFound => return Err(error.to_string()),
+        Ok(meta) if !meta.is_file() => {
+            return Err(save_error("destination", "Save destination is not a file"))
+        }
+        Err(error) if error.kind() != std::io::ErrorKind::NotFound => {
+            return Err(save_error("destination", error))
+        }
         _ => {}
     }
     if backup_original && external(&target) && target.exists() {
-        let original = fs::read(&target)
-            .map_err(|error| format!("Cannot read original before backup: {error}"))?;
+        let original = fs::read(&target).map_err(|error| {
+            save_error("backup", format!("Cannot read original before backup: {error}"))
+        })?;
         backup(
             recovery_dir,
             target
@@ -167,8 +172,11 @@ pub fn replace_selected(
                 .unwrap_or("source"),
             &original,
         )?;
-        if fs::read(&target).map_err(|error| error.to_string())? != original {
-            return Err("The original changed during save. Reopen it before overwriting.".into());
+        if fs::read(&target).map_err(|error| save_error("backup", error))? != original {
+            return Err(save_error(
+                "backup",
+                "The original changed during save. Reopen it before overwriting.",
+            ));
         }
     }
     if hard_linked(&target) {
@@ -178,12 +186,13 @@ pub fn replace_selected(
             .write(true)
             .truncate(true)
             .open(&target)
-            .map_err(|error| error.to_string())?;
+            .map_err(|error| save_error("replacement", error))?;
         return out
             .write_all(bytes)
             .and_then(|_| out.sync_all())
-            .map_err(|error| error.to_string());
+            .map_err(|error| save_error("replacement", error));
     }
+    // The platform writer reports its own stage (staging or replacement).
     write(&target, bytes)
 }
 
@@ -457,10 +466,11 @@ mod tests {
         let recovery = dir.join("not-a-directory");
         fs::write(&path, b"original").unwrap();
         fs::write(&recovery, b"blocked").unwrap();
-        assert!(replace_selected(&path, b"new", true, &recovery, |_, _| {
+        let error = replace_selected(&path, b"new", true, &recovery, |_, _| {
             panic!("must not overwrite without a verified backup")
         })
-        .is_err());
+        .unwrap_err();
+        assert!(error.starts_with("Save failed during backup:"), "{error}");
         assert_eq!(fs::read(&path).unwrap(), b"original");
         fs::remove_dir_all(dir).unwrap();
     }
@@ -524,12 +534,11 @@ mod tests {
     #[test]
     fn selected_directory_is_refused_before_platform_write() {
         let dir = dir();
-        assert!(
-            replace_selected(&dir, b"new", false, &dir.join("recovery"), |_, _| {
-                panic!("must not overwrite a directory")
-            })
-            .is_err()
-        );
+        let error = replace_selected(&dir, b"new", false, &dir.join("recovery"), |_, _| {
+            panic!("must not overwrite a directory")
+        })
+        .unwrap_err();
+        assert!(error.starts_with("Save failed during destination:"), "{error}");
         assert!(dir.is_dir());
         fs::remove_dir_all(dir).unwrap();
     }

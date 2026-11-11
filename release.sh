@@ -134,10 +134,8 @@ sed -i '' "s/What's New in ${OLD_VERSION}/What's New in ${NEW_VERSION}/g" \
   "$PROJECT_ROOT/frontend/src/components/MenuBar.tsx"
 echo "  ✓ frontend/src/components/MenuBar.tsx"
 
-# frontend/src/services/diagnostics.ts
-sed -i '' "s/return '${OLD_VERSION}';/return '${NEW_VERSION}';/g" \
-  "$PROJECT_ROOT/frontend/src/services/diagnostics.ts"
-echo "  ✓ frontend/src/services/diagnostics.ts"
+# Diagnostics and the update check read the version from tauri.conf.json
+# (frontend/src/services/appVersion.ts), so there is no copy to bump there.
 
 # README.md and landing/index.html download links — only for the platforms
 # this release builds; the rest keep pointing at the files they already have.

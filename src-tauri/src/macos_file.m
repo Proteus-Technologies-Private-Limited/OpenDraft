@@ -18,6 +18,8 @@ int opendraft_macos_replace(const char *path, const unsigned char *bytes,
         NSData *data = [NSData dataWithBytes:bytes length:length];
         __block BOOL success = NO;
         __block NSError *writeError = nil;
+        // Matches safe_file.rs: Diagnostics reads "Save failed during <stage>:".
+        __block const char *stage = "staging";
         NSError *coordinationError = nil;
         NSFileCoordinator *coordinator = [[NSFileCoordinator alloc] initWithFilePresenter:nil];
         [coordinator coordinateWritingItemAtURL:url
@@ -43,6 +45,7 @@ int opendraft_macos_replace(const char *path, const unsigned char *bytes,
                 } else {
                     NSData *verified = [NSData dataWithContentsOfURL:staged options:0 error:&writeError];
                     if (verified && [verified isEqualToData:data]) {
+                        stage = "replacement";
                         if ([manager fileExistsAtPath:destination.path]) {
                             success = [manager replaceItemAtURL:destination withItemAtURL:staged
                                                 backupItemName:nil options:0 resultingItemURL:NULL
@@ -63,7 +66,9 @@ int opendraft_macos_replace(const char *path, const unsigned char *bytes,
         if (coordinationError) success = NO;
         if (!success && error_message) {
             NSError *error = coordinationError ?: writeError;
-            NSString *message = error ? error.description : @"macOS file replacement failed";
+            NSString *detail = error ? error.description : @"macOS file replacement failed";
+            NSString *message = [NSString stringWithFormat:@"Save failed during %s: %@",
+                                 coordinationError ? "destination" : stage, detail];
             *error_message = strdup(message.UTF8String);
         }
         return success ? 1 : 0;
