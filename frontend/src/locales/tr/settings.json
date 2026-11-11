@@ -178,6 +178,7 @@
     "noWords": "Henüz sözcük yok."
   },
   "dictionaryConfig": {
+    "notInstalled": "Yüklü değil",
     "addTargetOnTitle": "Sözlüğe ekle buraya yazar",
     "addTargetOffTitle": "Bunu Sözlüğe ekle hedefi yapmak için tıklayın",
     "addHereOn": "✓ Buraya ekle",

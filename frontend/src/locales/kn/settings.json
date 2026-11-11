@@ -178,6 +178,7 @@
     "noWords": "ಇನ್ನೂ ಪದಗಳಿಲ್ಲ."
   },
   "dictionaryConfig": {
+    "notInstalled": "ಸ್ಥಾಪಿಸಲಾಗಿಲ್ಲ",
     "addTargetOnTitle": "ಶಬ್ದಕೋಶಕ್ಕೆ ಸೇರಿಸಿ ಇಲ್ಲಿ ಬರೆಯುತ್ತದೆ",
     "addTargetOffTitle": "ಇದನ್ನು ಶಬ್ದಕೋಶಕ್ಕೆ ಸೇರಿಸುವ ಗುರಿಯಾಗಿಸಲು ಕ್ಲಿಕ್ ಮಾಡಿ",
     "addHereOn": "✓ ಇಲ್ಲಿ ಸೇರಿಸಿ",

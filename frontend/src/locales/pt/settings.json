@@ -182,6 +182,7 @@
     "noWords": "Ainda não há palavras."
   },
   "dictionaryConfig": {
+    "notInstalled": "Não instalado",
     "addTargetOnTitle": "Adicionar ao dicionário grava aqui",
     "addTargetOffTitle": "Clique para tornar este o destino de Adicionar ao dicionário",
     "addHereOn": "✓ Adicionar aqui",

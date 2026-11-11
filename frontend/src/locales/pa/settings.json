@@ -178,6 +178,7 @@
     "noWords": "ਅਜੇ ਕੋਈ ਸ਼ਬਦ ਨਹੀਂ।"
   },
   "dictionaryConfig": {
+    "notInstalled": "ਇੰਸਟਾਲ ਨਹੀਂ ਹੈ",
     "addTargetOnTitle": "ਡਿਕਸ਼ਨਰੀ ਵਿੱਚ ਜੋੜੋ ਇੱਥੇ ਲਿਖਦਾ ਹੈ",
     "addTargetOffTitle": "ਇਸਨੂੰ ਡਿਕਸ਼ਨਰੀ ਵਿੱਚ ਜੋੜੋ ਦਾ ਟੀਚਾ ਬਣਾਉਣ ਲਈ ਕਲਿੱਕ ਕਰੋ",
     "addHereOn": "✓ ਇੱਥੇ ਜੋੜੋ",

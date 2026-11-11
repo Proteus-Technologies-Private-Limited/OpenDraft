@@ -178,6 +178,7 @@
     "noWords": "No words yet."
   },
   "dictionaryConfig": {
+    "notInstalled": "Not installed",
     "addTargetOnTitle": "Add to Dictionary writes here",
     "addTargetOffTitle": "Click to make this an Add-to-Dictionary target",
     "addHereOn": "✓ Add here",
