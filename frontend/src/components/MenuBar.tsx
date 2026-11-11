@@ -3070,7 +3070,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
         // App builds only: a browser tab has nothing that can hold on to a
         // folder across a reload. Omitted rather than disabled — a permanently
         // greyed submenu just invites bug reports.
-        ...(isNativeApp() && ['ios', 'android'].includes(nativeOS()) ? [{ icon: <FaHistory />, label: t('menu:file.recoverOriginalFile'), action: () => setSourceBackupOpen(true) }] : []),
+        ...(isNativeApp() && ['macos', 'ios', 'android'].includes(nativeOS()) ? [{ icon: <FaHistory />, label: t('menu:file.recoverOriginalFile'), action: () => setSourceBackupOpen(true) }] : []),
         ...(backupsSupported() ? [
           { separator: true, label: '' },
           {
