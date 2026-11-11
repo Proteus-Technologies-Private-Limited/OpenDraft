@@ -1,5 +1,5 @@
 {
-  "version": "3d7c6a39132a9928",
+  "version": "01900ea6e031999b",
   "pages": [
     {
       "slug": "index.html",
@@ -173,7 +173,7 @@
       "slug": "keyboard-shortcuts.html",
       "title": "Keyboard Shortcuts",
       "section": "Customization",
-      "hash": "51b1d7044674aa5a"
+      "hash": "03a5de24789d11d4"
     },
     {
       "slug": "plugin-development.html",

@@ -1,4 +1,5 @@
 {
+  "applicationMenu": "ਐਪਲੀਕੇਸ਼ਨ ਮੀਨੂ",
   "pluginPanels": {
     "resize": "ਪੈਨਲ ਦਾ ਆਕਾਰ ਬਦਲੋ",
     "closeNamed": "{{name}} ਬੰਦ ਕਰੋ",

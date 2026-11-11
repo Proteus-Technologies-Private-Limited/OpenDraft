@@ -1,4 +1,5 @@
 {
+  "applicationMenu": "பயன்பாட்டு மெனு",
   "pluginPanels": {
     "resize": "பலகத்தின் அளவை மாற்று",
     "closeNamed": "{{name}} ஐ மூடு",
