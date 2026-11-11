@@ -10,7 +10,7 @@ import { DEFAULT_REVISION_COLOR, DEFAULT_REVISION_SETTINGS, nextRevisionColor, t
 import { spellChecker, PROJECT_DICT_TARGET } from '../editor/spellchecker';
 import { findLanguage, urlsFor } from '../editor/languageCatalog';
 import { isPhoneDevice } from '../utils/phoneDevice';
-import { currentPostureKey, postureChoices, migratePosturePreferences, savePostureChoice, type PosturePreferences } from '../utils/posturePreferences';
+import { currentPostureKey, currentZoomLayout, postureChoices, migratePosturePreferences, savePostureChoice, type PosturePreferences } from '../utils/posturePreferences';
 import {
   NOTE_NUMBER_FORMATS,
   type NoteNumberFormat,
@@ -1014,7 +1014,8 @@ interface EditorState {
   editingTagId: string | null;
   setEditingTagId: (id: string | null) => void;
 
-  // Zoom
+  // The effective zoom bucket can differ from viewLayout in book posture.
+  zoomLayout: ViewLayout;
   zoomLevel: number;
   setZoomLevel: (level: number) => void;
   viewLayout: ViewLayout;
@@ -1747,11 +1748,13 @@ export const useEditorStore = create<EditorState>()(skipUnchanged((set, get) => 
   editingTagId: null,
   setEditingTagId: (id) => set({ editingTagId: id }),
 
-  zoomLevel: (initialViewLayout === 'phone' ? _vs.phoneZoomLevel : _vs.zoomLevel) ?? 100,
+  zoomLayout: currentZoomLayout(initialViewLayout),
+  zoomLevel: (currentZoomLayout(initialViewLayout) === 'phone' ? _vs.phoneZoomLevel : _vs.zoomLevel) ?? 100,
   setZoomLevel: (level) => {
     const clamped = Math.min(300, Math.max(50, level));
-    set({ zoomLevel: clamped });
-    saveViewState(get().viewLayout === 'phone' ? { phoneZoomLevel: clamped } : { zoomLevel: clamped });
+    const zoomLayout = currentZoomLayout(get().viewLayout);
+    set({ zoomLevel: clamped, zoomLayout });
+    saveViewState(zoomLayout === 'phone' ? { phoneZoomLevel: clamped } : { zoomLevel: clamped });
   },
   viewLayout: initialViewLayout,
   setViewLayout: (layout) => {
@@ -1762,8 +1765,9 @@ export const useEditorStore = create<EditorState>()(skipUnchanged((set, get) => 
     // full-size text, while the same number in the page view is a whole
     // sheet the phone has to scroll sideways across.
     const saved = loadViewState();
-    const zoom = (layout === 'phone' ? saved.phoneZoomLevel : saved.zoomLevel) ?? 100;
-    set({ viewLayout: layout, zoomLevel: zoom });
+    const zoomLayout = currentZoomLayout(layout);
+    const zoom = (zoomLayout === 'phone' ? saved.phoneZoomLevel : saved.zoomLevel) ?? 100;
+    set({ viewLayout: layout, zoomLevel: zoom, zoomLayout });
     if (!key) saveViewState({ viewLayout: layout });
   },
   followDevice: (isPhone) => {
@@ -1773,8 +1777,9 @@ export const useEditorStore = create<EditorState>()(skipUnchanged((set, get) => 
     const layout: ViewLayout = isPhone ? 'phone' : 'page';
     if (layout === get().viewLayout) return;
     // Not saved: it is still the device's default, and should keep following it.
-    const zoom = (layout === 'phone' ? saved.phoneZoomLevel : saved.zoomLevel) ?? 100;
-    set({ viewLayout: layout, zoomLevel: zoom });
+    const zoomLayout = currentZoomLayout(layout);
+    const zoom = (zoomLayout === 'phone' ? saved.phoneZoomLevel : saved.zoomLevel) ?? 100;
+    set({ viewLayout: layout, zoomLevel: zoom, zoomLayout });
   },
   followFoldPosture: () => {
     const key = currentPostureKey();
@@ -1782,8 +1787,9 @@ export const useEditorStore = create<EditorState>()(skipUnchanged((set, get) => 
     const saved = loadViewState();
     if (!saved.byPosture) saveViewState({ byPosture: migratePosturePreferences(saved) });
     const choices = postureChoices(saved, key);
-    const zoom = (choices.viewLayout === 'phone' ? saved.phoneZoomLevel : saved.zoomLevel) ?? 100;
-    set({ ...choices, ...(choices.viewLayout !== get().viewLayout ? { zoomLevel: zoom } : {}) });
+    const zoomLayout = currentZoomLayout(choices.viewLayout);
+    const zoom = (zoomLayout === 'phone' ? saved.phoneZoomLevel : saved.zoomLevel) ?? 100;
+    set({ ...choices, zoomLayout, ...(zoomLayout !== get().zoomLayout ? { zoomLevel: zoom } : {}) });
   },
   zoomPanelOpen: false,
   setZoomPanelOpen: (open) => set({ zoomPanelOpen: open }),
