@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { JSONContent } from '@tiptap/react';
 import {
-  BUILT_IN_REPORTS, collectReportScenes, cueName, formatEighths, reportToCsv, type ReportInput,
+  BUILT_IN_REPORTS, collectReportScenes, cueName, formatEighths, reportToCsv, scriptHealthReport, type ReportInput,
 } from './scriptReports';
 import { DEFAULT_TIMING_OPTIONS } from './scriptTiming';
 import type { CharacterProfile, TagCategory, TagItem } from '../stores/editorStore';
@@ -175,4 +175,29 @@ describe('notes reports', () => {
   it('reports nothing for a script without notes', () => {
     expect(BUILT_IN_REPORTS.find((r) => r.id === 'notes')!.build(input).rows).toEqual([]);
   });
+});
+
+
+describe('Script Health production report', () => {
+  const findings = [{ check: 'emptyCue' as const, position: 5, scene: 'INT. ROOM - DAY', sceneNumber: '12A', excerpt: '=unsafe' }];
+  it('puts context in summary and scene numbers in a dedicated column without fake data rows', () => {
+    const table = scriptHealthReport(findings);
+    expect(table.rows).toHaveLength(1);
+    expect(table.rows[0]).toEqual(['12A', 'INT. ROOM - DAY', 'This character cue is empty.', '=unsafe']);
+    expect(table.summary).toContain('Findings to review: 1');
+    expect(table.summary).toContain('180 characters');
+    const csv = reportToCsv(table);
+    expect(csv.split('\r\n')).toHaveLength(3);
+    expect(csv).not.toContain('does not grade story quality');
+    expect(csv).toContain("'=unsafe");
+  });
+  it('is available through the built-in reports with schema-aware findings', () => {
+    const report = BUILT_IN_REPORTS.find(report => report.id === 'script-health')!;
+    expect(report.build({ ...input, healthFindings: findings })).toEqual(scriptHealthReport(findings));
+    expect(() => report.build(input)).toThrow('Open a script');
+  });
+  it('exports all findings, including those beyond the dialog preview cap', () => {
+    expect(scriptHealthReport(Array.from({ length: 310 }, () => findings[0])).rows).toHaveLength(310);
+  });
+
 });

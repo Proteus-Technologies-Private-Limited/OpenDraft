@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { useEditorState, type Editor } from '@tiptap/react';
 import type { Node as PMNode } from '@tiptap/pm/model';
 
@@ -76,6 +77,70 @@ export function useEditorDoc(editor: Editor | null | undefined, enabled = true):
     'the document',
     Object.is,
   );
+}
+
+/** How long the document must sit still before a settled reader sees it. */
+export const DOC_SETTLE_MS = 300;
+
+/**
+ * The editor's document while `enabled`, else null — but only once it has gone
+ * `delayMs` without changing. Typing and held Backspace re-render the caller
+ * once, after the burst, instead of once per key.
+ *
+ * For panels whose figures come from walking the whole script (the navigator's
+ * scene lengths and timings, the status bar's runtime and word count). On a
+ * long script those walks were most of the time each key took (#229). A new
+ * editor, or a reader that has just been enabled, gets its document at once.
+ */
+export function useSettledEditorDoc(
+  editor: Editor | null | undefined,
+  enabled = true,
+  delayMs = DOC_SETTLE_MS,
+): PMNode | null {
+  const ed = enabled && editor && !editor.isDestroyed ? editor : null;
+  const [settled, setSettled] = useState<{ editor: Editor | null; doc: PMNode | null }>(
+    () => ({ editor: ed, doc: ed ? ed.state.doc : null }),
+  );
+  // A different editor, or a reader switched off or back on, starts from the
+  // document as it is now — not one kept from before.
+  if (settled.editor !== ed) {
+    setSettled({ editor: ed, doc: ed ? ed.state.doc : null });
+  }
+
+  useEffect(() => {
+    if (!ed) return;
+    return watchSettledDoc(ed, delayMs, (doc) => {
+      setSettled((prev) => (prev.editor === ed && prev.doc === doc ? prev : { editor: ed, doc }));
+    });
+  }, [ed, delayMs]);
+
+  if (!ed) return null;
+  return settled.editor === ed ? settled.doc : ed.state.doc;
+}
+
+/**
+ * Calls `onSettle(doc)` once `editor`'s document has gone `delayMs` without a
+ * change; a burst of edits calls it once, after the last. Selection-only
+ * transactions are not changes. Returns the unsubscribe.
+ */
+export function watchSettledDoc(
+  editor: Pick<Editor, 'on' | 'off' | 'state' | 'isDestroyed'>,
+  delayMs: number,
+  onSettle: (doc: PMNode) => void,
+): () => void {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const onTransaction = ({ transaction }: { transaction: { docChanged: boolean } }) => {
+    if (!transaction.docChanged) return;
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      if (!editor.isDestroyed) onSettle(editor.state.doc);
+    }, delayMs);
+  };
+  editor.on('transaction', onTransaction);
+  return () => {
+    clearTimeout(timer);
+    editor.off('transaction', onTransaction);
+  };
 }
 
 const jsonCache = new WeakMap<PMNode, ReturnType<PMNode['toJSON']>>();

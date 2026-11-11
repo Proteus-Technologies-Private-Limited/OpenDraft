@@ -178,6 +178,26 @@ function drawsAlike(a: WrapRun, b: WrapRun): boolean {
 export function getTextLines(
   text: string, cpl: number, onStart?: (offset: number) => void,
 ): number {
+  if (onStart) return wrapLines(text, cpl, onStart);
+  // The navigator, the status bar's runtime and pagination all measure every
+  // block of the script after each edit, and almost all of it is unchanged
+  // (#229). Wrapping is pure, so remember the answers.
+  const key = `${cpl}\u0000${text}`;
+  const cached = lineCounts.get(key);
+  if (cached !== undefined) return cached;
+  const lines = wrapLines(text, cpl);
+  if (lineCounts.size >= LINE_COUNT_CACHE_SIZE) lineCounts.clear();
+  lineCounts.set(key, lines);
+  return lines;
+}
+
+/** Comfortably more blocks than a feature script has; cleared, not evicted, when full. */
+const LINE_COUNT_CACHE_SIZE = 20_000;
+const lineCounts = new Map<string, number>();
+
+function wrapLines(
+  text: string, cpl: number, onStart?: (offset: number) => void,
+): number {
   onStart?.(0);
   let lines = 0;
   /** Spaces with no word yet to hang them on — a deliberate indent. */

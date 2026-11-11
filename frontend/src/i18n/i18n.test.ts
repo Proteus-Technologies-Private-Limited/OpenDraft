@@ -155,6 +155,16 @@ describe('formatting', () => {
     expect(currentLocale()).toBe('es');
   });
 
+  it('keeps numbers formatted with different options apart', async () => {
+    await setLanguage('en');
+    expect(formatNumber(1.25)).toBe('1.25');
+    expect(formatNumber(1.25, { maximumFractionDigits: 0 })).toBe('1');
+    expect(formatNumber(1.25)).toBe('1.25');
+    await setLanguage('fr');
+    expect(formatNumber(1.25)).toBe('1,25');
+    await setLanguage('en');
+  });
+
   it('returns an empty string for an invalid date instead of throwing', () => {
     expect(formatDate('not a date')).toBe('');
   });

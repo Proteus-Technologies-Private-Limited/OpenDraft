@@ -58,7 +58,7 @@ export function useSpellcheckLanguages(editor: Editor | null) {
       : !loadedCodes.has(code) && code !== BUILTIN.code
         ? t(active ? 'settings:dictionaryConfig.notInstalled' : 'settings:dictionaryConfig.install') : '';
     return {
-      label: `${active ? '✓ ' : ''}${label}${status ? ` — ${status}` : ''}`,
+      label: `${label}${status ? ` — ${status}` : ''}`,
       checked: active,
       disabled: !editor || installing !== null || (active && !canDisableLanguage(code, enabled, loadedCodes)),
       action: () => { void toggle(code); },

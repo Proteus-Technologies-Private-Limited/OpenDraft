@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import type { Editor } from '@tiptap/react';
 import { block, doc, pmDoc } from '../test/screenplaySchema';
-import { docJSON, readEditor } from './useEditorTransactions';
+import { docJSON, readEditor, watchSettledDoc } from './useEditorTransactions';
 
 const fakeEditor = (overrides: Partial<Editor> = {}) =>
   ({ isDestroyed: false, state: { doc: pmDoc(doc(block('action', 'A'))) }, ...overrides }) as unknown as Editor;
@@ -42,5 +42,69 @@ describe('docJSON', () => {
     const second = pmDoc(doc(block('action', 'Two')));
     expect(docJSON(second)).not.toBe(json);
     expect(docJSON(second)).toEqual(second.toJSON());
+  });
+});
+
+describe('watchSettledDoc', () => {
+  type Handler = (e: { transaction: { docChanged: boolean } }) => void;
+  function emitter() {
+    const handlers = new Set<Handler>();
+    const ed = {
+      isDestroyed: false,
+      state: { doc: pmDoc(doc(block('action', 'A'))) },
+      on: (_: string, h: Handler) => { handlers.add(h); },
+      off: (_: string, h: Handler) => { handlers.delete(h); },
+      edit(text: string) {
+        ed.state = { doc: pmDoc(doc(block('action', text))) };
+        handlers.forEach((h) => h({ transaction: { docChanged: true } }));
+      },
+      moveCaret() { handlers.forEach((h) => h({ transaction: { docChanged: false } })); },
+      handlers,
+    };
+    return ed;
+  }
+
+  afterEach(() => vi.useRealTimers());
+
+  it('reports a burst of edits once, after it stops, with the last document', () => {
+    vi.useFakeTimers();
+    const ed = emitter();
+    const seen: string[] = [];
+    watchSettledDoc(ed as never, 300, (d) => seen.push(d.textContent));
+    ed.edit('AB');
+    vi.advanceTimersByTime(200);
+    ed.edit('ABC');
+    vi.advanceTimersByTime(200);
+    expect(seen).toEqual([]);
+    vi.advanceTimersByTime(100);
+    expect(seen).toEqual(['ABC']);
+  });
+
+  it('does not count a caret move as a change', () => {
+    vi.useFakeTimers();
+    const ed = emitter();
+    const onSettle = vi.fn();
+    watchSettledDoc(ed as never, 300, onSettle);
+    ed.moveCaret();
+    vi.advanceTimersByTime(1000);
+    expect(onSettle).not.toHaveBeenCalled();
+  });
+
+  it('stops listening, and drops a pending report, when unsubscribed or destroyed', () => {
+    vi.useFakeTimers();
+    const ed = emitter();
+    const onSettle = vi.fn();
+    const stop = watchSettledDoc(ed as never, 300, onSettle);
+    ed.edit('AB');
+    stop();
+    vi.advanceTimersByTime(1000);
+    expect(onSettle).not.toHaveBeenCalled();
+    expect(ed.handlers.size).toBe(0);
+
+    watchSettledDoc(ed as never, 300, onSettle);
+    ed.edit('ABC');
+    ed.isDestroyed = true;
+    vi.advanceTimersByTime(1000);
+    expect(onSettle).not.toHaveBeenCalled();
   });
 });

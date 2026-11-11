@@ -23,9 +23,23 @@ function safe<T>(fn: (locale: string) => T, fallback: () => T): T {
   }
 }
 
+// Building an Intl.NumberFormat costs far more than using one, and the
+// navigator formats a length for every scene on each render (#229).
+const numberFormats = new Map<string, Intl.NumberFormat>();
+
+function numberFormat(locale: string, options?: Intl.NumberFormatOptions): Intl.NumberFormat {
+  const key = options ? `${locale}|${JSON.stringify(options)}` : locale;
+  let format = numberFormats.get(key);
+  if (!format) {
+    format = new Intl.NumberFormat(locale, options);
+    numberFormats.set(key, format);
+  }
+  return format;
+}
+
 export function formatNumber(value: number, options?: Intl.NumberFormatOptions): string {
   return safe(
-    (loc) => new Intl.NumberFormat(loc, options).format(value),
+    (loc) => numberFormat(loc, options).format(value),
     () => String(value),
   );
 }
