@@ -20,7 +20,7 @@ export function requestHandwriting(): void {
 
 export interface PanelSize { width: number; height: number }
 export interface PanelPos { left: number; top: number }
-export interface Viewport { width: number; height: number }
+export interface Viewport { width: number; height: number; left?: number; top?: number }
 
 /** Breathing room between the panel and the edge of the screen. */
 export const PANEL_MARGIN = 8;
@@ -42,11 +42,13 @@ export function clampPanelPosition(
   viewport: Viewport,
   margin: number = PANEL_MARGIN,
 ): PanelPos {
-  const maxLeft = viewport.width - size.width - margin;
-  const maxTop = viewport.height - size.height - margin;
+  const left = viewport.left ?? 0;
+  const top = viewport.top ?? 0;
+  const maxLeft = left + viewport.width - size.width - margin;
+  const maxTop = top + viewport.height - size.height - margin;
   return {
-    left: Math.round(Math.min(Math.max(pos.left, margin), Math.max(margin, maxLeft))),
-    top: Math.round(Math.min(Math.max(pos.top, margin), Math.max(margin, maxTop))),
+    left: Math.round(Math.min(Math.max(pos.left, left + margin), Math.max(left + margin, maxLeft))),
+    top: Math.round(Math.min(Math.max(pos.top, top + margin), Math.max(top + margin, maxTop))),
   };
 }
 
@@ -63,8 +65,8 @@ export function defaultPanelPosition(
 ): PanelPos {
   return clampPanelPosition(
     {
-      left: Math.round((viewport.width - size.width) / 2),
-      top: Math.round(viewport.height - size.height - margin),
+      left: (viewport.left ?? 0) + Math.round((viewport.width - size.width) / 2),
+      top: (viewport.top ?? 0) + Math.round(viewport.height - size.height - margin),
     },
     size,
     viewport,

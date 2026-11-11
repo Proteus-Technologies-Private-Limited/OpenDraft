@@ -175,6 +175,8 @@ function viewportSize() {
   return {
     width: Math.round(vv?.width ?? window.innerWidth),
     height: Math.round(vv?.height ?? window.innerHeight),
+    left: Math.round(vv?.offsetLeft ?? 0),
+    top: Math.round(vv?.offsetTop ?? 0),
   };
 }
 
@@ -204,9 +206,11 @@ interface PreviewBlock {
 interface ScribbleInputProps {
   editor: Editor;
   onClose: () => void;
+  docked?: boolean;
+  viewportConstrained?: boolean;
 }
 
-const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose }) => {
+const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose, docked = false, viewportConstrained = false }) => {
   const { t } = useTranslation(['editor', 'common']);
   const inkName = (id: (typeof INKS)[number]['id']): string => {
     switch (id) {
@@ -358,6 +362,7 @@ const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose }) => {
   // part that is.
   const [pos, setPos] = useState<PanelPos | null>(null);
   const dragRef = useRef<{ dx: number; dy: number } | null>(null);
+  const wasDockedRef = useRef(docked);
 
 
 
@@ -402,13 +407,14 @@ const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose }) => {
   }, []);
 
   const onResizeStart = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (docked) return;
     const rect = panelRef.current?.getBoundingClientRect();
     if (!rect) return;
     e.preventDefault();
     e.stopPropagation();
     resizeRef.current = { x: e.clientX, y: e.clientY, w: rect.width, h: rect.height };
     e.currentTarget.setPointerCapture(e.pointerId);
-  }, []);
+  }, [docked]);
 
   const onResizeMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     const r = resizeRef.current;
@@ -434,36 +440,55 @@ const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose }) => {
   // Measured before paint, so the panel never shows in one place and jumps to
   // another. A saved position is honoured; a first-ever open goes to the foot.
   useLayoutEffect(() => {
-    const size = panelSize();
-    if (size.width === 0) return;
-    const view = viewportSize();
-    const saved = loadPosition();
-    setPos(saved ? clampPanelPosition(saved, size, view) : defaultPanelPosition(size, view));
-  }, [panelSize]);
+    // A posture change can arrive during a pointer gesture. Never persist the
+    // dock's geometry as the writer's floating size or position.
+    dragRef.current = null;
+    resizeRef.current = null;
+    const wasDocked = wasDockedRef.current;
+    wasDockedRef.current = docked;
+    if (docked) return;
+    const place = () => {
+      const size = panelSize();
+      if (size.width === 0) return;
+      const view = viewportSize();
+      const saved = loadPosition();
+      setPos(saved ? clampPanelPosition(saved, size, view) : defaultPanelPosition(size, view));
+    };
+    // Do not force layout while the old dock may be hidden by Focus Mode.
+    // The parent first moves the host; measuring early can drop field focus.
+    if (!wasDocked) place();
+    // The parent moves/unhides the portal host after child layout effects.
+    // Measure again there, rather than using the previous dock's dimensions.
+    const frame = requestAnimationFrame(place);
+    return () => cancelAnimationFrame(frame);
+  }, [docked, panelSize]);
 
   // A rotation, a window resize, or the keyboard coming up can leave the panel
   // hanging off the edge with its controls out of reach.
   useEffect(() => {
+    if (docked) return;
     const reclamp = () => {
       setPos((prev) => (prev ? clampPanelPosition(prev, panelSize(), viewportSize()) : prev));
     };
     window.addEventListener('resize', reclamp);
     window.visualViewport?.addEventListener('resize', reclamp);
+    window.visualViewport?.addEventListener('scroll', reclamp);
     return () => {
       window.removeEventListener('resize', reclamp);
       window.visualViewport?.removeEventListener('resize', reclamp);
+      window.visualViewport?.removeEventListener('scroll', reclamp);
     };
-  }, [panelSize]);
+  }, [docked, panelSize]);
 
   const onDragStart = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     // The header carries buttons; a tap on one of those is not a drag.
-    if ((e.target as HTMLElement).closest('button')) return;
+    if (docked || (e.target as HTMLElement).closest('button')) return;
     const rect = panelRef.current?.getBoundingClientRect();
     if (!rect) return;
     dragRef.current = { dx: e.clientX - rect.left, dy: e.clientY - rect.top };
     e.currentTarget.setPointerCapture(e.pointerId);
     e.preventDefault();
-  }, []);
+  }, [docked]);
 
   const onDragMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     const drag = dragRef.current;
@@ -699,14 +724,15 @@ const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose }) => {
   // panel holds everything else to.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+      if (e.key === 'Escape'
+        && (!docked || (!e.defaultPrevented && panelRef.current?.contains(e.target as Node)))) {
         e.preventDefault();
         onClose();
       }
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, [docked, onClose]);
 
   return (
     // No backdrop, and nothing dismisses this but the close button or Escape.
@@ -715,13 +741,13 @@ const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose }) => {
     // stray Pencil tip landing outside used to throw away everything written
     // in it.)
     <div
-      className={`scribble-panel${compact ? ' is-compact' : ''}`}
+      className={`scribble-panel${compact ? ' is-compact' : ''}${docked ? ' is-docked' : ''}${viewportConstrained ? ' is-viewport-constrained' : ''}`}
       ref={panelRef}
-      role="dialog"
+      role={docked ? 'region' : 'dialog'}
       aria-label={t('scribble.panel')}
       style={{
-        ...(pos ? { left: pos.left, top: pos.top } : { visibility: 'hidden' }),
-        ...(size ? { width: size.width, height: size.height } : {}),
+        ...(!docked ? { left: pos?.left ?? (window.visualViewport?.offsetLeft ?? 0) + 8, top: pos?.top ?? (window.visualViewport?.offsetTop ?? 0) + 8, right: 'auto' } : {}),
+        ...(!docked && size ? clampSize(size) : {}),
         '--scribble-panel-alpha': String(panelAlpha),
         '--scribble-area-alpha': String(areaAlpha),
         ...(ink ? { '--scribble-ink': ink } : {}),
@@ -736,7 +762,7 @@ const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose }) => {
       >
         <div className="scribble-header-row">
           <span className="scribble-title">
-            <span className="scribble-grip" aria-hidden="true" />
+            {!docked && <span className="scribble-grip" aria-hidden="true" />}
             {t('scribble.title')}
             {elementType && <span className="scribble-element">{labelOfElement(elementType)}</span>}
           </span>
@@ -926,7 +952,7 @@ const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose }) => {
       {/* Drag the corner to resize. The panel floats over the script, so how
           much of the page it is allowed to cover is the writer's decision —
           the same decision dragging it around already was. */}
-      <div
+      {!docked && <div
         className="scribble-resize"
         onPointerDown={onResizeStart}
         onPointerMove={onResizeMove}
@@ -934,7 +960,7 @@ const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose }) => {
         onPointerCancel={onResizeEnd}
         role="separator"
         aria-label={t('scribble.resize')}
-      />
+      />}
 
       <div className="scribble-actions">
         {/* Clear rather than Cancel: leaving is the close button's job now, and

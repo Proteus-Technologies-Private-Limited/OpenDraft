@@ -13,7 +13,7 @@
  * scene in a plotline is an edit to its scene heading, and the editor has to
  * be there to make it.
  */
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { Editor } from '@tiptap/react';
 import { useTranslation } from 'react-i18next';
 import { useEditorStore } from '../stores/editorStore';
@@ -49,6 +49,7 @@ const StoryTimeline: React.FC<Props> = ({ editor, onClose, docked = false }) => 
   const addPlotline = useEditorStore((s) => s.addPlotline);
   const updatePlotline = useEditorStore((s) => s.updatePlotline);
   const deletePlotline = useEditorStore((s) => s.deletePlotline);
+  const rootRef = useRef<HTMLDivElement>(null);
   const [colorPickerFor, setColorPickerFor] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Plotline | null>(null);
 
@@ -87,12 +88,14 @@ const StoryTimeline: React.FC<Props> = ({ editor, onClose, docked = false }) => 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
+      if (docked && (e.defaultPrevented || !rootRef.current?.contains(e.target as Node))) return;
+      e.preventDefault();
       if (pendingDelete) setPendingDelete(null);
       else onClose();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose, pendingDelete]);
+  }, [docked, onClose, pendingDelete]);
 
   // A version from history is read-only, and so is its timeline.
   const editable = editor.isEditable;
@@ -132,7 +135,7 @@ const StoryTimeline: React.FC<Props> = ({ editor, onClose, docked = false }) => 
   const trackStyle: React.CSSProperties = { minWidth: trackMinWidth };
 
   return (
-    <div className={docked ? "story-timeline-dock" : "dialog-overlay"} onClick={docked ? undefined : onClose}>
+    <div ref={rootRef} className={docked ? "story-timeline-dock" : "dialog-overlay"} onClick={docked ? undefined : onClose}>
       <div
         className="dialog-box story-timeline"
         onClick={(e) => { e.stopPropagation(); setColorPickerFor(null); }}

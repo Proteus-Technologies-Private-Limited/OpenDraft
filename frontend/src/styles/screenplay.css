@@ -15410,8 +15410,8 @@ button.beat-scene-chip:hover { border-color: var(--fd-accent); color: var(--fd-a
 .fold-layout.fold-nav-docked .scene-navigator {
   position: relative;
   inset: auto;
-  width: 240px !important;
-  min-width: 240px;
+  width: var(--fold-nav-width, 240px) !important;
+  min-width: var(--fold-nav-width, 240px);
   max-width: none;
   transform: none;
   transition: none;
@@ -15466,3 +15466,37 @@ html.foldable.wide .fold-panel-content .plugin-panel-tabs__content { flex: 1; wi
 .fold-panel-content > .fold-panel-host:not([hidden]) { display: flex; flex: 1; min-width: 0; min-height: 0; }
 .fold-panel-content > .fold-panel-host:focus-visible,
 .fold-panel-tabs button:focus-visible { outline: 2px solid var(--fd-accent); outline-offset: -2px; }
+
+/* The writing pad shares the companion tabs in book/tabletop posture. Its
+   floating preferences belong to other postures and must not size this slot.
+   Scroll the pad on short panes so the preview, tools and Insert stay reachable. */
+.fold-panel-content .scribble-panel.is-docked {
+  position: relative;
+  inset: auto;
+  z-index: auto;
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  max-height: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  overflow-y: auto;
+}
+.scribble-panel:is(.is-docked, .is-viewport-constrained) > * { flex-shrink: 0; }
+.scribble-panel.is-docked .scribble-header { cursor: auto; touch-action: auto; }
+.scribble-panel:is(.is-docked, .is-viewport-constrained) .scribble-header-row { flex-wrap: wrap; }
+.scribble-panel:is(.is-docked, .is-viewport-constrained) .scribble-area-wrap { flex: 1 0 140px; }
+.scribble-panel:is(.is-docked, .is-viewport-constrained) .scribble-area { min-height: 120px; min-width: 0; }
+.scribble-panel:is(.is-docked, .is-viewport-constrained) .scribble-actions {
+  position: sticky;
+  bottom: 0;
+  background: var(--fd-dropdown-bg);
+  z-index: 3;
+}
+
+/* A reduced visual viewport or a very short tabletop slot uses the floating
+   pad, with scrollable controls rather than writing beneath the keyboard. */
+.scribble-panel.is-viewport-constrained { min-height: 0; min-width: 0; overflow-y: auto; }
