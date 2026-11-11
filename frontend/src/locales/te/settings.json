@@ -190,6 +190,7 @@
     "loadingBuiltin": "అంతర్నిర్మిత భాష లోడ్ అవుతోంది…",
     "bundled": "అంతర్నిర్మితం",
     "installed": "ఇన్‌స్టాల్ చేయబడింది",
+    "languageInstalled": "{{language}} ఇన్‌స్టాల్ చేయబడింది.",
     "loaded": "లోడ్ అయింది",
     "removeLanguage": "ఈ భాషను తీసివేయి",
     "installFailed": "ఇన్‌స్టాల్ విఫలమైంది.",

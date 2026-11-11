@@ -190,6 +190,7 @@
     "loadingBuiltin": "अंगभूत भाषा लोड होत आहे…",
     "bundled": "अंगभूत",
     "installed": "इन्स्टॉल केलेले",
+    "languageInstalled": "{{language}} इन्स्टॉल झाली आहे.",
     "loaded": "लोड केलेले",
     "removeLanguage": "ही भाषा काढा",
     "installFailed": "इन्स्टॉल अयशस्वी.",

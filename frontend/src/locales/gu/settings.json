@@ -190,6 +190,7 @@
     "loadingBuiltin": "બિલ્ટ-ઇન ભાષા લોડ થઈ રહી છે…",
     "bundled": "સાથે આવેલ",
     "installed": "ઇન્સ્ટૉલ કરેલ",
+    "languageInstalled": "{{language}} ઇન્સ્ટોલ થઈ ગઈ છે.",
     "loaded": "લોડ થયેલ",
     "removeLanguage": "આ ભાષા દૂર કરો",
     "installFailed": "ઇન્સ્ટૉલ નિષ્ફળ.",

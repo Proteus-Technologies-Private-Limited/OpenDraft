@@ -6,6 +6,7 @@ files. Run with OPENDRAFT_TEST_URL=http://127.0.0.1:5173/.
 import os
 import re
 import unittest
+from pathlib import Path
 from playwright.sync_api import sync_playwright, expect
 
 
@@ -119,9 +120,53 @@ class SpellcheckReview(unittest.TestCase):
         self.assertIsNone(self.page.evaluate('testProject.getState().currentScriptId'))
         self.assertIsNone(self.page.evaluate('testStore.getState().documentOrigin'))
         self.finish_download()
-        self.page.get_by_text('— installed',exact=False).wait_for()
+        toast=self.page.get_by_text(self.polish['label']+' is installed.',exact=True)
+        expect(toast).to_be_visible()
+        if os.environ.get('OPENDRAFT_SCREENSHOTS'):
+            shots=Path(os.environ['OPENDRAFT_SCREENSHOTS']);shots.mkdir(parents=True,exist_ok=True)
+            self.page.screenshot(path=str(shots/'spellcheck-install-toast.png'))
         self.assertEqual(self.page.evaluate('checker.getEnabledLanguages()'),['en_US'])
         self.assertFalse(self.page.evaluate('testStore.getState().spellCheckEnabled'))
+
+    def test_unchanged_document_transitions_skip_scans_but_the_next_edit_is_saved(self):
+        self.page.route(self.polish['aff'],lambda route:route.fulfill(body='SET UTF-8\n'))
+        self.page.evaluate("checker.loadLanguage('pl',{affUrl:polishUrls.aff,dicUrl:polishUrls.dic,label:polish.label,persist:false})")
+        self.page.evaluate("""() => {
+            testEditor.commands.setContent({type:'doc',content:[{type:'action',content:[{type:'text',text:'hello qzxinvalid'}]}]});
+            testStore.getState().setSpellCheckEnabled(true);
+        }""")
+        self.page.wait_for_timeout(350)
+        self.page.evaluate("""() => {
+            window.spellChecks=0;
+            const check=checker.check.bind(checker);
+            checker.check=(word)=>{spellChecks++;return check(word);};
+            checker.beginDocument();checker.beginDocument(['en_US']);
+            testStore.getState().setSaveStatus('saved');
+        }""")
+        self.assertEqual(self.page.evaluate('spellChecks'),0)
+        self.assertEqual(self.page.evaluate('testStore.getState().saveStatus'),'saved')
+        self.row(self.menu(),self.polish['label']).click()
+        self.assertEqual(self.page.evaluate('checker.getEnabledLanguages()'),['en_US','pl'])
+        self.assertGreater(self.page.evaluate('spellChecks'),0)
+        self.assertEqual(self.page.evaluate('testStore.getState().saveStatus'),'unsaved')
+
+    def test_removing_the_only_working_download_restores_bundled_english(self):
+        self.page.route(self.polish['aff'],lambda route:route.fulfill(body='SET UTF-8\n'))
+        self.page.evaluate("checker.loadLanguage('pl',{affUrl:polishUrls.aff,dicUrl:polishUrls.dic,label:polish.label,persist:false})")
+        self.page.evaluate("checker.beginDocument(['pl','unavailable-custom']);testStore.getState().setGrammarRulesPanelOpen(true)")
+        self.page.get_by_role('button',name='Dictionaries',exact=True).click()
+        label=self.page.locator('label').filter(has=self.page.locator('span',has_text=re.compile('^'+re.escape(self.polish['label'])+'$')))
+        self.page.once('dialog',lambda dialog:dialog.accept())
+        self.page.evaluate("testStore.getState().setSaveStatus('saved')")
+        label.get_by_role('button',name='Remove this language',exact=True).click()
+        self.page.wait_for_function("!checker.getLoadedLanguages().some(language=>language.code==='pl')")
+        self.assertEqual(self.page.evaluate('checker.getEnabledLanguages()'),['en_US','unavailable-custom'])
+        self.assertTrue(self.page.evaluate("checker.check('hello')"))
+        self.assertFalse(self.page.evaluate("checker.check('qzxinvalid')"))
+        english=self.page.locator('label').filter(has=self.page.locator('span',has_text=re.compile(r'^English \(US\)$')))
+        expect(english.get_by_role('checkbox')).to_be_checked()
+        expect(english.get_by_role('checkbox')).to_be_disabled()
+        self.assertEqual(self.page.evaluate('testStore.getState().saveStatus'),'unsaved')
 
     def test_settings_toggle_marks_dirty_and_uses_two_second_metadata_save(self):
         self.page.route(self.polish['aff'],lambda route:route.fulfill(body='SET UTF-8\n'))

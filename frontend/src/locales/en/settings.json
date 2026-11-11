@@ -190,6 +190,7 @@
     "loadingBuiltin": "Loading built-in language…",
     "bundled": "bundled",
     "installed": "installed",
+    "languageInstalled": "{{language}} is installed.",
     "loaded": "loaded",
     "removeLanguage": "Remove this language",
     "installFailed": "Install failed.",

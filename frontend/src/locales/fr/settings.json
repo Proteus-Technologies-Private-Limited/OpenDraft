@@ -182,7 +182,7 @@
     "noWords": "Aucun mot pour l’instant."
   },
   "dictionaryConfig": {
-    "notInstalled": "Non installé",
+    "notInstalled": "Non installée",
     "addTargetOnTitle": "Ajouter au dictionnaire écrit ici",
     "addTargetOffTitle": "Cliquez pour en faire la cible de « Ajouter au dictionnaire »",
     "addHereOn": "✓ Ajouter ici",
@@ -194,6 +194,7 @@
     "loadingBuiltin": "Chargement de la langue intégrée…",
     "bundled": "intégrée",
     "installed": "installée",
+    "languageInstalled": "Le dictionnaire {{language}} est installé.",
     "loaded": "chargée",
     "removeLanguage": "Retirer cette langue",
     "installFailed": "Échec de l’installation.",

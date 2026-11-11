@@ -190,6 +190,7 @@
     "loadingBuiltin": "बिल्ट-इन भाषा लोड हो रही है…",
     "bundled": "साथ में आई",
     "installed": "इंस्टॉल की हुई",
+    "languageInstalled": "{{language}} इंस्टॉल हो गई है।",
     "loaded": "लोड की हुई",
     "removeLanguage": "यह भाषा हटाएँ",
     "installFailed": "इंस्टॉल विफल रहा।",

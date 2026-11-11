@@ -1,5 +1,5 @@
 {
-  "version": "bde95728ca3c42e6",
+  "version": "c8cb36e005ddf315",
   "pages": [
     {
       "slug": "index.html",
@@ -47,7 +47,7 @@
       "slug": "spell-check.html",
       "title": "Spell Check",
       "section": "Writing",
-      "hash": "224a54661d77a980"
+      "hash": "8caac24066551022"
     },
     {
       "slug": "ai-assistant.html",

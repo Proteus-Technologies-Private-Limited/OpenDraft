@@ -190,6 +190,7 @@
     "loadingBuiltin": "بلٹ اِن زبان لوڈ ہو رہی ہے…",
     "bundled": "شامل",
     "installed": "انسٹال شدہ",
+    "languageInstalled": "{{language}} انسٹال ہو گئی ہے۔",
     "loaded": "لوڈ شدہ",
     "removeLanguage": "یہ زبان ہٹائیں",
     "installFailed": "انسٹال ناکام ہوا۔",

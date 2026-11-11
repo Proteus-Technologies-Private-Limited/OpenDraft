@@ -41,7 +41,7 @@ export function useSpellcheckLanguages(editor: Editor | null) {
       else if (result.status === 'enabled') useEditorStore.getState().setSpellCheckEnabled(true);
       else if (result.status === 'installed') {
         const label = languages.get(code)?.label ?? code;
-        showToast(`${label} — ${t('settings:dictionaryConfig.installed')}`, 'info');
+        showToast(t('settings:dictionaryConfig.languageInstalled', { language: label }), 'info');
       }
     } catch (error) {
       console.error('Spellcheck language installation failed', code, error);

@@ -1537,6 +1537,8 @@ const ScreenplayEditor: React.FC = () => {
 
       const docName = `${newProjectId}/${newScriptId}${sharedNonce ? `/${sharedNonce}` : ''}`;
       if (!await setupCollab(docName, hostToken, collabUserName, true)) return;
+      // Pending dictionary installs belong to the script we just left.
+      spellChecker.beginDocument();
       collabSessionDocsRef.current.push({ projectId: newProjectId, scriptId: newScriptId, docName });
 
       setCurrentProject(project);

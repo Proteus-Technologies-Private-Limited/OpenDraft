@@ -190,6 +190,7 @@
     "loadingBuiltin": "Yerleşik dil yükleniyor…",
     "bundled": "yerleşik",
     "installed": "yüklü",
+    "languageInstalled": "{{language}} yüklendi.",
     "loaded": "yüklendi",
     "removeLanguage": "Bu dili kaldır",
     "installFailed": "Yükleme başarısız.",

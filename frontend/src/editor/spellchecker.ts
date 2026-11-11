@@ -114,6 +114,7 @@ class SpellChecker {
   /** Languages active for the current document (set per-script). */
   private enabledLanguages: Set<string> = new Set([BUILTIN_LANGUAGE]);
   private documentGeneration = 0;
+  private documentListeners: Set<DictChangeListener> = new Set();
 
   /** Words the user added via "Add to dictionary" — per-project, saved with the script. */
   private projectWords: Set<string> = new Set();
@@ -296,6 +297,11 @@ class SpellChecker {
     this.typos.delete(code);
     this.labels.delete(code);
     this.enabledLanguages.delete(code);
+    // Unavailable enabled codes do not provide a working dictionary. Keep the
+    // bundled fallback active when removing the last dictionary that did.
+    if (![...this.enabledLanguages].some(language => this.typos.has(language))) {
+      this.enabledLanguages.add(BUILTIN_LANGUAGE);
+    }
     await dbDelete(code);
     this.emitChange();
   }
@@ -316,6 +322,16 @@ class SpellChecker {
   beginDocument(codes: string[] = this.getEnabledLanguages()): void {
     this.documentGeneration++;
     this.setEnabledLanguages(codes);
+    // Reset metadata observers even when the enabled set is unchanged. This
+    // notification does not trigger spell scans of the outgoing document.
+    for (const listener of this.documentListeners) {
+      try { listener(); } catch (err) { console.warn('SpellChecker document listener threw', err); }
+    }
+  }
+
+  onDocumentChange(listener: DictChangeListener): () => void {
+    this.documentListeners.add(listener);
+    return () => { this.documentListeners.delete(listener); };
   }
 
   getDocumentGeneration(): number {
@@ -330,13 +346,10 @@ class SpellChecker {
     // dictionary become live as soon as it finishes loading. Filtering here
     // silently dropped non-English languages on script load, which caused
     // every word in those languages to be flagged as misspelled.
-    this.enabledLanguages.clear();
-    for (const c of codes) {
-      this.enabledLanguages.add(c);
-    }
-    if (this.enabledLanguages.size === 0) {
-      this.enabledLanguages.add(BUILTIN_LANGUAGE);
-    }
+    const next = new Set(codes.length ? codes : [BUILTIN_LANGUAGE]);
+    if (next.size === this.enabledLanguages.size
+      && [...next].every(code => this.enabledLanguages.has(code))) return;
+    this.enabledLanguages = next;
     this.emitChange();
   }
 
