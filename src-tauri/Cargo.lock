@@ -2911,6 +2911,7 @@ dependencies = [
 name = "opendraft"
 version = "2.11.0"
 dependencies = [
+ "cc",
  "jni",
  "percent-encoding",
  "reqwest 0.12.28",

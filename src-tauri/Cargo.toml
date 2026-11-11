@@ -12,6 +12,7 @@ crate-type = ["lib", "cdylib", "staticlib"]
 [build-dependencies]
 # See the note on `tauri` below for the history behind these versions.
 tauri-build = { version = "=2.6.3", features = [] }
+cc = "1"
 
 [dependencies]
 # Was pinned to 2.10.3 (commit c1a5dd1) because v0.17.0 cold-started and died on

@@ -130,6 +130,54 @@ pub fn replace(path: &Path, bytes: &[u8], backup_original: bool) -> Result<(), S
     replace_with(path, bytes, backup_original, |tmp, target| fs::rename(tmp, target))
 }
 
+/// File-only picker grants cannot create sibling temporary files or backups.
+/// Keep the verified original in the application's recovery directory, then
+/// let the platform coordinate an atomic write using its permitted staging area.
+#[cfg(any(target_os = "macos", test))]
+pub fn replace_selected(
+    path: &Path,
+    bytes: &[u8],
+    backup_original: bool,
+    recovery_dir: &Path,
+    write: impl FnOnce(&Path, &[u8]) -> Result<(), String>,
+) -> Result<(), String> {
+    let target = resolve_target(path)?;
+    match fs::metadata(&target) {
+        Ok(meta) if !meta.is_file() => return Err("Save destination is not a file".into()),
+        Err(error) if error.kind() != std::io::ErrorKind::NotFound => return Err(error.to_string()),
+        _ => {}
+    }
+    if backup_original && external(&target) && target.exists() {
+        let original = fs::read(&target)
+            .map_err(|error| format!("Cannot read original before backup: {error}"))?;
+        backup(
+            recovery_dir,
+            target
+                .file_name()
+                .and_then(|name| name.to_str())
+                .unwrap_or("source"),
+            &original,
+        )?;
+        if fs::read(&target).map_err(|error| error.to_string())? != original {
+            return Err("The original changed during save. Reopen it before overwriting.".into());
+        }
+    }
+    if hard_linked(&target) {
+        // Preserve every hard-linked name, as the desktop writer always has.
+        // The original was backed up above before any in-place truncation.
+        let mut out = OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .open(&target)
+            .map_err(|error| error.to_string())?;
+        return out
+            .write_all(bytes)
+            .and_then(|_| out.sync_all())
+            .map_err(|error| error.to_string());
+    }
+    write(&target, bytes)
+}
+
 /// A symlink is saved through, to the file it points at; renaming over the
 /// link itself would leave the real file untouched and the link a copy.
 fn resolve_target(path: &Path) -> Result<PathBuf, String> {
@@ -347,6 +395,104 @@ mod tests {
         fs::write(&path, "{}").unwrap();
         replace(&path, b"{\"a\":1}", true).unwrap();
         assert!(!dir.join(".opendraft-originals").exists());
+        fs::remove_dir_all(dir).unwrap();
+    }
+    #[test]
+    fn selected_file_backup_is_in_recovery_directory_not_beside_destination() {
+        let dir = dir();
+        let destination = dir.join("picked");
+        let recovery = dir.join("app-data/source-backups");
+        fs::create_dir(&destination).unwrap();
+        let path = destination.join("script.fdx");
+        fs::write(&path, [0, 255, 1]).unwrap();
+        replace_selected(&path, b"replacement", true, &recovery, |path, bytes| {
+            // The platform writer only needs the selected path, not siblings.
+            assert_eq!(fs::read_dir(&destination).unwrap().count(), 1);
+            fs::write(path, bytes).map_err(|error| error.to_string())
+        })
+        .unwrap();
+        assert_eq!(fs::read(&path).unwrap(), b"replacement");
+        assert_eq!(fs::read_dir(&destination).unwrap().count(), 1);
+        let backup = fs::read_dir(&recovery)
+            .unwrap()
+            .next()
+            .unwrap()
+            .unwrap()
+            .path();
+        assert_eq!(fs::read(backup).unwrap(), [0, 255, 1]);
+        fs::remove_dir_all(dir).unwrap();
+    }
+    #[test]
+    fn selected_file_backup_failure_does_not_call_platform_writer() {
+        let dir = dir();
+        let path = dir.join("script.fountain");
+        let recovery = dir.join("not-a-directory");
+        fs::write(&path, b"original").unwrap();
+        fs::write(&recovery, b"blocked").unwrap();
+        assert!(replace_selected(&path, b"new", true, &recovery, |_, _| {
+            panic!("must not overwrite without a verified backup")
+        })
+        .is_err());
+        assert_eq!(fs::read(&path).unwrap(), b"original");
+        fs::remove_dir_all(dir).unwrap();
+    }
+    #[test]
+    fn selected_file_platform_failure_retains_original_and_recovery_copy() {
+        let dir = dir();
+        let path = dir.join("script.osf");
+        let recovery = dir.join("recovery");
+        fs::write(&path, b"original").unwrap();
+        assert!(replace_selected(&path, b"new", true, &recovery, |_, _| {
+            Err("injected platform write failure".into())
+        })
+        .is_err());
+        assert_eq!(fs::read(&path).unwrap(), b"original");
+        let backup = fs::read_dir(&recovery)
+            .unwrap()
+            .next()
+            .unwrap()
+            .unwrap()
+            .path();
+        assert_eq!(fs::read(backup).unwrap(), b"original");
+        fs::remove_dir_all(dir).unwrap();
+    }
+    #[cfg(unix)]
+    #[test]
+    fn file_only_access_succeeds_without_writable_parent() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = dir();
+        let picked = dir.join("picked");
+        fs::create_dir(&picked).unwrap();
+        let path = picked.join("script.txt");
+        fs::write(&path, b"original").unwrap();
+        fs::set_permissions(&picked, fs::Permissions::from_mode(0o500)).unwrap();
+        // An unprivileged process cannot create the old sibling .tmp file.
+        let sibling_allowed = fs::write(picked.join("probe"), b"probe").is_ok();
+        if !sibling_allowed {
+            assert!(replace(&path, b"old writer", true).is_err());
+        }
+        let result = replace_selected(
+            &path,
+            b"new writer",
+            true,
+            &dir.join("recovery"),
+            |path, bytes| fs::write(path, bytes).map_err(|error| error.to_string()),
+        );
+        fs::set_permissions(&picked, fs::Permissions::from_mode(0o700)).unwrap();
+        result.unwrap();
+        assert_eq!(fs::read(&path).unwrap(), b"new writer");
+        fs::remove_dir_all(dir).unwrap();
+    }
+    #[test]
+    fn selected_directory_is_refused_before_platform_write() {
+        let dir = dir();
+        assert!(
+            replace_selected(&dir, b"new", false, &dir.join("recovery"), |_, _| {
+                panic!("must not overwrite a directory")
+            })
+            .is_err()
+        );
+        assert!(dir.is_dir());
         fs::remove_dir_all(dir).unwrap();
     }
     #[cfg(unix)]
