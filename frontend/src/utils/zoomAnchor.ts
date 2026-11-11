@@ -71,9 +71,12 @@ export function captureZoomAnchor(
 export function restoreZoomAnchor(container: HTMLElement, anchor: ZoomAnchor): boolean {
   if (!anchor.el.isConnected || !container.contains(anchor.el)) return false;
   const box = container.getBoundingClientRect();
+  if (box.height <= 0) return true; // a transient hidden layout can be restored later
   const r = anchor.el.getBoundingClientRect();
   const nowY = r.top + anchor.frac * r.height - box.top;
-  const delta = nowY - anchor.offsetY;
+  // Folding into a shorter slot must not restore the reading point below it.
+  const offsetY = anchor.offsetY < box.height ? anchor.offsetY : Math.max(0, box.height - 24);
+  const delta = nowY - offsetY;
   if (Math.abs(delta) >= 0.5) container.scrollTop += delta;
   return true;
 }

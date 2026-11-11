@@ -25,6 +25,8 @@ import { insertMacro } from './macroActions';
 import { addScriptNoteAtSelection } from '../utils/addScriptNote';
 import { FOCUS_MODE_SHORTCUT } from '../editor/extensions/FocusMode';
 import { showToast } from './Toast';
+import { useFoldState } from '../hooks/useFoldState';
+import { useFoldedMenuPosition } from '../hooks/useFoldedMenuPosition';
 import { formatFileFailure } from '../services/fileDiagnostics';
 import { useTranslation, Trans } from 'react-i18next';
 import { t } from '../i18n';
@@ -3824,8 +3826,10 @@ const MenuBar: React.FC<MenuBarProps> = ({
   });
   const fabDragRef = useRef<{ startX: number; startY: number; originX: number; originY: number; isDrag: boolean } | null>(null);
   const fabWasDragRef = useRef(false);
-  const fabX = fabPos?.x ?? (navPanelWidth + 14);
-  const fabY = fabPos?.y ?? 10;
+  const foldState = useFoldState();
+  const defaultFab = useFoldedMenuPosition(foldState.foldable && foldState.size === 'phone', navPanelWidth);
+  const fabX = Math.max(0, Math.min(fabPos?.x ?? defaultFab.x, window.innerWidth - FAB_SIZE));
+  const fabY = Math.max(0, Math.min(fabPos?.y ?? defaultFab.y, window.innerHeight - FAB_SIZE));
   // On Android the WebView extends behind the (transparent) status bar, so a
   // FAB rendered at top: 10px sits in the system-bar touch region and never
   // receives taps. Clamp the rendered top below the status bar (28dp fallback
@@ -3852,11 +3856,11 @@ const MenuBar: React.FC<MenuBarProps> = ({
     try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
     fabDragRef.current = {
       startX: e.clientX, startY: e.clientY,
-      originX: fabPos?.x ?? (navPanelWidth + 14),
-      originY: fabPos?.y ?? 10,
+      originX: fabX,
+      originY: fabY,
       isDrag: false,
     };
-  }, [fabPos, navPanelWidth]);
+  }, [fabX, fabY]);
 
   const handleFabPointerMove = useCallback((e: React.PointerEvent) => {
     if (e.pointerType === 'touch') return;
@@ -3898,8 +3902,8 @@ const MenuBar: React.FC<MenuBarProps> = ({
   const fabElRef = useRef<HTMLDivElement>(null);
   const fabPosRef = useRef(fabPos);
   fabPosRef.current = fabPos;
-  const navPanelWidthRef = useRef(navPanelWidth);
-  navPanelWidthRef.current = navPanelWidth;
+  const defaultFabRef = useRef(defaultFab);
+  defaultFabRef.current = defaultFab;
 
   useEffect(() => {
     const el = fabElRef.current;
@@ -3911,8 +3915,8 @@ const MenuBar: React.FC<MenuBarProps> = ({
       const pos = fabPosRef.current;
       fabDragRef.current = {
         startX: t.clientX, startY: t.clientY,
-        originX: pos?.x ?? (navPanelWidthRef.current + 14),
-        originY: pos?.y ?? 10,
+        originX: Math.max(0, Math.min(pos?.x ?? defaultFabRef.current.x, window.innerWidth - FAB_SIZE)),
+        originY: Math.max(0, Math.min(pos?.y ?? defaultFabRef.current.y, window.innerHeight - FAB_SIZE)),
         isDrag: false,
       };
     };

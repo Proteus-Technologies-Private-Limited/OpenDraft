@@ -300,7 +300,9 @@ byPosture: {
 - **On a pick from the View menu:** store it under the current key only.
 - **Migration:**
   - Ordinary phones keep using today's single `toolbarMode` / `viewLayout`.
-  - A foldable's first launch seeds `folded` from any existing saved values.
+  - A foldable's first launch seeds both `folded` and `open` from any
+    explicitly saved toolbar/layout values. Posture defaults apply only to
+    settings the writer never chose.
 - **Debounce posture changes by 150 ms** so the hinge passing through
   angles does not flicker the layout.
 
