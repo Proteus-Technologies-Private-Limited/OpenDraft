@@ -292,9 +292,12 @@ mod tests {
         }
         let entries = list(&root).unwrap();
         assert_eq!(entries.len(), 6);
+        // macOS temporary directories can be reached through /var aliases;
+        // recovery metadata records the canonical source path on every OS.
+        let canonical_b = fs::canonicalize(&b).unwrap();
         let b_entry = entries
             .iter()
-            .find(|e| e.source_path.as_deref() == Some(b.to_str().unwrap()))
+            .find(|e| e.source_path.as_deref() == canonical_b.to_str())
             .unwrap();
         assert_eq!(read(&root, &b_entry.name).unwrap(), b"only original");
         assert_eq!(b_entry.original_name, "draft.fountain");
