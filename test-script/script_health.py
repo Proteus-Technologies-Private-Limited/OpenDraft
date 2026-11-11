@@ -90,7 +90,7 @@ with sync_playwright() as playwright:
     before = page.evaluate("healthEditor.getJSON()")
     open_report()
     dialog = page.locator(".script-health-dialog")
-    expect(dialog.get_by_role("status")).to_have_text("Findings to review: 7")
+    expect(dialog.locator("#script-health-summary")).to_have_text("Findings to review: 7")
     screenshot("desktop.png")
     with page.expect_download() as download:
         dialog.get_by_role("button", name="Export CSV…").click()
@@ -99,16 +99,38 @@ with sync_playwright() as playwright:
             Path(download.value.path()).read_text(encoding="utf-8-sig").splitlines()
         )
     )
-    assert len(rows) == 9, rows
-    assert "does not grade story quality" in rows[1][1]
-    assert any("zażółć" in row[2] for row in rows[2:])
-    assert any(row[2] == "'=SUM(1,2)" for row in rows[2:])
+    assert len(rows) == 8, rows
+    assert not any("does not grade story quality" in str(row) for row in rows)
+    assert rows[1][0] == page.evaluate("healthEditor.state.doc.child(0).attrs.sceneNumber"), rows[1]
+    assert any("zażółć" in row[3] for row in rows[1:])
+    assert any(row[3] == "'=SUM(1,2)" for row in rows[1:])
     assert page.evaluate("healthEditor.getJSON()") == before
+    # The same findings appear beside the other built-in reports, with PDF.
+    jump = dialog.get_by_role("button", name="Go to finding").first
+    descriptions = jump.get_attribute("aria-describedby").split()
+    assert all(page.locator('[id="'+identifier+'"]').count() == 1 for identifier in descriptions)
+    dialog.get_by_role("button", name="Close", exact=True).click()
+    page.locator(".menu-item").filter(has_text=re.compile(r"^Tools$")).click()
+    page.locator(".menu-dropdown-item.has-children").filter(has=page.locator(":scope > span",has_text=re.compile(r"^Analytics$"))).hover()
+    page.get_by_text("Reports…",exact=True).click()
+    reports = page.get_by_role("dialog",name="Reports",exact=True)
+    reports.get_by_role("option").filter(has=page.get_by_text("Script Health",exact=True)).click()
+    expect(reports.locator("tbody tr")).to_have_count(7)
+    assert "does not grade story quality" in reports.locator(".reports-summary").inner_text()
+    screenshot("reports.png")
+    with page.expect_download() as pdf_download:
+        reports.get_by_role("button",name="Export PDF…").click()
+    assert Path(pdf_download.value.path()).read_bytes().startswith(b"%PDF-")
+    with page.expect_download() as csv_download:
+        reports.get_by_role("button",name="Export CSV…").click()
+    assert Path(csv_download.value.path()).read_bytes() == Path(download.value.path()).read_bytes()
+    reports.get_by_role("button",name="Close",exact=True).click()
+    open_report()
     # Note state changes and incoming document edits update the open report.
     page.evaluate(
         "healthStore.getState().setNotes([{...makeNote('note-open','Check this detail.'),resolved:true}])"
     )
-    expect(dialog.get_by_role("status")).to_have_text("Findings to review: 6")
+    expect(dialog.locator("#script-health-summary")).to_have_text("Findings to review: 6")
     page.evaluate(
         "healthEditor.commands.insertContentAt(0,{type:'action',content:[{type:'text',text:'A new opening action.'}]})"
     )
@@ -120,6 +142,19 @@ with sync_playwright() as playwright:
     assert page.evaluate(
         "healthEditor.state.selection.$from.parent.type.name==='character' && healthEditor.state.selection.$from.parent.textContent==='SARAH'"
     )
+    # A blank root with a reply retains its Section anchor and can be visited.
+    page.evaluate("""() => {
+        healthEditor.commands.setContent({type:'doc',content:[
+            {type:'sceneHeading',content:[{type:'text',text:'INT. STUDIO - DAY'}]},
+            {type:'section',content:[{type:'text',text:'A nonprinting section',marks:[{type:'scriptNote',attrs:{noteId:'section-thread'}}]}]},
+        ]});
+        healthStore.getState().setNotes([{...makeNote('section-thread',''),replies:[{id:'reply',author:'Review fixture',content:'Review this Section.',createdAt:new Date().toISOString()}]}]);
+    }""")
+    open_report()
+    expect(dialog.get_by_text("Review this Section.",exact=True)).to_be_visible()
+    assert dialog.get_by_role("button",name="Open notes").count() == 0
+    dialog.get_by_role("button",name="Go to finding").click()
+    assert page.evaluate("healthEditor.state.selection.$from.parent.type.name==='section'")
     # A missing note anchor opens the matching note rather than guessing a position.
     page.evaluate(
         "healthStore.getState().setNotes([makeNote('lost','Review the unanchored note.')])"
@@ -159,7 +194,7 @@ with sync_playwright() as playwright:
         healthStore.getState().setNotes([]);
         healthEditor.commands.setContent({type:'doc',content:Array.from({length:310},(_,index)=>({type:'dialogue',content:[{type:'text',text:'Orphan line '+index}]}))});
     }""")
-    expect(dialog.get_by_role("status")).to_have_text("Findings to review: 310")
+    expect(dialog.locator("#script-health-summary")).to_have_text("Findings to review: 310")
     assert dialog.locator(".script-health-findings > li").count() == 300
     with page.expect_download() as download:
         dialog.get_by_role("button", name="Export CSV…").click()
@@ -168,7 +203,7 @@ with sync_playwright() as playwright:
             Path(download.value.path()).read_text(encoding="utf-8-sig").splitlines()
         )
     )
-    assert len(rows) == 312, len(rows)
+    assert len(rows) == 311, len(rows)
     # Clean and empty scripts have distinct, explicitly scoped outcomes.
     page.evaluate(
         "healthEditor.commands.setContent({type:'doc',content:[{type:'character',content:[{type:'text',text:'SARAH'}]},{type:'dialogue',content:[{type:'text',text:'Hello.'}]}]})"
@@ -182,7 +217,12 @@ with sync_playwright() as playwright:
     expect(
         dialog.get_by_text("The script has no printable text.", exact=True)
     ).to_be_visible()
-    expect(dialog.get_by_role("button", name="Go to finding")).to_be_disabled()
+    assert dialog.get_by_role("button", name="Go to finding").count() == 0
+    page.evaluate("healthStore.getState().setDocumentTitle('')")
+    with page.expect_download() as untitled_download:
+        dialog.get_by_role("button",name="Export CSV…").click()
+    assert untitled_download.value.suggested_filename == "Untitled - Script Health.csv"
+    expect(dialog.get_by_text("Script Health exported",exact=True)).to_be_visible()
     # A failed export must surface the error instead of a success toast.
     page.evaluate(
         "() => {window.originalHealthBlobUrl=URL.createObjectURL;URL.createObjectURL=()=>{throw new Error('Injected export failure')};}"
@@ -208,6 +248,9 @@ with sync_playwright() as playwright:
                 "all_rows_exported": True,
                 "clean_and_empty": True,
                 "export_failure": True,
+                "production_reports_and_pdf": True,
+                "described_jump_buttons": True,
+                "nonprinting_note_anchor_and_replies": True,
                 "errors": errors,
             }
         )

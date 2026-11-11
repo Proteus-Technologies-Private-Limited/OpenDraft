@@ -96,7 +96,7 @@ describe('local script health', () => {
     expect(checks([numbered('action', 'First.', '12'), numbered('action', 'Second.', '12')])
       .map((finding) => finding.check)).toEqual(['duplicateElement', 'duplicateElement']);
   });
-  it('uses actual note mark anchors and skips resolved or blank notes', () => {
+  it('uses actual note mark anchors and includes all unresolved notes', () => {
     const mark = { type: 'scriptNote', attrs: { noteId: 'note-1' } };
     const marked = { type: 'action', content: [{ type: 'text', text: 'She opens the door.', marks: [mark] }] };
     const doc = document(heading('INT. ROOM - DAY'), marked);
@@ -104,7 +104,7 @@ describe('local script health', () => {
       { id: 'note-1', content: 'Resolve this detail.' }, { id: 'lost', content: 'No longer anchored.' },
       { id: 'resolved', content: 'Done.', resolved: true }, { id: 'empty', content: ' ' },
     ] });
-    expect(findings).toHaveLength(2);
+    expect(findings).toHaveLength(3);
     expect(findings[0]).toMatchObject({ check: 'openNote', scene: 'INT. ROOM - DAY', excerpt: 'Resolve this detail.' });
     expect(doc.textBetween(findings[0].position!, findings[0].position! + 3)).toBe('She');
     expect(findings[1].position).toBeNull();
@@ -116,4 +116,40 @@ describe('local script health', () => {
     expect(analyzeScriptHealth(doc, defaults)).toHaveLength(1);
     expect(analyzeScriptHealth(next.doc, defaults)).toEqual([]);
   });
+  it('keeps Stage Play directions inside a speech without treating other custom blocks as directions', () => {
+    const direction = { ...block('customElement', '(She turns.)'), attrs: { customTypeId: 'stageDirection' } };
+    expect(checks([...speech(), direction, block('dialogue', 'Stay.')])).toEqual([]);
+    expect(checks([...speech(), { ...direction, attrs: { customTypeId: 'caption' } }, block('dialogue', 'Stay.')])
+      .map(finding => finding.check)).toEqual(['orphanDialogue']);
+  });
+
+  it('points at an empty cue instead of labelling its following dialogue orphaned', () => {
+    const doc = document(heading('INT. ROOM - DAY', '12A'), block('character'), block('dialogue', 'Hello.'));
+    const findings = analyzeScriptHealth(doc, defaults);
+    expect(findings.map(finding => finding.check)).toEqual(['emptyCue']);
+    expect(doc.resolve(findings[0].position!).parent.type.name).toBe('character');
+    expect(findings[0].sceneNumber).toBe('12A');
+  });
+
+  it.each(['section', 'note', 'titlePage'])('keeps script-note anchors on %s blocks', type => {
+    const marked = { type, content: [{ type: 'text', text: 'Anchored text', marks: [{ type: 'scriptNote', attrs: { noteId: 'hidden' } }] }] };
+    const doc = document(heading('INT. ROOM - DAY', '2A'), marked);
+    const findings = analyzeScriptHealth(doc, { ...defaults, notes: [{ id: 'hidden', content: 'Review this.' }] });
+    expect(findings).toHaveLength(1);
+    expect(findings[0].position).not.toBeNull();
+    expect(doc.textBetween(findings[0].position!, findings[0].position! + 8)).toBe('Anchored');
+    expect(findings[0].sceneNumber).toBe('2A');
+  });
+
+  it('retains unresolved threads with an empty root and uses reply text for the excerpt', () => {
+    expect(checks([block('action', 'A door.')], { notes: [{ id: 'reply', content: ' ', replies: [{ content: 'Check the door.' }] }] }))
+      .toMatchObject([{ check: 'openNote', noteId: 'reply', position: null, excerpt: 'Check the door.' }]);
+  });
+
+  it('uses production scene numbers with an ordinal fallback', () => {
+    const findings = checks([heading('INT. ROOM - DAY', '12A'), block('dialogue', 'First orphan.'),
+      heading('EXT. STREET - DAY'), block('dialogue', 'Second orphan.')]);
+    expect(findings.map(finding => finding.sceneNumber)).toEqual(['12A', '2']);
+  });
+
 });

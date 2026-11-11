@@ -1,5 +1,8 @@
 {
   "scriptHealth": {
+    "emptyCue": "This character cue is empty.",
+    "requiresScript": "Open a script to build this report.",
+    "excerpts": "Excerpts are shortened to 180 characters; exports include every finding.",
     "title": "Script Health",
     "intro": "Local checks for references, dialogue and open notes. This report does not grade story quality or certify submission readiness.",
     "summary": "Findings to review: {{count}}",

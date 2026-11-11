@@ -1,16 +1,14 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useId } from 'react';
 import type { Editor } from '@tiptap/react';
 import { TextSelection } from '@tiptap/pm/state';
 import { useTranslation } from 'react-i18next';
 import { useEditorDoc } from '../hooks/useEditorTransactions';
 import { useEditorStore } from '../stores/editorStore';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
-import { numberingRulesOf } from '../utils/elementNumbers';
-import { analyzeScriptHealth, type HealthFinding } from '../utils/scriptHealth';
-import { reportToCsv } from '../utils/scriptReports';
+import { analyzeScriptHealth, healthOptionsForFormat, type HealthFinding } from '../utils/scriptHealth';
+import { reportToCsv, scriptHealthReport } from '../utils/scriptReports';
 import { sanitizeExportFilename } from '../utils/exportFilename';
 import { saveFile } from '../utils/fileOps';
-import { showToast } from './Toast';
 
 const PREVIEW_LIMIT = 300;
 
@@ -23,14 +21,12 @@ export default function ScriptHealthDialog({ editor, onClose }: { editor: Editor
   const sceneNumbersVisible = useEditorStore((state) => state.sceneNumbersVisible);
   const documentTitle = useEditorStore((state) => state.documentTitle);
   const template = useFormattingTemplateStore((state) => state.getActiveTemplate());
+  const findingId = useId();
+  const [feedback, setFeedback] = useState<{ text: string; error?: boolean } | null>(null);
   const [busy, setBusy] = useState(false);
   const { findings, error } = useMemo(() => {
     try {
-      return { findings: doc ? analyzeScriptHealth(doc, {
-        numbering: numberingRulesOf(template.rules), sceneNumbersVisible, notes,
-        dialogueChecks: !!template.rules.character?.enabled && !!template.rules.dialogue?.enabled
-          && template.rules.character.nextOnEnter === 'dialogue',
-      }) : [], error: null };
+      return { findings: doc ? analyzeScriptHealth(doc, healthOptionsForFormat(template.rules, sceneNumbersVisible, notes)) : [], error: null };
     } catch (failure) {
       // An optional report must not take down the editor on malformed metadata.
       return { findings: [], error: failure instanceof Error ? failure.message : String(failure) };
@@ -49,7 +45,7 @@ export default function ScriptHealthDialog({ editor, onClose }: { editor: Editor
 
   const current = () => {
     if (!editor || editor.isDestroyed || editor.state.doc !== doc) {
-      showToast(t('scriptHealth.changed'), 'info');
+      setFeedback({ text: t('scriptHealth.changed') });
       return false;
     }
     return true;
@@ -76,21 +72,15 @@ export default function ScriptHealthDialog({ editor, onClose }: { editor: Editor
   const exportCsv = async () => {
     if (error || !current()) return;
     setBusy(true);
+    setFeedback(null);
     try {
-      // Keep the scope and limitations in the exported copy as well as the UI.
-      const table = {
-        title: t('scriptHealth.title'),
-        columns: [t('scriptHealth.scene'), t('scriptHealth.finding'), t('scriptHealth.excerpt')],
-        rows: [
-          ['', `${t('scriptHealth.intro')} ${summary}`, ''],
-          ...findings.map((finding) => [finding.scene ?? t('scriptHealth.noScene'), message(finding), finding.excerpt]),
-        ],
-      };
-      const name = sanitizeExportFilename(`${documentTitle} - ${table.title}`);
+      const table = scriptHealthReport(findings);
+      // i18n-ignore: keep the same disk-name fallback as ReportsDialog
+      const name = sanitizeExportFilename(`${documentTitle.trim() || 'Untitled'} - ${table.title}`);
       const saved = await saveFile(reportToCsv(table), `${name}.csv`, [{ name: 'CSV', extensions: ['csv'] }]);
-      if (saved) showToast(t('reports.exported', { title: table.title }), 'success');
+      if (saved) setFeedback({ text: t('reports.exported', { title: table.title }) });
     } catch (error) {
-      showToast(t('reports.exportFailed', { message: error instanceof Error ? error.message : String(error) }), 'error');
+      setFeedback({ text: t('reports.exportFailed', { message: error instanceof Error ? error.message : String(error) }), error: true });
     } finally {
       setBusy(false);
     }
@@ -101,18 +91,20 @@ export default function ScriptHealthDialog({ editor, onClose }: { editor: Editor
       aria-describedby="script-health-intro" onCancel={(event) => { event.preventDefault(); onClose(); }}>
       <h2 id="script-health-title">{t('scriptHealth.title')}</h2>
       <p id="script-health-intro">{t('scriptHealth.intro')}</p>
-      {error ? <p role="alert">{t('reports.buildFailed', { message: error })}</p> : <p role="status">{summary}</p>}
+      {error ? <p role="alert">{t('reports.buildFailed', { message: error })}</p> : <p id="script-health-summary" role="status">{summary}</p>}
       {!error && !findings.length && <p>{doc ? t('scriptHealth.clean') : t('scriptHealth.changed')}</p>}
+      <p>{t('scriptHealth.excerpts')}</p>
+      {feedback && <p role={feedback.error ? 'alert' : 'status'}>{feedback.text}</p>}
       <ol className="script-health-findings">
         {findings.slice(0, PREVIEW_LIMIT).map((finding, index) => (
           <li key={`${finding.check}:${finding.position}:${index}`}>
-            <strong>{message(finding)}</strong>
-            <span className="script-health-context" dir="auto">{finding.scene ?? t('scriptHealth.noScene')}</span>
-            {finding.excerpt && <p dir="auto">{finding.excerpt}</p>}
-            <button type="button" onClick={() => visit(finding)}
-              disabled={finding.position === null && finding.check !== 'openNote'}>
+            <strong id={`${findingId}-${index}-message`}>{message(finding)}</strong>
+            <span id={`${findingId}-${index}-context`} className="script-health-context" dir="auto">{finding.scene ?? t('scriptHealth.noScene')}</span>
+            {finding.excerpt && <p id={`${findingId}-${index}-excerpt`} dir="auto">{finding.excerpt}</p>}
+            {(finding.position !== null || finding.check === 'openNote') && <button type="button" onClick={() => visit(finding)}
+              aria-describedby={`${findingId}-${index}-message ${findingId}-${index}-context${finding.excerpt ? ` ${findingId}-${index}-excerpt` : ''}`}>
               {finding.position === null && finding.check === 'openNote' ? t('scriptHealth.openNotes') : t('scriptHealth.jump')}
-            </button>
+            </button>}
           </li>
         ))}
       </ol>

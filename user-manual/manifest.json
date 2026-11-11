@@ -1,11 +1,11 @@
 {
-  "version": "0e70231bfac94d8e",
+  "version": "2e9fd31ae15d160b",
   "pages": [
     {
       "slug": "index.html",
       "title": "Home",
       "section": "Getting Started",
-      "hash": "6b1e7894978a7adc"
+      "hash": "9ba055e2f6e60845"
     },
     {
       "slug": "getting-started.html",
@@ -95,7 +95,7 @@
       "slug": "script-statistics.html",
       "title": "Script Statistics & Timing",
       "section": "Analysis",
-      "hash": "2f05f82221142cfd"
+      "hash": "fab91a7bc07499c5"
     },
     {
       "slug": "table-read.html",
@@ -149,7 +149,7 @@
       "slug": "format-compatibility.html",
       "title": "Format Compatibility",
       "section": "Projects & Files",
-      "hash": "10f1741c91e7378a"
+      "hash": "48b1f0080cecf0a8"
     },
     {
       "slug": "collaboration.html",

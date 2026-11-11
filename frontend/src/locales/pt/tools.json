@@ -1,5 +1,8 @@
 {
   "scriptHealth": {
+    "emptyCue": "Esta indicação de personagem está vazia.",
+    "requiresScript": "Abra um roteiro para criar este relatório.",
+    "excerpts": "Os trechos são limitados a 180 caracteres; as exportações incluem todos os resultados.",
     "title": "Verificação do roteiro",
     "intro": "Verificações locais de referências, diálogos e notas abertas. Este relatório não avalia a qualidade da história nem certifica que o roteiro está pronto para envio.",
     "summary": "Itens para revisar: {{count}}",
