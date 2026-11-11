@@ -10,6 +10,16 @@ fn main() {
     // link time. The cdylib is never used on iOS (only the staticlib matters), so
     // we tell the linker to allow undefined symbols in it.
     let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
+    if target_os == "macos" {
+        println!("cargo:rerun-if-changed=src/macos_file.m");
+        cc::Build::new()
+            .file("src/macos_file.m")
+            .flag("-fobjc-arc")
+            .flag("-fblocks")
+            .compile("opendraft_macos_file");
+        println!("cargo:rustc-link-lib=framework=Foundation");
+        println!("cargo:rustc-link-lib=objc");
+    }
     if target_os == "ios" {
         println!("cargo:rustc-link-lib=framework=Speech");
         println!("cargo:rustc-link-lib=framework=AVFoundation");

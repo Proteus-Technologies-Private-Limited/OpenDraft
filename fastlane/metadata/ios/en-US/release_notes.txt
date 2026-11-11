@@ -1,19 +1,10 @@
-Write in your own language, and keep your colours when you export.
+Highlights behave in Word, and typing is smoother.
 
-OPENDRAFT IN 18 LANGUAGES
-Menus, dialogs and settings now speak Spanish, French, Brazilian Portuguese, Russian, Turkish, Arabic, Persian, Hindi, Urdu, Marathi, Gujarati, Telugu, Tamil, Odia, Punjabi, Malayalam, Kannada and Bengali. OpenDraft follows your device's language, or pick yours in Settings > Language. Arabic, Persian and Urdu read from right to left, and your scripts never change when you switch.
+HIGHLIGHTS YOU CAN REMOVE IN WORD
+Highlights in a Word export are now real Word highlights, so you can change or clear them in Word like any other. Prefer your exact colours? Turn that on in Settings.
 
-COLOURS AND HIGHLIGHTS IN EXPORTS
-Coloured and highlighted text now stays that way in Word and PDF. Want a plain black-and-white copy? Switch colours off when you export a PDF.
-
-DELETED MEANS DELETED
-When you delete a saved version of a script, its text is now erased from your device too.
-
-SMARTER SCENE HEADINGS
-SmartType now understands intros like DREAM SEQUENCE: before INT. or EXT., suggests longer prefixes you've saved, and completes your own scene times.
+SMOOTHER TYPING
+Long scripts stay quick while you type and delete.
 
 ALSO FIXED
-The AI Assistant and Dictation add-ons are back in Settings > Add-ons.
-
-TELL US WHAT TO IMPROVE
-The translations were made with AI and are still being reviewed by native speakers. If a word could be better, we want to hear it.
+Scene numbers of two or more digits no longer stack up in the margin, menus and the Locations panel fit better on small screens, and signing in for the first time now points you to Create Account.
