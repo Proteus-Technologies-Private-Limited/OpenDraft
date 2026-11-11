@@ -6,6 +6,7 @@ opens the pad without changing its native capability gate.
 """
 
 import os
+import re
 import unittest
 from playwright.sync_api import Locator, expect
 import regressions as fixture
@@ -112,9 +113,7 @@ class WritingPad(unittest.TestCase):
         )
 
     def test_ordinary_device_stays_floating(self) -> None:
-        self.posture(1200, 900, None)
-        self.page.reload()
-        self.page.locator(".ProseMirror").wait_for()
+        self.ordinary()
         self.request()
         expect(self.page.locator(".scribble-panel.is-docked")).to_have_count(0)
         expect(self.page.locator("#fold-tab-handwriting")).to_have_count(0)
@@ -123,6 +122,18 @@ class WritingPad(unittest.TestCase):
         self.posture(800, 900, None)
         expect(self.field()).to_have_value("Ordinary desktop writing draft")
         expect(self.page.locator(".scribble-panel.is-docked")).to_have_count(0)
+        field = self.field()
+        field.evaluate("el=>window.padField=el")
+        self.assertTrue(field.evaluate('el=>!el.closest(".editor-layout")'))
+        self.page.evaluate("testStore.getState().setFocusMode(true)")
+        expect(field).to_be_visible()
+        self.assertTrue(
+            field.evaluate("el=>el===padField && el.getBoundingClientRect().width>0")
+        )
+        self.page.evaluate("testStore.getState().setFocusMode(false)")
+        self.page.locator(".ProseMirror").focus()
+        self.page.keyboard.press("Escape")
+        expect(self.page.locator(".scribble-panel")).to_have_count(0)
 
     def test_geometry_short_pane_rtl_and_floating_preferences(self) -> None:
         self.page.evaluate(
@@ -194,6 +205,198 @@ class WritingPad(unittest.TestCase):
                 self.posture(*args)
                 self.field().scroll_into_view_if_needed()
                 self.page.screenshot(path=os.path.join(screenshots, name + ".png"))
+
+    def ordinary(self) -> None:
+        self.posture(1280, 800, None)
+        self.page.reload()
+        self.page.locator(".ProseMirror").wait_for()
+        self.page.evaluate("""async () => {
+            const url=performance.getEntriesByType('resource').find(e=>new URL(e.name).pathname==='/src/stores/editorStore.ts').name;
+            window.testStore=(await import(url)).useEditorStore;
+        }""")
+
+    def test_focus_mode_floats_the_same_draft_on_foldables(self) -> None:
+        self.posture(951, 669, "vertical", "folded")
+        self.request()
+        field = self.field()
+        field.fill("Keep the Focus Mode writing draft")
+        field.evaluate("el=>{window.padField=el;el.focus();el.setSelectionRange(5,10)}")
+        expect(self.page.locator(".scribble-panel")).to_have_attribute("role", "region")
+        self.page.evaluate("testStore.getState().setFocusMode(true)")
+        expect(self.page.locator(".app-container")).to_have_class(
+            re.compile(r"focus-mode")
+        )
+        expect(self.page.locator(".scribble-panel.is-docked")).to_have_count(0)
+        expect(field).to_be_visible()
+        self.assertTrue(
+            field.evaluate('el=>el===padField && !el.closest(".editor-layout")')
+        )
+        self.assertEqual(
+            field.evaluate("el=>[el.selectionStart,el.selectionEnd]"), [5, 10]
+        )
+        self.assertTrue(field.evaluate("el=>el===document.activeElement"))
+        shots = os.environ.get("OPENDRAFT_SCREENSHOTS")
+        if shots:
+            os.makedirs(shots, exist_ok=True)
+            self.page.screenshot(path=os.path.join(shots, "focus-mode.png"))
+        self.page.evaluate("testStore.getState().setFocusMode(false)")
+        expect(self.page.locator(".scribble-panel.is-docked")).to_be_visible()
+        expect(field).to_have_value("Keep the Focus Mode writing draft")
+        self.assertTrue(field.evaluate("el=>el===padField"))
+
+    def test_keyboard_viewport_floats_and_restores_the_draft(self) -> None:
+        self.posture(1000, 1000, "horizontal", "folded")
+        self.request()
+        field = self.field()
+        field.fill("Keep this draft above the keyboard")
+        field.evaluate("el=>{window.padField=el;el.focus();el.setSelectionRange(5,9)}")
+        prefs = self.page.evaluate(
+            "[localStorage.getItem('opendraft:handwritingPos'),localStorage.getItem('opendraft:handwritingSize')]"
+        )
+        # Exercise the existing Keyboard toggle, then supply only browser viewport
+        # geometry. This is not a native keyboard/device simulation.
+        self.page.locator(".scribble-toggle").first.click()
+        self.page.evaluate("""() => {
+            const v=visualViewport;
+            Object.defineProperty(v,'height',{configurable:true,value:430});
+            Object.defineProperty(v,'offsetTop',{configurable:true,value:40});
+            v.dispatchEvent(new Event('resize'));
+        }""")
+        pad = self.page.locator(".scribble-panel")
+        expect(pad).not_to_have_class(re.compile(r"is-docked"))
+        expect(pad).to_have_class(re.compile(r"is-viewport-constrained"))
+        expect(field).to_have_value("Keep this draft above the keyboard")
+        self.assertTrue(field.evaluate("el=>el===padField"))
+        self.assertEqual(
+            field.evaluate("el=>[el.selectionStart,el.selectionEnd]"), [5, 9]
+        )
+        for selector in [".scribble-area", ".scribble-btn-primary", ".scribble-close"]:
+            control = self.page.locator(selector).first
+            control.scroll_into_view_if_needed()
+            self.assertTrue(
+                control.evaluate(
+                    "el=>{const r=el.getBoundingClientRect();return r.top>=visualViewport.offsetTop && r.bottom<=visualViewport.offsetTop+visualViewport.height}"
+                )
+            )
+        self.assertEqual(
+            self.page.evaluate(
+                "[localStorage.getItem('opendraft:handwritingPos'),localStorage.getItem('opendraft:handwritingSize')]"
+            ),
+            prefs,
+        )
+        # Browser panning changes the visible origin without changing height.
+        self.page.evaluate("""() => {
+            Object.defineProperty(visualViewport,'offsetTop',{configurable:true,value:80});
+            visualViewport.dispatchEvent(new Event('scroll'));
+        }""")
+        self.page.wait_for_function(
+            "document.querySelector('.scribble-panel').getBoundingClientRect().top>=88"
+        )
+        shots = os.environ.get("OPENDRAFT_SCREENSHOTS")
+        if shots:
+            os.makedirs(shots, exist_ok=True)
+            self.page.screenshot(
+                path=os.path.join(shots, "reduced-viewport.png"),
+                clip={"x": 0, "y": 80, "width": 1000, "height": 430},
+            )
+        self.page.evaluate("""() => {
+            delete visualViewport.height;delete visualViewport.offsetTop;
+            visualViewport.dispatchEvent(new Event('resize'));
+        }""")
+        expect(self.page.locator(".scribble-panel.is-docked")).to_be_visible()
+        self.assertTrue(field.evaluate("el=>el===padField"))
+        expect(field).to_have_value("Keep this draft above the keyboard")
+
+    def test_very_short_tabletop_slot_uses_floating_pad(self) -> None:
+        self.posture(390, 450, "horizontal", "folded")
+        self.request()
+        expect(self.page.locator("html")).to_have_class(re.compile(r"fold-laptop"))
+        expect(self.page.locator(".scribble-panel.is-docked")).to_have_count(0)
+        expect(
+            self.page.locator(".scribble-panel.is-viewport-constrained")
+        ).to_be_visible()
+        self.field().fill("Short tabletop draft")
+        self.posture(700, 700, "horizontal", "folded")
+        expect(self.page.locator(".scribble-panel.is-docked")).to_be_visible()
+        expect(self.field()).to_have_value("Short tabletop draft")
+
+    def test_cover_height_changes_keep_custom_zoom(self) -> None:
+        self.posture(390, 900, None)
+        self.page.evaluate("testStore.getState().setViewLayout('page')")
+        self.page.wait_for_timeout(400)
+        self.page.evaluate("testStore.getState().setZoomLevel(125)")
+        self.posture(390, 500, None)
+        self.assertEqual(self.page.evaluate("testStore.getState().zoomLevel"), 125)
+        self.posture(390, 900, None)
+        self.assertEqual(self.page.evaluate("testStore.getState().zoomLevel"), 125)
+        self.posture(450, 900, None)
+        self.page.wait_for_function("testStore.getState().zoomLevel!==125")
+
+    def test_book_pinch_uses_phone_zoom_without_overwriting_page_zoom(self) -> None:
+        self.page.evaluate("testStore.getState().setZoomLevel(78)")
+        self.posture(951, 669, "vertical", "folded")
+        self.assertEqual(self.page.evaluate("testStore.getState().viewLayout"), "page")
+        self.assertEqual(self.page.evaluate("testStore.getState().zoomLevel"), 100)
+        self.page.locator(".editor-main").evaluate("""el=>{
+            const point=(id,x)=>new Touch({identifier:id,target:el,clientX:x,clientY:220});
+            el.dispatchEvent(new TouchEvent('touchstart',{bubbles:true,touches:[point(1,120),point(2,260)]}));
+            el.dispatchEvent(new TouchEvent('touchmove',{bubbles:true,cancelable:true,touches:[point(1,100),point(2,280)]}));
+            el.dispatchEvent(new TouchEvent('touchend',{bubbles:true,touches:[]}));
+        }""")
+        self.page.wait_for_function("testStore.getState().zoomLevel>100")
+        zoom = self.page.evaluate("testStore.getState().zoomLevel")
+        self.assertEqual(
+            self.page.evaluate(
+                "JSON.parse(localStorage.getItem('opendraft:viewState')).phoneZoomLevel"
+            ),
+            zoom,
+        )
+        self.assertEqual(
+            self.page.evaluate(
+                "JSON.parse(localStorage.getItem('opendraft:viewState')).zoomLevel"
+            ),
+            78,
+        )
+        self.posture(1000, 1000, "horizontal", "folded")
+        self.assertEqual(self.page.evaluate("testStore.getState().zoomLevel"), 78)
+        self.posture(951, 669, "vertical", "folded")
+        self.assertEqual(self.page.evaluate("testStore.getState().zoomLevel"), zoom)
+
+    def test_widened_navigator_uses_the_actual_docked_width(self) -> None:
+        self.ordinary()
+        self.page.evaluate("testStore.getState().toggleNavigator()")
+        nav = self.page.locator(".scene-navigator")
+        nav.wait_for()
+        handle = self.page.locator(
+            ".editor-layout > .panel-resize-handle"
+        ).first.bounding_box()
+        self.page.mouse.move(handle["x"] + handle["width"] / 2, handle["y"] + 60)
+        self.page.mouse.down()
+        self.page.mouse.move(handle["x"] + 260, handle["y"] + 60, steps=8)
+        self.page.mouse.up()
+        self.assertGreater(nav.bounding_box()["width"], 450)
+        self.posture(951, 669, "vertical", "continuous")
+        expect(self.page.locator(".editor-layout")).to_have_class(
+            re.compile(r"fold-nav-docked")
+        )
+        self.assertEqual(nav.bounding_box()["width"], 240)
+
+    def test_docked_timeline_ignores_escape_from_the_script_or_popup(self) -> None:
+        self.page.evaluate("testStore.getState().setStoryTimelineOpen(true)")
+        timeline = self.page.locator(".story-timeline-dock")
+        expect(timeline).to_be_visible()
+        self.page.locator(".ProseMirror").focus()
+        self.page.keyboard.press("Escape")
+        expect(timeline).to_be_visible()
+        done = timeline.get_by_role("button", name="Done", exact=True)
+        done.focus()
+        done.evaluate(
+            "el=>el.addEventListener('keydown',e=>e.preventDefault(),{once:true})"
+        )
+        self.page.keyboard.press("Escape")
+        expect(timeline).to_be_visible()
+        self.page.keyboard.press("Escape")
+        expect(timeline).to_have_count(0)
 
 
 if __name__ == "__main__":

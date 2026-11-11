@@ -17,7 +17,7 @@ on:
       - 'frontend/src/components/TextareaCaret.tsx'
       - 'frontend/src/components/PluginPanelTabs.tsx'
       - 'frontend/src/stores/foldPosturePreferences.test.ts'
-      - 'frontend/package*.json'
+      - 'frontend/src/stores/foldBookZoom.test.ts'
       - 'frontend/vite.config.ts'
       - 'test-script/foldables/**'
       - '.github/workflows/test-foldables.yml'

@@ -77,8 +77,9 @@ import ScriptStatistics from './ScriptStatistics';
 import TableReadPanel from './TableReadPanel';
 import FoldablePanelDock from './FoldablePanelDock';
 import { useFoldState } from '../hooks/useFoldState';
+import { useFoldWritingPadDock } from '../hooks/useFoldWritingPadDock';
 import { FOLD_WILL_CHANGE_EVENT, isFoldableDevice } from '../utils/foldPosture';
-import { foldLayout } from '../utils/foldLayout';
+import { foldLayout, FOLD_NAV_WIDTH } from '../utils/foldLayout';
 import VoiceProviderDialog from './VoiceProviderDialog';
 import { TableReadHighlight } from '../editor/extensions/TableReadHighlight';
 import { useTableReadStore } from '../stores/tableReadStore';
@@ -622,10 +623,6 @@ const ScreenplayEditor: React.FC = () => {
   const [navWidth, setNavWidth] = useState(240);
   const [rightPanelWidth, setRightPanelWidth] = useState(300);
 
-  // Sync nav width to store for floating menu positioning
-  useEffect(() => {
-    useEditorStore.getState().setNavPanelWidth(navigatorOpen ? navWidth : 0);
-  }, [navWidth, navigatorOpen]);
   const resizingRef = useRef<'left' | 'right' | null>(null);
   const resizeStartXRef = useRef(0);
   const resizeStartWidthRef = useRef(0);
@@ -664,9 +661,15 @@ const ScreenplayEditor: React.FC = () => {
   const foldOpen = foldState.foldable && foldState.size === 'wide' && foldState.fold === 'flat';
   const foldRightColumnVisible = rightPanelVisible || tableReadOpen || !!foldPlugin;
   const foldNavigatorDocked = foldOpen && foldLayout(
-    foldState.viewportWidth, pageLayout.pageWidth * 96, navWidth, navigatorOpen, foldRightColumnVisible,
+    foldState.viewportWidth, pageLayout.pageWidth * 96, navigatorOpen, foldRightColumnVisible,
   ).dockNavigator;
   const foldNavigationClass = foldOpen ? (foldNavigatorDocked ? ' fold-nav-docked' : ' fold-nav-overlay') : '';
+  const effectiveNavWidth = foldOpen ? (foldNavigatorDocked ? FOLD_NAV_WIDTH : 300) : navWidth;
+  // The saved drag width must not override the fixed foldable column width,
+  // including the min-width and the floating menu's positioning hint.
+  useEffect(() => {
+    useEditorStore.getState().setNavPanelWidth(navigatorOpen ? effectiveNavWidth : 0);
+  }, [effectiveNavWidth, navigatorOpen]);
 
   // Yjs document & provider — stable across renders while collab is active
   const ydocRef = useRef<Y.Doc | null>(null);
@@ -1293,10 +1296,10 @@ const ScreenplayEditor: React.FC = () => {
     };
   }, [pageLayout.pageWidth, setZoomLevel, phoneView]);
 
-  // Cover Page view fits on a viewport/posture change or an explicit page
+  // Cover Page view fits on a width/posture change or an explicit page
   // layout change, never because a panel or toolbar changed underneath it.
   useEffect(() => {
-    if (!foldState.foldable || foldOpen || phoneView || window.innerWidth > 768) return;
+    if (!foldState.foldable || foldState.fold !== 'flat' || foldOpen || phoneView || window.innerWidth > 768) return;
     const timer = setTimeout(() => {
       const container = editorMainRef.current;
       if (!container) return;
@@ -1304,7 +1307,7 @@ const ScreenplayEditor: React.FC = () => {
       setZoomLevel(Math.max(50, Math.min(100, zoom)));
     }, 100);
     return () => clearTimeout(timer);
-  }, [foldState, foldOpen, phoneView, pageLayout.pageWidth, setZoomLevel]);
+  }, [foldState.foldable, foldState.fold, foldState.size, foldState.viewportWidth, foldOpen, phoneView, pageLayout.pageWidth, setZoomLevel]);
 
   // Foldable panel/toolbar changes must never refit an ordinary user's page.
   useEffect(() => {
@@ -1717,7 +1720,8 @@ const ScreenplayEditor: React.FC = () => {
   const [scribbleOpen, setScribbleOpen] = useState(false);
   const [scribbleActivation, setScribbleActivation] = useState(0);
   const scribbleHome = useRef<HTMLDivElement>(null);
-  const scribbleDocked = !isHistoryMode && foldState.foldable && (foldState.fold === 'book' || foldState.fold === 'laptop');
+  const padPosture = foldState.foldable && foldState.fold !== 'flat';
+  const padCanDock = useFoldWritingPadDock(padPosture, foldState.fold === 'laptop' && foldState.foldRect ? foldState.foldRect.bottom : null);
 
   // Script context menu state
   const [ctxMenuState, setCtxMenuState] = useState<{
@@ -2450,6 +2454,7 @@ const ScreenplayEditor: React.FC = () => {
   const focusDim = useEditorStore((s) => s.focusDim);
   const setFocusMode = useEditorStore((s) => s.setFocusMode);
   const focusActive = focusMode && !isHistoryMode;
+  const scribbleDocked = !isHistoryMode && !focusActive && padPosture && padCanDock;
 
   // The dimming lives in the editor, which cannot see the store change.
   useEffect(() => {
@@ -5667,7 +5672,7 @@ const ScreenplayEditor: React.FC = () => {
   }, [currentProject, currentScriptId, openShareDialog]);
   const handleDocumentSaved = useCallback((json: string) => { lastSavedJsonRef.current = json; }, []);
   const openJoinCollab = useCallback(() => setJoinCollabOpen(true), []);
-  const navStyle = useMemo(() => ({ width: navWidth, minWidth: navWidth }), [navWidth]);
+  const navStyle = useMemo(() => ({ width: effectiveNavWidth, minWidth: effectiveNavWidth }), [effectiveNavWidth]);
 
   // Show loading screen while collab session is being set up
   if (collabLoading) {
@@ -5830,9 +5835,11 @@ const ScreenplayEditor: React.FC = () => {
           </button>
         </div>
       )}
+      {/* Attach the floating home before PanelSlot mounts, outside Focus Mode hiding. */}
+      <div className="fold-panel-home" ref={scribbleHome} />
       {!isHistoryMode && <MenuBar editor={editor} onDocumentSaved={handleDocumentSaved} onCollaborate={handleCollaborate} onJoinCollab={openJoinCollab} isCollabActive={collabMode} isCollabGuest={collabMode && !isCollabHost} canEditDocumentFormat={!collabMode || collabRole === 'editor'} />}
       {!isHistoryMode && <Toolbar editor={editor} />}
-      <div className={`editor-layout${foldDock ? ' fold-layout' : ''}${foldNavigationClass}`}>
+      <div className={`editor-layout${foldDock ? ' fold-layout' : ''}${foldNavigationClass}`} style={{ '--fold-nav-width': `${FOLD_NAV_WIDTH}px` } as React.CSSProperties}>
         {!isHistoryMode && <SceneNavigator editor={editor} scrollContainer={editorMainEl} style={navStyle} />}
         {!isHistoryMode && navigatorOpen && (
           <div className="panel-resize-handle" onPointerDown={(e) => handleResizePointerDown('left', e)} style={{ touchAction: 'none' }} />
@@ -6095,7 +6102,7 @@ const ScreenplayEditor: React.FC = () => {
           ] : []),
           { id: 'handwriting', label: tg('editor:scribble.title'), open: scribbleOpen, dock: scribbleDocked, activationKey: scribbleActivation,
             home: scribbleHome, keepHomeWhenClosed: true,
-            content: scribbleOpen && editor ? <ScribbleInput editor={editor} docked={scribbleDocked} onClose={() => setScribbleOpen(false)} /> : null },
+            content: scribbleOpen && editor ? <ScribbleInput editor={editor} docked={scribbleDocked} viewportConstrained={padPosture && !padCanDock} onClose={() => setScribbleOpen(false)} /> : null },
         ]} />
 
       </div>
@@ -6131,8 +6138,6 @@ const ScreenplayEditor: React.FC = () => {
           onDismiss={handleSmartTypeDismiss}
         />
       )}
-      {/* The stable handwriting portal returns here in floating postures. */}
-      <div className="fold-panel-home" ref={scribbleHome} />
       {/* Context menu on mobile: 3-finger touch only */}
       {!isHistoryMode && ctxMenuState.visible && editor && (
         <ScriptContextMenu

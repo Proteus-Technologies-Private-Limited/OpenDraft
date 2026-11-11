@@ -98,8 +98,37 @@ The same textarea, text selection and live editor insertion target survive
 posture changes, including the appendChild fallback. Insert still clears only
 the pad and is undoable in the editor.
 
-On open-flat, cover screens and ordinary devices it floats as before. Docking
+In Focus Mode, open-flat, cover screens and ordinary devices it floats. Its
+floating home is mounted before the dock and outside the editor layout so
+Focus Mode cannot hide it. Escape from the script still closes the floating
+pad; docked Escape is limited to unhandled events inside its pane. The docked
+pad is a labelled region inside the tabpanel, rather than a nested dialog. Docking
 does not overwrite the saved floating size/position; floating dimensions are
 clamped to the available viewport. Short dock slots scroll to keep tools and
 Insert reachable. This is browser layout coverage, not native Pencil or system
 keyboard validation. WP10's keyboard-aware toolbar placement remains separate.
+
+## Review follow-ups from #236 and #247
+
+Book posture uses the Phone zoom bucket for rendering and pinch changes even
+when the saved layout choice is Page. Returning to laptop/open Page view uses
+its separate Page zoom. Cover-screen Page fitting follows width, posture and
+page-layout changes; height-only changes preserve custom zoom, including a
+layout viewport resized for a keyboard. Navigator docking and rendering share
+the 240px width, independently of an earlier manual Navigator resize. Docked
+Story Timeline ignores Escape already handled by a popup or sent outside it.
+
+A reduced visual viewport (over 120px less height than the layout viewport) or
+a lower slot shorter than 240px temporarily floats the same writing pad. The
+floating pad follows visual-viewport offsets and scrolls its controls; restoring
+space docks it again without losing text/selection or overwriting floating
+preferences. Browser tests supply viewport geometry and exercise the Keyboard
+toggle; this is not a physical keyboard or IME validation. WP10 still owns the
+native keyboard-aware toolbar layout. A Mac, iPhone, iPad and physical foldable
+remain unavailable, so native checks remain unverified.
+
+The writing-pad suite also checks ordinary-device Focus Mode and Escape from
+the script, foldable Focus Mode, book pinch persistence, cover height-only
+resizes, a previously widened Navigator, short tabletop slots, visual viewport
+reduction/offsets, and docked Timeline Escape. Dependency manifest changes alone
+no longer start foldable browser CI; manual dispatch remains available.

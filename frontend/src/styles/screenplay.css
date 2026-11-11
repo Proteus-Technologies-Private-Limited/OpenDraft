@@ -15397,8 +15397,8 @@ button.beat-scene-chip:hover { border-color: var(--fd-accent); color: var(--fd-a
 .fold-layout.fold-nav-docked .scene-navigator {
   position: relative;
   inset: auto;
-  width: 240px !important;
-  min-width: 240px;
+  width: var(--fold-nav-width, 240px) !important;
+  min-width: var(--fold-nav-width, 240px);
   max-width: none;
   transform: none;
   transition: none;
@@ -15472,14 +15472,18 @@ html.foldable.wide .fold-panel-content .plugin-panel-tabs__content { flex: 1; wi
   box-shadow: none;
   overflow-y: auto;
 }
-.scribble-panel.is-docked > * { flex-shrink: 0; }
+.scribble-panel:is(.is-docked, .is-viewport-constrained) > * { flex-shrink: 0; }
 .scribble-panel.is-docked .scribble-header { cursor: auto; touch-action: auto; }
-.scribble-panel.is-docked .scribble-header-row { flex-wrap: wrap; }
-.scribble-panel.is-docked .scribble-area-wrap { flex: 1 0 140px; }
-.scribble-panel.is-docked .scribble-area { min-height: 120px; min-width: 0; }
-.scribble-panel.is-docked .scribble-actions {
+.scribble-panel:is(.is-docked, .is-viewport-constrained) .scribble-header-row { flex-wrap: wrap; }
+.scribble-panel:is(.is-docked, .is-viewport-constrained) .scribble-area-wrap { flex: 1 0 140px; }
+.scribble-panel:is(.is-docked, .is-viewport-constrained) .scribble-area { min-height: 120px; min-width: 0; }
+.scribble-panel:is(.is-docked, .is-viewport-constrained) .scribble-actions {
   position: sticky;
   bottom: 0;
   background: var(--fd-dropdown-bg);
   z-index: 3;
 }
+
+/* A reduced visual viewport or a very short tabletop slot uses the floating
+   pad, with scrollable controls rather than writing beneath the keyboard. */
+.scribble-panel.is-viewport-constrained { min-height: 0; min-width: 0; overflow-y: auto; }

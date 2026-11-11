@@ -175,6 +175,8 @@ function viewportSize() {
   return {
     width: Math.round(vv?.width ?? window.innerWidth),
     height: Math.round(vv?.height ?? window.innerHeight),
+    left: Math.round(vv?.offsetLeft ?? 0),
+    top: Math.round(vv?.offsetTop ?? 0),
   };
 }
 
@@ -205,9 +207,10 @@ interface ScribbleInputProps {
   editor: Editor;
   onClose: () => void;
   docked?: boolean;
+  viewportConstrained?: boolean;
 }
 
-const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose, docked = false }) => {
+const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose, docked = false, viewportConstrained = false }) => {
   const { t } = useTranslation(['editor', 'common']);
   const inkName = (id: (typeof INKS)[number]['id']): string => {
     switch (id) {
@@ -359,6 +362,7 @@ const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose, docked =
   // part that is.
   const [pos, setPos] = useState<PanelPos | null>(null);
   const dragRef = useRef<{ dx: number; dy: number } | null>(null);
+  const wasDockedRef = useRef(docked);
 
 
 
@@ -440,6 +444,8 @@ const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose, docked =
     // dock's geometry as the writer's floating size or position.
     dragRef.current = null;
     resizeRef.current = null;
+    const wasDocked = wasDockedRef.current;
+    wasDockedRef.current = docked;
     if (docked) return;
     const place = () => {
       const size = panelSize();
@@ -448,7 +454,9 @@ const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose, docked =
       const saved = loadPosition();
       setPos(saved ? clampPanelPosition(saved, size, view) : defaultPanelPosition(size, view));
     };
-    place();
+    // Do not force layout while the old dock may be hidden by Focus Mode.
+    // The parent first moves the host; measuring early can drop field focus.
+    if (!wasDocked) place();
     // The parent moves/unhides the portal host after child layout effects.
     // Measure again there, rather than using the previous dock's dimensions.
     const frame = requestAnimationFrame(place);
@@ -464,9 +472,11 @@ const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose, docked =
     };
     window.addEventListener('resize', reclamp);
     window.visualViewport?.addEventListener('resize', reclamp);
+    window.visualViewport?.addEventListener('scroll', reclamp);
     return () => {
       window.removeEventListener('resize', reclamp);
       window.visualViewport?.removeEventListener('resize', reclamp);
+      window.visualViewport?.removeEventListener('scroll', reclamp);
     };
   }, [docked, panelSize]);
 
@@ -714,8 +724,8 @@ const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose, docked =
   // panel holds everything else to.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !e.defaultPrevented
-        && (!docked || panelRef.current?.contains(e.target as Node))) {
+      if (e.key === 'Escape'
+        && (!docked || (!e.defaultPrevented && panelRef.current?.contains(e.target as Node)))) {
         e.preventDefault();
         onClose();
       }
@@ -731,12 +741,12 @@ const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose, docked =
     // stray Pencil tip landing outside used to throw away everything written
     // in it.)
     <div
-      className={`scribble-panel${compact ? ' is-compact' : ''}${docked ? ' is-docked' : ''}`}
+      className={`scribble-panel${compact ? ' is-compact' : ''}${docked ? ' is-docked' : ''}${viewportConstrained ? ' is-viewport-constrained' : ''}`}
       ref={panelRef}
-      role="dialog"
+      role={docked ? 'region' : 'dialog'}
       aria-label={t('scribble.panel')}
       style={{
-        ...(!docked ? (pos ? { left: pos.left, top: pos.top, right: 'auto' } : { visibility: 'hidden' }) : {}),
+        ...(!docked ? { left: pos?.left ?? (window.visualViewport?.offsetLeft ?? 0) + 8, top: pos?.top ?? (window.visualViewport?.offsetTop ?? 0) + 8, right: 'auto' } : {}),
         ...(!docked && size ? clampSize(size) : {}),
         '--scribble-panel-alpha': String(panelAlpha),
         '--scribble-area-alpha': String(areaAlpha),
