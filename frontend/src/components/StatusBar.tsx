@@ -1,5 +1,5 @@
 import type { Editor, JSONContent } from '@tiptap/react';
-import React, { useDeferredValue, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ELEMENT_LABELS, type BuiltInElementType, useEditorFields } from '../stores/editorStore';
 import { useProjectStore } from '../stores/projectStore';
@@ -15,7 +15,7 @@ import WritingProgress from './WritingProgress';
 import { useSuggestModeStore } from '../stores/suggestModeStore';
 import { formatNumber } from '../i18n/format';
 import { elementLabel as translateElement } from '../editor/elementLabels';
-import { docJSON, useEditorDoc } from '../hooks/useEditorTransactions';
+import { docJSON, useSettledEditorDoc } from '../hooks/useEditorTransactions';
 
 const SAVE_STATUS_CLASS: Record<string, string> = {
   idle: '',
@@ -31,9 +31,9 @@ interface StatusBarProps {
 
 const StatusBar: React.FC<StatusBarProps> = ({ editor }) => {
   const { t } = useTranslation('toolbar');
-  // Deferred: the timing, structure and word count below walk the whole
-  // script, and need not hold up the keystroke that changed it (#229).
-  const doc = useDeferredValue(useEditorDoc(editor));
+  // Settled: the timing, structure and word count below walk the whole script,
+  // so they follow the edits once typing pauses rather than on every key (#229).
+  const doc = useSettledEditorDoc(editor);
   const editorDoc = useMemo(() => (doc ? docJSON(doc) : null), [doc]);
   const {
     activeElement,

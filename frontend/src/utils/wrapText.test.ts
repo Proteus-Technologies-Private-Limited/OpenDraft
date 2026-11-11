@@ -36,6 +36,19 @@ describe('getTextLines', () => {
     // 70 chars wraps to 2 at cpl 60; plus a 5-char segment = 3
     expect(getTextLines(`${'a'.repeat(70)}\nshort`, 60)).toBe(3);
   });
+
+  it('answers a repeated measurement from memory, and the same as measuring afresh', () => {
+    // The cached path must agree with the uncached one (onStart bypasses the cache).
+    const uncached = (text: string, cpl: number) => getTextLines(text, cpl, () => {});
+    const text = 'The room is quiet except for the hum of the refrigerator and the slow tick of a clock.';
+    for (const cpl of [35, 62]) {
+      const first = getTextLines(text, cpl);
+      expect(first).toBe(uncached(text, cpl));
+      expect(getTextLines(text, cpl)).toBe(first);
+    }
+    // The line length is part of what is remembered.
+    expect(getTextLines(text, 35)).not.toBe(getTextLines(text, 62));
+  });
 });
 
 describe('getTextLines agrees with the PDF word wrapper', () => {

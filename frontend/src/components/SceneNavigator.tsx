@@ -17,7 +17,7 @@ import Select from './Select';
 import { listBookmarks } from '../utils/bookmarks';
 import { goToBookmark, removeBookmark } from './bookmarkActions';
 import { elementLabel } from '../editor/elementLabels';
-import { docJSON, useEditorDoc } from '../hooks/useEditorTransactions';
+import { docJSON, useSettledEditorDoc } from '../hooks/useEditorTransactions';
 
 interface SceneNavigatorProps {
   editor: Editor | null;
@@ -279,8 +279,10 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
   const { t } = useTranslation(['story', 'common']);
   const { scenes, navigatorOpen, toggleNavigator, updateSceneSynopsis, updateSceneColor, pageLabels } = useEditorFields('scenes', 'navigatorOpen', 'toggleNavigator', 'updateSceneSynopsis', 'updateSceneColor', 'pageLabels');
   const { shouldRender, animationState } = useDelayedUnmount(navigatorOpen, 250);
-  // What the panel lists is read off the document, so it follows every edit while showing.
-  const doc = useEditorDoc(editor, shouldRender);
+  // What the panel lists is read off the document, so it follows the edits while
+  // showing — once typing pauses, not on every key: its scene lengths, timings
+  // and structure each walk the whole script (#229).
+  const doc = useSettledEditorDoc(editor, shouldRender);
   const pageLayout = useEditorStore((s) => s.pageLayout);
   const plotlines = useEditorStore((s) => s.plotlines);
   const fontFamily = useEditorStore((s) => s.fontFamily);

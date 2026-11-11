@@ -1,4 +1,4 @@
-import { Plugin, PluginKey } from '@tiptap/pm/state';
+import { Plugin, PluginKey, type EditorState } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import type { EditorView } from '@tiptap/pm/view';
 import type { Node as PmNode } from '@tiptap/pm/model';
@@ -256,6 +256,17 @@ export function createPaginationPlugin(
   // so ProseMirror measured the pre-break position and stayed put. Re-reveal the
   // caret once the margins are actually in the DOM.
   let revealCaret = false;
+  // ProseMirror asks for decorations on every view update, caret moves
+  // included, and DecorationSet.create walks the whole document. What they are
+  // drawn from — the breaks, the document, the layout and the footnote plan —
+  // usually hasn't changed since the last time, so neither has the answer.
+  let lastDecorations: {
+    breaks: PaginationState;
+    doc: PmNode;
+    layout: PageLayout;
+    plan: FootnotePlan | null;
+    set: DecorationSet;
+  } | null = null;
 
   return new Plugin({
     key: paginationPluginKey,
@@ -295,91 +306,102 @@ export function createPaginationPlugin(
         const ps = paginationPluginKey.getState(state) as PaginationState | undefined;
         if (!ps || ps.breaks.length === 0) return DecorationSet.empty;
         const layout = getLayout();
-        const { linesPerPage, sepHeightPx } = getPageMetrics(layout);
-        const lineHeightPx = LINE_HEIGHT_PT * (96 / 72);
-        // Only reserve room for the CONT'D label when the marker is actually shown.
-        const showDialogueBreakContd = resolveMoresContds(layout).dialogueBreakContd;
-        const decos: Decoration[] = [];
-        const internalBlocks = new Map(
-          ps.breaks.filter((b) => b.contentOffset !== undefined).map((b) => [b.nodeIndex, b.offset]),
-        );
-        for (const [index, offset] of internalBlocks) {
-          const node = state.doc.child(index);
-          decos.push(Decoration.node(offset, offset + node.nodeSize, { class: 'sp-paragraph-grid' }));
-          const plan = getFootnotes();
-          const text = plan ? plan.textWithMarkers(index, node.textContent) : node.textContent;
-          const turns = new Set(
-            ps.breaks.filter((b) => b.nodeIndex === index).map((b) => b.contentOffset),
-          );
-          const lines = paragraphFragments(text, CHARS_PER_LINE[node.type.name] || 62)
-            .flatMap((part) => part.lines);
-          for (const line of lines.slice(1)) {
-            const from = originalTextOffset(plan, index, line.from);
-            if (turns.has(from) || node.textContent[from - 1] === '\n') continue;
-            decos.push(
-              Decoration.widget(
-                offset + 1 + from,
-                () => {
-                  const br = document.createElement('br');
-                  // Phone view hides these and lets the column wrap: a 62-column
-                  // grid on a narrow screen alternated long and short lines.
-                  br.className = 'sp-paragraph-line';
-                  br.setAttribute('aria-hidden', 'true');
-                  return br;
-                },
-                // A stable key lets ProseMirror keep the same <br> across view
-                // updates; without one every line break of an oversized
-                // paragraph was rebuilt on each keystroke and caret move.
-                { side: -1, key: `sp-paragraph-line-${index}-${from}` },
-              ),
-            );
-          }
+        const footnotes = getFootnotes();
+        const last = lastDecorations;
+        if (last && last.breaks === ps && last.doc === state.doc && last.layout === layout && last.plan === footnotes) {
+          return last.set;
         }
-        decos.push(...dualDecorations(state.doc, ps.breaks, linesPerPage, sepHeightPx, layout, getFootnotes()));
-        for (const brk of ps.breaks) {
-          if (brk.dualRow !== undefined) continue;
-          const whitespacePx = Math.max(0, linesPerPage - brk.linesOnPage) * lineHeightPx;
-          // Dialogue splits need extra space for the CONT'D label on the next page
-          const contdPx = brk.isDialogueSplit && showDialogueBreakContd ? lineHeightPx : 0;
-          const marginTop = Math.round(whitespacePx + sepHeightPx + contdPx);
-          if (brk.contentOffset !== undefined) {
-            decos.push(
-              Decoration.widget(
-                brk.offset + 1 + brk.contentOffset,
-                () => {
-                  const spacer = document.createElement('span');
-                  spacer.className = 'sp-paragraph-page-break';
-                  spacer.dataset.pageNumber = String(brk.pageNumber);
-                  spacer.setAttribute('aria-hidden', 'true');
-                  spacer.contentEditable = 'false';
-                  spacer.style.height = `${marginTop}px`;
-                  return spacer;
-                },
-                { side: -1, key: `paragraph-page-${brk.pageNumber}-${marginTop}`, ignoreSelection: true },
-              ),
-            );
-            continue;
-          }
-          decos.push(
-            Decoration.node(brk.offset, brk.offset + brk.nodeSize, {
-              // No `!important`: an inline declaration already beats every
-              // stylesheet rule that sets a margin on these elements, none of
-              // which is important either — and leaving it off is what lets
-              // the print rules take this filler back out. It is whitespace
-              // standing in for the foot of a page, and in print the foot of
-              // the page is real.
-              style: `margin-top: ${marginTop}px`,
-              // Names the first element of each page, so print can break where
-              // the editor breaks instead of paginating the flow a second time
-              // and putting the page turns somewhere else.
-              class: 'sp-page-start',
-            })
-          );
-        }
-        return DecorationSet.create(state.doc, decos);
+        const set = buildDecorations(state, ps, layout);
+        lastDecorations = { breaks: ps, doc: state.doc, layout, plan: footnotes, set };
+        return set;
       },
     },
   });
+
+  function buildDecorations(state: EditorState, ps: PaginationState, layout: PageLayout): DecorationSet {
+    const { linesPerPage, sepHeightPx } = getPageMetrics(layout);
+    const lineHeightPx = LINE_HEIGHT_PT * (96 / 72);
+    // Only reserve room for the CONT'D label when the marker is actually shown.
+    const showDialogueBreakContd = resolveMoresContds(layout).dialogueBreakContd;
+    const decos: Decoration[] = [];
+    const internalBlocks = new Map(
+      ps.breaks.filter((b) => b.contentOffset !== undefined).map((b) => [b.nodeIndex, b.offset]),
+    );
+    for (const [index, offset] of internalBlocks) {
+      const node = state.doc.child(index);
+      decos.push(Decoration.node(offset, offset + node.nodeSize, { class: 'sp-paragraph-grid' }));
+      const plan = getFootnotes();
+      const text = plan ? plan.textWithMarkers(index, node.textContent) : node.textContent;
+      const turns = new Set(
+        ps.breaks.filter((b) => b.nodeIndex === index).map((b) => b.contentOffset),
+      );
+      const lines = paragraphFragments(text, CHARS_PER_LINE[node.type.name] || 62)
+        .flatMap((part) => part.lines);
+      for (const line of lines.slice(1)) {
+        const from = originalTextOffset(plan, index, line.from);
+        if (turns.has(from) || node.textContent[from - 1] === '\n') continue;
+        decos.push(
+          Decoration.widget(
+            offset + 1 + from,
+            () => {
+              const br = document.createElement('br');
+              // Phone view hides these and lets the column wrap: a 62-column
+              // grid on a narrow screen alternated long and short lines.
+              br.className = 'sp-paragraph-line';
+              br.setAttribute('aria-hidden', 'true');
+              return br;
+            },
+            // A stable key lets ProseMirror keep the same <br> across view
+            // updates; without one every line break of an oversized
+            // paragraph was rebuilt on each keystroke and caret move.
+            { side: -1, key: `sp-paragraph-line-${index}-${from}` },
+          ),
+        );
+      }
+    }
+    decos.push(...dualDecorations(state.doc, ps.breaks, linesPerPage, sepHeightPx, layout, getFootnotes()));
+    for (const brk of ps.breaks) {
+      if (brk.dualRow !== undefined) continue;
+      const whitespacePx = Math.max(0, linesPerPage - brk.linesOnPage) * lineHeightPx;
+      // Dialogue splits need extra space for the CONT'D label on the next page
+      const contdPx = brk.isDialogueSplit && showDialogueBreakContd ? lineHeightPx : 0;
+      const marginTop = Math.round(whitespacePx + sepHeightPx + contdPx);
+      if (brk.contentOffset !== undefined) {
+        decos.push(
+          Decoration.widget(
+            brk.offset + 1 + brk.contentOffset,
+            () => {
+              const spacer = document.createElement('span');
+              spacer.className = 'sp-paragraph-page-break';
+              spacer.dataset.pageNumber = String(brk.pageNumber);
+              spacer.setAttribute('aria-hidden', 'true');
+              spacer.contentEditable = 'false';
+              spacer.style.height = `${marginTop}px`;
+              return spacer;
+            },
+            { side: -1, key: `paragraph-page-${brk.pageNumber}-${marginTop}`, ignoreSelection: true },
+          ),
+        );
+        continue;
+      }
+      decos.push(
+        Decoration.node(brk.offset, brk.offset + brk.nodeSize, {
+          // No `!important`: an inline declaration already beats every
+          // stylesheet rule that sets a margin on these elements, none of
+          // which is important either — and leaving it off is what lets
+          // the print rules take this filler back out. It is whitespace
+          // standing in for the foot of a page, and in print the foot of
+          // the page is real.
+          style: `margin-top: ${marginTop}px`,
+          // Names the first element of each page, so print can break where
+          // the editor breaks instead of paginating the flow a second time
+          // and putting the page turns somewhere else.
+          class: 'sp-page-start',
+        })
+      );
+    }
+    return DecorationSet.create(state.doc, decos);
+  }
 }
 
 const EMPTY_IDS: string[] = [];

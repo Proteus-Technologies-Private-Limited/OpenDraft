@@ -1742,11 +1742,14 @@ const ScreenplayEditor: React.FC = () => {
     // children[brk.nodeIndex] matches the ProseMirror model index.
     // Normal editing (no track changes) has no such widgets, so this is
     // a no-op there.
-    const children = (Array.from(root.children) as HTMLElement[]).filter(
-      (el) =>
-        !el.classList.contains('track-change-deleted') &&
-        !el.classList.contains('track-change-deleted-block'),
-    );
+    const allChildren = Array.from(root.children) as HTMLElement[];
+    const children = root.querySelector(':scope > .track-change-deleted, :scope > .track-change-deleted-block')
+      ? allChildren.filter(
+        (el) =>
+          !el.classList.contains('track-change-deleted') &&
+          !el.classList.contains('track-change-deleted-block'),
+      )
+      : allChildren;
     const breaks = breaksRef.current;
 
     // Mark the title-page region so Print can drop it when the writer has asked
@@ -1755,7 +1758,16 @@ const ScreenplayEditor: React.FC = () => {
     // the titlePage nodes carry a class of their own (issue #98). The title-page
     // break is where the body starts, so its nodeIndex is the region's length.
     const titleEnd = breaks.find((b) => b.isTitlePage)?.nodeIndex ?? 0;
-    children.forEach((el, i) => el.classList.toggle('sp-title-region', i < titleEnd));
+    // Only the region and whatever was marked before need touching, not every
+    // block of the script on every keystroke (#229).
+    const region = children.slice(0, titleEnd);
+    const inRegion = new Set<Element>(region);
+    root.querySelectorAll(':scope > .sp-title-region').forEach((el) => {
+      if (!inRegion.has(el)) el.classList.remove('sp-title-region');
+    });
+    for (const el of region) {
+      if (!el.classList.contains('sp-title-region')) el.classList.add('sp-title-region');
+    }
 
     if (breaks.length === 0) { setOverlays((prev) => (prev.length === 0 ? prev : [])); return; }
 
@@ -1803,6 +1815,22 @@ const ScreenplayEditor: React.FC = () => {
     setOverlays((prev) => (sameOverlays(prev, newOverlays) ? prev : newOverlays));
   }, []);
 
+  // A keystroke asks for a measurement twice — once when pagination has the
+  // new breaks, once on the editor's update — and each run forces a layout of
+  // the whole script. Both want the DOM as it is two frames on, so one run
+  // serves them (#229).
+  const measureQueuedRef = useRef(false);
+  const scheduleMeasureOverlays = useCallback(() => {
+    if (measureQueuedRef.current) return;
+    measureQueuedRef.current = true;
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      measureQueuedRef.current = false;
+      measureOverlays();
+    }));
+  }, [measureOverlays]);
+  const scheduleMeasureOverlaysRef = useRef(scheduleMeasureOverlays);
+  scheduleMeasureOverlaysRef.current = scheduleMeasureOverlays;
+
   // Which notes print, where, and how much room they need. Null — and free —
   // whenever nothing prints. Held in a ref as well, because the pagination and
   // marker plugins are built once and read it lazily, exactly as they read the
@@ -1841,7 +1869,7 @@ const ScreenplayEditor: React.FC = () => {
               setFootnotePagesRef.current(state.footnotePages ?? NO_FOOTNOTE_PAGES);
               setEndnotePagesRef.current(state.endnotePages ?? NO_ENDNOTE_PAGES);
               // Measure from DOM after ProseMirror applies decoration margins
-              requestAnimationFrame(() => requestAnimationFrame(measureOverlays));
+              scheduleMeasureOverlaysRef.current();
             },
             () => pageLayoutRef.current,
             // Template-driven page rules (e.g. "every New Act starts a page").
@@ -2600,7 +2628,8 @@ const ScreenplayEditor: React.FC = () => {
     const headings: { pos: number; node: import('@tiptap/pm/model').Node }[] = [];
     editor.state.doc.descendants((node, pos) => {
       if (node.type.name === 'sceneHeading') headings.push({ pos, node });
-      return true;
+      // Headings are blocks; there is nothing to find inside a block's text.
+      return !node.isTextblock;
     });
     const numbers = assignSceneNumbers(
       headings.map((h) => (h.node.attrs.sceneNumber == null ? null : String(h.node.attrs.sceneNumber))),
@@ -2735,7 +2764,8 @@ const ScreenplayEditor: React.FC = () => {
         const base = characterKey(node.textContent);
         if (base) names.add(base);
       }
-      return true;
+      // Cues are blocks; there is nothing to find inside a block's text.
+      return !node.isTextblock;
     });
     const sorted = Array.from(names).sort();
     setCharacters(sorted);
@@ -2957,12 +2987,12 @@ const ScreenplayEditor: React.FC = () => {
   // Re-measure overlays after editor updates (decorations settle)
   useEffect(() => {
     if (!editor) return;
-    const run = () => requestAnimationFrame(() => requestAnimationFrame(measureOverlays));
+    const run = () => scheduleMeasureOverlays();
     editor.on('update', run);
     // Initial measurement passes
     const timers = [200, 500, 1000].map(ms => setTimeout(run, ms));
     return () => { editor.off('update', run); timers.forEach(clearTimeout); };
-  }, [editor, measureOverlays]);
+  }, [editor, scheduleMeasureOverlays]);
 
   // Switching layout moves every page break without an editor update.
   useEffect(() => {
