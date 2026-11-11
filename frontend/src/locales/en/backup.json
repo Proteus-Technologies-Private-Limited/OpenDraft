@@ -1,7 +1,7 @@
 {
   "sourceRecovery": {
     "title": "Recover an original file",
-    "intro": "These are byte-for-byte copies made before overwriting external documents. Export a copy to Files or your chosen provider. Recovery keeps the current document and backup intact.",
+    "intro": "These are byte-for-byte copies made before overwriting files. Export a copy to a location you choose. Recovery keeps the current document and backup intact.",
     "empty": "No originals have been backed up on this device.",
     "entry": "{{name}} ({{size}} bytes)"
   },

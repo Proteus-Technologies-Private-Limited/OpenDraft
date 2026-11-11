@@ -1,7 +1,7 @@
 {
   "sourceRecovery": {
     "title": "Özgün dosyayı kurtar",
-    "intro": "Bunlar, harici belgelerin üzerine yazılmadan önce alınan birebir bayt kopyalarıdır. Bir kopyayı Dosyalar'a veya seçtiğiniz sağlayıcıya dışa aktarın. Kurtarma, geçerli belgeye ve yedeğe dokunmaz.",
+    "intro": "Bunlar, dosyaların üzerine yazılmadan önce alınan birebir bayt kopyalarıdır. Bir kopyayı seçtiğiniz konuma dışa aktarın. Kurtarma, geçerli belgeye ve yedeğe dokunmaz.",
     "empty": "Bu cihazda yedeklenmiş özgün dosya yok.",
     "entry": "{{name}} ({{size}} bayt)"
   },

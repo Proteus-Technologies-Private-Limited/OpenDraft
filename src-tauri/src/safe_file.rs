@@ -6,6 +6,9 @@
 //! next save replaces OpenDraft's own output, and copying that again on every
 //! save only fills the writer's folder. Backups that are made are capped at
 //! [`KEEP_BACKUPS`] per file name.
+#[path = "source_backups.rs"]
+pub mod source_backups;
+
 use std::{
     fs::{self, OpenOptions},
     io::Write,
@@ -50,16 +53,19 @@ pub fn external(path: &Path) -> bool {
 }
 
 fn sanitize(name: &str) -> String {
-    name.chars()
-        .map(|c| {
-            if c.is_alphanumeric() || matches!(c, '.' | '-' | '_') {
-                c
-            } else {
-                '_'
-            }
-        })
-        .take(120)
-        .collect()
+    let mut result = String::new();
+    for c in name.chars() {
+        let c = if c.is_alphanumeric() || matches!(c, '.' | '-' | '_') {
+            c
+        } else {
+            '_'
+        };
+        if result.len() + c.len_utf8() > 120 {
+            break;
+        }
+        result.push(c);
+    }
+    result
 }
 
 /// Copy `bytes` into `dir` as a new, verified backup of `name`, then remove
@@ -103,7 +109,9 @@ fn backup_impl(dir: &Path, name: &str, bytes: &[u8]) -> Result<PathBuf, String> 
 /// failed save.
 fn prune(dir: &Path, sanitized_name: &str, keep: usize) {
     let suffix = format!("-{sanitized_name}");
-    let Ok(entries) = fs::read_dir(dir) else { return };
+    let Ok(entries) = fs::read_dir(dir) else {
+        return;
+    };
     let mut mine: Vec<(String, PathBuf)> = entries
         .filter_map(|e| e.ok())
         .filter(|e| e.file_type().map(|t| t.is_file()).unwrap_or(false))
@@ -112,8 +120,12 @@ fn prune(dir: &Path, sanitized_name: &str, keep: usize) {
             // `<nanos>-<counter>-<name>`: the prefix must be the two numbers.
             let prefix = name.strip_suffix(&suffix)?;
             let mut parts = prefix.splitn(2, '-');
-            let ok = parts.next().is_some_and(|p| p.chars().all(|c| c.is_ascii_digit()))
-                && parts.next().is_some_and(|p| !p.is_empty() && p.chars().all(|c| c.is_ascii_digit()));
+            let ok = parts
+                .next()
+                .is_some_and(|p| p.chars().all(|c| c.is_ascii_digit()))
+                && parts
+                    .next()
+                    .is_some_and(|p| !p.is_empty() && p.chars().all(|c| c.is_ascii_digit()));
             ok.then(|| (name, e.path()))
         })
         .collect();
@@ -128,7 +140,10 @@ fn prune(dir: &Path, sanitized_name: &str, keep: usize) {
     let excess = mine.len() - keep;
     for (_, path) in mine.into_iter().take(excess) {
         if let Err(e) = fs::remove_file(&path) {
-            eprintln!("[safe_file] could not remove old backup {}: {e}", path.display());
+            eprintln!(
+                "[safe_file] could not remove old backup {}: {e}",
+                path.display()
+            );
         }
     }
 }
@@ -136,7 +151,9 @@ fn prune(dir: &Path, sanitized_name: &str, keep: usize) {
 /// Replace `path` with `bytes`, backing up an existing external-format file
 /// first when `backup_original` is set.
 pub fn replace(path: &Path, bytes: &[u8], backup_original: bool) -> Result<(), String> {
-    replace_with(path, bytes, backup_original, |tmp, target| fs::rename(tmp, target))
+    replace_with(path, bytes, backup_original, |tmp, target| {
+        fs::rename(tmp, target)
+    })
 }
 
 /// File-only picker grants cannot create sibling temporary files or backups.
@@ -162,16 +179,12 @@ pub fn replace_selected(
     }
     if backup_original && external(&target) && target.exists() {
         let original = fs::read(&target).map_err(|error| {
-            save_error("backup", format!("Cannot read original before backup: {error}"))
+            save_error(
+                "backup",
+                format!("Cannot read original before backup: {error}"),
+            )
         })?;
-        backup(
-            recovery_dir,
-            target
-                .file_name()
-                .and_then(|name| name.to_str())
-                .unwrap_or("source"),
-            &original,
-        )?;
+        source_backups::backup(recovery_dir, &target, &original)?;
         if fs::read(&target).map_err(|error| save_error("backup", error))? != original {
             return Err(save_error(
                 "backup",
@@ -179,19 +192,8 @@ pub fn replace_selected(
             ));
         }
     }
-    if hard_linked(&target) {
-        // Preserve every hard-linked name, as the desktop writer always has.
-        // The original was backed up above before any in-place truncation.
-        let mut out = OpenOptions::new()
-            .write(true)
-            .truncate(true)
-            .open(&target)
-            .map_err(|error| save_error("replacement", error))?;
-        return out
-            .write_all(bytes)
-            .and_then(|_| out.sync_all())
-            .map_err(|error| save_error("replacement", error));
-    }
+    // The native coordinator also owns hard-link writes and any recoverable
+    // in-place fallback; never bypass coordination by truncating here.
     // The platform writer reports its own stage (staging or replacement).
     write(&target, bytes)
 }
@@ -212,7 +214,9 @@ fn hard_linked(path: &Path) -> bool {
     #[cfg(unix)]
     {
         use std::os::unix::fs::MetadataExt;
-        fs::metadata(path).map(|m| m.is_file() && m.nlink() > 1).unwrap_or(false)
+        fs::metadata(path)
+            .map(|m| m.is_file() && m.nlink() > 1)
+            .unwrap_or(false)
     }
     #[cfg(not(unix))]
     {
@@ -327,7 +331,9 @@ mod tests {
     }
     fn backups(dir: &Path) -> Vec<Vec<u8>> {
         match fs::read_dir(dir.join(".opendraft-originals")) {
-            Ok(entries) => entries.map(|e| fs::read(e.unwrap().path()).unwrap()).collect(),
+            Ok(entries) => entries
+                .map(|e| fs::read(e.unwrap().path()).unwrap())
+                .collect(),
             Err(_) => Vec::new(),
         }
     }
@@ -367,7 +373,10 @@ mod tests {
             Err(std::io::Error::from_raw_os_error(1))
         });
         let error = result.unwrap_err();
-        assert!(error.starts_with("Save failed during replacement:"), "{error}");
+        assert!(
+            error.starts_with("Save failed during replacement:"),
+            "{error}"
+        );
         assert!(error.contains("os error 1"), "{error}");
         assert_eq!(fs::read(&path).unwrap(), b"original");
         assert_eq!(backups(&dir), vec![b"original".to_vec()]);
@@ -402,10 +411,19 @@ mod tests {
             .unwrap()
             .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
             .collect();
-        let mine = names.iter().filter(|n| n.ends_with("-script.fountain")).count();
+        let mine = names
+            .iter()
+            .filter(|n| n.ends_with("-script.fountain"))
+            .count();
         assert_eq!(mine, KEEP_BACKUPS);
         // Another file's backup is not counted against this one, nor removed.
-        assert_eq!(names.iter().filter(|n| n.ends_with("-other.fountain")).count(), 1);
+        assert_eq!(
+            names
+                .iter()
+                .filter(|n| n.ends_with("-other.fountain"))
+                .count(),
+            1
+        );
         // The newest are the ones kept: v7..v11 were the originals of saves 8..12.
         let kept = backups(&dir);
         for i in 7..=11 {
@@ -450,12 +468,8 @@ mod tests {
         .unwrap();
         assert_eq!(fs::read(&path).unwrap(), b"replacement");
         assert_eq!(fs::read_dir(&destination).unwrap().count(), 1);
-        let backup = fs::read_dir(&recovery)
-            .unwrap()
-            .next()
-            .unwrap()
-            .unwrap()
-            .path();
+        let entries = source_backups::list(&recovery).unwrap();
+        let backup = recovery.join(&entries[0].name);
         assert_eq!(fs::read(backup).unwrap(), [0, 255, 1]);
         fs::remove_dir_all(dir).unwrap();
     }
@@ -485,12 +499,8 @@ mod tests {
         })
         .is_err());
         assert_eq!(fs::read(&path).unwrap(), b"original");
-        let backup = fs::read_dir(&recovery)
-            .unwrap()
-            .next()
-            .unwrap()
-            .unwrap()
-            .path();
+        let entries = source_backups::list(&recovery).unwrap();
+        let backup = recovery.join(&entries[0].name);
         assert_eq!(fs::read(backup).unwrap(), b"original");
         fs::remove_dir_all(dir).unwrap();
     }
@@ -500,7 +510,10 @@ mod tests {
         let parent = dir.join("not-a-folder");
         fs::write(&parent, b"keep this file").unwrap();
         let error = replace(&parent.join("script.fdx"), b"replacement", true).unwrap_err();
-        assert!(error.starts_with("Save failed during destination:"), "{error}");
+        assert!(
+            error.starts_with("Save failed during destination:"),
+            "{error}"
+        );
         assert_eq!(fs::read(&parent).unwrap(), b"keep this file");
         fs::remove_dir_all(dir).unwrap();
     }
@@ -516,9 +529,11 @@ mod tests {
         fs::set_permissions(&picked, fs::Permissions::from_mode(0o500)).unwrap();
         // An unprivileged process cannot create the old sibling .tmp file.
         let sibling_allowed = fs::write(picked.join("probe"), b"probe").is_ok();
-        if !sibling_allowed {
-            assert!(replace(&path, b"old writer", true).is_err());
-        }
+        assert!(
+            !sibling_allowed,
+            "Run permission tests as an unprivileged user, not root"
+        );
+        assert!(replace(&path, b"old writer", true).is_err());
         let result = replace_selected(
             &path,
             b"new writer",
@@ -538,7 +553,10 @@ mod tests {
             panic!("must not overwrite a directory")
         })
         .unwrap_err();
-        assert!(error.starts_with("Save failed during destination:"), "{error}");
+        assert!(
+            error.starts_with("Save failed during destination:"),
+            "{error}"
+        );
         assert!(dir.is_dir());
         fs::remove_dir_all(dir).unwrap();
     }
@@ -552,7 +570,11 @@ mod tests {
         fs::set_permissions(&dir, fs::Permissions::from_mode(0o500)).unwrap();
         // Privileged test runners can bypass permissions; ordinary CI cannot.
         let privileged = fs::write(dir.join("probe"), b"probe").is_ok();
-        let result = if privileged { None } else { Some(replace(&path, b"replacement", true)) };
+        let result = if privileged {
+            None
+        } else {
+            Some(replace(&path, b"replacement", true))
+        };
         fs::set_permissions(&dir, fs::Permissions::from_mode(0o700)).unwrap();
         if let Some(result) = result {
             let error = result.unwrap_err();
@@ -573,7 +595,10 @@ mod tests {
         let link = dir.join("linked.fdx");
         std::os::unix::fs::symlink(&real, &link).unwrap();
         replace(&link, b"new", true).unwrap();
-        assert!(fs::symlink_metadata(&link).unwrap().file_type().is_symlink());
+        assert!(fs::symlink_metadata(&link)
+            .unwrap()
+            .file_type()
+            .is_symlink());
         assert_eq!(fs::read(&real).unwrap(), b"new");
         // The backup sits beside the real file, where the original lived.
         assert!(real_dir.join(".opendraft-originals").is_dir());
