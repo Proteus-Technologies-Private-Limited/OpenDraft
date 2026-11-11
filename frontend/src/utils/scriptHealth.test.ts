@@ -3,7 +3,8 @@ import { getSchema, type JSONContent } from '@tiptap/core';
 import { EditorState } from '@tiptap/pm/state';
 import { testExtensions, block, doc as jsonDoc } from '../test/screenplaySchema';
 import { ElementNumbers } from '../editor/extensions/ElementNumbers';
-import { analyzeScriptHealth, type HealthOptions } from './scriptHealth';
+import { analyzeScriptHealth, healthOptionsForFormat, type HealthOptions } from './scriptHealth';
+import { INDUSTRY_STANDARD_TEMPLATE } from '../stores/industryStandardTemplate';
 
 const schema = getSchema([...testExtensions, ElementNumbers]);
 const document = (...nodes: JSONContent[]) => schema.nodeFromJSON(jsonDoc(...nodes));
@@ -17,6 +18,28 @@ const speech = (name = 'SARAH') => [block('character', name), block('dialogue', 
 const column = (...content: JSONContent[]) => ({ type: 'dualDialogueColumn', content });
 
 describe('local script health', () => {
+  it.each(['😀', '👩🏽', '👨‍👩‍👧‍👦', '🇮🇳', 'कि', 'क्ष', 'e\u0301'])('keeps the final %s grapheme intact in excerpts and scene context', cluster => {
+    const expected = 'a'.repeat(179) + cluster;
+    const text = '  ' + expected + 'extra\ntext  ';
+    const findings = checks([heading(text), block('dialogue', text)], { notes: [{ id: 'lost', content: text }] });
+    expect(findings.map(finding => finding.excerpt)).toEqual([expected, expected]);
+    expect(findings[0].scene).toBe(expected);
+    expect(findings[0].excerpt).not.toContain('\ufffd');
+  });
+
+  it('gates dialogue checks on the actual Character Enter flow without losing other checks', () => {
+    const rules = INDUSTRY_STANDARD_TEMPLATE.rules;
+    expect(healthOptionsForFormat(rules, true, []).dialogueChecks).toBe(true);
+    const custom = { ...rules, character: { ...rules.character, nextOnEnter: 'parenthetical' } };
+    const options = healthOptionsForFormat(custom, true, []);
+    expect(options.dialogueChecks).toBe(false);
+    expect(checks([heading(''), block('dialogue', 'No cue.')], options).map(finding => finding.check)).toEqual(['emptyScene']);
+  });
+
+  it.each(['character', 'dialogue'])('skips dialogue checks when %s is disabled', element => {
+    const rules = INDUSTRY_STANDARD_TEMPLATE.rules;
+    expect(healthOptionsForFormat({ ...rules, [element]: { ...rules[element], enabled: false } }, true, []).dialogueChecks).toBe(false);
+  });
   it('accepts complete dialogue, parentheticals and continuation paragraphs', () => {
     expect(checks([heading('INT. ROOM - DAY'), block('action', 'A door opens.'), block('character', 'SARAH'),
       block('parenthetical', '(quietly)'), block('dialogue', 'Hello.'), block('dialogue', 'Anyone there?')])).toEqual([]);

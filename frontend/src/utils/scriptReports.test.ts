@@ -180,6 +180,14 @@ describe('notes reports', () => {
 
 describe('Script Health production report', () => {
   const findings = [{ check: 'emptyCue' as const, position: 5, scene: 'INT. ROOM - DAY', sceneNumber: '12A', excerpt: '=unsafe' }];
+  it('shows skipped dialogue scope in the report summary without inventing CSV findings', () => {
+    const report = BUILT_IN_REPORTS.find(report => report.id === 'script-health')!;
+    const table = report.build({ ...input, healthFindings: [], healthDialogueChecks: false });
+    expect(table.summary).toContain('Dialogue checks are skipped.');
+    expect(table.rows).toEqual([]);
+    expect(reportToCsv(table)).not.toContain('Dialogue checks are skipped.');
+    expect(scriptHealthReport([], true).summary).not.toContain('Dialogue checks are skipped.');
+  });
   it('puts context in summary and scene numbers in a dedicated column without fake data rows', () => {
     const table = scriptHealthReport(findings);
     expect(table.rows).toHaveLength(1);

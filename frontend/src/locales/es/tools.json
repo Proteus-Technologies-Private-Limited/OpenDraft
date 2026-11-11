@@ -3,6 +3,7 @@
     "emptyCue": "Esta indicación de personaje está vacía.",
     "requiresScript": "Abre un guion para generar este informe.",
     "excerpts": "Los fragmentos se limitan a 180 caracteres; las exportaciones incluyen todos los resultados.",
+    "dialogueSkipped": "Se omiten las comprobaciones de diálogo. El formato debe activar Personaje y Diálogo, y establecer Diálogo como acción de Intro después de Personaje.",
     "title": "Estado del guion",
     "intro": "Comprobaciones locales de referencias, diálogos y notas abiertas. Este informe no califica la calidad de la historia ni certifica que esté lista para presentarse.",
     "summary": "Resultados por revisar: {{count}}",

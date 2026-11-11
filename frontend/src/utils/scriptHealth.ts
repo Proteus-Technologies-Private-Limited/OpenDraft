@@ -42,7 +42,16 @@ export function healthOptionsForFormat(rules: FormattingTemplate['rules'], scene
     dialogueChecks: !!rules.character?.enabled && !!rules.dialogue?.enabled && rules.character.nextOnEnter === 'dialogue' };
 }
 
-const excerpt = (text: string) => text.replace(/\s+/gu, ' ').trim().slice(0, 180);
+const graphemes = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
+const excerpt = (text: string) => {
+  const normalized = text.replace(/\s+/gu, ' ').trim();
+  let end = 0, count = 0;
+  for (const { segment, index } of graphemes.segment(normalized)) {
+    end = index + segment.length;
+    if (++count === 180) break;
+  }
+  return normalized.slice(0, end);
+};
 const ignored = (type: string) => type === 'titlePage' || isNonPrintingType(type) || isTitlePageRuleId(type);
 
 export function analyzeScriptHealth(doc: PmNode, options: HealthOptions): HealthFinding[] {

@@ -47,6 +47,7 @@ with sync_playwright() as playwright:
         const moduleUrl=path=>performance.getEntriesByType('resource').find(entry=>new URL(entry.name).pathname===path).name;
         window.healthStore=(await import(moduleUrl('/src/stores/editorStore.ts'))).useEditorStore;
         window.healthI18n=await import(moduleUrl('/src/i18n/index.ts'));
+        window.healthTemplates=(await import(moduleUrl('/src/stores/formattingTemplateStore.ts'))).useFormattingTemplateStore;
         healthStore.getState().setDocumentTitle('Health report test');
         healthStore.getState().setSceneNumbersLocked(true);
         const paragraph=(type,text,attrs={})=>({type,attrs,content:text?[{type:'text',text}]:[]});
@@ -232,6 +233,71 @@ with sync_playwright() as playwright:
         page.get_by_text("Export failed: Injected export failure", exact=True)
     ).to_be_visible()
     page.evaluate("() => {URL.createObjectURL=originalHealthBlobUrl;}")
+    # New findings discard old success/failure feedback. Excerpts preserve the
+    # final complete emoji cluster in both the dialog and actual CSV bytes.
+    expected_excerpt = 'a' * 179 + '👨‍👩‍👧‍👦'
+    page.evaluate("""text => {
+        healthStore.getState().setNotes([]);
+        healthEditor.commands.setContent({type:'doc',content:[{type:'dialogue',content:[{type:'text',text:text+'extra'}]}]});
+    }""", expected_excerpt)
+    expect(dialog.get_by_text('Export failed: Injected export failure',exact=True)).to_have_count(0)
+    expect(dialog.locator('.script-health-findings li p')).to_have_text(expected_excerpt)
+    with page.expect_download() as grapheme_download:
+        dialog.get_by_role('button',name='Export CSV…').click()
+    grapheme_rows=list(csv.reader(Path(grapheme_download.value.path()).read_text(encoding='utf-8-sig').splitlines()))
+    assert grapheme_rows[1][3] == expected_excerpt, grapheme_rows
+    expect(dialog.get_by_text('Script Health exported',exact=True)).to_be_visible()
+    # Simulate an incoming collaboration edit between displaying a finding and
+    # handling its click, inside one browser event turn. The jump must be refused
+    # and its stale warning must disappear when the findings refresh.
+    page.evaluate("""() => {
+        const button=document.querySelector('.script-health-findings button');
+        button.addEventListener('click',()=>healthEditor.commands.insertContentAt(1,'Updated '),{capture:true,once:true});
+        button.click();
+    }""")
+    expect(dialog).to_be_visible()
+    expect(dialog.get_by_text('The script changed. Try again with the updated report.',exact=True)).to_have_count(0)
+    expect(dialog.get_by_text('Script Health exported',exact=True)).to_have_count(0)
+    expect(dialog.locator('.script-health-findings li p')).to_contain_text('Updated ')
+    # A customised Character Enter flow reports the skipped scope, while other
+    # checks remain active. The same scope appears in Reports/PDF summaries.
+    page.evaluate("""() => {
+        window.healthOriginalDocumentTemplate=healthTemplates.getState().documentTemplate;
+        window.healthOriginalTemplateId=healthTemplates.getState().activeTemplateId;
+        const active=healthTemplates.getState().getActiveTemplate();
+        healthTemplates.setState({activeTemplateId:'health-custom-flow',documentTemplate:{...active,id:'health-custom-flow',rules:{...active.rules,character:{...active.rules.character,nextOnEnter:'parenthetical'}}}});
+    }""")
+    skipped='Dialogue checks are skipped. This format must enable Character and Dialogue, with Character → Enter set to Dialogue.'
+    expect(dialog.locator('#script-health-scope')).to_have_text(skipped)
+    expect(dialog.locator('#script-health-summary')).to_have_text('Findings to review: 0')
+    assert 'script-health-scope' in dialog.get_attribute('aria-describedby')
+    page.set_viewport_size({'width':1440,'height':1000})
+    screenshot('skipped-dialogue.png')
+    page.set_viewport_size({'width':390,'height':844})
+    page.evaluate("healthI18n.setLanguage('ar')")
+    expect(dialog.locator('#script-health-scope')).to_contain_text('تم تخطي فحوص الحوار')
+    assert dialog.evaluate('el=>el.scrollWidth<=el.clientWidth+1')
+    screenshot('skipped-dialogue-rtl.png')
+    page.evaluate("healthI18n.setLanguage('en')")
+    page.set_viewport_size({'width':1440,'height':1000})
+    dialog.get_by_role('button',name='Close',exact=True).click()
+    page.locator('.menu-item').filter(has_text=re.compile(r'^Tools$')).click()
+    page.locator('.menu-dropdown-item.has-children').filter(has=page.locator(':scope > span',has_text=re.compile(r'^Analytics$'))).hover()
+    page.get_by_text('Reports…',exact=True).click()
+    reports.get_by_role('option').filter(has=page.get_by_text('Script Health',exact=True)).click()
+    expect(reports.locator('.reports-summary')).to_contain_text(skipped)
+    expect(reports.locator('tbody tr')).to_have_count(0)
+    with page.expect_download() as scoped_pdf:
+        reports.get_by_role('button',name='Export PDF…').click()
+    assert Path(scoped_pdf.value.path()).read_bytes().startswith(b'%PDF-')
+    with page.expect_download() as scoped_csv:
+        reports.get_by_role('button',name='Export CSV…').click()
+    assert len(list(csv.reader(Path(scoped_csv.value.path()).read_text(encoding='utf-8-sig').splitlines()))) == 1
+    reports.get_by_role('button',name='Close',exact=True).click()
+    page.evaluate('healthTemplates.setState({activeTemplateId:healthOriginalTemplateId,documentTemplate:healthOriginalDocumentTemplate})')
+    open_report()
+    expect(dialog.locator('#script-health-scope')).to_have_count(0)
+    expect(dialog.locator('#script-health-summary')).to_have_text('Findings to review: 1')
     assert not errors, errors
     print(
         json.dumps(
@@ -251,6 +317,10 @@ with sync_playwright() as playwright:
                 "production_reports_and_pdf": True,
                 "described_jump_buttons": True,
                 "nonprinting_note_anchor_and_replies": True,
+                "grapheme_excerpts_and_csv": True,
+                "stale_feedback_after_refresh": True,
+                "dialogue_scope_dialog_reports_pdf": True,
+                "skipped_scope_phone_rtl": True,
                 "errors": errors,
             }
         )

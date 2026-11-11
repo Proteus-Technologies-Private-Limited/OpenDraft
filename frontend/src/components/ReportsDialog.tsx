@@ -13,6 +13,7 @@ import { pluginRegistry, type ReportTable } from '../plugins/registry';
 import { BUILT_IN_REPORTS, reportToCsv, reportToPdf } from '../utils/scriptReports';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { analyzeScriptHealth, healthOptionsForFormat } from '../utils/scriptHealth';
+import { docJSON } from '../hooks/useEditorTransactions';
 import { activeTimingOptions } from '../utils/scriptTiming';
 import { sanitizeExportFilename } from '../utils/exportFilename';
 import { showToast } from './Toast';
@@ -42,13 +43,15 @@ const ReportsDialog: React.FC<Props> = ({ editor, onClose }) => {
 
   const choices = useMemo<ReportChoice[]>(() => {
     const editorDoc = editor?.state.doc;
-    const doc = editorDoc?.toJSON() ?? { type: 'doc', content: [] };
+    const doc = editorDoc ? docJSON(editorDoc) : { type: 'doc', content: [] };
     const builtIn = BUILT_IN_REPORTS.map((r): ReportChoice => ({
       key: `builtin:${r.id}`,
       label: r.label,
       description: r.description,
       build: () => {
         const s = useEditorStore.getState();
+        const healthOptions = r.id === 'script-health'
+          ? healthOptionsForFormat(useFormattingTemplateStore.getState().getActiveTemplate().rules, s.sceneNumbersVisible, s.notes) : undefined;
         return r.build({
           doc,
           characterProfiles: s.characterProfiles,
@@ -57,8 +60,8 @@ const ReportsDialog: React.FC<Props> = ({ editor, onClose }) => {
           timing: activeTimingOptions(s.pageLayout),
           notes: s.notes,
           generalNotes: s.generalNotes,
-          healthFindings: r.id === 'script-health' && editorDoc ? analyzeScriptHealth(editorDoc,
-            healthOptionsForFormat(useFormattingTemplateStore.getState().getActiveTemplate().rules, s.sceneNumbersVisible, s.notes)) : undefined,
+          healthFindings: healthOptions && editorDoc ? analyzeScriptHealth(editorDoc, healthOptions) : undefined,
+          healthDialogueChecks: healthOptions?.dialogueChecks,
         });
       },
     }));

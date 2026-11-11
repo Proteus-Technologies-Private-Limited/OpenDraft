@@ -29,6 +29,8 @@ export interface ReportInput {
   generalNotes?: ReportNote[];
   /** Schema/format-aware findings prepared from the open editor snapshot. */
   healthFindings?: readonly HealthFinding[];
+  /** False when the active format cannot use cue/dialogue structural checks. */
+  healthDialogueChecks?: boolean;
 }
 
 /**
@@ -464,10 +466,11 @@ function buildNotesReport(input: ReportInput, openOnly: boolean): ReportTable {
 }
 
 /** Pure table projection shared by the navigation dialog and production reports. */
-export function scriptHealthReport(findings: readonly HealthFinding[]): ReportTable {
+export function scriptHealthReport(findings: readonly HealthFinding[], dialogueChecks = true): ReportTable {
   return {
     title: t('tools:scriptHealth.title'),
-    summary: [t('tools:scriptHealth.intro'), t('tools:scriptHealth.summary', { count: findings.length }), t('tools:scriptHealth.excerpts')].join(' '),
+    summary: [t('tools:scriptHealth.intro'), ...(!dialogueChecks ? [t('tools:scriptHealth.dialogueSkipped')] : []),
+      t('tools:scriptHealth.summary', { count: findings.length }), t('tools:scriptHealth.excerpts')].join(' '),
     columns: [t('tools:scriptHealth.scene'), t('messages:reports.scenes.columns.heading'), t('tools:scriptHealth.finding'), t('tools:scriptHealth.excerpt')],
     rows: findings.map(finding => [finding.sceneNumber ?? '', finding.scene ?? t('tools:scriptHealth.noScene'),
       t(`tools:scriptHealth.${finding.check}`, { reference: finding.reference }), finding.excerpt]),
@@ -475,12 +478,10 @@ export function scriptHealthReport(findings: readonly HealthFinding[]): ReportTa
 }
 
 // Labels and descriptions are getters: looked up when the dialog reads them, so they follow the interface language.
-// Labels and descriptions are getters: looked up when the dialog reads them, so they follow the interface language.
-// Labels and descriptions are getters: looked up when the dialog reads them, so they follow the interface language.
 export const BUILT_IN_REPORTS: BuiltInReport[] = [
   { id: 'script-health', get label() { return t('tools:scriptHealth.title'); }, get description() { return t('tools:scriptHealth.intro'); }, build: input => {
     if (!input.healthFindings) throw new Error(t('tools:scriptHealth.requiresScript'));
-    return scriptHealthReport(input.healthFindings);
+    return scriptHealthReport(input.healthFindings, input.healthDialogueChecks);
   } },
   { id: 'scenes', get label() { return t('messages:reports.scenes.label'); }, get description() { return t('messages:reports.scenes.description'); }, build: sceneReport },
   { id: 'characters', get label() { return t('messages:reports.characters.label'); }, get description() { return t('messages:reports.characters.description'); }, build: characterReport },
