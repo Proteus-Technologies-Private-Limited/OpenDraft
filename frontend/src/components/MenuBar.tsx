@@ -5,7 +5,8 @@ import SourceBackupRecovery from './SourceBackupRecovery';
 import NotOnApple from './NotOnApple';
 import { isTauri as isNativeApp, getOS as nativeOS } from '../services/platform';
 import { ExternalSaveCancelled, externalScreenplay } from '../services/externalSave';
-import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo, useId } from 'react';
+import { useMenuKeyboard } from '../hooks/useMenuKeyboard';
 import { createPortal } from 'react-dom';
 import { Editor } from '@tiptap/react';
 import type { JSONContent } from '@tiptap/core';
@@ -133,7 +134,7 @@ import { isDesktopTauri, isWeb, printRoute, supportsApplePencil, supportsMultipl
 import { checkForUpdate } from '../services/updateCheck';
 import { getCompatEntries } from '../services/compat';
 import { reportSaveError } from '../stores/saveErrorStore';
-import type { MenuSection as PluginMenuSection } from '../plugins/registry';
+import type { PluginMenuChildEntry, MenuSection as PluginMenuSection } from '../plugins/registry';
 import {
   FaFile,
   FaPlus,
@@ -282,8 +283,8 @@ function osfExtras(s: ReturnType<typeof useEditorStore.getState>) {
   };
 }
 
-/** A menu label with the check mark that shows the option is on. */
-const check = (on: boolean, label: string): string => (on ? `\u2713 ${label}` : label);
+/** Checked state stays separate from the accessible name and visual mark. */
+const check = (on: boolean, label: string, radio = false) => ({ label, checked: on, radio });
 
 interface MenuBarProps {
   editor: Editor | null;
@@ -304,6 +305,8 @@ interface MenuBarProps {
 
 interface MenuItem {
   label: string;
+  checked?: boolean;
+  radio?: boolean;
   shortcut?: string;
   action?: () => void;
   separator?: boolean;
@@ -1439,16 +1442,6 @@ const MenuBar: React.FC<MenuBarProps> = ({
   ]);
 
   const dropdownRef = useRef<HTMLDivElement | null>(null);
-
-  // Capture the portal dropdown element via a callback ref on the portal
-  useEffect(() => {
-    if (activeMenu) {
-      // The portal dropdown is the last .menu-dropdown in the body
-      dropdownRef.current = document.body.querySelector(':scope > .menu-dropdown');
-    } else {
-      dropdownRef.current = null;
-    }
-  }, [activeMenu]);
 
   useEffect(() => {
     if (!activeMenu) return;
@@ -2710,7 +2703,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
    * Same treatment as ElementPicker and SmartTypePopup: mousedown
    * rather than pointerdown, because preventing the pointer event suppresses
    * the click that follows it and the menu would stop responding at all.
-   * Nothing inside a menu wants focus of its own.
+   * Pointer interaction must not take focus; keyboard navigation opts in.
    *
    * It does not bring the highlight back — an unfocused view paints none
    * regardless, which is what SelectionHandles' bands are for.
@@ -2795,10 +2788,11 @@ const MenuBar: React.FC<MenuBarProps> = ({
     el.style.maxHeight = `${Math.max(120, window.innerHeight - 16)}px`;
     const anchor = row.getBoundingClientRect();
     const box = el.getBoundingClientRect();
-    // Out to the right of the parent row, or back to its left when that would
-    // leave the window.
-    let left = anchor.right;
-    if (left + box.width > window.innerWidth - 8) left = anchor.left - box.width;
+    // Prefer the reading direction, then flip when the flyout would leave
+    // the viewport.
+    const rtl = getComputedStyle(row).direction === 'rtl';
+    let left = rtl ? anchor.left - box.width : anchor.right;
+    if (rtl ? left < 8 : left + box.width > window.innerWidth - 8) left = rtl ? anchor.right : anchor.left - box.width;
     // Top-aligned with the row, lifted just enough to stay on screen.
     let top = anchor.top - 4;
     if (top + box.height > window.innerHeight - 8) top = window.innerHeight - 8 - box.height;
@@ -2822,11 +2816,14 @@ const MenuBar: React.FC<MenuBarProps> = ({
    * so an item with children *inside* a submenu (Column Width, Frame Aspect
    * Ratio) rendered as a row with no arrow and no action — a dead end.
    */
-  const renderMenuNode = (item: MenuItem, parentPath: string, index: number): React.ReactNode => {
+  const renderMenuNode = (item: MenuItem, parentPath: string, index: number, indexPath = String(index)): React.ReactNode => {
+    const id = `${menuId}-${activeMenu}-${indexPath}`;
+    const label = item.label.replace(/^✓\s*/, '');
     if (item.separator) {
       return (
         <div
           key={`sep-${index}`}
+          role="separator"
           className="menu-separator"
           onPointerEnter={(e) => handleItemPointerEnter(parentPath, e)}
         />
@@ -2840,7 +2837,18 @@ const MenuBar: React.FC<MenuBarProps> = ({
         // parent that cannot be opened hides its children instead of
         // explaining them. Leaves carry the disabled state and the hint.
         <div
-          key={path}
+          key={id}
+          id={id}
+          role="menuitem"
+          tabIndex={-1}
+          aria-label={label}
+          aria-haspopup="menu"
+          aria-expanded={open}
+          aria-controls={`${id}-submenu`}
+          data-menu-path={path}
+          data-menu-parent={parentPath}
+          onKeyDown={keyboard.onItemKeyDown}
+          onFocus={keyboard.onItemFocus}
           className={`menu-dropdown-item has-children ${open ? 'submenu-open' : ''}`}
           title={item.title}
           onPointerEnter={(e) => handleSubmenuPointerEnter(path, e)}
@@ -2853,20 +2861,33 @@ const MenuBar: React.FC<MenuBarProps> = ({
           }}
         >
           {item.icon && <span className="menu-dropdown-icon">{item.icon}</span>}
-          <span>{item.label}</span>
+          <span>{item.checked ? `✓ ${label}` : item.label}</span>
           <span className="menu-submenu-arrow">{open ? '\u25BE' : '\u25B8'}</span>
           <div
+            id={`${id}-submenu`}
+            role="menu"
+            aria-labelledby={id}
+            data-menu-owner={id}
+            hidden={!open}
             className={`menu-submenu ${open ? 'submenu-visible' : ''}`}
             ref={(el) => { if (el && open) positionSubmenu(el); }}
           >
-            {item.children.map((child, j) => renderMenuNode(child, path, j))}
+            {item.children.map((child, j) => renderMenuNode(child, path, j, `${indexPath}-${j}`))}
           </div>
         </div>
       );
     }
     return (
       <div
-        key={submenuPath(parentPath, item.label)}
+        key={id}
+        id={id}
+        role={item.checked == null ? 'menuitem' : item.radio ? 'menuitemradio' : 'menuitemcheckbox'}
+        tabIndex={-1}
+        aria-label={label}
+        aria-disabled={item.disabled || undefined}
+        aria-checked={item.checked}
+        onKeyDown={keyboard.onItemKeyDown}
+        onFocus={keyboard.onItemFocus}
         className={`menu-dropdown-item ${item.disabled ? 'disabled' : ''}`}
         title={item.title}
         onPointerEnter={(e) => handleItemPointerEnter(parentPath, e)}
@@ -2874,7 +2895,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
         onClick={(e) => handleItemClick(item, e)}
       >
         {item.icon && <span className="menu-dropdown-icon">{item.icon}</span>}
-        <span>{item.label}</span>
+        <span>{item.checked ? `✓ ${label}` : item.label}</span>
         {item.shortcut && <span className="menu-shortcut">{item.shortcut}</span>}
       </div>
     );
@@ -3060,6 +3081,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
             { separator: true, label: '' },
             {
               icon: <FaExchangeAlt />,
+              checked: trackChangesEnabled,
               label: trackChangesEnabled
                 ? `\u2713 ${t('menu:file.trackChanges')}`
                 : t('menu:file.trackChangesSinceCheckIn'),
@@ -3164,10 +3186,10 @@ const MenuBar: React.FC<MenuBarProps> = ({
         {
           icon: <FaSpellCheck />, label: t('menu:edit.spellingGrammar'),
           children: [
-            { icon: <FaSpellCheck />, label: check(spellCheckEnabled, t('menu:edit.autoSpellCheck')), action: toggleSpellCheck },
+            { icon: <FaSpellCheck />, ...check(spellCheckEnabled, t('menu:edit.autoSpellCheck')), action: toggleSpellCheck },
             { icon: <FaSpellCheck />, label: t('menu:edit.spellCheck'), shortcut: 'F7', action: () => setSpellModalOpen(true) },
             { separator: true, label: '' },
-            { icon: <FaSpellCheck />, label: check(grammarCheckEnabled, t('menu:edit.autoWritingSuggestions')), action: toggleGrammarCheck },
+            { icon: <FaSpellCheck />, ...check(grammarCheckEnabled, t('menu:edit.autoWritingSuggestions')), action: toggleGrammarCheck },
             { icon: <FaSpellCheck />, label: t('menu:edit.writingSuggestions'), shortcut: '\u21e7F7', action: () => setGrammarModalOpen(true) },
             { icon: <FaSpellCheck />, label: t('menu:edit.grammarSpellingSettings'), action: () => setGrammarRulesPanelOpen(true) },
           ],
@@ -3300,20 +3322,20 @@ const MenuBar: React.FC<MenuBarProps> = ({
               children: [
                 {
                   icon: <FaClock />,
-                  label: check(avColumns.cue, t('menu:format.cueTimingColumn')),
+                  ...check(avColumns.cue, t('menu:format.cueTimingColumn')),
                   disabled: !inAvRow, title: avRowHint,
                   action: () => toggleAvColumnChecked('cue'),
                 },
                 {
                   icon: <FaImage />,
-                  label: check(avColumns.image, t('menu:format.storyboardColumn')),
+                  ...check(avColumns.image, t('menu:format.storyboardColumn')),
                   disabled: !inAvRow, title: avRowHint,
                   action: () => toggleAvColumnChecked('image'),
                 },
                 { separator: true, label: '' },
                 {
                   icon: <FaFileAlt />,
-                  label: check(avRepeatHeaders, t('menu:format.repeatHeadersOnEachPage')),
+                  ...check(avRepeatHeaders, t('menu:format.repeatHeadersOnEachPage')),
                   disabled: !inAvRow, title: avRowHint,
                   action: () => toggleAvRepeatHeaders(),
                 },
@@ -3342,7 +3364,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
                   icon: <FaImage />, label: t('menu:format.frameAspectRatio'),
                   children: AV_ASPECT_RATIOS.map((ratio) => ({
                     icon: <FaImage />,
-                    label: check(avFrameAspect === ratio, ratio),
+                    ...check(avFrameAspect === ratio, ratio, true),
                     disabled: !inAvRow,
                     title: avRowHint,
                     // Only the ratio — setAvRowImage merges, so the picture
@@ -3358,7 +3380,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
         },
         {
           icon: <FaFileAlt />,
-          label: check(selectionOnNewPage, t('menu:format.startOnNewPage')),
+          ...check(selectionOnNewPage, t('menu:format.startOnNewPage')),
           action: () => {
             if (!editor) return;
             editor.chain().focus(undefined, { scrollIntoView: false }).toggleStartsNewPage().run();
@@ -3385,10 +3407,10 @@ const MenuBar: React.FC<MenuBarProps> = ({
         {
           icon: <FaColumns />, label: t('menu:view.panels'),
           children: [
-            { icon: <FaCompass />, label: check(navigatorOpen, t('menu:view.navigator')), action: toggleNavigator },
-            { icon: <FaTh />, label: check(indexCardsOpen, t('menu:view.indexCards')), action: toggleIndexCards },
-            { icon: <FaStream />, label: check(beatBoardOpen, t('menu:view.beatBoard')), action: toggleBeatBoard },
-            { icon: <FaListUl />, label: check(outlineOpen, t('menu:view.outline')), action: toggleOutline },
+            { icon: <FaCompass />, ...check(navigatorOpen, t('menu:view.navigator')), action: toggleNavigator },
+            { icon: <FaTh />, ...check(indexCardsOpen, t('menu:view.indexCards')), action: toggleIndexCards },
+            { icon: <FaStream />, ...check(beatBoardOpen, t('menu:view.beatBoard')), action: toggleBeatBoard },
+            { icon: <FaListUl />, ...check(outlineOpen, t('menu:view.outline')), action: toggleOutline },
             { icon: <FaProjectDiagram />, label: t('menu:view.storyTimeline'), title: t('menu:view.plotlinesAcrossTheScenesByScreen'), action: () => {
               // The timeline edits scene headings, so the script has to be on
               // screen under it, not the Beat Board or Statistics.
@@ -3397,39 +3419,39 @@ const MenuBar: React.FC<MenuBarProps> = ({
               if (s.statisticsOpen) s.setStatisticsOpen(false);
               s.setStoryTimelineOpen(true);
             } },
-            { icon: <FaStickyNote />, label: check(scriptNotesOpen, t('menu:view.notesPanel')), action: () => {
+            { icon: <FaStickyNote />, ...check(scriptNotesOpen, t('menu:view.notesPanel')), action: () => {
               const hasSelection = editor && !editor.state.selection.empty;
               useEditorStore.getState().setNotesActiveTab(hasSelection ? 'script' : 'general');
               toggleScriptNotes();
             } },
-            { icon: <FaUsers />, label: check(characterProfilesOpen, t('menu:view.characters')), action: toggleCharacterProfiles },
-            { icon: <FaTags />, label: check(tagsPanelOpen, t('menu:view.tags')), action: toggleTagsPanel },
-            { icon: <FaCompass />, label: check(locationDatabaseOpen, t('menu:view.locations')), action: toggleLocationDatabase },
-            { icon: <FaComments />, label: check(dialogueTunerOpen, t('menu:view.dialogueTuner')), action: () => (dialogueTunerOpen ? closeDialogueTuner() : openDialogueTuner()) },
-            { icon: <FaUserEdit />, label: check(suggestionsPanelOpen, t('menu:view.suggestions')), action: () => useSuggestModeStore.getState().setPanelOpen(!suggestionsPanelOpen) },
+            { icon: <FaUsers />, ...check(characterProfilesOpen, t('menu:view.characters')), action: toggleCharacterProfiles },
+            { icon: <FaTags />, ...check(tagsPanelOpen, t('menu:view.tags')), action: toggleTagsPanel },
+            { icon: <FaCompass />, ...check(locationDatabaseOpen, t('menu:view.locations')), action: toggleLocationDatabase },
+            { icon: <FaComments />, ...check(dialogueTunerOpen, t('menu:view.dialogueTuner')), action: () => (dialogueTunerOpen ? closeDialogueTuner() : openDialogueTuner()) },
+            { icon: <FaUserEdit />, ...check(suggestionsPanelOpen, t('menu:view.suggestions')), action: () => useSuggestModeStore.getState().setPanelOpen(!suggestionsPanelOpen) },
           ],
         },
         {
           icon: <FaHighlighter />, label: t('menu:view.highlights'),
           children: [
-            { icon: <FaHighlighter />, label: check(notesVisible, t('menu:view.noteHighlights')), action: () => setNotesVisible(!notesVisible) },
-            { icon: <FaHighlighter />, label: check(tagsVisible, t('menu:view.tagHighlights')), action: () => setTagsVisible(!tagsVisible) },
+            { icon: <FaHighlighter />, ...check(notesVisible, t('menu:view.noteHighlights')), action: () => setNotesVisible(!notesVisible) },
+            { icon: <FaHighlighter />, ...check(tagsVisible, t('menu:view.tagHighlights')), action: () => setTagsVisible(!tagsVisible) },
           ],
         },
         {
           icon: <FaMobileAlt />, label: t('menu:view.layout'),
           children: [
-            { icon: <FaRegFileAlt />, label: check(viewLayout === 'page', t('menu:view.page')), action: () => setViewLayout('page') },
-            { icon: <FaMobileAlt />, label: check(viewLayout === 'phone', t('menu:view.phone')), action: () => setViewLayout('phone') },
+            { icon: <FaRegFileAlt />, ...check(viewLayout === 'page', t('menu:view.page'), true), action: () => setViewLayout('page') },
+            { icon: <FaMobileAlt />, ...check(viewLayout === 'phone', t('menu:view.phone'), true), action: () => setViewLayout('phone') },
           ],
         },
         { separator: true, label: '' },
         {
           icon: <FaAdjust />, label: t('menu:view.theme'),
           children: [
-            { icon: <FaSun />, label: check(appearance === 'light', t('menu:view.light')), action: () => setAppearance('light') },
-            { icon: <FaMoon />, label: check(appearance === 'dark', t('menu:view.dark')), action: () => setAppearance('dark') },
-            { icon: <FaRegFileAlt />, label: check(appearance === 'dark-pages', t('menu:view.darkPages')), action: () => setAppearance('dark-pages') },
+            { icon: <FaSun />, ...check(appearance === 'light', t('menu:view.light'), true), action: () => setAppearance('light') },
+            { icon: <FaMoon />, ...check(appearance === 'dark', t('menu:view.dark'), true), action: () => setAppearance('dark') },
+            { icon: <FaRegFileAlt />, ...check(appearance === 'dark-pages', t('menu:view.darkPages'), true), action: () => setAppearance('dark-pages') },
           ],
         },
         { separator: true, label: '' },
@@ -3438,19 +3460,19 @@ const MenuBar: React.FC<MenuBarProps> = ({
           children: [
             { icon: <FaBullseye />, label: focusMode ? t('menu:view.leaveFocusMode') : t('menu:view.enterFocusMode'), shortcut: formatShortcut(FOCUS_MODE_SHORTCUT), action: () => setFocusMode(!focusMode) },
             { separator: true, label: '' },
-            { label: check(focusTypewriter, t('menu:view.typewriterScrolling')), action: () => setFocusTypewriter(!focusTypewriter) },
+            { ...check(focusTypewriter, t('menu:view.typewriterScrolling')), action: () => setFocusTypewriter(!focusTypewriter) },
             { separator: true, label: '' },
-            { label: check(focusDim === 'off', t('menu:view.noDimming')), action: () => setFocusDim('off') },
-            { label: check(focusDim === 'element', t('menu:view.dimAllButCurrentElement')), action: () => setFocusDim('element') },
-            { label: check(focusDim === 'scene', t('menu:view.dimAllButCurrentScene')), action: () => setFocusDim('scene') },
+            { ...check(focusDim === 'off', t('menu:view.noDimming'), true), action: () => setFocusDim('off') },
+            { ...check(focusDim === 'element', t('menu:view.dimAllButCurrentElement'), true), action: () => setFocusDim('element') },
+            { ...check(focusDim === 'scene', t('menu:view.dimAllButCurrentScene'), true), action: () => setFocusDim('scene') },
           ],
         },
         {
           icon: <FaToolbox />, label: t('menu:view.menuToolbar'),
           children: [
-            { icon: <FaCompressArrowsAlt />, label: check(savedToolbarMode === 'compact', t('menu:view.compact')), action: () => setToolbarMode('compact') },
-            { icon: <FaExpandArrowsAlt />, label: check(savedToolbarMode === 'comfortable', t('menu:view.comfortable')), action: () => setToolbarMode('comfortable') },
-            { icon: <FaEyeSlash />, label: check(savedToolbarMode === 'hidden', t('menu:view.hidden')), action: () => {
+            { icon: <FaCompressArrowsAlt />, ...check(savedToolbarMode === 'compact', t('menu:view.compact'), true), action: () => setToolbarMode('compact') },
+            { icon: <FaExpandArrowsAlt />, ...check(savedToolbarMode === 'comfortable', t('menu:view.comfortable'), true), action: () => setToolbarMode('comfortable') },
+            { icon: <FaEyeSlash />, ...check(savedToolbarMode === 'hidden', t('menu:view.hidden'), true), action: () => {
               setToolbarMode('hidden');
               if (localStorage.getItem('opendraft:hiddenModeIntroShown') !== '1') {
                 setShowHiddenModeIntro(true);
@@ -3464,13 +3486,13 @@ const MenuBar: React.FC<MenuBarProps> = ({
             { icon: <FaSearchPlus />, label: t('menu:view.zoomIn'), shortcut: `${mod}+`, action: () => setZoomLevel(Math.min(300, zoomLevel + 10)) },
             { icon: <FaSearchMinus />, label: t('menu:view.zoomOut'), shortcut: `${mod}−`, action: () => setZoomLevel(Math.max(50, zoomLevel - 10)) },
             { separator: true, label: '' },
-            { label: check(zoomLevel === 50, '50%'), action: () => setZoomLevel(50) },
-            { label: check(zoomLevel === 75, '75%'), action: () => setZoomLevel(75) },
-            { label: check(zoomLevel === 100, '100%'), action: () => setZoomLevel(100) },
-            { label: check(zoomLevel === 125, '125%'), action: () => setZoomLevel(125) },
-            { label: check(zoomLevel === 150, '150%'), action: () => setZoomLevel(150) },
-            { label: check(zoomLevel === 200, '200%'), action: () => setZoomLevel(200) },
-            { label: check(zoomLevel === 300, '300%'), action: () => setZoomLevel(300) },
+            { ...check(zoomLevel === 50, '50%', true), action: () => setZoomLevel(50) },
+            { ...check(zoomLevel === 75, '75%', true), action: () => setZoomLevel(75) },
+            { ...check(zoomLevel === 100, '100%', true), action: () => setZoomLevel(100) },
+            { ...check(zoomLevel === 125, '125%', true), action: () => setZoomLevel(125) },
+            { ...check(zoomLevel === 150, '150%', true), action: () => setZoomLevel(150) },
+            { ...check(zoomLevel === 200, '200%', true), action: () => setZoomLevel(200) },
+            { ...check(zoomLevel === 300, '300%', true), action: () => setZoomLevel(300) },
           ],
         },
       ],
@@ -3482,7 +3504,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
         {
           icon: <FaUserFriends />, label: t('menu:tools.collaboration'),
           children: [
-            { icon: <FaUserFriends />, label: check(!!isCollabActive, t('menu:tools.collaborate')), action: onCollaborate, disabled: isCollabGuest },
+            { icon: <FaUserFriends />, ...check(!!isCollabActive, t('menu:tools.collaborate')), action: onCollaborate, disabled: isCollabGuest },
             { icon: <FaSignInAlt />, label: t('menu:tools.joinCollaboration'), action: onJoinCollab, disabled: isCollabGuest },
           ],
         },
@@ -3490,7 +3512,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
           // Edits become suggestions for the writer to accept (editor/suggestions).
           // A collaborator invited to suggest cannot turn it off.
           icon: <FaUserEdit />,
-          label: check(suggesting, t('menu:tools.suggestChanges')),
+          ...check(suggesting, t('menu:tools.suggestChanges')),
           title: suggestLocked ? t('menu:tools.suggestChangesTip') : t('menu:tools.suggestChangesTip2'),
           action: () => {
             const st = useSuggestModeStore.getState();
@@ -3506,7 +3528,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
         { separator: true, label: '' },
         {
           icon: <FaMicrophoneAlt />,
-          label: check(tableReadOpen, t('menu:tools.tableRead')),
+          ...check(tableReadOpen, t('menu:tools.tableRead')),
           title: t('menu:tools.tableReadTip'),
           action: () => {
             const tr = useTableReadStore.getState();
@@ -3552,11 +3574,11 @@ const MenuBar: React.FC<MenuBarProps> = ({
         {
           icon: <FaFilm />, label: t('menu:tools.production'),
           children: [
-            { icon: <FaToggleOn />, label: check(revisionMode, t('menu:tools.revisionMode')), action: () => setRevisionMode(!revisionMode) },
+            { icon: <FaToggleOn />, ...check(revisionMode, t('menu:tools.revisionMode')), action: () => setRevisionMode(!revisionMode) },
             {
               icon: <FaHighlighter />, label: t('menu:tools.revisionColor', { color: revisionColor }),
               children: REVISION_COLORS.map((c) => ({
-                label: check(c.name === revisionColor, c.name),
+                ...check(c.name === revisionColor, c.name, true),
                 action: () => setRevisionColor(c.name),
               })),
             },
@@ -3570,7 +3592,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
             },
             {
               icon: <FaEye />,
-              label: check(showRevisionColors, t('menu:tools.showRevisionColors')),
+              ...check(showRevisionColors, t('menu:tools.showRevisionColors')),
               action: () => setShowRevisionColors(!showRevisionColors),
             },
             { icon: <FaEraser />, label: t('menu:tools.clearRevisionMarks'), action: () => setClearRevisionsOpen(true), disabled: !editor },
@@ -3582,12 +3604,12 @@ const MenuBar: React.FC<MenuBarProps> = ({
             { separator: true, label: '' },
             {
               icon: <FaListUl />,
-              label: check(sceneNumbersVisible, t('menu:tools.showSceneNumbers')),
+              ...check(sceneNumbersVisible, t('menu:tools.showSceneNumbers')),
               action: () => setSceneNumbersVisible(!sceneNumbersVisible),
             },
             {
               icon: <FaLock />,
-              label: check(sceneNumbersLocked, t('menu:tools.lockSceneNumbers')),
+              ...check(sceneNumbersLocked, t('menu:tools.lockSceneNumbers')),
               action: () => setSceneNumbersLocked(!sceneNumbersLocked),
               // Unlocking is always allowed; locking needs numbers to lock.
               disabled: !sceneNumbersVisible && !sceneNumbersLocked,
@@ -3603,7 +3625,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
             { separator: true, label: '' },
             {
               icon: <FaListOl />,
-              label: check(elementNumbersVisible && formatNumbersElements, t('menu:tools.showElementNumbers')),
+              ...check(elementNumbersVisible && formatNumbersElements, t('menu:tools.showElementNumbers')),
               title: formatNumbersElements
                 ? t('menu:tools.showElementNumbersTip')
                 : t('menu:tools.showElementNumbersTipNone', { name: activeTemplate.name }),
@@ -3614,7 +3636,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
               ? [
                   {
                     icon: <FaLock />,
-                    label: check(elementReferencesLocked, t('menu:tools.lockElementNumbers')),
+                    ...check(elementReferencesLocked, t('menu:tools.lockElementNumbers')),
                     disabled: !editor || !formatNumbersElements || isCollabGuest,
                     action: () => {
                       if (!editor) return;
@@ -3735,12 +3757,15 @@ const MenuBar: React.FC<MenuBarProps> = ({
 
   // Append plugin menu items to each section (supports nested submenus)
   const pluginCtx = { editor };
-  const mapPluginChildren = (children: any[]): MenuItem[] =>
+  const mapPluginChildren = (children: PluginMenuChildEntry[]): MenuItem[] =>
     children.map((c) => ({
       label: resolvePluginText(c.labelKey, c.label || ''),
       shortcut: c.shortcut,
       action: c.action ? () => c.action!(pluginCtx) : undefined,
       disabled: typeof c.disabled === 'function' ? c.disabled(pluginCtx) : c.disabled,
+      checked: typeof c.checked === 'function' ? c.checked(pluginCtx) : c.checked,
+      radio: c.radio,
+      icon: c.icon,
       separator: c.separator,
       children: c.children ? mapPluginChildren(c.children) : undefined,
     }));
@@ -3754,6 +3779,9 @@ const MenuBar: React.FC<MenuBarProps> = ({
           shortcut: p.shortcut,
           action: p.action ? () => p.action!(pluginCtx) : undefined,
           disabled: typeof p.disabled === 'function' ? p.disabled(pluginCtx) : p.disabled,
+          checked: typeof p.checked === 'function' ? p.checked(pluginCtx) : p.checked,
+          radio: p.radio,
+          icon: p.icon,
           children: p.children ? mapPluginChildren(p.children) : undefined,
         });
       }
@@ -3867,6 +3895,8 @@ const MenuBar: React.FC<MenuBarProps> = ({
     if (!d.isDrag && Math.abs(dx) + Math.abs(dy) > 5) {
       d.isDrag = true;
       setFloatingMenuOpen(false);
+      setActiveMenu(null);
+      setOpenSubmenu(null);
     }
     if (d.isDrag) {
       setFabPos({
@@ -3891,6 +3921,8 @@ const MenuBar: React.FC<MenuBarProps> = ({
       localStorage.setItem(FAB_POS_KEY, JSON.stringify(pos));
     } else {
       setFloatingMenuOpen(prev => !prev);
+      setActiveMenu(null);
+      setOpenSubmenu(null);
     }
   }, [FAB_POS_KEY, FAB_SIZE]);
 
@@ -3925,6 +3957,8 @@ const MenuBar: React.FC<MenuBarProps> = ({
       if (!d.isDrag && Math.abs(dx) + Math.abs(dy) > 5) {
         d.isDrag = true;
         setFloatingMenuOpen(false);
+        setActiveMenu(null);
+        setOpenSubmenu(null);
       }
       if (d.isDrag) {
         e.preventDefault();
@@ -3971,6 +4005,8 @@ const MenuBar: React.FC<MenuBarProps> = ({
       return;
     }
     setFloatingMenuOpen(prev => !prev);
+    setActiveMenu(null);
+    setOpenSubmenu(null);
   }, []);
 
   // Icon map for menu labels
@@ -4004,35 +4040,55 @@ const MenuBar: React.FC<MenuBarProps> = ({
 
   const menuBarClass = toolbarMode === 'comfortable' ? 'menu-bar chrome-comfortable' : 'menu-bar';
 
+  const menuId = useId();
+  const keyboard = useMenuKeyboard({ activeMenu, hidden: toolbarMode === 'hidden', menuRef, dropdownRef,
+    triggers: menuItemRefs, fabRef: fabElRef, setActiveMenu, setOpenSubmenu, setFloatingMenuOpen });
+  const triggerProps = (id: string) => ({
+    id: `${menuId}-top-${id}`,
+    role: 'menuitem',
+    tabIndex: keyboard.tabStop === id ? 0 : -1,
+    'data-menu-top': id,
+    'data-menu-popup': `${menuId}-popup`,
+    'aria-haspopup': 'menu' as const,
+    'aria-expanded': activeMenu === id,
+    'aria-controls': activeMenu === id ? `${menuId}-popup` : undefined,
+    onKeyDown: keyboard.onTopKeyDown,
+    onFocus: (event: React.FocusEvent<HTMLDivElement>) => keyboard.onTopFocus(id, event),
+  });
+
   const renderMenuItems = () => (
     <>
-      {menus.map((menu) => (
+      <div className="menu-triggers" role="menubar" id={`${menuId}-bar`} aria-label={t('menu:applicationMenu')}>
+        {menus.map((menu) => (
+          <div
+            key={menu.id}
+            {...triggerProps(menu.id)}
+            ref={(el) => { menuItemRefs.current[menu.id] = el; }}
+            className={`menu-item ${activeMenu === menu.id ? 'active' : ''}`}
+            onMouseDown={keepEditorSelection}
+            onClick={() => handleMenuClick(menu.id)}
+            onMouseEnter={() => {
+              if (activeMenu && activeMenu !== menu.id) { setActiveMenu(menu.id); setOpenSubmenu(null); }
+            }}
+          >
+            {menuIcons[menu.id] && <span className="menu-icon">{menuIcons[menu.id]}</span>}
+            <span className="menu-label">{menu.label}</span>
+          </div>
+        ))}
         <div
-          key={menu.id}
-          ref={(el) => { menuItemRefs.current[menu.id] = el; }}
-          className={`menu-item ${activeMenu === menu.id ? 'active' : ''}`}
+          {...triggerProps('Help')}
+          ref={(el) => { menuItemRefs.current['Help'] = el; }}
+          className={`menu-item ${activeMenu === 'Help' ? 'active' : ''}`}
           onMouseDown={keepEditorSelection}
-          onClick={() => handleMenuClick(menu.id)}
+          onClick={() => handleMenuClick('Help')}
           onMouseEnter={() => {
-            if (activeMenu) setActiveMenu(menu.id);
+            if (activeMenu && activeMenu !== 'Help') { setActiveMenu('Help'); setOpenSubmenu(null); }
           }}
+          title={t('menu:help.menuTip')}
         >
-          {menuIcons[menu.id] && <span className="menu-icon">{menuIcons[menu.id]}</span>}
-          <span className="menu-label">{menu.label}</span>
+          <span className="menu-icon"><FaQuestionCircle /></span>
+          <span className="menu-label">{t('menu:help.help')}</span>
         </div>
-      ))}
-      <div
-        ref={(el) => { menuItemRefs.current['Help'] = el; }}
-        className={`menu-item ${activeMenu === 'Help' ? 'active' : ''}`}
-        onMouseDown={keepEditorSelection}
-        onClick={() => handleMenuClick('Help')}
-        onMouseEnter={() => {
-          if (activeMenu) setActiveMenu('Help');
-        }}
-        title={t('menu:help.menuTip')}
-      >
-        <span className="menu-icon"><FaQuestionCircle /></span>
-        <span className="menu-label">{t('menu:help.help')}</span>
       </div>
       <div className="menu-spacer" />
       <AuthIndicator />
@@ -4046,6 +4102,12 @@ const MenuBar: React.FC<MenuBarProps> = ({
         <>
           <div
             ref={fabElRef}
+            role="button"
+            tabIndex={0}
+            aria-label={t('menu:applicationMenu')}
+            aria-expanded={floatingMenuOpen}
+            aria-controls={floatingMenuOpen ? `${menuId}-bar` : undefined}
+            onKeyDown={keyboard.onFabKeyDown}
             className={`menu-fab ${floatingMenuOpen ? 'menu-fab--open' : ''}`}
             style={{ left: fabLeftStyle, top: fabTopStyle }}
             onPointerDown={handleFabPointerDown}
@@ -4087,6 +4149,10 @@ const MenuBar: React.FC<MenuBarProps> = ({
     )}
     {activeMenuData && createPortal(
       <div
+        ref={dropdownRef}
+        id={`${menuId}-popup`}
+        role="menu"
+        aria-labelledby={`${menuId}-top-${activeMenu}`}
         className={`menu-dropdown${toolbarMode === 'comfortable' ? ' menu-dropdown--comfortable' : ''}${dropdownPos.bottom != null ? ' menu-dropdown--above' : ''}`}
         onMouseDown={keepEditorSelection}
         style={{ top: dropdownPos.top, bottom: dropdownPos.bottom, left: dropdownPos.left, maxHeight: dropdownPos.maxHeight }}

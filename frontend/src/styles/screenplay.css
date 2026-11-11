@@ -458,6 +458,13 @@ body {
 }
 .menu-bar.chrome-comfortable { height: 44px; gap: 6px; padding: 0 10px; }
 
+.menu-triggers { display: flex; align-items: center; gap: inherit; flex-shrink: 0; }
+.menu-item:focus-visible, .menu-dropdown-item:focus-visible, .menu-fab:focus-visible {
+  outline: 2px solid var(--fd-accent);
+  outline-offset: -2px;
+  background: var(--fd-menu-hover);
+}
+
 .menu-item {
   display: flex;
   align-items: center;

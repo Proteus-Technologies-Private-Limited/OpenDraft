@@ -1,4 +1,5 @@
 {
+  "applicationMenu": "Menú de la aplicación",
   "pluginPanels": {
     "resize": "Cambiar el tamaño del panel",
     "closeNamed": "Cerrar {{name}}",
