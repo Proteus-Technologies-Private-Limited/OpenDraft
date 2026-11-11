@@ -1,4 +1,6 @@
 mod safe_file;
+#[cfg(target_os = "macos")]
+mod macos_file;
 use std::sync::Mutex;
 
 /// The macOS menu bar's words, per interface language.
@@ -1866,13 +1868,53 @@ fn same_file_path(first: String, second: String) -> Result<bool, String> {
 /// `backup` (default true): copy another application's file aside before
 /// replacing it. The app passes false when the file holds its own last save.
 #[tauri::command]
-fn save_text_to_path(path: String, contents: String, backup: Option<bool>) -> Result<(), String> {
-    safe_file::replace(std::path::Path::new(&path), contents.as_ref(), backup.unwrap_or(true))
+fn save_text_to_path(
+    app: tauri::AppHandle,
+    path: String,
+    contents: String,
+    backup: Option<bool>,
+) -> Result<(), String> {
+    save_desktop_file(&app, &path, contents.as_bytes(), backup.unwrap_or(true))
 }
 
 #[tauri::command]
-fn save_binary_to_path(path: String, contents: Vec<u8>, backup: Option<bool>) -> Result<(), String> {
-    safe_file::replace(std::path::Path::new(&path), contents.as_ref(), backup.unwrap_or(true))
+fn save_binary_to_path(
+    app: tauri::AppHandle,
+    path: String,
+    contents: Vec<u8>,
+    backup: Option<bool>,
+) -> Result<(), String> {
+    save_desktop_file(&app, &path, &contents, backup.unwrap_or(true))
+}
+
+/// macOS Powerbox access is to the selected file, not its containing folder.
+/// Other platforms keep their existing sibling-temp/backup implementation.
+fn save_desktop_file(
+    app: &tauri::AppHandle,
+    path: &str,
+    contents: &[u8],
+    backup: bool,
+) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        let recovery = app
+            .path()
+            .app_data_dir()
+            .map_err(|error| error.to_string())?
+            .join("source-backups");
+        safe_file::replace_selected(
+            std::path::Path::new(path),
+            contents,
+            backup,
+            &recovery,
+            macos_file::replace,
+        )
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = app;
+        safe_file::replace(std::path::Path::new(path), contents, backup)
+    }
 }
 
 #[tauri::command]
@@ -2026,11 +2068,16 @@ fn delete_file(path: String) -> Result<(), String> {
 /// Used for snapshots instead of `save_text_to_path`. A backup truncated by a
 /// crash, a full disk, or a yanked USB drive is worse than no backup at all —
 /// the rename means a reader sees either the old snapshot or the new one, never
-/// a half-written file. The temp file is created in the same directory so the
-/// rename stays within one filesystem.
+/// a half-written file. Windows/Linux use a sibling temp file; macOS uses
+/// Foundation's coordinated replacement directory on the same volume.
 #[tauri::command(async)]
-fn save_text_atomic(path: String, contents: String, backup: Option<bool>) -> Result<(), String> {
-    safe_file::replace(std::path::Path::new(&path), contents.as_bytes(), backup.unwrap_or(true))
+fn save_text_atomic(
+    app: tauri::AppHandle,
+    path: String,
+    contents: String,
+    backup: Option<bool>,
+) -> Result<(), String> {
+    save_desktop_file(&app, &path, contents.as_bytes(), backup.unwrap_or(true))
 }
 
 /// Read a text file off the main thread, for files in a linked project folder.

@@ -2265,6 +2265,8 @@ body {
 .show-scene-numbers .scene-heading[data-scene-number]::before,
 .show-scene-numbers .scene-heading[data-scene-number]::after {
   content: attr(data-scene-number);
+  /* Keep margin labels intact when the heading's word-breaking rules apply. */
+  white-space: nowrap;
   position: absolute;
   top: 0;
   font-weight: bold;
