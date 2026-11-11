@@ -134,3 +134,33 @@ describe('pagination plugin — oversized paragraph line grid', () => {
 
   });
 });
+
+describe('pagination plugin — decorations are reused while nothing they show has changed', () => {
+  const longScript = () => doc(...Array.from({ length: 120 }, (_, i) => block('action', `Line ${i} of the script.`)));
+  const decorationsOf = (plugin: ReturnType<typeof createPaginationPlugin>, state: EditorState) =>
+    plugin.props.decorations!.call(plugin, state);
+
+  it('hands back the same set for a caret move, and a new one for an edit', () => {
+    const { plugin, state } = makeState(longScript());
+    expect(breaksOf(state).length).toBeGreaterThan(0);
+    const first = decorationsOf(plugin, state);
+    expect(decorationsOf(plugin, state)).toBe(first);
+
+    const moved = state.apply(state.tr.setSelection(TextSelection.create(state.doc, 5)));
+    expect(decorationsOf(plugin, moved)).toBe(first);
+
+    const edited = moved.apply(moved.tr.insertText('x', 5));
+    const after = decorationsOf(plugin, edited);
+    expect(after).not.toBe(first);
+    expect(decorationMargins(plugin, edited)).toEqual(decorationMargins(plugin, state));
+  });
+
+  it('rebuilds them for a new page layout', () => {
+    let layout = DEFAULT_PAGE_LAYOUT;
+    const plugin = createPaginationPlugin(() => {}, () => layout, hints);
+    const state = EditorState.create({ doc: pmDoc(longScript()), plugins: [plugin] });
+    const first = decorationsOf(plugin, state);
+    layout = { ...DEFAULT_PAGE_LAYOUT };
+    expect(decorationsOf(plugin, state)).not.toBe(first);
+  });
+});
