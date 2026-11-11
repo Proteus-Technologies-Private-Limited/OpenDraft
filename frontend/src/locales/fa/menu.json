@@ -1,4 +1,5 @@
 {
+  "applicationMenu": "منوی برنامه",
   "pluginPanels": {
     "resize": "تغییر اندازهٔ پنل",
     "closeNamed": "بستن {{name}}",

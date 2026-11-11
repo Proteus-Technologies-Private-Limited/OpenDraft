@@ -1,5 +1,5 @@
 {
-  "version": "06ed5544773846d0",
+  "version": "01900ea6e031999b",
   "pages": [
     {
       "slug": "index.html",
@@ -95,7 +95,7 @@
       "slug": "script-statistics.html",
       "title": "Script Statistics & Timing",
       "section": "Analysis",
-      "hash": "9d7b39fa117e76f1"
+      "hash": "fab91a7bc07499c5"
     },
     {
       "slug": "table-read.html",
@@ -173,7 +173,7 @@
       "slug": "keyboard-shortcuts.html",
       "title": "Keyboard Shortcuts",
       "section": "Customization",
-      "hash": "51b1d7044674aa5a"
+      "hash": "03a5de24789d11d4"
     },
     {
       "slug": "plugin-development.html",

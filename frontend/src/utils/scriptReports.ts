@@ -14,6 +14,8 @@ import { isNonPrintingType } from './nonPrinting';
 import { computeSceneTiming, formatSceneDuration, type TimingOptions } from './scriptTiming';
 import { parseHeading } from './scriptStatistics';
 import { t } from '../i18n';
+import { noteAnchors } from './noteAnchors';
+import type { HealthFinding } from './scriptHealth';
 
 export interface ReportInput {
   doc: JSONContent;
@@ -25,6 +27,8 @@ export interface ReportInput {
   /** Script and general notes, for the notes reports. Absent reads as none. */
   notes?: ReportNote[];
   generalNotes?: ReportNote[];
+  /** Schema/format-aware findings prepared from the open editor snapshot. */
+  healthFindings?: readonly HealthFinding[];
 }
 
 /**
@@ -358,24 +362,6 @@ function tagBreakdownReport(input: ReportInput): ReportTable {
   };
 }
 
-/**
- * Where each anchored note sits: the index of the top-level node its
- * highlight first appears in, by note id. Notes inside dual dialogue are found
- * too. A note whose highlight is gone from the script has no entry.
- */
-function noteAnchors(doc: JSONContent): Map<string, number> {
-  const found = new Map<string, number>();
-  const visit = (node: JSONContent, nodeIndex: number) => {
-    for (const mark of node.marks ?? []) {
-      const id = mark.type === 'scriptNote' ? mark.attrs?.noteId : null;
-      if (typeof id === 'string' && !found.has(id)) found.set(id, nodeIndex);
-    }
-    for (const child of node.content ?? []) visit(child, nodeIndex);
-  };
-  (doc.content ?? []).forEach((node, i) => visit(node, i));
-  return found;
-}
-
 const isResolved = (n: ReportNote) => n.resolved === true;
 const repliesOf = (n: ReportNote) => (Array.isArray(n.replies) ? n.replies : []);
 
@@ -428,7 +414,7 @@ function buildNotesReport(input: ReportInput, openOnly: boolean): ReportTable {
   const anchored: Entry[] = [];
   const orphaned: Entry[] = [];
   (input.notes ?? []).forEach((note, i) => {
-    const at = anchors.get(note.id);
+    const at = anchors.get(note.id)?.nodeIndex;
     const on = singleLine(note.anchorText ?? '').trim();
     if (at === undefined) {
       orphaned.push({ note, scene: '', on, order: i });
@@ -477,10 +463,25 @@ function buildNotesReport(input: ReportInput, openOnly: boolean): ReportTable {
   };
 }
 
+/** Pure table projection shared by the navigation dialog and production reports. */
+export function scriptHealthReport(findings: readonly HealthFinding[]): ReportTable {
+  return {
+    title: t('tools:scriptHealth.title'),
+    summary: [t('tools:scriptHealth.intro'), t('tools:scriptHealth.summary', { count: findings.length }), t('tools:scriptHealth.excerpts')].join(' '),
+    columns: [t('tools:scriptHealth.scene'), t('messages:reports.scenes.columns.heading'), t('tools:scriptHealth.finding'), t('tools:scriptHealth.excerpt')],
+    rows: findings.map(finding => [finding.sceneNumber ?? '', finding.scene ?? t('tools:scriptHealth.noScene'),
+      t(`tools:scriptHealth.${finding.check}`, { reference: finding.reference }), finding.excerpt]),
+  };
+}
+
 // Labels and descriptions are getters: looked up when the dialog reads them, so they follow the interface language.
 // Labels and descriptions are getters: looked up when the dialog reads them, so they follow the interface language.
 // Labels and descriptions are getters: looked up when the dialog reads them, so they follow the interface language.
 export const BUILT_IN_REPORTS: BuiltInReport[] = [
+  { id: 'script-health', get label() { return t('tools:scriptHealth.title'); }, get description() { return t('tools:scriptHealth.intro'); }, build: input => {
+    if (!input.healthFindings) throw new Error(t('tools:scriptHealth.requiresScript'));
+    return scriptHealthReport(input.healthFindings);
+  } },
   { id: 'scenes', get label() { return t('messages:reports.scenes.label'); }, get description() { return t('messages:reports.scenes.description'); }, build: sceneReport },
   { id: 'characters', get label() { return t('messages:reports.characters.label'); }, get description() { return t('messages:reports.characters.description'); }, build: characterReport },
   { id: 'locations', get label() { return t('messages:reports.locations.label'); }, get description() { return t('messages:reports.locations.description'); }, build: locationReport },
