@@ -29,7 +29,7 @@ const MIRRORED: (keyof CSSStyleDeclaration)[] = [
   'borderTopWidth', 'borderRightWidth', 'borderBottomWidth', 'borderLeftWidth',
   'fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'letterSpacing',
   'lineHeight', 'textTransform', 'textIndent', 'whiteSpace', 'wordBreak',
-  'overflowWrap', 'tabSize',
+  'overflowWrap', 'tabSize', 'direction',
 ];
 
 /** Field events that can move the caret without `selectionchange` firing. */
@@ -59,10 +59,12 @@ const TextareaCaret: React.FC<TextareaCaretProps> = ({ areaRef, value, enabled }
       if (!mirror) {
         mirror = document.createElement('div');
         mirror.setAttribute('aria-hidden', 'true');
-        mirror.style.position = 'absolute';
+        // A negative off-screen coordinate creates horizontal document
+        // overflow in RTL. A hidden fixed mirror still supplies layout metrics.
+        mirror.style.position = 'fixed';
         mirror.style.visibility = 'hidden';
         mirror.style.top = '0';
-        mirror.style.left = '-9999px';
+        mirror.style.left = '0';
         mirror.style.whiteSpace = 'pre-wrap';
         mirror.style.overflowWrap = 'break-word';
         document.body.appendChild(mirror);
