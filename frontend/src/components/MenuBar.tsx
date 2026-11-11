@@ -238,6 +238,7 @@ import {
 import { REVISION_COLORS, nextRevisionColor } from '../editor/revisionColors';
 import RevisionSettingsDialog from './RevisionSettingsDialog';
 import ReportsDialog from './ReportsDialog';
+import ScriptHealthDialog from './ScriptHealthDialog';
 import SidesDialog, { type SidesIntent } from './SidesDialog';
 import PdfSecurityDialog, { type PdfSecurityRequest } from './PdfSecurityDialog';
 import DeleteScriptDialog from './DeleteScriptDialog';
@@ -1287,6 +1288,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
   const [clearRevisionsOpen, setClearRevisionsOpen] = useState(false);
   const [revisionSettingsOpen, setRevisionSettingsOpen] = useState(false);
   const [reportsOpen, setReportsOpen] = useState(false);
+  const [scriptHealthOpen, setScriptHealthOpen] = useState(false);
   const [pdfSecurityOpen, setPdfSecurityOpen] = useState(false);
   const [pdfExportOpen, setPdfExportOpen] = useState(false);
   /**
@@ -3528,6 +3530,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
         {
           icon: <FaStream />, label: t('menu:tools.analytics'),
           children: [
+            { icon: <FaSpellCheck />, label: t('tools:scriptHealth.title'), action: () => setScriptHealthOpen(true), disabled: !editor },
             { icon: <FaStream />, label: t('menu:tools.scriptStatistics'), action: () => {
               const s = useEditorStore.getState();
               s.setStatisticsScrollTo(null);
@@ -4779,6 +4782,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
     {revisionSettingsOpen && (
       <RevisionSettingsDialog onClose={() => setRevisionSettingsOpen(false)} />
     )}
+    {scriptHealthOpen && <ScriptHealthDialog editor={editor} onClose={() => setScriptHealthOpen(false)} />}
     {reportsOpen && (
       <ReportsDialog editor={editor} onClose={() => setReportsOpen(false)} />
     )}

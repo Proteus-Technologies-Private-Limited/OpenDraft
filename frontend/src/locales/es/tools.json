@@ -1,4 +1,25 @@
 {
+  "scriptHealth": {
+    "title": "Estado del guion",
+    "intro": "Comprobaciones locales de referencias, diálogos y notas abiertas. Este informe no califica la calidad de la historia ni certifica que esté lista para presentarse.",
+    "summary": "Resultados por revisar: {{count}}",
+    "clean": "Sin resultados en estas comprobaciones.",
+    "emptyScript": "El guion no tiene texto imprimible.",
+    "emptyScene": "Este encabezado de escena está vacío.",
+    "duplicateScene": "El número de escena {{reference}} se usa más de una vez.",
+    "duplicateElement": "La referencia de elemento {{reference}} se repite en este ámbito de numeración.",
+    "missingDialogue": "Esta indicación de personaje no tiene diálogo.",
+    "orphanDialogue": "Este diálogo no tiene una indicación de personaje anterior en su bloque.",
+    "orphanParenthetical": "Este paréntesis no tiene una indicación de personaje anterior en su bloque.",
+    "openNote": "Nota del guion sin resolver.",
+    "jump": "Ir al resultado",
+    "openNotes": "Abrir notas",
+    "noScene": "Sin escena con nombre",
+    "scene": "Escena",
+    "finding": "Resultado",
+    "excerpt": "Fragmento",
+    "changed": "El guion cambió. Inténtalo de nuevo con el informe actualizado."
+  },
   "statistics": {
     "title": "Estadísticas del guion",
     "cards": {

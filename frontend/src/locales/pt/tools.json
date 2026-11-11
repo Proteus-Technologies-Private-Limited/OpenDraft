@@ -1,4 +1,25 @@
 {
+  "scriptHealth": {
+    "title": "Verificação do roteiro",
+    "intro": "Verificações locais de referências, diálogos e notas abertas. Este relatório não avalia a qualidade da história nem certifica que o roteiro está pronto para envio.",
+    "summary": "Itens para revisar: {{count}}",
+    "clean": "Nenhum item encontrado nestas verificações.",
+    "emptyScript": "O roteiro não tem texto imprimível.",
+    "emptyScene": "Este cabeçalho de cena está vazio.",
+    "duplicateScene": "O número de cena {{reference}} é usado mais de uma vez.",
+    "duplicateElement": "A referência de elemento {{reference}} se repete neste escopo de numeração.",
+    "missingDialogue": "Esta indicação de personagem não tem diálogo.",
+    "orphanDialogue": "Este diálogo não tem uma indicação de personagem anterior em seu bloco.",
+    "orphanParenthetical": "Esta rubrica não tem uma indicação de personagem anterior em seu bloco.",
+    "openNote": "Nota do roteiro não resolvida.",
+    "jump": "Ir para o item",
+    "openNotes": "Abrir notas",
+    "noScene": "Sem cena nomeada",
+    "scene": "Cena",
+    "finding": "Item",
+    "excerpt": "Trecho",
+    "changed": "O roteiro mudou. Tente novamente com o relatório atualizado."
+  },
   "statistics": {
     "title": "Estatísticas do roteiro",
     "cards": {
