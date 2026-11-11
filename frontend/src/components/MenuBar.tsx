@@ -27,6 +27,8 @@ import { FOCUS_MODE_SHORTCUT } from '../editor/extensions/FocusMode';
 import { showToast } from './Toast';
 import { formatFileFailure } from '../services/fileDiagnostics';
 import { useTranslation, Trans } from 'react-i18next';
+import { BUILTIN } from '../editor/languageCatalog';
+import { spellChecker } from '../editor/spellchecker';
 import { useSpellcheckLanguages } from '../hooks/useSpellcheckLanguages';
 import { t } from '../i18n';
 import { useSuggestModeStore } from '../stores/suggestModeStore';
@@ -1862,6 +1864,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
    *  but does NOT seed editor content — caller picks the format and content. */
   const resetForNewScreenplay = useCallback(() => {
     if (!editor) return;
+    spellChecker.beginDocument([BUILTIN.code]);
     clearTrackChanges();
     clearEditorHistory(editor);
     // The document being replaced must not come back on the next route change:

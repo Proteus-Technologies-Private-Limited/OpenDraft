@@ -113,6 +113,7 @@ class SpellChecker {
   private labels: Map<string, string> = new Map();
   /** Languages active for the current document (set per-script). */
   private enabledLanguages: Set<string> = new Set([BUILTIN_LANGUAGE]);
+  private documentGeneration = 0;
 
   /** Words the user added via "Add to dictionary" — per-project, saved with the script. */
   private projectWords: Set<string> = new Set();
@@ -308,6 +309,17 @@ class SpellChecker {
 
   getEnabledLanguages(): string[] {
     return [...this.enabledLanguages].sort();
+  }
+
+  /** Begin a real document load/reset, including transitions between blank scripts.
+   * Saving or changing a file origin does not start a new generation. */
+  beginDocument(codes: string[] = this.getEnabledLanguages()): void {
+    this.documentGeneration++;
+    this.setEnabledLanguages(codes);
+  }
+
+  getDocumentGeneration(): number {
+    return this.documentGeneration;
   }
 
   setEnabledLanguages(codes: string[]): void {

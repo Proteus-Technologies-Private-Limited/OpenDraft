@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useEditorStore } from '../stores/editorStore';
 import { spellChecker, PROJECT_DICT_TARGET } from '../editor/spellchecker';
+import { canDisableLanguage, setScriptLanguageEnabled } from '../editor/spellcheckLanguages';
 import { BUILTIN, CATALOG, findLanguage } from '../editor/languageCatalog';
 
 /** Subscribe to spellChecker.onChange so React re-renders when its state changes. */
@@ -88,13 +89,8 @@ const LanguagesSection: React.FC<{ onOpenInstaller: () => void }> = ({ onOpenIns
   const loaded = spellChecker.getLoadedLanguages();
   const enabled = new Set(spellChecker.getEnabledLanguages());
 
-  const toggle = (code: string, on: boolean) => {
-    const current = spellChecker.getEnabledLanguages();
-    const next = on
-      ? Array.from(new Set([...current, code]))
-      : current.filter((c) => c !== code);
-    spellChecker.setEnabledLanguages(next);
-  };
+  const loadedCodes = new Set(loaded.map(language => language.code));
+  const toggle = (code: string, on: boolean) => { void setScriptLanguageEnabled(code, on); };
 
   const handleUninstall = async (code: string) => {
     const lang = findLanguage(code);
@@ -137,6 +133,7 @@ const LanguagesSection: React.FC<{ onOpenInstaller: () => void }> = ({ onOpenIns
               <input
                 type="checkbox"
                 checked={enabled.has(code)}
+                disabled={enabled.has(code) && !canDisableLanguage(code, [...enabled], loadedCodes)}
                 onChange={(e) => toggle(code, e.target.checked)}
               />
               <span style={{ flex: 1 }}>{label}</span>

@@ -178,6 +178,7 @@
     "noWords": "अभी कोई शब्द नहीं है।"
   },
   "dictionaryConfig": {
+    "notInstalled": "इंस्टॉल नहीं है",
     "addTargetOnTitle": "शब्दकोश में जोड़ें यहीं लिखता है",
     "addTargetOffTitle": "इसे शब्दकोश में जोड़ने का लक्ष्य बनाने के लिए क्लिक करें",
     "addHereOn": "✓ यहाँ जोड़ें",

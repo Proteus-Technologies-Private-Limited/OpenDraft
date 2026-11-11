@@ -129,6 +129,7 @@ import { Grammar, grammarPluginKey } from '../editor/extensions/Grammar';
 import { spellChecker, BUILTIN_LANGUAGE } from '../editor/spellchecker';
 import { grammarIgnore } from '../editor/grammar/grammarIgnore';
 import { buildSaveContent as buildSaveContentShared, stripSaveMetadata } from '../utils/saveContent';
+import { onScriptLanguagesChange } from '../editor/spellcheckLanguages';
 import { hydrateEditorStoresFromContent } from '../utils/hydrateStores';
 import { DEFAULT_SCRIPT_PROFILE, normalizeScriptProfile } from '../utils/scriptProfile';
 import { restoreRevisionState } from '../utils/revisionState';
@@ -3034,6 +3035,7 @@ const ScreenplayEditor: React.FC = () => {
   useEffect(() => {
     setLogoutEditorReset(async () => {
       scriptSwitchingRef.current = true;
+      spellChecker.beginDocument();
       try {
         if (currentProject && currentScriptId && isCloudScript(currentProject.id, currentScriptId)) {
           const pendingContent = buildSaveContent();
@@ -3254,6 +3256,7 @@ const ScreenplayEditor: React.FC = () => {
     setCurrentScriptId(null);
     useEditorStore.getState().setImportedSource(null);
     setDocumentTitle('Untitled Screenplay');
+    spellChecker.beginDocument([BUILTIN_LANGUAGE]);
     if (editor) {
       // See File ▸ Close: an emptied document has no block to type into.
       editor.commands.setContent({ type: 'doc', content: [{ type: 'action', content: [] }] }, true);
@@ -3478,6 +3481,7 @@ const ScreenplayEditor: React.FC = () => {
         },
       });
       if (result.kind === 'loaded-from-file') {
+        spellChecker.beginDocument();
         // What the editor holds is now superseded by the file. Mark it as
         // saved so nothing on the way to the reload writes it back.
         const current = buildSaveContent();
@@ -3597,9 +3601,21 @@ const ScreenplayEditor: React.FC = () => {
       persistMetadataChange();
     });
     const unsubTemplate = subscribeActiveTemplate(persistMetadataChange);
+    const unsubLanguages = onScriptLanguagesChange(persistMetadataChange);
 
-    return () => { unsub(); unsubTemplate(); if (timer) clearTimeout(timer); };
+    return () => { unsub(); unsubTemplate(); unsubLanguages(); if (timer) clearTimeout(timer); };
   }, [editor, hasSaveTarget, currentProject, currentScriptId, buildSaveContent, isCollabGuest, isHistoryMode, autoSaveLibrary]);
+
+  // A never-saved blank still needs to advertise its language choice as unsaved.
+  // Documents with a save target use the normal metadata debounce above.
+  useEffect(() => {
+    if (!editor || hasSaveTarget || isCollabGuest || isHistoryMode) return;
+    return onScriptLanguagesChange(() => {
+      if (scriptSwitchingRef.current) return;
+      const { saveStatus, setSaveStatus } = useEditorStore.getState();
+      if (saveStatus === 'idle' || saveStatus === 'saved') setSaveStatus('unsaved');
+    });
+  }, [editor, hasSaveTarget, isCollabGuest, isHistoryMode]);
 
   // --- Persist project dictionary words when they change ---
   // Words live on the Project entity (shared by every script in the project).
@@ -3930,6 +3946,7 @@ const ScreenplayEditor: React.FC = () => {
     loadedScriptRef.current = loadKey;
     clearTrackChanges();
     scriptSwitchingRef.current = true;
+    spellChecker.beginDocument();
     (async () => {
       try {
         // Flush unsaved changes to the CURRENT script before switching so
@@ -4110,7 +4127,7 @@ const ScreenplayEditor: React.FC = () => {
             );
             // Per-script enabled-languages. Default to built-in only.
             const langs = parseAttr(c._enabledLanguages);
-            spellChecker.setEnabledLanguages(
+            spellChecker.beginDocument(
               langs.length > 0 ? (langs as string[]) : [BUILTIN_LANGUAGE],
             );
             // Restore per-document ignored grammar rules / occurrences
@@ -4493,6 +4510,7 @@ const ScreenplayEditor: React.FC = () => {
 
       clearTrackChanges();
       scriptSwitchingRef.current = true;
+      spellChecker.beginDocument();
       try {
         // Flush unsaved changes to the CURRENT script before switching —
         // unless auto-save is off, in which case File → Open has already
@@ -4608,7 +4626,7 @@ const ScreenplayEditor: React.FC = () => {
           );
           // Per-script enabled-languages (default: built-in only).
           const langs2 = parseAttr2(c._enabledLanguages);
-          spellChecker.setEnabledLanguages(
+          spellChecker.beginDocument(
             langs2.length > 0 ? (langs2 as string[]) : [BUILTIN_LANGUAGE],
           );
           // Enabled global dictionaries.

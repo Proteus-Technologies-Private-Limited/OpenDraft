@@ -178,6 +178,7 @@
     "noWords": "ابھی کوئی لفظ نہیں۔"
   },
   "dictionaryConfig": {
+    "notInstalled": "انسٹال نہیں ہے",
     "addTargetOnTitle": "«لغت میں شامل کریں» یہاں لکھتا ہے",
     "addTargetOffTitle": "اسے «لغت میں شامل کریں» کا ہدف بنانے کے لیے کلک کریں",
     "addHereOn": "✓ یہاں شامل کریں",

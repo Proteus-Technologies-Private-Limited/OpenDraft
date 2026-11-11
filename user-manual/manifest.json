@@ -1,11 +1,11 @@
 {
-  "version": "a87f22e69b0315c2",
+  "version": "06ed5544773846d0",
   "pages": [
     {
       "slug": "index.html",
       "title": "Home",
       "section": "Getting Started",
-      "hash": "6b1e7894978a7adc"
+      "hash": "9ba055e2f6e60845"
     },
     {
       "slug": "getting-started.html",
@@ -47,7 +47,7 @@
       "slug": "spell-check.html",
       "title": "Spell Check",
       "section": "Writing",
-      "hash": "ed9650aa187a5f70"
+      "hash": "6b47dd1e14eb7c60"
     },
     {
       "slug": "ai-assistant.html",
@@ -149,7 +149,7 @@
       "slug": "format-compatibility.html",
       "title": "Format Compatibility",
       "section": "Projects & Files",
-      "hash": "10f1741c91e7378a"
+      "hash": "48b1f0080cecf0a8"
     },
     {
       "slug": "collaboration.html",

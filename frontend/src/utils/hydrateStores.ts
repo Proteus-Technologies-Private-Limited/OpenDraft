@@ -1,3 +1,4 @@
+import { spellChecker } from '../editor/spellchecker';
 import { readSourceFidelity } from './sourceFidelity';
 /**
  * Restore the `_`-prefixed app metadata from an imported `.odraft` payload.
@@ -41,13 +42,14 @@ function parseAttr<T>(value: unknown, fallback: T): T {
 /**
  * Apply an imported payload's metadata to the stores.
  *
- * Returns false and changes nothing when the payload carries no metadata —
+ * Returns false and leaves metadata unchanged when the payload carries none —
  * importing a v1 file or a bare document must never wipe the state the user
  * already has with empty defaults.
  */
 export function hydrateEditorStoresFromContent(
   content: Record<string, unknown> | null | undefined,
 ): boolean {
+  spellChecker.beginDocument();
   if (!content || !hasSaveMetadata(content)) return false;
 
   const store = useEditorStore.getState();
