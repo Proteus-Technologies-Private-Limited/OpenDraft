@@ -11,6 +11,8 @@ import { useTranslation } from 'react-i18next';
 import { useEditorStore } from '../stores/editorStore';
 import { pluginRegistry, type ReportTable } from '../plugins/registry';
 import { BUILT_IN_REPORTS, reportToCsv, reportToPdf } from '../utils/scriptReports';
+import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
+import { analyzeScriptHealth, healthOptionsForFormat } from '../utils/scriptHealth';
 import { activeTimingOptions } from '../utils/scriptTiming';
 import { sanitizeExportFilename } from '../utils/exportFilename';
 import { showToast } from './Toast';
@@ -39,7 +41,8 @@ const ReportsDialog: React.FC<Props> = ({ editor, onClose }) => {
   const [busy, setBusy] = useState(false);
 
   const choices = useMemo<ReportChoice[]>(() => {
-    const doc = editor?.getJSON() ?? { type: 'doc', content: [] };
+    const editorDoc = editor?.state.doc;
+    const doc = editorDoc?.toJSON() ?? { type: 'doc', content: [] };
     const builtIn = BUILT_IN_REPORTS.map((r): ReportChoice => ({
       key: `builtin:${r.id}`,
       label: r.label,
@@ -54,6 +57,8 @@ const ReportsDialog: React.FC<Props> = ({ editor, onClose }) => {
           timing: activeTimingOptions(s.pageLayout),
           notes: s.notes,
           generalNotes: s.generalNotes,
+          healthFindings: r.id === 'script-health' && editorDoc ? analyzeScriptHealth(editorDoc,
+            healthOptionsForFormat(useFormattingTemplateStore.getState().getActiveTemplate().rules, s.sceneNumbersVisible, s.notes)) : undefined,
         });
       },
     }));

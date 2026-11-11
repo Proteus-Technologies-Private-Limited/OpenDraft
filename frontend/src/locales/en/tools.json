@@ -1,4 +1,28 @@
 {
+  "scriptHealth": {
+    "emptyCue": "This character cue is empty.",
+    "requiresScript": "Open a script to build this report.",
+    "excerpts": "Excerpts are shortened to 180 characters; exports include every finding.",
+    "title": "Script Health",
+    "intro": "Local checks for references, dialogue and open notes. This report does not grade story quality or certify submission readiness.",
+    "summary": "Findings to review: {{count}}",
+    "clean": "No findings in these checks.",
+    "emptyScript": "The script has no printable text.",
+    "emptyScene": "This scene heading is empty.",
+    "duplicateScene": "Scene number {{reference}} is used more than once.",
+    "duplicateElement": "Element reference {{reference}} is repeated in this numbering scope.",
+    "missingDialogue": "This character cue has no dialogue.",
+    "orphanDialogue": "This dialogue has no preceding character cue in its block.",
+    "orphanParenthetical": "This parenthetical has no preceding character cue in its block.",
+    "openNote": "Unresolved script note.",
+    "jump": "Go to finding",
+    "openNotes": "Open notes",
+    "noScene": "No named scene",
+    "scene": "Scene",
+    "finding": "Finding",
+    "excerpt": "Excerpt",
+    "changed": "The script changed. Try again with the updated report."
+  },
   "statistics": {
     "title": "Script Statistics",
     "cards": {

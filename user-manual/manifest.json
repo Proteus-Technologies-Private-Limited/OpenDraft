@@ -1,5 +1,5 @@
 {
-  "version": "06ed5544773846d0",
+  "version": "3d7c6a39132a9928",
   "pages": [
     {
       "slug": "index.html",
@@ -95,7 +95,7 @@
       "slug": "script-statistics.html",
       "title": "Script Statistics & Timing",
       "section": "Analysis",
-      "hash": "9d7b39fa117e76f1"
+      "hash": "fab91a7bc07499c5"
     },
     {
       "slug": "table-read.html",
