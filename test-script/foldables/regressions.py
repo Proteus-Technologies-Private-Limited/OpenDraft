@@ -239,7 +239,9 @@ class FoldableRegressions(unittest.TestCase):
             self.assertLess(actual['offset'], actual['height']-20, (kwargs,actual))
         before = self.page.evaluate('testEditor.state.doc.textContent')
         start = self.page.evaluate('testEditor.state.selection.from')
-        self.page.keyboard.type('continued')
+        # One browser text input is one undoable edit. Per-character typing
+        # can legitimately form several history groups on a slow CI runner.
+        self.page.keyboard.insert_text('continued')
         self.assertEqual(self.page.evaluate('(start)=>testEditor.state.doc.textBetween(start,start+9)', start), 'continued')
         self.page.keyboard.press('Control+z')
         self.assertEqual(self.page.evaluate('testEditor.state.doc.textContent'), before)

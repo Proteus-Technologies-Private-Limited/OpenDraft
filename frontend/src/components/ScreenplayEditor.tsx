@@ -1201,7 +1201,7 @@ const ScreenplayEditor: React.FC = () => {
   useLayoutEffect(() => {
     const container = editorMainRef.current;
     const anchor = zoomAnchorRef.current;
-    if (!container || !anchor) return;
+    if (!container || !anchor || (!postureAnchorHeldRef.current && performance.now() >= zoomAnchorUntilRef.current)) return;
     try {
       if (!restoreZoomAnchor(container, anchor)) zoomAnchorRef.current = null;
     } catch (err) {
@@ -1292,18 +1292,29 @@ const ScreenplayEditor: React.FC = () => {
     };
   }, [pageLayout.pageWidth, setZoomLevel, phoneView]);
 
+  // Cover Page view fits on a viewport/posture change or an explicit page
+  // layout change, never because a panel or toolbar changed underneath it.
+  useEffect(() => {
+    if (!foldState.foldable || foldOpen || phoneView || window.innerWidth > 768) return;
+    const timer = setTimeout(() => {
+      const container = editorMainRef.current;
+      if (!container) return;
+      const zoom = Math.floor((container.clientWidth - 16) / (pageLayout.pageWidth * 96) * 100);
+      setZoomLevel(Math.max(50, Math.min(100, zoom)));
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [foldState, foldOpen, phoneView, pageLayout.pageWidth, setZoomLevel]);
+
   // Foldable panel/toolbar changes must never refit an ordinary user's page.
   useEffect(() => {
     if (!foldState.foldable) return;
     const fit = () => {
       const root = document.querySelector<HTMLElement>('.editor-layout');
       if (root) root.style.setProperty('--fold-content-top', `${root.getBoundingClientRect().top}px`);
-      if (phoneView || !editorMainRef.current) return;
-      if (foldOpen || window.innerWidth <= 768) {
-        const available = editorMainRef.current.clientWidth - 16;
-        const zoom = Math.floor(available / (pageLayout.pageWidth * 96) * 100);
-        setZoomLevel(Math.max(foldOpen ? 70 : 50, Math.min(100, zoom)));
-      }
+      if (!foldOpen || phoneView || !editorMainRef.current) return;
+      const available = editorMainRef.current.clientWidth - 16;
+      const zoom = Math.floor(available / (pageLayout.pageWidth * 96) * 100);
+      setZoomLevel(Math.max(70, Math.min(100, zoom)));
     };
     // React has already applied the single render-time docking decision.
     const timer = setTimeout(fit, 100);

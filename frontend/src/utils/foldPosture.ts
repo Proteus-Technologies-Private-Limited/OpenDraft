@@ -57,7 +57,12 @@ export function getFoldState(): FoldState {
 
 function signature(state: FoldState) {
   const r = state.foldRect;
-  return [window.innerWidth, window.innerHeight, state.size, state.fold, r?.x, r?.y, r?.width, r?.height, isFoldableDevice()].join(':');
+  const foldable = isFoldableDevice();
+  // Only confirmed foldables need viewport geometry to recalculate docking.
+  // Ordinary resizes (including keyboard height changes) are not fold events;
+  // genuine phone/wide size-class transitions still notify their readers.
+  return [foldable ? window.innerWidth : null, foldable ? window.innerHeight : null,
+    state.size, state.fold, r?.x, r?.y, r?.width, r?.height, foldable].join(':');
 }
 
 /** Start once before React mounts. Returns complete listener/timer cleanup. */

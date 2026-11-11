@@ -103,18 +103,70 @@ describe('browser detection', () => {
     expect(localStorage.getItem('opendraft:foldable')).toBeNull();
   });
 
-  it('reports a wide-window resize even when segment and size classes stay unchanged', () => {
+  it('reports a confirmed foldable resize even when segment and size classes stay unchanged', () => {
     vi.useFakeTimers();
-    const win = Object.assign(new EventTarget(), { innerWidth: 951, innerHeight: 669, matchMedia: () => ({ matches: true }) });
+    const win = Object.assign(new EventTarget(), { innerWidth: 951, innerHeight: 669, matchMedia: () => ({ matches: true }), viewport: { segments: vertical } });
     vi.stubGlobal('window', win);
     vi.stubGlobal('navigator', {});
     vi.stubGlobal('document', { documentElement: { classList: { toggle: vi.fn() }, style: { setProperty: vi.fn() } } });
+    getFoldState(); // establish capability independently of other tests
+    win.viewport.segments = [];
     const changed = vi.fn();
     const stop = watchFoldPosture(changed);
     win.innerWidth = 800;
     win.dispatchEvent(new Event('resize')); vi.advanceTimersByTime(150);
     expect(changed).toHaveBeenCalledTimes(2);
     expect(changed).toHaveBeenLastCalledWith({ size: 'wide', fold: 'flat', foldRect: null });
+    stop();
+  });
+
+  it.each([
+    { device: 'desktop', width: 1440, height: 1000, coarse: false, nextWidth: 1360, nextHeight: 1000 },
+    { device: 'tablet', width: 1024, height: 1100, coarse: true, nextWidth: 944, nextHeight: 1100 },
+    { device: 'phone keyboard resize', width: 390, height: 844, coarse: true, nextWidth: 390, nextHeight: 600 },
+  ])('does not emit fold changes for an ordinary $device resize', async ({ width, height, coarse, nextWidth, nextHeight }) => {
+    vi.resetModules();
+    const ordinary = await import('./foldPosture');
+    vi.useFakeTimers();
+    const win = Object.assign(new EventTarget(), {
+      innerWidth: width, innerHeight: height, matchMedia: () => ({ matches: coarse }),
+    });
+    vi.stubGlobal('window', win);
+    vi.stubGlobal('navigator', {});
+    vi.stubGlobal('document', { documentElement: { classList: { toggle: vi.fn() }, style: { setProperty: vi.fn() } } });
+    const changed = vi.fn();
+    const before = vi.fn();
+    win.addEventListener(FOLD_WILL_CHANGE_EVENT, before);
+    const stop = ordinary.watchFoldPosture(changed);
+    expect(ordinary.isFoldableDevice()).toBe(false);
+    expect(changed).toHaveBeenCalledTimes(1);
+    win.innerWidth = nextWidth;
+    win.innerHeight = nextHeight;
+    win.dispatchEvent(new Event('resize'));
+    vi.advanceTimersByTime(150);
+    expect(changed).toHaveBeenCalledTimes(1);
+    expect(before).toHaveBeenCalledTimes(1);
+    stop();
+  });
+
+  it('still notifies an ordinary touch device when its phone/wide size class changes', async () => {
+    vi.resetModules();
+    const ordinary = await import('./foldPosture');
+    vi.useFakeTimers();
+    const win = Object.assign(new EventTarget(), {
+      innerWidth: 800, innerHeight: 650, matchMedia: () => ({ matches: true }),
+    });
+    vi.stubGlobal('window', win);
+    vi.stubGlobal('navigator', {});
+    vi.stubGlobal('document', { documentElement: { classList: { toggle: vi.fn() }, style: { setProperty: vi.fn() } } });
+    const changed = vi.fn();
+    const stop = ordinary.watchFoldPosture(changed);
+    win.innerHeight = 590;
+    win.dispatchEvent(new Event('resize'));
+    vi.advanceTimersByTime(150);
+    expect(changed).toHaveBeenCalledTimes(2);
+    expect(changed).toHaveBeenLastCalledWith({ size: 'phone', fold: 'flat', foldRect: null });
+    expect(ordinary.isFoldableDevice()).toBe(false);
     stop();
   });
 

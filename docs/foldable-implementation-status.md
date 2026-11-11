@@ -30,6 +30,18 @@ its detection when moving to a cover screen; a reload without live segment
 evidence uses the ordinary-device fallback. Saved posture choices remain in
 view state, but ordinary devices use their original single preferences.
 
+## Zoom and reading position
+
+Ordinary desktop, tablet and phone resizes do not emit fold changes unless the
+phone/wide size class actually changes. Confirmed foldables still report viewport
+changes so docking and page fitting follow the available space. An expired zoom
+anchor is never restored after the writer has moved elsewhere in the script.
+
+In cover-screen Page view, entering the posture or changing its viewport/page
+layout fits the page once. Opening panels, resizing the Navigator or changing
+the toolbar preserves the writer's custom zoom. Open-posture Page view still
+refits when its docked panels change the space available to the script.
+
 ## Reproduce browser checks
 
 Start Vite, install Python Playwright and system Chromium, then run:
@@ -54,11 +66,15 @@ selection; the test-only editor probe is closed during this reading check. A tes
 unregistering, focused text selection and the older-browser reparenting fallback.
 Keyboard checks cover roving focus, Home/End, RTL arrows, labelled tab panels,
 hidden controls and focus after closing a panel. The tests are run by
-`.github/workflows/test-foldables.yml` for the listed foldable/editor integration
-paths, or by `workflow_dispatch`; unrelated frontend paths do not start it. The
+`.github/workflows/test-foldables.yml` for the listed fold-specific
+paths, or by `workflow_dispatch`. Changes to shared editor, menu, toolbar, store,
+startup and stylesheet files alone do not start it; use the manual workflow when
+those changes need foldable integration coverage. The
 review regression checks cover preserved custom zoom on ordinary desktop, iPhone
 and iPad windows, discarded legacy markers, resetting emulation by reloading,
-and the inherited Comfortable toolbar size in both postures.
+the inherited Comfortable toolbar size in both postures, scroll-after-zoom
+resizing on ordinary desktop/tablet/phone windows and genuine size-class
+transitions, and custom zoom on a confirmed foldable cover screen.
 The scripts also support `OPENDRAFT_CHROMIUM`
 for a chosen executable, or Playwright's bundled Chromium when no system copy
 is available. These checks do not simulate native background execution,
