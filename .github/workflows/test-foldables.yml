@@ -13,6 +13,8 @@ on:
       - 'frontend/src/utils/zoomAnchor*.ts'
       - 'frontend/src/hooks/useFold*.ts'
       - 'frontend/src/components/FoldablePanelDock.tsx'
+      - 'frontend/src/components/ScribbleInput.tsx'
+      - 'frontend/src/components/TextareaCaret.tsx'
       - 'frontend/src/components/PluginPanelTabs.tsx'
       - 'frontend/src/stores/foldPosturePreferences.test.ts'
       - 'frontend/package*.json'
@@ -62,6 +64,7 @@ jobs:
           python test-script/foldables/posture.py
           python test-script/foldables/regressions.py
           python test-script/foldables/review_regressions.py
+          python test-script/foldables/writing_pad.py
       - name: Upload Vite log on failure
         if: failure()
         uses: actions/upload-artifact@v4

@@ -1714,6 +1714,9 @@ const ScreenplayEditor: React.FC = () => {
    * it (issue #90).
    */
   const [scribbleOpen, setScribbleOpen] = useState(false);
+  const [scribbleActivation, setScribbleActivation] = useState(0);
+  const scribbleHome = useRef<HTMLDivElement>(null);
+  const scribbleDocked = !isHistoryMode && foldState.foldable && (foldState.fold === 'book' || foldState.fold === 'laptop');
 
   // Script context menu state
   const [ctxMenuState, setCtxMenuState] = useState<{
@@ -4390,7 +4393,10 @@ const ScreenplayEditor: React.FC = () => {
   // the panel already follows the selection, so there is nothing to re-capture.
   React.useEffect(() => {
     if (!editor) return;
-    const onRequest = () => setScribbleOpen(true);
+    const onRequest = () => {
+      setScribbleOpen(true);
+      setScribbleActivation(value => value + 1);
+    };
     window.addEventListener(HANDWRITING_EVENT, onRequest);
     return () => window.removeEventListener(HANDWRITING_EVENT, onRequest);
   }, [editor]);
@@ -6056,18 +6062,23 @@ const ScreenplayEditor: React.FC = () => {
         {!isHistoryMode && rightPanelVisible && (
           <div className="panel-resize-handle" onPointerDown={(e) => handleResizePointerDown('right', e)} style={{ touchAction: 'none' }} />
         )}
-        {!isHistoryMode && <FoldablePanelDock active={foldDock} panels={[
-          { id: 'notes', label: tg('menu:view.notesPanel'), open: scriptNotesOpen, content: <ScriptNotes editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} /> },
-          { id: 'characters', label: tg('menu:view.characters'), open: characterProfilesOpen, content: <CharacterProfiles editor={editor} projectId={currentProject?.id || ''} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} /> },
-          { id: 'tags', label: tg('menu:view.tags'), open: tagsPanelOpen, content: <TagsPanel editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} /> },
-          { id: 'locations', label: tg('menu:view.locations'), open: locationDatabaseOpen, content: <LocationDatabase editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} /> },
-          { id: 'tuner', label: tg('menu:view.dialogueTuner'), open: dialogueTunerOpen, content: <DialogueTuner editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} /> },
-          { id: 'suggestions', label: tg('menu:view.suggestions'), open: suggestionsPanelOpen, content: <SuggestionsPanel editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} /> },
-          { id: 'plugin', label: foldPlugin?.label ?? tg('menu:pluginPanels.tabs'), open: !!foldPlugin, activationKey: foldPlugin?.activation, keepHomeWhenClosed: true,
-            content: <PluginPanelTabs editor={editor} width={rightPanelWidth} onActiveChange={setFoldPlugin} onResizePointerDown={(e) => handleResizePointerDown('right', e)} /> },
-          { id: 'table-read', label: tg('menu:tools.tableRead'), open: tableReadOpen && !statisticsOpen && !beatBoardOpen, home: tableReadHome,
-            content: tableReadOpen && editor && !statisticsOpen && !beatBoardOpen ? <TableReadPanel editor={editor} /> : null },
-        ]} />}
+        <FoldablePanelDock active={!isHistoryMode && foldDock} panels={[
+          ...(!isHistoryMode ? [
+            { id: 'notes', label: tg('menu:view.notesPanel'), open: scriptNotesOpen, content: <ScriptNotes editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} /> },
+            { id: 'characters', label: tg('menu:view.characters'), open: characterProfilesOpen, content: <CharacterProfiles editor={editor} projectId={currentProject?.id || ''} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} /> },
+            { id: 'tags', label: tg('menu:view.tags'), open: tagsPanelOpen, content: <TagsPanel editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} /> },
+            { id: 'locations', label: tg('menu:view.locations'), open: locationDatabaseOpen, content: <LocationDatabase editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} /> },
+            { id: 'tuner', label: tg('menu:view.dialogueTuner'), open: dialogueTunerOpen, content: <DialogueTuner editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} /> },
+            { id: 'suggestions', label: tg('menu:view.suggestions'), open: suggestionsPanelOpen, content: <SuggestionsPanel editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} /> },
+            { id: 'plugin', label: foldPlugin?.label ?? tg('menu:pluginPanels.tabs'), open: !!foldPlugin, activationKey: foldPlugin?.activation, keepHomeWhenClosed: true,
+              content: <PluginPanelTabs editor={editor} width={rightPanelWidth} onActiveChange={setFoldPlugin} onResizePointerDown={(e) => handleResizePointerDown('right', e)} /> },
+            { id: 'table-read', label: tg('menu:tools.tableRead'), open: tableReadOpen && !statisticsOpen && !beatBoardOpen, home: tableReadHome,
+              content: tableReadOpen && editor && !statisticsOpen && !beatBoardOpen ? <TableReadPanel editor={editor} /> : null },
+          ] : []),
+          { id: 'handwriting', label: tg('editor:scribble.title'), open: scribbleOpen, dock: scribbleDocked, activationKey: scribbleActivation,
+            home: scribbleHome, keepHomeWhenClosed: true,
+            content: scribbleOpen && editor ? <ScribbleInput editor={editor} docked={scribbleDocked} onClose={() => setScribbleOpen(false)} /> : null },
+        ]} />
 
       </div>
       {!isHistoryMode && (
@@ -6102,16 +6113,8 @@ const ScreenplayEditor: React.FC = () => {
           onDismiss={handleSmartTypeDismiss}
         />
       )}
-      {/* Handwriting input (Apple Pencil). Mounted here rather than on a
-          toolbar because it has to be reachable whatever else is on screen —
-          notably with a hardware keyboard attached, where no on-screen
-          accessory bar is showing at all (issue #90). */}
-      {scribbleOpen && editor && (
-        <ScribbleInput
-          editor={editor}
-          onClose={() => setScribbleOpen(false)}
-        />
-      )}
+      {/* The stable handwriting portal returns here in floating postures. */}
+      <div className="fold-panel-home" ref={scribbleHome} />
       {/* Context menu on mobile: 3-finger touch only */}
       {!isHistoryMode && ctxMenuState.visible && editor && (
         <ScriptContextMenu

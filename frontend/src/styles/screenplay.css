@@ -15453,3 +15453,33 @@ html.foldable.wide .fold-panel-content .plugin-panel-tabs__content { flex: 1; wi
 .fold-panel-content > .fold-panel-host:not([hidden]) { display: flex; flex: 1; min-width: 0; min-height: 0; }
 .fold-panel-content > .fold-panel-host:focus-visible,
 .fold-panel-tabs button:focus-visible { outline: 2px solid var(--fd-accent); outline-offset: -2px; }
+
+/* The writing pad shares the companion tabs in book/tabletop posture. Its
+   floating preferences belong to other postures and must not size this slot.
+   Scroll the pad on short panes so the preview, tools and Insert stay reachable. */
+.fold-panel-content .scribble-panel.is-docked {
+  position: relative;
+  inset: auto;
+  z-index: auto;
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  max-height: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  overflow-y: auto;
+}
+.scribble-panel.is-docked > * { flex-shrink: 0; }
+.scribble-panel.is-docked .scribble-header { cursor: auto; touch-action: auto; }
+.scribble-panel.is-docked .scribble-header-row { flex-wrap: wrap; }
+.scribble-panel.is-docked .scribble-area-wrap { flex: 1 0 140px; }
+.scribble-panel.is-docked .scribble-area { min-height: 120px; min-width: 0; }
+.scribble-panel.is-docked .scribble-actions {
+  position: sticky;
+  bottom: 0;
+  background: var(--fd-dropdown-bg);
+  z-index: 3;
+}
