@@ -9,6 +9,9 @@
 import { getCompatEntries } from './compat';
 import { useStorageStatusStore } from '../stores/storageStatusStore';
 import { isDesktopTauri } from './platform';
+import { readAppVersion } from './appVersion';
+import { getLastFileFailure, formatFileFailure, type FileFailure } from './fileDiagnostics';
+export { getAppVersion } from './appVersion';
 
 export interface DiagnosticsReport {
   appVersion: string;
@@ -16,6 +19,7 @@ export interface DiagnosticsReport {
   userAgent: string;
   storageMode: string;
   storageError: string | null;
+  fileFailure: FileFailure | null;
   appDataDir: string | null;
   sqliteDbPath: string | null;
   oneDriveSuspect: boolean;
@@ -74,11 +78,12 @@ export async function collectDiagnostics(): Promise<DiagnosticsReport> {
   const oneDriveSuspect = /Windows/i.test(os) && isUnderOneDrive(appDataDir);
 
   return {
-    appVersion: getAppVersion(),
+    appVersion: await readAppVersion(),
     os,
     userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'n/a',
     storageMode: status.mode,
     storageError: status.errorReason,
+    fileFailure: getLastFileFailure(),
     appDataDir,
     sqliteDbPath,
     oneDriveSuspect,
@@ -92,15 +97,6 @@ export async function collectDiagnostics(): Promise<DiagnosticsReport> {
   };
 }
 
-export function getAppVersion(): string {
-  // Version is hard-coded in MenuBar/About; pull from a global if exposed,
-  // otherwise rely on what the Tauri build embeds.
-  if (typeof window !== 'undefined' && (window as any).__OPENDRAFT_VERSION__) {
-    return (window as any).__OPENDRAFT_VERSION__;
-  }
-  return '2.11.0';
-}
-
 /** Format a report as plain text suitable for pasting into a GitHub issue. */
 export function formatReport(r: DiagnosticsReport): string {
   const lines: string[] = [];
@@ -111,6 +107,9 @@ export function formatReport(r: DiagnosticsReport): string {
   if (r.storageError) lines.push(`Storage error: ${r.storageError}`);
   if (r.appDataDir) lines.push(`App data dir: ${r.appDataDir}`);
   if (r.sqliteDbPath) lines.push(`SQLite DB path: ${r.sqliteDbPath}`);
+  if (r.fileFailure) {
+    lines.push('', 'Last file failure (this session):', formatFileFailure(r.fileFailure));
+  }
   if (r.oneDriveSuspect) {
     lines.push('');
     lines.push('⚠ OneDrive interference suspected — the app data directory appears to');

@@ -25,6 +25,7 @@ import { insertMacro } from './macroActions';
 import { addScriptNoteAtSelection } from '../utils/addScriptNote';
 import { FOCUS_MODE_SHORTCUT } from '../editor/extensions/FocusMode';
 import { showToast } from './Toast';
+import { formatFileFailure } from '../services/fileDiagnostics';
 import { useTranslation, Trans } from 'react-i18next';
 import { t } from '../i18n';
 import { useSuggestModeStore } from '../stores/suggestModeStore';
@@ -4743,6 +4744,12 @@ const MenuBar: React.FC<MenuBarProps> = ({
                     <DiagRow label={t('menu:diagnostics.storageBackend')} value={diagnosticsReport.storageMode} />
                     {diagnosticsReport.storageError && (
                       <DiagRow label={t('menu:diagnostics.storageError')} value={diagnosticsReport.storageError} mono />
+                    )}
+                    {diagnosticsReport.fileFailure && (
+                      <tr>
+                        <td style={{ padding: '4px 8px', verticalAlign: 'top' }}>{t('menu:diagnostics.fileFailure')}</td>
+                        <td><pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', textAlign: 'start', fontSize: 12 }}>{formatFileFailure(diagnosticsReport.fileFailure)}</pre></td>
+                      </tr>
                     )}
                     {diagnosticsReport.appDataDir && (
                       <DiagRow label={t('menu:diagnostics.appDataDir')} value={diagnosticsReport.appDataDir} mono />
