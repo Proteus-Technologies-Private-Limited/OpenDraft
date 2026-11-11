@@ -19,6 +19,7 @@ import {
 } from '../services/externalSave';
 import { isTauri, getOS } from '../services/platform';
 import { t } from '../i18n';
+import { fileFormat, withFileDiagnostics, type FileOperationContext } from '../services/fileDiagnostics';
 
 interface FileFilter {
   name: string;
@@ -56,40 +57,49 @@ export async function saveFile(
   filters?: FileFilter[],
   options: { preserveOriginal?: string } = {},
 ): Promise<boolean> {
-  if (isIOSTauri()) {
-    return saveFileIOS(data, defaultFilename);
-  }
-  if (isAndroidTauri()) {
-    return saveFileAndroid(data, defaultFilename);
-  }
-  if (isTauri()) {
-    return saveFileTauri(data, defaultFilename, filters, options);
-  }
-  return saveFileBrowser(data, defaultFilename);
+  const context: FileOperationContext = {
+    operation: 'export', format: fileFormat(defaultFilename),
+    stage: isMobileTauri() ? 'share' : isTauri() ? 'dialog' : 'download',
+  };
+  return withFileDiagnostics(context, () => {
+    if (isIOSTauri()) return saveFileIOS(data, defaultFilename, context);
+    if (isAndroidTauri()) return saveFileAndroid(data, defaultFilename, context);
+    if (isTauri()) return saveFileTauri(data, defaultFilename, filters, options, context);
+    return saveFileBrowser(data, defaultFilename);
+  });
 }
 
 async function saveFileTauri(
   data: Uint8Array | string,
   defaultFilename: string,
-  filters?: FileFilter[],
-  options: { preserveOriginal?: string } = {},
+  filters: FileFilter[] | undefined,
+  options: { preserveOriginal?: string },
+  context: FileOperationContext,
 ): Promise<boolean> {
   const { save } = await import('@tauri-apps/plugin-dialog');
   const { invoke } = await import('@tauri-apps/api/core');
 
   const path = await save({ defaultPath: defaultFilename, filters });
   if (!path) return false;
-  if (options.preserveOriginal && await invoke<boolean>('same_file_path', { first: options.preserveOriginal, second: path })) {
-    throw new Error(t('messages:file.chooseDifferent'));
+  if (options.preserveOriginal) {
+    context.stage = 'validation';
+    context.command = 'same_file_path';
+    if (await invoke<boolean>('same_file_path', { first: options.preserveOriginal, second: path })) {
+      throw new Error(t('messages:file.chooseDifferent'));
+    }
   }
 
   // The save dialog has already asked whether to replace an existing file, so
   // there is no second question here. Another application's file is still
   // backed up beside it before it is replaced (the commands' default).
   forgetOwnWrite(path);
+  context.stage = 'native-write';
+  context.format = fileFormat(path);
   if (typeof data === 'string') {
+    context.command = 'save_text_to_path';
     await invoke('save_text_to_path', { path, contents: data });
   } else {
+    context.command = 'save_binary_to_path';
     await invoke('save_binary_to_path', { path, contents: Array.from(data) });
   }
   return true;
@@ -103,11 +113,14 @@ async function saveFileTauri(
 async function saveFileIOS(
   data: Uint8Array | string,
   defaultFilename: string,
+  context: FileOperationContext,
 ): Promise<boolean> {
   const { invoke } = await import('@tauri-apps/api/core');
   if (typeof data === 'string') {
+    context.command = 'ios_save_and_share';
     await invoke('ios_save_and_share', { filename: defaultFilename, contents: data });
   } else {
+    context.command = 'ios_save_and_share_binary';
     await invoke('ios_save_and_share_binary', {
       filename: defaultFilename,
       contents: Array.from(data),
@@ -124,11 +137,14 @@ async function saveFileIOS(
 async function saveFileAndroid(
   data: Uint8Array | string,
   defaultFilename: string,
+  context: FileOperationContext,
 ): Promise<boolean> {
   const { invoke } = await import('@tauri-apps/api/core');
   if (typeof data === 'string') {
+    context.command = 'android_save_and_share';
     await invoke('android_save_and_share', { filename: defaultFilename, contents: data });
   } else {
+    context.command = 'android_save_and_share_binary';
     await invoke('android_save_and_share_binary', {
       filename: defaultFilename,
       contents: Array.from(data),
@@ -759,13 +775,16 @@ export async function saveDocumentInPlace(
   }
   // Tauri's IPC carries a byte array as a plain number array.
   const bytes = typeof contents === 'string' ? null : Array.from(contents);
+  const write = (command: string, args: Record<string, unknown>) => withFileDiagnostics({
+    operation: 'save-in-place', format: fileFormat(name), stage: 'native-write', command,
+  }, () => invoke<void>(command, args));
 
   if (isAndroidTauri()) {
     // On Android the bookmark is the content:// URI the picker returned.
     if (bytes) {
-      await invoke('write_content_uri_bytes', { uri: bookmark, contents: bytes, sourceName: name, backup });
+      await write('write_content_uri_bytes', { uri: bookmark, contents: bytes, sourceName: name, backup });
     } else {
-      await invoke('write_content_uri', { uri: bookmark, contents, sourceName: name, backup });
+      await write('write_content_uri', { uri: bookmark, contents, sourceName: name, backup });
     }
     // A provider's file has no modification time to read back; 0 stands for
     // "written by OpenDraft in this session".
@@ -774,9 +793,9 @@ export async function saveDocumentInPlace(
   }
   if (isIOSTauri()) {
     if (bytes) {
-      await invoke('ios_write_in_place_bytes', { bookmark, contents: bytes, sourceName: name, backup });
+      await write('ios_write_in_place_bytes', { bookmark, contents: bytes, sourceName: name, backup });
     } else {
-      await invoke('ios_write_in_place', { bookmark, contents, sourceName: name, backup });
+      await write('ios_write_in_place', { bookmark, contents, sourceName: name, backup });
     }
     if (external) recordOwnWrite(bookmark, 0);
     return;
@@ -789,9 +808,9 @@ export async function saveDocumentInPlace(
   // temporary file, which is what keeps a half-written screenplay from
   // replacing a whole one if the machine gives up mid-save.
   if (bytes) {
-    await invoke('save_binary_to_path', { path: bookmark, contents: bytes, backup });
+    await write('save_binary_to_path', { path: bookmark, contents: bytes, backup });
   } else {
-    await invoke('save_text_atomic', { path: bookmark, contents, backup });
+    await write('save_text_atomic', { path: bookmark, contents, backup });
   }
   if (external) {
     try {

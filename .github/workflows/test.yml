@@ -79,6 +79,11 @@ jobs:
         with:
           targets: aarch64-linux-android
 
+      - name: Check file-save failure stages and original-file safety
+        run: |
+          rustc --edition=2021 --test src-tauri/src/safe_file.rs -o "$RUNNER_TEMP/file-save-tests"
+          "$RUNNER_TEMP/file-save-tests"
+
       - uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri -> target

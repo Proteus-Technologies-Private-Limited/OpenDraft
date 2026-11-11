@@ -36,7 +36,7 @@
  */
 
 import { getOS, isWeb, openExternal } from './platform';
-import { getAppVersion } from './diagnostics';
+import { readAppVersion } from './appVersion';
 
 /**
  * The manifest, on a branch the store watch owns.
@@ -302,7 +302,7 @@ export type CheckOutcome =
  * reach the manifest, rather than leaving the menu looking broken.
  */
 export async function checkForUpdate(force = false): Promise<CheckOutcome> {
-  const current = getAppVersion();
+  const current = await readAppVersion();
   if (isWeb() && !force) return { status: 'up-to-date', version: current };
 
   const now = Date.now();
