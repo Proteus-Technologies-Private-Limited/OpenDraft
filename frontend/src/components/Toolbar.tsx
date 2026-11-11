@@ -50,6 +50,7 @@ import { isTitlePageRuleId, AV_BLOCK_RULE_ID } from '../stores/formattingTypes';
 import { isInAvCell, isInAvRow, avCellSideAt } from '../editor/extensions/AvBlock';
 import { avCellElementRules, scriptBodyElementRules } from '../utils/avCellElements';
 import Select from './Select';
+import { useFoldState } from '../hooks/useFoldState';
 import { PHONE_DEVICE_CHANGE_EVENT } from '../utils/phoneDevice';
 import { formatShortcut } from '../utils/shortcuts';
 import { elementShortcutSpec } from '../utils/elementShortcuts';
@@ -100,6 +101,7 @@ function selectCaret(ed: Editor | null) {
 // Priority 4 = font style & colors (bold/italic/underline/strike/sub/super + colors + language)
 // Priority 5 = font face & size
 const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
+  const foldState = useFoldState();
   const { t } = useTranslation('toolbar');
   const {
     activeElement,
@@ -521,7 +523,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
       }
       cancelAnimationFrame(rafId);
     };
-  }, []);
+  }, [toolbarMode, foldState.foldable, foldState.size]);
 
   // ── Notes handler (shared between inline and overflow) ──
   const handleNotesClick = useCallback((e: React.PointerEvent | React.MouseEvent) => {
@@ -965,11 +967,11 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
   // than no "…" at all.
   const hasOverflow = overflowContent !== null;
 
-  if (toolbarMode === 'hidden') return null;
+  if (toolbarMode === 'hidden' && (focusMode || !foldState.foldable || foldState.size !== 'phone')) return null;
 
   return (
     <div
-      className={`toolbar${toolbarMode === 'comfortable' ? ' toolbar-comfortable' : ''}${isInsideAvRow ? ' toolbar-av' : ''}`}
+      className={`toolbar${(toolbarMode === 'comfortable' || (foldState.foldable && foldState.size === 'phone' && toolbarMode === 'hidden')) ? ' toolbar-comfortable' : ''}${isInsideAvRow ? ' toolbar-av' : ''}`}
       ref={toolbarRef}
     >
       {/* Undo / Redo — always visible */}

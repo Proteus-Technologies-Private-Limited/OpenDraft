@@ -10,6 +10,7 @@ import { DEFAULT_REVISION_COLOR, DEFAULT_REVISION_SETTINGS, nextRevisionColor, t
 import { spellChecker, PROJECT_DICT_TARGET } from '../editor/spellchecker';
 import { findLanguage, urlsFor } from '../editor/languageCatalog';
 import { isPhoneDevice } from '../utils/phoneDevice';
+import { currentPostureKey, postureChoices, migratePosturePreferences, savePostureChoice, type PosturePreferences } from '../utils/posturePreferences';
 import {
   NOTE_NUMBER_FORMATS,
   type NoteNumberFormat,
@@ -21,7 +22,7 @@ import { t } from '../i18n';
 
 // ── View-state persistence helpers ──
 const VIEW_STATE_KEY = 'opendraft:viewState';
-interface ViewState {
+interface ViewState extends PosturePreferences {
   navigatorOpen?: boolean;
   indexCardsOpen?: boolean;
   beatBoardOpen?: boolean;
@@ -1021,6 +1022,7 @@ interface EditorState {
   /** The device stopped or started being a phone (utils/phoneDevice). Moves
    *  the layout with it unless the writer has picked one in View ▸ Layout. */
   followDevice: (isPhone: boolean) => void;
+  followFoldPosture: () => void;
   zoomPanelOpen: boolean;
   setZoomPanelOpen: (open: boolean) => void;
 
@@ -1753,6 +1755,8 @@ export const useEditorStore = create<EditorState>()(skipUnchanged((set, get) => 
   },
   viewLayout: initialViewLayout,
   setViewLayout: (layout) => {
+    const key = currentPostureKey();
+    if (key) saveViewState({ byPosture: savePostureChoice(loadViewState(), key, { viewLayout: layout }) });
     if (layout === get().viewLayout) return;
     // Each layout comes back at its own zoom: 100% in the phone view is
     // full-size text, while the same number in the page view is a whole
@@ -1760,9 +1764,10 @@ export const useEditorStore = create<EditorState>()(skipUnchanged((set, get) => 
     const saved = loadViewState();
     const zoom = (layout === 'phone' ? saved.phoneZoomLevel : saved.zoomLevel) ?? 100;
     set({ viewLayout: layout, zoomLevel: zoom });
-    saveViewState({ viewLayout: layout });
+    if (!key) saveViewState({ viewLayout: layout });
   },
   followDevice: (isPhone) => {
+    if (currentPostureKey()) return;
     const saved = loadViewState();
     if (saved.viewLayout) return; // the writer's own choice outranks the device
     const layout: ViewLayout = isPhone ? 'phone' : 'page';
@@ -1770,6 +1775,15 @@ export const useEditorStore = create<EditorState>()(skipUnchanged((set, get) => 
     // Not saved: it is still the device's default, and should keep following it.
     const zoom = (layout === 'phone' ? saved.phoneZoomLevel : saved.zoomLevel) ?? 100;
     set({ viewLayout: layout, zoomLevel: zoom });
+  },
+  followFoldPosture: () => {
+    const key = currentPostureKey();
+    if (!key) return;
+    const saved = loadViewState();
+    if (!saved.byPosture) saveViewState({ byPosture: migratePosturePreferences(saved) });
+    const choices = postureChoices(saved, key);
+    const zoom = (choices.viewLayout === 'phone' ? saved.phoneZoomLevel : saved.zoomLevel) ?? 100;
+    set({ ...choices, ...(choices.viewLayout !== get().viewLayout ? { zoomLevel: zoom } : {}) });
   },
   zoomPanelOpen: false,
   setZoomPanelOpen: (open) => set({ zoomPanelOpen: open }),
@@ -1793,7 +1807,13 @@ export const useEditorStore = create<EditorState>()(skipUnchanged((set, get) => 
   setTheme: (t) => get().setAppearance(t),
 
   toolbarMode: (_vs.toolbarMode as 'compact' | 'comfortable' | 'hidden') ?? defaultToolbarMode(),
-  setToolbarMode: (mode) => { set({ toolbarMode: mode }); saveViewState({ toolbarMode: mode }); },
+  setToolbarMode: (mode) => {
+    set({ toolbarMode: mode });
+    const key = currentPostureKey();
+    saveViewState(key
+      ? { byPosture: savePostureChoice(loadViewState(), key, { toolbarMode: mode }) }
+      : { toolbarMode: mode });
+  },
   focusMode: false,
   setFocusMode: (on) => set({ focusMode: on }),
   focusTypewriter: _vs.focusTypewriter ?? true,

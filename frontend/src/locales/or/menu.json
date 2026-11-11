@@ -1,4 +1,5 @@
 {
+  "applicationMenu": "ଆପ୍ଲିକେସନ୍ ମେନୁ",
   "pluginPanels": {
     "resize": "ପ୍ୟାନେଲ୍ ଆକାର ବଦଳାନ୍ତୁ",
     "closeNamed": "{{name}} ବନ୍ଦ କରନ୍ତୁ",
@@ -219,6 +220,7 @@
     "manageMacros": "ମ୍ୟାକ୍ରୋ ପରିଚାଳନା…",
     "spellingGrammar": "ବନାନ ଓ ବ୍ୟାକରଣ",
     "autoSpellCheck": "ସ୍ୱୟଂଚାଳିତ ବନାନ ଯାଞ୍ଚ",
+    "spellcheckLanguages": "ବନାନ ଯାଞ୍ଚ ଭାଷାଗୁଡ଼ିକ",
     "spellCheck": "ବନାନ ଯାଞ୍ଚ…",
     "autoWritingSuggestions": "ସ୍ୱୟଂଚାଳିତ ଲେଖା ପରାମର୍ଶ",
     "writingSuggestions": "ଲେଖା ପରାମର୍ଶ…",

@@ -1,4 +1,5 @@
 {
+  "applicationMenu": "ಅಪ್ಲಿಕೇಶನ್ ಮೆನು",
   "pluginPanels": {
     "resize": "ಪ್ಯಾನೆಲ್ ಗಾತ್ರ ಬದಲಿಸಿ",
     "closeNamed": "{{name}} ಮುಚ್ಚಿ",
@@ -219,6 +220,7 @@
     "manageMacros": "ಮ್ಯಾಕ್ರೋಗಳನ್ನು ನಿರ್ವಹಿಸಿ…",
     "spellingGrammar": "ಕಾಗುಣಿತ ಮತ್ತು ವ್ಯಾಕರಣ",
     "autoSpellCheck": "ಸ್ವಯಂ ಕಾಗುಣಿತ ಪರಿಶೀಲನೆ",
+    "spellcheckLanguages": "ಕಾಗುಣಿತ ಪರಿಶೀಲನೆಯ ಭಾಷೆಗಳು",
     "spellCheck": "ಕಾಗುಣಿತ ಪರಿಶೀಲನೆ…",
     "autoWritingSuggestions": "ಸ್ವಯಂ ಬರವಣಿಗೆ ಸಲಹೆಗಳು",
     "writingSuggestions": "ಬರವಣಿಗೆ ಸಲಹೆಗಳು…",

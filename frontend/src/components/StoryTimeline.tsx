@@ -31,6 +31,7 @@ import { beatsByScene, linkableScenes } from '../utils/beatScenes';
 interface Props {
   editor: Editor;
   onClose: () => void;
+  docked?: boolean;
 }
 
 /** Narrowest a scene is drawn, so a short scene can still be clicked. */
@@ -40,7 +41,7 @@ const MIN_SCENE_PX = 18;
  *  sized by screen time instead of all shrinking to MIN_SCENE_PX. */
 const PX_PER_SECOND = 0.6;
 
-const StoryTimeline: React.FC<Props> = ({ editor, onClose }) => {
+const StoryTimeline: React.FC<Props> = ({ editor, onClose, docked = false }) => {
   const { t } = useTranslation(['story', 'common']);
   const plotlines = useEditorStore((s) => s.plotlines);
   const beats = useEditorStore((s) => s.beats);
@@ -103,7 +104,7 @@ const StoryTimeline: React.FC<Props> = ({ editor, onClose }) => {
   };
 
   const goTo = (scene: TimelineScene) => {
-    onClose();
+    if (!docked) onClose();
     editor.chain().focus().setTextSelection(scene.pos + 1).scrollIntoView().run();
   };
 
@@ -131,12 +132,12 @@ const StoryTimeline: React.FC<Props> = ({ editor, onClose }) => {
   const trackStyle: React.CSSProperties = { minWidth: trackMinWidth };
 
   return (
-    <div className="dialog-overlay" onClick={onClose}>
+    <div className={docked ? "story-timeline-dock" : "dialog-overlay"} onClick={docked ? undefined : onClose}>
       <div
         className="dialog-box story-timeline"
         onClick={(e) => { e.stopPropagation(); setColorPickerFor(null); }}
-        role="dialog"
-        aria-modal="true"
+        role={docked ? "region" : "dialog"}
+        aria-modal={docked ? undefined : true}
         aria-labelledby="story-timeline-title"
       >
         <div className="dialog-header story-timeline-header">

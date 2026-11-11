@@ -178,6 +178,7 @@
     "noWords": "अद्याप शब्द नाहीत."
   },
   "dictionaryConfig": {
+    "notInstalled": "इन्स्टॉल केलेले नाही",
     "addTargetOnTitle": "शब्दकोशात जोडा येथे लिहितो",
     "addTargetOffTitle": "हा शब्दकोशात जोडा चा लक्ष्य करण्यासाठी क्लिक करा",
     "addHereOn": "✓ येथे जोडा",

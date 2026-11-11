@@ -1,4 +1,5 @@
 {
+  "applicationMenu": "منوی برنامه",
   "pluginPanels": {
     "resize": "تغییر اندازهٔ پنل",
     "closeNamed": "بستن {{name}}",
@@ -219,6 +220,7 @@
     "manageMacros": "مدیریت ماکروها…",
     "spellingGrammar": "املا و دستور زبان",
     "autoSpellCheck": "بررسی خودکار املا",
+    "spellcheckLanguages": "زبان‌های غلط‌یابی املایی",
     "spellCheck": "بررسی املا…",
     "autoWritingSuggestions": "پیشنهادهای نگارش خودکار",
     "writingSuggestions": "پیشنهادهای نگارش…",

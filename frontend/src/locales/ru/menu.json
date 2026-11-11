@@ -1,4 +1,5 @@
 {
+  "applicationMenu": "Меню приложения",
   "pluginPanels": {
     "resize": "Изменить размер панели",
     "closeNamed": "Закрыть: {{name}}",
@@ -229,6 +230,7 @@
     "manageMacros": "Управление макросами…",
     "spellingGrammar": "Орфография и грамматика",
     "autoSpellCheck": "Автопроверка орфографии",
+    "spellcheckLanguages": "Языки проверки орфографии",
     "spellCheck": "Проверка орфографии…",
     "autoWritingSuggestions": "Автоподсказки по стилю",
     "writingSuggestions": "Подсказки по стилю…",

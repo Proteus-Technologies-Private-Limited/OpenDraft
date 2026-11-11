@@ -178,6 +178,7 @@
     "noWords": "هنوز واژه‌ای نیست."
   },
   "dictionaryConfig": {
+    "notInstalled": "نصب نشده",
     "addTargetOnTitle": "«افزودن به فرهنگ لغت» اینجا می‌نویسد",
     "addTargetOffTitle": "برای اینکه این مقصد «افزودن به فرهنگ لغت» شود کلیک کنید",
     "addHereOn": "✓ افزودن در اینجا",

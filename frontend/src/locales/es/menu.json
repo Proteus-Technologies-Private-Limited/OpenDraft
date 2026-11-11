@@ -1,4 +1,5 @@
 {
+  "applicationMenu": "Menú de la aplicación",
   "pluginPanels": {
     "resize": "Cambiar el tamaño del panel",
     "closeNamed": "Cerrar {{name}}",
@@ -224,6 +225,7 @@
     "manageMacros": "Administrar macros…",
     "spellingGrammar": "Ortografía y gramática",
     "autoSpellCheck": "Revisión ortográfica automática",
+    "spellcheckLanguages": "Idiomas de revisión ortográfica",
     "spellCheck": "Revisar ortografía…",
     "autoWritingSuggestions": "Sugerencias de redacción automáticas",
     "writingSuggestions": "Sugerencias de redacción…",

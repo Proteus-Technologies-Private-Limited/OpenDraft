@@ -1,4 +1,5 @@
 {
+  "applicationMenu": "अनुप्रयोग मेनू",
   "pluginPanels": {
     "resize": "पॅनेलचा आकार बदला",
     "closeNamed": "{{name}} बंद करा",
@@ -219,6 +220,7 @@
     "manageMacros": "मॅक्रो व्यवस्थापित करा…",
     "spellingGrammar": "स्पेलिंग आणि व्याकरण",
     "autoSpellCheck": "स्वयंचलित स्पेल चेक",
+    "spellcheckLanguages": "शुद्धलेखन तपासणीच्या भाषा",
     "spellCheck": "स्पेल चेक…",
     "autoWritingSuggestions": "स्वयंचलित लेखन सूचना",
     "writingSuggestions": "लेखन सूचना…",

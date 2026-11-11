@@ -178,6 +178,7 @@
     "noWords": "ଏପର୍ଯ୍ୟନ୍ତ କୌଣସି ଶବ୍ଦ ନାହିଁ।"
   },
   "dictionaryConfig": {
+    "notInstalled": "ସଂସ୍ଥାପିତ ହୋଇନାହିଁ",
     "addTargetOnTitle": "ଅଭିଧାନରେ ଯୋଡ଼ନ୍ତୁ ଏଠାରେ ଲେଖେ",
     "addTargetOffTitle": "ଏହାକୁ ଅଭିଧାନରେ ଯୋଡ଼ନ୍ତୁର ଲକ୍ଷ୍ୟ କରିବାକୁ କ୍ଲିକ୍ କରନ୍ତୁ",
     "addHereOn": "✓ ଏଠାରେ ଯୋଡ଼ନ୍ତୁ",

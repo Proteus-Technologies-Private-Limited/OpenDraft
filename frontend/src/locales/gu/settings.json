@@ -178,6 +178,7 @@
     "noWords": "હજી કોઈ શબ્દ નથી."
   },
   "dictionaryConfig": {
+    "notInstalled": "ઇન્સ્ટોલ કરેલ નથી",
     "addTargetOnTitle": "“શબ્દકોશમાં ઉમેરો” અહીં લખે છે",
     "addTargetOffTitle": "આને “શબ્દકોશમાં ઉમેરો” નું લક્ષ્ય બનાવવા ક્લિક કરો",
     "addHereOn": "✓ અહીં ઉમેરો",

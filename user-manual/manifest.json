@@ -1,5 +1,5 @@
 {
-  "version": "92c8852be6336ce7",
+  "version": "bde95728ca3c42e6",
   "pages": [
     {
       "slug": "index.html",
@@ -47,7 +47,7 @@
       "slug": "spell-check.html",
       "title": "Spell Check",
       "section": "Writing",
-      "hash": "9047ff89c6a8619e"
+      "hash": "224a54661d77a980"
     },
     {
       "slug": "ai-assistant.html",
@@ -95,7 +95,7 @@
       "slug": "script-statistics.html",
       "title": "Script Statistics & Timing",
       "section": "Analysis",
-      "hash": "d78e6d8c9d874073"
+      "hash": "ccdd13788502fa17"
     },
     {
       "slug": "table-read.html",
@@ -173,7 +173,7 @@
       "slug": "keyboard-shortcuts.html",
       "title": "Keyboard Shortcuts",
       "section": "Customization",
-      "hash": "a538bb645190d8a8"
+      "hash": "8c0c907dd29d6fb9"
     },
     {
       "slug": "plugin-development.html",

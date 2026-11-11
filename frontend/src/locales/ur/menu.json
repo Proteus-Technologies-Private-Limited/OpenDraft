@@ -1,4 +1,5 @@
 {
+  "applicationMenu": "ایپلیکیشن مینو",
   "pluginPanels": {
     "resize": "پینل کا سائز بدلیں",
     "closeNamed": "{{name}} بند کریں",
@@ -219,6 +220,7 @@
     "manageMacros": "میکرو کا انتظام…",
     "spellingGrammar": "املا اور گرامر",
     "autoSpellCheck": "خودکار املا کی جانچ",
+    "spellcheckLanguages": "املا کی جانچ کی زبانیں",
     "spellCheck": "املا کی جانچ…",
     "autoWritingSuggestions": "خودکار تحریری تجاویز",
     "writingSuggestions": "تحریری تجاویز…",

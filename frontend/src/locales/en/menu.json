@@ -1,4 +1,5 @@
 {
+  "applicationMenu": "Application menu",
   "pluginPanels": {
     "resize": "Resize panel",
     "closeNamed": "Close {{name}}",
@@ -219,6 +220,7 @@
     "manageMacros": "Manage Macros…",
     "spellingGrammar": "Spelling & Grammar",
     "autoSpellCheck": "Auto Spell Check",
+    "spellcheckLanguages": "Spellcheck Languages",
     "spellCheck": "Spell Check…",
     "autoWritingSuggestions": "Auto Writing Suggestions",
     "writingSuggestions": "Writing Suggestions…",

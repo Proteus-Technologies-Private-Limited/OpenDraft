@@ -49,7 +49,12 @@ export interface PluginMenuChildEntry {
   action?: (ctx: PluginContext) => void;
   shortcut?: string;
   disabled?: boolean | ((ctx: PluginContext) => boolean);
+  /** Omit for a command; a boolean (including false) exposes a checked menu item. */
+  checked?: boolean | ((ctx: PluginContext) => boolean);
+  /** With `checked`, announce a mutually exclusive option instead of a checkbox. */
+  radio?: boolean;
   separator?: boolean;
+  children?: PluginMenuChildEntry[];
   icon?: ReactNode;
 }
 
@@ -63,6 +68,10 @@ export interface PluginMenuEntry {
   shortcut?: string;
   order?: number;
   disabled?: boolean | ((ctx: PluginContext) => boolean);
+  /** Omit for a command; a boolean (including false) exposes a checked menu item. */
+  checked?: boolean | ((ctx: PluginContext) => boolean);
+  /** With `checked`, announce a mutually exclusive option instead of a checkbox. */
+  radio?: boolean;
   separator?: boolean;
   children?: PluginMenuChildEntry[];
   icon?: ReactNode;

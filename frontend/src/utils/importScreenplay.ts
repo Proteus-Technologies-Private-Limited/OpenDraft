@@ -11,6 +11,7 @@
  * title, clearing project context, marking the source — because those differ
  * between entry points.
  */
+import { spellChecker } from '../editor/spellchecker';
 import type { JSONContent } from '@tiptap/react';
 import { importedFormat, restoreImportedFormat } from './importedFormat';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
@@ -169,6 +170,7 @@ export interface ImportedScreenplay {
  * replaces.
  */
 export function resetStoresForImport(): void {
+  spellChecker.beginDocument();
   // The script format belongs to the script being replaced, too. A Final Draft,
   // PDF or Fountain file imported while a Stage Play was open came in laid out
   // as a stage play: centred, underlined scene headings and full-width

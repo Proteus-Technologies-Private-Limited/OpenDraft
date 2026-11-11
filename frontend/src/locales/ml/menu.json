@@ -1,4 +1,5 @@
 {
+  "applicationMenu": "ആപ്ലിക്കേഷൻ മെനു",
   "pluginPanels": {
     "resize": "പാനലിന്റെ വലുപ്പം മാറ്റുക",
     "closeNamed": "{{name}} അടയ്ക്കുക",
@@ -219,6 +220,7 @@
     "manageMacros": "മാക്രോകൾ നിയന്ത്രിക്കുക…",
     "spellingGrammar": "അക്ഷരത്തെറ്റും വ്യാകരണവും",
     "autoSpellCheck": "ഓട്ടോ അക്ഷരത്തെറ്റ് പരിശോധന",
+    "spellcheckLanguages": "അക്ഷരപ്പിശക് പരിശോധനാ ഭാഷകൾ",
     "spellCheck": "അക്ഷരത്തെറ്റ് പരിശോധന…",
     "autoWritingSuggestions": "ഓട്ടോ എഴുത്ത് നിർദേശങ്ങൾ",
     "writingSuggestions": "എഴുത്ത് നിർദേശങ്ങൾ…",

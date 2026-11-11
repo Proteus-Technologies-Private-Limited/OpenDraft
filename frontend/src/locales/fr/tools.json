@@ -1,4 +1,28 @@
 {
+  "scriptHealth": {
+    "emptyCue": "Cette indication de personnage est vide.",
+    "requiresScript": "Ouvrez un scénario pour créer ce rapport.",
+    "excerpts": "Les extraits sont limités à 180 caractères ; les exports incluent tous les résultats.",
+    "title": "État du scénario",
+    "intro": "Vérifications locales des références, dialogues et notes ouvertes. Ce rapport ne juge pas la qualité du récit et ne certifie pas que le scénario est prêt à être soumis.",
+    "summary": "Points à examiner : {{count}}",
+    "clean": "Aucun point relevé par ces vérifications.",
+    "emptyScript": "Le scénario ne contient aucun texte imprimable.",
+    "emptyScene": "Cet en-tête de scène est vide.",
+    "duplicateScene": "Le numéro de scène {{reference}} est utilisé plusieurs fois.",
+    "duplicateElement": "La référence d’élément {{reference}} est répétée dans cette séquence de numérotation.",
+    "missingDialogue": "Ce nom de personnage n’est suivi d’aucun dialogue.",
+    "orphanDialogue": "Ce dialogue n’est précédé d’aucun nom de personnage dans son bloc.",
+    "orphanParenthetical": "Cette indication entre parenthèses n’est précédée d’aucun nom de personnage dans son bloc.",
+    "openNote": "Note du scénario non résolue.",
+    "jump": "Aller au point relevé",
+    "openNotes": "Ouvrir les notes",
+    "noScene": "Aucune scène nommée",
+    "scene": "Scène",
+    "finding": "Point relevé",
+    "excerpt": "Extrait",
+    "changed": "Le scénario a changé. Réessayez avec le rapport actualisé."
+  },
   "statistics": {
     "title": "Statistiques du scénario",
     "cards": {

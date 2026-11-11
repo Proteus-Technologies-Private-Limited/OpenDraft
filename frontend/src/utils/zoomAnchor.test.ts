@@ -76,4 +76,23 @@ describe('zoom anchor', () => {
     (anchor.el as unknown as { isConnected: boolean }).isConnected = false;
     expect(restoreZoomAnchor(s.container, anchor)).toBe(false);
   });
+  it('keeps the anchored point visible when a fold makes the scroller shorter', () => {
+    const s = fakeScript(Array(200).fill(40));
+    s.state.scrollTop = 3000;
+    const anchor = captureZoomAnchor(s.container, s.root)!;
+    s.container.getBoundingClientRect = () => ({ top: VIEW_TOP, height: 240 }) as DOMRect;
+    restoreZoomAnchor(s.container, anchor);
+    const box = anchor.el.getBoundingClientRect();
+    expect(box.top + anchor.frac * box.height - VIEW_TOP).toBeCloseTo(216, 0);
+  });
+
+  it('preserves a pinch near the bottom when the viewport has not shrunk', () => {
+    const s = fakeScript(Array(200).fill(40));
+    s.state.scrollTop = 3000;
+    const anchor = captureZoomAnchor(s.container, s.root, VIEW_TOP + 790)!;
+    restoreZoomAnchor(s.container, anchor);
+    const box = anchor.el.getBoundingClientRect();
+    expect(box.top + anchor.frac * box.height - VIEW_TOP).toBeCloseTo(790, 0);
+  });
+
 });

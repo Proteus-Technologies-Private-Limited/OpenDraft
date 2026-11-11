@@ -178,6 +178,7 @@
     "noWords": "এখনও কোনো শব্দ নেই।"
   },
   "dictionaryConfig": {
+    "notInstalled": "ইনস্টল করা নেই",
     "addTargetOnTitle": "“অভিধানে যোগ করুন” এখানে লেখে",
     "addTargetOffTitle": "এটিকে “অভিধানে যোগ করুন”-এর গন্তব্য করতে ক্লিক করুন",
     "addHereOn": "✓ এখানে যোগ করুন",
