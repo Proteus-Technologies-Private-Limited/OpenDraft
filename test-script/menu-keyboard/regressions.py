@@ -6,6 +6,7 @@ or screen readers are simulated; the fixture uses only synthetic script text.
 """
 import os
 import unittest
+from pathlib import Path
 from playwright.sync_api import sync_playwright, expect
 
 
@@ -67,7 +68,22 @@ class MenuKeyboard(unittest.TestCase):
                         ]},
                     ]},
                 ],
-            }]});
+            },{id:'typeahead',section:'Tools',label:'Typeahead fixture',children:[
+                {id:'karma',label:'कर्म',action:()=>window.activations++},
+                {id:'kiran',label:'किरण',action:()=>window.activations++},
+                {id:'kitab',label:'किताब',action:()=>window.activations++},
+                {id:'kshama',label:'क्षमा',action:()=>window.activations++},
+                {id:'kshetra',label:'क्षेत्र',action:()=>window.activations++},
+                {id:'slow',label:'Slow dialog',action:()=>setTimeout(()=>{
+                    const dialog=document.createElement('dialog');dialog.id='async-menu-dialog';
+                    dialog.innerHTML='<button>Async dialog button</button>';
+                    document.body.append(dialog);dialog.showModal();
+                    // A native dialog may take focus itself. Exercise the case
+                    // where its mounting code has not moved focus yet.
+                    document.querySelector('.ProseMirror').focus();
+                    testStore.getState().setZoomLevel(110);
+                },100)},
+            ]}]});
             testEditor.commands.setContent({type:'doc',content:[{type:'action',content:[{type:'text',text:'Synthetic keyboard selection'}]}]});
             testEditor.commands.setTextSelection({from:1,to:10});
             testEditor.commands.focus();
@@ -115,10 +131,16 @@ class MenuKeyboard(unittest.TestCase):
         self.press('Home')
         expect(self.row('New Script')).to_be_focused()
 
-    def test_nested_skip_disabled_typeahead_and_escape(self):
+    def test_nested_focus_disabled_typeahead_and_escape(self):
         self.fixture()
+        disabled=self.row('Disabled action')
+        expect(disabled).to_be_focused()
+        expect(disabled).to_have_attribute('aria-disabled', 'true')
+        self.press('Enter');self.press('Space')
+        self.assertEqual(self.page.evaluate('activations'),0)
+        expect(disabled).to_be_focused()
+        self.press('ArrowDown')
         expect(self.row('Alpha action')).to_be_focused()
-        expect(self.row('Disabled action')).to_have_attribute('aria-disabled', 'true')
         self.press('a')
         expect(self.row('Another action')).to_be_focused()
         self.press('a')
@@ -142,9 +164,10 @@ class MenuKeyboard(unittest.TestCase):
 
     def test_action_once_and_checkbox_radio_semantics(self):
         self.fixture()
+        self.press('ArrowDown')
         self.press('Space')
         self.assertEqual(self.page.evaluate('activations'), 1)
-        expect(self.row('Tools')).to_be_focused()
+        expect(self.page.locator('.ProseMirror')).to_be_focused()
         self.open('View')
         self.press('t')
         expect(self.row('Theme')).to_be_focused()
@@ -158,6 +181,90 @@ class MenuKeyboard(unittest.TestCase):
         self.press('ArrowRight')
         self.press('ArrowRight')
         expect(self.row('Checked fixture', 'menuitemcheckbox')).to_have_attribute('aria-checked', 'true')
+
+    def test_panel_theme_layout_and_zoom_commands_return_to_the_script(self):
+        self.open('View');self.press('p');self.press('ArrowRight')
+        expect(self.row('Navigator','menuitemcheckbox')).to_be_focused()
+        self.press('Enter')
+        expect(self.page.locator('.ProseMirror')).to_be_focused()
+        self.assertEqual(self.page.evaluate('({from:testEditor.state.selection.from,to:testEditor.state.selection.to})'),{'from':1,'to':10})
+        self.page.keyboard.type('x')
+        self.assertEqual(self.page.locator('.ProseMirror').inner_text(),'x keyboard selection')
+        for submenu, choice in [('Theme','Light'),('Layout','Phone')]:
+            self.open('View');self.row(submenu).focus();self.press('ArrowRight')
+            self.row(choice,'menuitemradio').focus();self.press('Enter')
+            expect(self.page.locator('.ProseMirror')).to_be_focused()
+        self.open('View');self.press('z');self.press('ArrowRight')
+        expect(self.row('Zoom In')).to_be_focused()
+        self.press('ArrowDown');self.press('ArrowDown')
+        expect(self.row('50%','menuitemradio')).to_be_focused()
+        self.press('ArrowUp')
+        expect(self.row('Zoom Out')).to_be_focused()
+        self.row('125%','menuitemradio').focus();self.press('Enter')
+        expect(self.page.locator('.ProseMirror')).to_be_focused()
+
+    def test_shortcuts_and_radio_groups_have_accessible_metadata(self):
+        self.open('File')
+        expect(self.row('Save Script')).to_have_attribute('aria-keyshortcuts','Control+S')
+        expect(self.row('Save Script As…')).to_have_attribute('aria-keyshortcuts','Shift+Control+S')
+        ax=self.page.context.new_cdp_session(self.page).send('Accessibility.getFullAXTree')['nodes']
+        save=next(node for node in ax if node.get('role',{}).get('value')=='menuitem' and node.get('name',{}).get('value')=='Save Script')
+        self.assertIn({'name':'keyshortcuts','value':{'type':'string','value':'Control+S'}},save['properties'])
+        self.press('Escape')
+        self.open('View');self.press('z');self.press('ArrowRight')
+        group=self.page.get_by_role('group',name='Zoom (100%)',exact=True)
+        expect(group).to_be_visible()
+        self.assertEqual(group.get_by_role('menuitemradio').count(),7)
+        self.assertEqual(group.get_by_role('menuitem').count(),0)
+        self.assertEqual(group.locator('[aria-checked=true]').count(),1)
+        self.press('End')
+        expect(self.row('300%','menuitemradio')).to_be_focused()
+        self.press('ArrowDown')
+        expect(self.row('Zoom In')).to_be_focused()
+        shots=os.environ.get('OPENDRAFT_SCREENSHOTS')
+        if shots:
+            Path(shots).mkdir(parents=True,exist_ok=True)
+            self.page.screenshot(path=str(Path(shots)/'keyboard-radio-group.png'))
+
+    def test_indic_typeahead_keeps_vowel_signs_and_ignores_an_isolated_mark(self):
+        self.page.evaluate("testI18n.setLanguage('hi')")
+        self.page.wait_for_function("document.documentElement.lang==='hi'")
+        self.page.locator('[data-menu-top=Tools]').focus();self.press('ArrowDown')
+        self.row('Typeahead fixture').focus();self.press('ArrowRight')
+        expect(self.row('कर्म')).to_be_focused()
+        self.page.locator(':focus').dispatch_event('keydown',{'key':'ि','bubbles':True})
+        expect(self.row('कर्म')).to_be_focused()
+        self.page.locator(':focus').dispatch_event('keydown',{'key':'क','bubbles':True})
+        expect(self.row('किरण')).to_be_focused()
+        self.page.locator(':focus').dispatch_event('keydown',{'key':'ि','bubbles':True})
+        expect(self.row('किरण')).to_be_focused()
+        self.page.locator(':focus').dispatch_event('keydown',{'key':'त','bubbles':True})
+        expect(self.row('किताब')).to_be_focused()
+        self.page.locator(':focus').dispatch_event('keydown',{'key':'क्ष','bubbles':True})
+        expect(self.row('क्षमा')).to_be_focused()
+        self.page.locator(':focus').dispatch_event('keydown',{'key':'क्ष','bubbles':True})
+        expect(self.row('क्षेत्र')).to_be_focused()
+        self.page.locator(':focus').dispatch_event('keydown',{'key':'क','bubbles':True,'isComposing':True})
+        expect(self.row('क्षेत्र')).to_be_focused()
+        self.assertEqual(self.page.evaluate('activations'),0)
+
+    def test_non_dialog_command_returns_to_its_originating_input(self):
+        self.page.evaluate("const input=document.createElement('input');input.id='menu-origin';document.body.append(input);input.focus()")
+        self.fixture();self.press('ArrowDown');self.press('Enter')
+        expect(self.page.locator('#menu-origin')).to_be_focused()
+        self.page.keyboard.type('x')
+        expect(self.page.locator('#menu-origin')).to_have_value('x')
+        self.assertEqual(self.page.evaluate('activations'),1)
+        self.page.evaluate("testStore.getState().setToolbarMode('hidden')")
+        self.press('F10');self.fixture();self.press('ArrowDown');self.press('Enter')
+        expect(self.page.locator('#menu-origin')).to_be_focused()
+        self.assertEqual(self.page.evaluate('activations'),2)
+
+    def test_async_dialog_takes_focus_after_command_returns_to_origin(self):
+        self.open('Tools');self.row('Typeahead fixture').focus();self.press('ArrowRight')
+        self.press('End');self.press('Enter')
+        expect(self.page.locator('.ProseMirror')).to_be_focused()
+        expect(self.page.get_by_role('button',name='Async dialog button')).to_be_focused()
 
     def test_tab_and_shift_tab_leave_menu(self):
         for key in ['Tab', 'Shift+Tab']:
@@ -235,7 +342,7 @@ class MenuKeyboard(unittest.TestCase):
     def test_mobile_and_rtl_nested_navigation(self):
         self.page.set_viewport_size({'width':390,'height':844})
         self.fixture()
-        expect(self.row('Alpha action')).to_be_focused()
+        expect(self.row('Disabled action')).to_be_focused()
         self.press('End')
         self.press('ArrowRight')
         self.press('ArrowRight')
@@ -250,7 +357,7 @@ class MenuKeyboard(unittest.TestCase):
         self.open('Tools')
         self.press('k')
         self.press('ArrowLeft')
-        expect(self.row('Alpha action')).to_be_focused()
+        expect(self.row('Disabled action')).to_be_focused()
         self.press('End')
         self.press('ArrowLeft')
         expect(self.row('Further menu')).to_be_focused()

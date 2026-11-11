@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react';
 import type { Dispatch, FocusEvent, KeyboardEvent as ReactKeyboardEvent, RefObject, SetStateAction } from 'react';
+import { menuSearchKey, menuSearchText } from '../utils/menuKeyboard';
 
 type Setter<T> = Dispatch<SetStateAction<T>>;
 interface Options {
@@ -16,8 +17,9 @@ interface Options {
 
 const itemSelector = '[role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"]';
 const visible = (element: HTMLElement) => element.getClientRects().length > 0 && !element.closest('[hidden], [inert]');
-const rows = (menu: HTMLElement) => Array.from(menu.children).filter((child): child is HTMLElement =>
-  child instanceof HTMLElement && child.matches(itemSelector) && child.getAttribute('aria-disabled') !== 'true' && visible(child));
+const rows = (menu: HTMLElement) => Array.from(menu.children)
+  .flatMap(child => child.getAttribute('role') === 'group' ? Array.from(child.children) : [child])
+  .filter((child): child is HTMLElement => child instanceof HTMLElement && child.matches(itemSelector) && visible(child));
 const focus = (element: HTMLElement | null | undefined) => {
   element?.focus({ preventScroll: true });
   element?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
@@ -37,7 +39,7 @@ export function useMenuKeyboard({ activeMenu, hidden, menuRef, dropdownRef, trig
   const lastFocus = useRef<HTMLElement | null>(null);
   const origin = useRef<HTMLElement | null>(null);
   const typeahead = useRef({ text: '', at: 0, menu: null as HTMLElement | null });
-  const pendingAction = useRef<{ trigger: HTMLElement | null; at: number } | null>(null);
+  const pendingAction = useRef<{ trigger: HTMLElement | null; origin: HTMLElement | null; at: number } | null>(null);
   const modalReturn = useRef<{ modal: HTMLElement; trigger: HTMLElement | null } | null>(null);
 
   const trigger = () => (activeMenu ? triggers.current[activeMenu] : triggers.current[tabStop]);
@@ -82,7 +84,7 @@ export function useMenuKeyboard({ activeMenu, hidden, menuRef, dropdownRef, trig
   };
   const prepareAction = () => {
     returnTrigger();
-    pendingAction.current = { trigger: document.activeElement as HTMLElement | null, at: Date.now() };
+    pendingAction.current = { trigger: document.activeElement as HTMLElement | null, origin: origin.current, at: Date.now() };
   };
   const leaveWithTab = (backwards: boolean) => {
     const anchor = hidden ? fabRef.current : trigger();
@@ -99,20 +101,21 @@ export function useMenuKeyboard({ activeMenu, hidden, menuRef, dropdownRef, trig
     if (next) focus(next);
   };
   const search = (event: ReactKeyboardEvent, menu: HTMLElement, choices: HTMLElement[]) => {
-    if (event.key.length !== 1 || event.key === ' ' || event.ctrlKey || event.metaKey || event.altKey) return false;
-    const normalize = (value: string) => value.normalize('NFKD').replace(/\p{M}/gu, '').toLocaleLowerCase();
+    if (!menuSearchKey(event.key) || event.ctrlKey || event.metaKey || event.altKey) return false;
+    const normalize = menuSearchText;
     const old = typeahead.current;
     const char = normalize(event.key);
     const continuing = old.menu === menu && Date.now() - old.at < 700;
-    const text = continuing && old.text !== char ? old.text + char : char;
+    const extending = continuing && old.text !== char;
+    const text = extending ? normalize(old.text + char) : char;
     const current = choices.indexOf(document.activeElement as HTMLElement);
-    const find = (prefix: string) => {
-      for (let offset = prefix.length > 1 ? 0 : 1; offset <= choices.length; offset++) {
+    const find = (prefix: string, fromCurrent = false) => {
+      for (let offset = fromCurrent ? 0 : 1; offset <= choices.length; offset++) {
         const candidate = choices[(Math.max(current, 0) + offset) % choices.length];
         if (candidate && normalize(candidate.getAttribute('aria-label') || candidate.textContent || '').startsWith(prefix)) return candidate;
       }
     };
-    const fullMatch = find(text);
+    const fullMatch = find(text, extending);
     const match = fullMatch ?? find(char);
     typeahead.current = { text: fullMatch ? text : char, at: Date.now(), menu };
     if (match) focus(match);
@@ -134,9 +137,17 @@ export function useMenuKeyboard({ activeMenu, hidden, menuRef, dropdownRef, trig
       const dialog = modal();
       if (dialog) {
         modalReturn.current = { modal: dialog, trigger: action.trigger };
-        if (document.activeElement === action.trigger || document.activeElement === document.body) focus(tabbables(dialog)[0]);
+        if (document.activeElement === action.trigger || document.activeElement === action.origin || document.activeElement === document.body) focus(tabbables(dialog)[0]);
         pendingAction.current = null;
-      } else if (document.activeElement !== action.trigger && document.activeElement !== document.body) pendingAction.current = null;
+      } else if (!activeMenu && (document.activeElement === action.trigger || document.activeElement === document.body)) {
+        // A panel/theme/layout command leaves text selection intact. Return to
+        // its originating control without scrolling the whole script into view.
+        const target = action.origin?.isConnected && action.origin !== document.body && visible(action.origin)
+          ? action.origin : fallback();
+        target?.focus({ preventScroll: true });
+        // Retain the short observation window for asynchronously opened dialogs.
+      } else if (document.activeElement !== action.trigger && document.activeElement !== action.origin
+        && document.activeElement !== document.body) pendingAction.current = null;
     } else pendingAction.current = null;
     const returning = modalReturn.current;
     if (returning && !returning.modal.isConnected) {
@@ -146,10 +157,10 @@ export function useMenuKeyboard({ activeMenu, hidden, menuRef, dropdownRef, trig
     const previous = lastFocus.current;
     if (previous && (!previous.isConnected || !visible(previous))
       && (document.activeElement === previous || document.activeElement === document.body) && !modal()) {
-      let owner = previous.parentElement?.dataset.menuOwner;
+      let owner = previous.closest<HTMLElement>('[role="menu"]')?.dataset.menuOwner;
       let parent = owner ? document.getElementById(owner) : null;
       while (parent && !visible(parent)) {
-        owner = parent.parentElement?.dataset.menuOwner;
+        owner = parent.closest<HTMLElement>('[role="menu"]')?.dataset.menuOwner;
         parent = owner ? document.getElementById(owner) : null;
       }
       lastFocus.current = null;
@@ -210,7 +221,7 @@ export function useMenuKeyboard({ activeMenu, hidden, menuRef, dropdownRef, trig
   const onItemKeyDown = (event: ReactKeyboardEvent<HTMLElement>) => {
     if (event.target !== event.currentTarget || event.nativeEvent.isComposing || event.ctrlKey || event.metaKey || event.altKey) return;
     const row = event.currentTarget;
-    const menu = row.parentElement!;
+    const menu = row.closest<HTMLElement>('[role="menu"]')!;
     const choices = rows(menu);
     const index = choices.indexOf(row);
     const rtl = getComputedStyle(row).direction === 'rtl';
