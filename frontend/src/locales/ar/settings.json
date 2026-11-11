@@ -194,6 +194,7 @@
     "noWords": "لا كلمات بعد."
   },
   "dictionaryConfig": {
+    "notInstalled": "غير مثبتة",
     "addTargetOnTitle": "«إضافة إلى القاموس» تكتب هنا",
     "addTargetOffTitle": "انقر لجعل هذا وجهة «إضافة إلى القاموس»",
     "addHereOn": "✓ أضف هنا",

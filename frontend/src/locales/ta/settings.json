@@ -178,6 +178,7 @@
     "noWords": "இன்னும் சொற்கள் இல்லை."
   },
   "dictionaryConfig": {
+    "notInstalled": "நிறுவப்படவில்லை",
     "addTargetOnTitle": "அகராதியில் சேர் இங்கே எழுதும்",
     "addTargetOffTitle": "இதை அகராதியில் சேர் இலக்காக்க கிளிக் செய்யவும்",
     "addHereOn": "✓ இங்கே சேர்",
