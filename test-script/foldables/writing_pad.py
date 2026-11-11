@@ -240,6 +240,21 @@ class WritingPad(unittest.TestCase):
             os.makedirs(shots, exist_ok=True)
             self.page.screenshot(path=os.path.join(shots, "focus-mode.png"))
         self.page.evaluate("testStore.getState().setFocusMode(false)")
+        self.page.wait_for_function("!document.fullscreenElement")
+        # Browser fullscreen can replace CDP's synthetic screen metrics. Restore
+        # the book fixture after it exits, then check docking and the same field.
+        self.posture(951, 669, "vertical", "folded")
+        # Chromium drops the legacy displayFeature override on fullscreen exit;
+        # restore the feature explicitly, even when the metrics did not change.
+        self.cdp.send(
+            "Emulation.setDisplayFeaturesOverride",
+            {
+                "features": [
+                    {"orientation": "vertical", "offset": 465, "maskLength": 20}
+                ]
+            },
+        )
+        self.page.wait_for_function("window.viewport.segments.length===2")
         expect(self.page.locator(".scribble-panel.is-docked")).to_be_visible()
         expect(field).to_have_value("Keep the Focus Mode writing draft")
         self.assertTrue(field.evaluate("el=>el===padField"))
