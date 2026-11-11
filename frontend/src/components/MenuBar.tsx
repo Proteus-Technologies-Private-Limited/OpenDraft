@@ -25,6 +25,7 @@ import { insertMacro } from './macroActions';
 import { addScriptNoteAtSelection } from '../utils/addScriptNote';
 import { FOCUS_MODE_SHORTCUT } from '../editor/extensions/FocusMode';
 import { showToast } from './Toast';
+import { formatFileFailure } from '../services/fileDiagnostics';
 import { useTranslation, Trans } from 'react-i18next';
 import { useSpellcheckLanguages } from '../hooks/useSpellcheckLanguages';
 import { t } from '../i18n';
@@ -3072,7 +3073,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
         // App builds only: a browser tab has nothing that can hold on to a
         // folder across a reload. Omitted rather than disabled — a permanently
         // greyed submenu just invites bug reports.
-        ...(isNativeApp() && ['ios', 'android'].includes(nativeOS()) ? [{ icon: <FaHistory />, label: t('menu:file.recoverOriginalFile'), action: () => setSourceBackupOpen(true) }] : []),
+        ...(isNativeApp() && ['macos', 'ios', 'android'].includes(nativeOS()) ? [{ icon: <FaHistory />, label: t('menu:file.recoverOriginalFile'), action: () => setSourceBackupOpen(true) }] : []),
         ...(backupsSupported() ? [
           { separator: true, label: '' },
           {
@@ -4241,6 +4242,16 @@ const MenuBar: React.FC<MenuBarProps> = ({
               <div className="about-section-title">What's New in 2.11.0</div>
               <div className="about-changelog">
               {/* i18n-ignore-start: release notes stay English in phase 1 */}
+              <div className="about-subsection-title">v2.12.0</div>
+              <ul className="about-list">
+                <li><strong>Exports Work Again in the Mac App Store Version</strong> &mdash; Every export, <em>Save As</em> and save of a linked file could fail with &ldquo;Operation not permitted&rdquo; in the Mac App Store version, because OpenDraft first wrote a temporary file beside the one you picked and macOS only lets it use the file itself. Saves now go through macOS&rsquo;s own file replacement, which keeps them safe without needing the rest of the folder. On the Mac, the copy kept before replacing another app&rsquo;s file now lives inside OpenDraft: get it back with <em>File &rarr; Recover Original File&hellip;</em> (#241).</li>
+                <li><strong>Highlights You Can Remove in Word</strong> &mdash; Highlights in a Word export are now Word&rsquo;s own highlights, so Word&rsquo;s highlighter can change or remove them. Word has a fixed set of highlight colours, so each one uses the closest: pale yellow becomes yellow, sky blue turquoise. To keep the exact colours instead, turn on <em>Settings &rarr; Word Export &rarr; Keep the exact highlight colors</em> (#226).</li>
+                <li><strong>Faster Typing in Long Scripts</strong> &mdash; Typing, and especially holding <kbd>Backspace</kbd>, no longer redraws the menus, toolbar, Navigator and status bar on every key, so long scripts stay responsive. On Linux, the desktop app also keeps WebKitGTK&rsquo;s fast GPU drawing on with Intel and AMD graphics (#229).</li>
+                <li><strong>Media Keys for Table Read</strong> &mdash; In a web browser, your keyboard&rsquo;s media keys, headset buttons and the system&rsquo;s media controls play, pause and step through Table Read, and show the scene and speaker being read.</li>
+                <li><strong>Signing In for the First Time</strong> &mdash; On a device where nobody has signed in yet, <em>Sign In</em> reminds you to create an account first, with a link to <em>Create Account</em>. An email with no account says so and offers the same link.</li>
+                <li><strong>Clearer Diagnostics</strong> &mdash; <em>Help &rarr; Diagnostics</em> shows the version actually installed, and the last file save that failed in this session, with the step that failed. <em>Copy Report</em> includes both.</li>
+                <li><strong>Also Fixed</strong> &mdash; Scene numbers of two or more digits no longer stack one digit per line in the margin (#233). On narrow screens, submenus open where they fit, the Locations panel opens over the script like the other panels, and Navigator edge swipes keep working after the window is resized.</li>
+              </ul>
               <div className="about-subsection-title">v2.11.0</div>
               <ul className="about-list">
                 <li><strong>Colours and Highlights in Word and PDF</strong> &mdash; Text colour and highlighting now reach your exports; before, every export came out as plain black text. Word files keep them when you import them back, and PDFs print strikethrough too. A new <em>Text colors and highlights</em> box in <em>File &rarr; Export &rarr; PDF</em> turns colour off for a black-on-white copy. It remembers your choice, and printing, revised pages and sides follow it (#226).</li>
@@ -4746,6 +4757,12 @@ const MenuBar: React.FC<MenuBarProps> = ({
                     <DiagRow label={t('menu:diagnostics.storageBackend')} value={diagnosticsReport.storageMode} />
                     {diagnosticsReport.storageError && (
                       <DiagRow label={t('menu:diagnostics.storageError')} value={diagnosticsReport.storageError} mono />
+                    )}
+                    {diagnosticsReport.fileFailure && (
+                      <tr>
+                        <td style={{ padding: '4px 8px', verticalAlign: 'top' }}>{t('menu:diagnostics.fileFailure')}</td>
+                        <td><pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', textAlign: 'start', fontSize: 12 }}>{formatFileFailure(diagnosticsReport.fileFailure)}</pre></td>
+                      </tr>
                     )}
                     {diagnosticsReport.appDataDir && (
                       <DiagRow label={t('menu:diagnostics.appDataDir')} value={diagnosticsReport.appDataDir} mono />

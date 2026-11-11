@@ -79,6 +79,11 @@ jobs:
         with:
           targets: aarch64-linux-android
 
+      - name: Check file-save failure stages and original-file safety
+        run: |
+          rustc --edition=2021 --test src-tauri/src/safe_file.rs -o "$RUNNER_TEMP/file-save-tests"
+          "$RUNNER_TEMP/file-save-tests"
+
       - uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri -> target
@@ -123,6 +128,35 @@ jobs:
           # --lib because that is what Android loads: the binary in main.rs is
           # the desktop entry point and is never built for the platform.
           cargo check --locked --lib --target aarch64-linux-android
+
+  macos-file-saves:
+    name: macOS (native file saves)
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Exercise coordinated text and binary saves and original recovery
+        run: |
+          xcrun clang -fobjc-arc -fblocks -c src-tauri/src/macos_file.m -o "$RUNNER_TEMP/macos_file.o"
+          ar crs "$RUNNER_TEMP/libopendraft_macos_file.a" "$RUNNER_TEMP/macos_file.o"
+          rustc --edition=2021 --test test-script/macos_file_native.rs \
+            -L "native=$RUNNER_TEMP" -l static=opendraft_macos_file \
+            -l framework=Foundation -l objc -o "$RUNNER_TEMP/macos-file-tests"
+          "$RUNNER_TEMP/macos-file-tests"
+
+      - name: Build frontend for Tauri context
+        run: cd frontend && npm ci && npm run build
+      - name: Check macOS Rust and native build integration
+        run: cd src-tauri && cargo check --locked --lib
 
   ios-simulator:
     name: iOS (tracked Xcode project compile)

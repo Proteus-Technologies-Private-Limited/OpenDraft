@@ -2,8 +2,10 @@
 # Mirrors the root .dockerignore but allows collab-server/ source so the
 # combined image can include the Hocuspocus collab service.
 
-# Tauri / native builds (20 GB+)
-src-tauri/
+# Tauri / native builds (20 GB+), all but the version the frontend reads
+# (services/appVersion.ts imports tauri.conf.json).
+src-tauri/*
+!src-tauri/tauri.conf.json
 
 # Python venv (rebuilt in container)
 venv/

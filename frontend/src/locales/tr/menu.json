@@ -411,6 +411,7 @@
     }
   },
   "diagnostics": {
+    "fileFailure": "Son dosya hatası (bu oturum)",
     "intro": "Hata bildirimlerine eklenecek çalışma zamanı bilgileri. Tüm raporu panoya kopyalamak için “Kopyala”ya tıklayın, ardından GitHub sorununa yapıştırın.",
     "oneDrive": "<strong>OneDrive girişimi şüphesi.</strong> Uygulama veri klasörünüz OneDrive ile eşitlenen bir konumda görünüyor. OneDrive, yazma sırasında SQLite WAL dosyalarını bozarak sessiz kayıt hatalarına yol açabilir. Düzeltmek için OpenDraft'ın veri klasörünü OneDrive yedeğinin dışında tutun ya da Windows AppData klasörünüzü OneDrive eşitlemesinin dışına taşıyın.",
     "version": "Sürüm",
