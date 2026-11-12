@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useId } from 'react';
 import type { Editor } from '@tiptap/react';
+import type { Node as PmNode } from '@tiptap/pm/model';
 import { TextSelection } from '@tiptap/pm/state';
 import { useTranslation } from 'react-i18next';
 import { useEditorDoc } from '../hooks/useEditorTransactions';
@@ -22,16 +23,20 @@ export default function ScriptHealthDialog({ editor, onClose }: { editor: Editor
   const documentTitle = useEditorStore((state) => state.documentTitle);
   const template = useFormattingTemplateStore((state) => state.getActiveTemplate());
   const findingId = useId();
-  const [feedback, setFeedback] = useState<{ text: string; error?: boolean } | null>(null);
+  const [feedback, setFeedback] = useState<{ text: string; error?: boolean; doc: PmNode | null } | null>(null);
   const [busy, setBusy] = useState(false);
+  const options = useMemo(() => healthOptionsForFormat(template.rules, sceneNumbersVisible, notes), [template.rules, sceneNumbersVisible, notes]);
   const { findings, error } = useMemo(() => {
     try {
-      return { findings: doc ? analyzeScriptHealth(doc, healthOptionsForFormat(template.rules, sceneNumbersVisible, notes)) : [], error: null };
+      return { findings: doc ? analyzeScriptHealth(doc, options) : [], error: null };
     } catch (failure) {
       // An optional report must not take down the editor on malformed metadata.
       return { findings: [], error: failure instanceof Error ? failure.message : String(failure) };
     }
-  }, [doc, template.rules, sceneNumbersVisible, notes]);
+  }, [doc, options]);
+  // Keep an operation's result through a racing refresh; the next document
+  // edit clears it. In particular, never silently discard an export failure.
+  const visibleFeedback = feedback && feedback.doc === doc ? feedback : null;
 
   useEffect(() => {
     const opener = document.activeElement;
@@ -45,7 +50,7 @@ export default function ScriptHealthDialog({ editor, onClose }: { editor: Editor
 
   const current = () => {
     if (!editor || editor.isDestroyed || editor.state.doc !== doc) {
-      setFeedback({ text: t('scriptHealth.changed') });
+      setFeedback({ text: t('scriptHealth.changed'), doc: editor?.state.doc ?? null });
       return false;
     }
     return true;
@@ -74,13 +79,14 @@ export default function ScriptHealthDialog({ editor, onClose }: { editor: Editor
     setBusy(true);
     setFeedback(null);
     try {
-      const table = scriptHealthReport(findings);
+      const table = scriptHealthReport(findings, options.dialogueChecks);
       // i18n-ignore: keep the same disk-name fallback as ReportsDialog
       const name = sanitizeExportFilename(`${documentTitle.trim() || 'Untitled'} - ${table.title}`);
       const saved = await saveFile(reportToCsv(table), `${name}.csv`, [{ name: 'CSV', extensions: ['csv'] }]);
-      if (saved) setFeedback({ text: t('reports.exported', { title: table.title }) });
+      if (saved) setFeedback({ text: t('reports.exported', { title: table.title }), doc: editor?.state.doc ?? null });
     } catch (error) {
-      setFeedback({ text: t('reports.exportFailed', { message: error instanceof Error ? error.message : String(error) }), error: true });
+      console.error('[script-health] export failed', error);
+      setFeedback({ text: t('reports.exportFailed', { message: error instanceof Error ? error.message : String(error) }), error: true, doc: editor?.state.doc ?? null });
     } finally {
       setBusy(false);
     }
@@ -88,13 +94,14 @@ export default function ScriptHealthDialog({ editor, onClose }: { editor: Editor
 
   return (
     <dialog ref={dialog} className="external-save-review script-health-dialog" aria-labelledby="script-health-title"
-      aria-describedby="script-health-intro" onCancel={(event) => { event.preventDefault(); onClose(); }}>
+      aria-describedby={`script-health-intro${!options.dialogueChecks ? ' script-health-scope' : ''}`} onCancel={(event) => { event.preventDefault(); onClose(); }}>
       <h2 id="script-health-title">{t('scriptHealth.title')}</h2>
       <p id="script-health-intro">{t('scriptHealth.intro')}</p>
+      {!options.dialogueChecks && <p id="script-health-scope">{t('scriptHealth.dialogueSkipped')}</p>}
       {error ? <p role="alert">{t('reports.buildFailed', { message: error })}</p> : <p id="script-health-summary" role="status">{summary}</p>}
       {!error && !findings.length && <p>{doc ? t('scriptHealth.clean') : t('scriptHealth.changed')}</p>}
       <p>{t('scriptHealth.excerpts')}</p>
-      {feedback && <p role={feedback.error ? 'alert' : 'status'}>{feedback.text}</p>}
+      {visibleFeedback && <p role={visibleFeedback.error ? 'alert' : 'status'}>{visibleFeedback.text}</p>}
       <ol className="script-health-findings">
         {findings.slice(0, PREVIEW_LIMIT).map((finding, index) => (
           <li key={`${finding.check}:${finding.position}:${index}`}>

@@ -3,6 +3,7 @@
     "emptyCue": "Cette indication de personnage est vide.",
     "requiresScript": "Ouvrez un scénario pour créer ce rapport.",
     "excerpts": "Les extraits sont limités à 180 caractères ; les exports incluent tous les résultats.",
+    "dialogueSkipped": "Les vérifications des dialogues sont ignorées. Le format doit activer Personnage et Dialogue, avec Entrée après Personnage réglée sur Dialogue.",
     "title": "État du scénario",
     "intro": "Vérifications locales des références, dialogues et notes ouvertes. Ce rapport ne juge pas la qualité du récit et ne certifie pas que le scénario est prêt à être soumis.",
     "summary": "Points à examiner : {{count}}",

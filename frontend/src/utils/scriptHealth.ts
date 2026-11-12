@@ -7,6 +7,7 @@ import { assignElementNumbers, numberingRulesOf, type NumberingRules } from './e
 import { numberingGroups } from './lockedElementNumbers';
 import { isNonPrintingType } from './nonPrinting';
 import { isTitlePageRuleId } from '../stores/formattingTypes';
+import { takeCharacters } from './textSegmentation';
 
 export type HealthCheck = 'emptyScript' | 'emptyScene' | 'duplicateScene' | 'duplicateElement'
   | 'emptyCue' | 'missingDialogue' | 'orphanDialogue' | 'orphanParenthetical' | 'openNote';
@@ -42,7 +43,10 @@ export function healthOptionsForFormat(rules: FormattingTemplate['rules'], scene
     dialogueChecks: !!rules.character?.enabled && !!rules.dialogue?.enabled && rules.character.nextOnEnter === 'dialogue' };
 }
 
-const excerpt = (text: string) => text.replace(/\s+/gu, ' ').trim().slice(0, 180);
+const excerpt = (text: string) => {
+  const normalized = text.replace(/\s+/gu, ' ').trim();
+  return takeCharacters(normalized, 180);
+};
 const ignored = (type: string) => type === 'titlePage' || isNonPrintingType(type) || isTitlePageRuleId(type);
 
 export function analyzeScriptHealth(doc: PmNode, options: HealthOptions): HealthFinding[] {

@@ -76,10 +76,13 @@ A complete list of features in OpenDraft.
 
 ## Editing Tools
 
-- **Script Health** -- Local checks for duplicate production references, empty scene headings, incomplete dialogue blocks and unresolved script notes. Jump to findings or export all findings as UTF-8 CSV. No account, API key or network connection required; story-quality grading is outside the report's scope.
 - **Search & Replace** -- Find and replace across your screenplay
 - **Spell Check** -- Built-in spell checker with custom dictionary support
 - **Production Tags** -- Tag elements for production planning
+
+## Analysis & Reports
+
+- **Script Health** -- Tools → Analytics provides local checks for duplicate production references, empty scene headings, incomplete dialogue blocks and unresolved script notes. Jump to findings in Script Health, or export CSV and PDF from Reports. No account, API key or network connection required; story-quality grading is outside the report’s scope.
 - **Reports** -- Scene, character, location, cast, breakdown and notes reports, exported as CSV or PDF
 
 ## Production Output

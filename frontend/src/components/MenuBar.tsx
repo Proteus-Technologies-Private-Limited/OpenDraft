@@ -212,6 +212,7 @@ import {
   FaInfoCircle,
   FaBook,
   FaStethoscope,
+  FaClipboardCheck,
   FaCloudDownloadAlt,
   FaSearchPlus,
   FaSearchMinus,
@@ -3586,7 +3587,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
         {
           icon: <FaStream />, label: t('menu:tools.analytics'),
           children: [
-            { icon: <FaSpellCheck />, label: t('tools:scriptHealth.title'), action: () => setScriptHealthOpen(true), disabled: !editor },
+            { icon: <FaClipboardCheck />, label: t('tools:scriptHealth.title'), action: () => setScriptHealthOpen(true), disabled: !editor },
             { icon: <FaStream />, label: t('menu:tools.scriptStatistics'), action: () => {
               const s = useEditorStore.getState();
               s.setStatisticsScrollTo(null);

@@ -3,6 +3,7 @@
     "emptyCue": "Bu karakter işareti boş.",
     "requiresScript": "Bu raporu oluşturmak için bir senaryo açın.",
     "excerpts": "Alıntılar 180 karakterle sınırlıdır; dışa aktarımlar tüm bulguları içerir.",
+    "dialogueSkipped": "Diyalog kontrolleri atlandı. Biçimde Karakter ve Diyalog etkin olmalı ve Karakter sonrasında Enter tuşu Diyalog öğesine geçmelidir.",
     "title": "Senaryo denetimi",
     "intro": "Referanslar, diyaloglar ve açık notlar için yerel denetimler. Bu rapor öykü kalitesini puanlamaz veya senaryonun sunuma hazır olduğunu belgelemez.",
     "summary": "İncelenecek bulgular: {{count}}",

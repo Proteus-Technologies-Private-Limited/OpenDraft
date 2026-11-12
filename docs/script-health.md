@@ -18,8 +18,14 @@ The first version covers:
   dialogue/parentheticals without a preceding cue in their speech block. Each dual-dialogue column has its own
   flow. Lyrics may follow a cue. AV cells are excluded, and these checks only
   run when the active format enables Character/Dialogue and sends Enter from
-  Character to Dialogue. Nonprinting annotations and Stage Play stage
-  directions do not interrupt speech.
+  Character to Dialogue. The dialog and the Reports/PDF summary explain when
+  dialogue checks are skipped, including when a custom format sends Character
+  → Enter to Parenthetical instead.
+  Nonprinting annotations and custom elements with `customTypeId: stageDirection`
+  do not interrupt speech in any format. A direction such as “[Enter OPHELIA.]”
+  does not change the speaker: later dialogue remains attributed to HAMLET until
+  a new cue or speech boundary. This structural check does not interpret entrances
+  or infer a speaker from stage-direction text.
 - All unresolved script notes, including empty roots with replies. Resolved
   notes are excluded. General notes and Fountain notes are not threaded script notes and are not treated as open
   review tasks by this report. Note anchors are shared with Open Notes and include
@@ -33,7 +39,10 @@ identity before using a position, so a result from an older document cannot
 silently jump to different text.
 
 The dialog previews up to 300 findings and explains that excerpts are shortened
-to 180 characters. Its CSV export includes every finding, with separate scene
+to 180 characters, using the browser's Unicode grapheme boundaries when available.
+Older runtimes fall back to Unicode code points, avoiding broken surrogate pairs
+but potentially separating emoji sequences or combining signs. Conjunct boundaries
+also depend on the runtime's Unicode version. Its CSV export includes every finding, with separate scene
 number, scene heading, explanation and excerpt columns. Exports use the
 production scene number with an ordinal fallback, matching the other reports.
 An empty script title falls back to `Untitled` in the filename.
@@ -45,7 +54,11 @@ contains only column headers and actual findings, so sorting/filtering does not
 include a fake summary row. Both dialogs use the existing CSV exporter with
 UTF-8, quotation and spreadsheet-formula protection; the Reports dialog also
 provides PDF export. The navigation dialog keeps export success/failure and
-stale-document feedback inside its modal live region. Cancellation does not
+stale-document feedback inside its modal live region. Feedback belongs to the
+document current when the result is set, and clears on the next document edit.
+A refused stale-position jump stays visible after the racing refresh. An export's
+success or failure also remains visible if a collaborator edited while saving;
+the exported report is still the snapshot selected when Export was clicked. Cancellation does not
 report success. Jump buttons describe their finding, context and excerpt;
 findings without a navigation target do not show a disabled jump button.
 
@@ -64,7 +77,7 @@ dual dialogue, AV exclusions, title/nonprinting content, counter resets/shared
 counters, stored automatic references, sparse imports, note marks, immutable
 document updates and read-only behavior. Shared-anchor tests compare JSON and
 ProseMirror documents, including nonprinting and nested blocks. Report tests
-cover built-in registration, scene columns, summary metadata, formula protection
+cover built-in registration, skipped-dialogue scope in summaries, scene columns, summary metadata, formula protection
 and full exports beyond the preview limit.
 
 With Vite running and Python Playwright installed:
