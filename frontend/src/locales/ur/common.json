@@ -43,5 +43,9 @@
   "selectAll": "سب منتخب کریں",
   "untitled": "بے عنوان",
   "warning": "انتباہ",
-  "yes": "ہاں"
+  "yes": "ہاں",
+  "accessibility": {
+    "formattingControls": "فارمیٹنگ کنٹرولز",
+    "screenplayEditor": "اسکرین پلے ایڈیٹر"
+  }
 }

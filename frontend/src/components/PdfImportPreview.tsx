@@ -12,6 +12,7 @@
  * ones on screen are rendered.
  */
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { ModalOverlay } from './ModalOverlay';
 import type { JSONContent } from '@tiptap/react';
 import { useTranslation } from 'react-i18next';
 import { showToast } from './Toast';
@@ -205,7 +206,7 @@ export const PdfImportPreviewDialog: React.FC<DialogProps> = ({ filename, parsed
   const bodyCount = rows.length;
 
   return (
-    <div className="dialog-overlay" onClick={onCancel}>
+    <ModalOverlay className="dialog-overlay" onClick={onCancel}>
       <div
         className="dialog-box pdf-review-dialog"
         onClick={(e) => e.stopPropagation()}
@@ -347,7 +348,7 @@ export const PdfImportPreviewDialog: React.FC<DialogProps> = ({ filename, parsed
           <button className="dialog-primary" onClick={doImport}>{t('common:import')}</button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

@@ -9,6 +9,7 @@
  */
 
 import React from 'react';
+import { ModalOverlay } from './ModalOverlay';
 import { useTranslation } from 'react-i18next';
 import { templateGroup, templateName, templateTagline } from '../utils/templateLabels';
 import { findTemplate } from '../stores/formattingTemplateStore';
@@ -40,7 +41,7 @@ const ScriptFormatPickerDialog: React.FC<Props> = ({ enabledIds, defaultId, onPi
     : options;
 
   return (
-    <div className="dialog-overlay" onClick={onCancel}>
+    <ModalOverlay className="dialog-overlay" onClick={onCancel}>
       <div className="fmt-dialog fmt-dialog-narrow" onClick={(e) => e.stopPropagation()}>
         <div className="dialog-header">{t('picker.title')}</div>
         <div className="fmt-dialog-body">
@@ -81,7 +82,7 @@ const ScriptFormatPickerDialog: React.FC<Props> = ({ enabledIds, defaultId, onPi
           <button className="dialog-btn" onClick={onCancel}>{t('common:cancel')}</button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

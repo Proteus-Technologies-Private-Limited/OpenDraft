@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { ModalOverlay } from './ModalOverlay';
 import { useTranslation } from 'react-i18next';
 import type { Editor } from '@tiptap/react';
 import { useEditorStore } from '../stores/editorStore';
@@ -54,7 +55,7 @@ const GoToPage: React.FC<GoToPageProps> = ({ editor, onGoToPage }) => {
   if (!goToPageOpen) return null;
 
   return (
-    <div className="dialog-overlay" onClick={() => setGoToPageOpen(false)}>
+    <ModalOverlay className="dialog-overlay" onClick={() => setGoToPageOpen(false)}>
       <div className="dialog-box" onClick={(e) => e.stopPropagation()}>
         <div className="dialog-header">{bookmarks.length ? t('goToPage.titleWithBookmarks') : t('goToPage.title')}</div>
         <div className="dialog-body">
@@ -98,7 +99,7 @@ const GoToPage: React.FC<GoToPageProps> = ({ editor, onGoToPage }) => {
           </button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

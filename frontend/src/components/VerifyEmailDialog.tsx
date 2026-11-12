@@ -5,6 +5,7 @@
  */
 
 import React, { useState } from 'react';
+import { ModalOverlay } from './ModalOverlay';
 import { Trans, useTranslation } from 'react-i18next';
 import { collabAuthApi, handleAuthResponse } from '../services/collabAuth';
 import { useSettingsStore } from '../stores/settingsStore';
@@ -69,7 +70,7 @@ const VerifyEmailDialog: React.FC<VerifyEmailDialogProps> = ({ onClose, onSucces
   };
 
   return (
-    <div className="dialog-overlay" onClick={onClose}>
+    <ModalOverlay className="dialog-overlay" onClick={onClose}>
       <div
         className="dialog-box"
         style={{ maxWidth: 420 }}
@@ -123,7 +124,7 @@ const VerifyEmailDialog: React.FC<VerifyEmailDialogProps> = ({ onClose, onSucces
           <button className="dialog-btn" onClick={onClose}>{t('common:cancel')}</button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

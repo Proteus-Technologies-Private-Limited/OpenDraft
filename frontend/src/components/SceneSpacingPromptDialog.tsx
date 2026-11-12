@@ -14,6 +14,7 @@
  * pointed out that stacking launch dialogs trains people to dismiss them.
  */
 import React, { useEffect, useRef, useState } from 'react';
+import { ModalOverlay } from './ModalOverlay';
 import { Trans, useTranslation } from 'react-i18next';
 
 interface Props {
@@ -66,7 +67,7 @@ const SceneSpacingPromptDialog: React.FC<Props> = ({ onAnswer }) => {
   if (answered) return null;
 
   return (
-    <div className="dialog-overlay" onKeyDown={handleKeyDown}>
+    <ModalOverlay className="dialog-overlay" onKeyDown={handleKeyDown}>
       <div
         className="dialog-box"
         style={{ maxWidth: 480 }}
@@ -96,7 +97,7 @@ const SceneSpacingPromptDialog: React.FC<Props> = ({ onAnswer }) => {
           </button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

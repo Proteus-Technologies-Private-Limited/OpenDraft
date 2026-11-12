@@ -5,6 +5,7 @@
  */
 
 import React from 'react';
+import { ModalOverlay } from './ModalOverlay';
 import { useTranslation } from 'react-i18next';
 import { useStorageStatusStore } from '../stores/storageStatusStore';
 
@@ -24,7 +25,7 @@ const StorageFallbackDialog: React.FC = () => {
     : t('storageFallback.dbExplanation');
 
   return (
-    <div className="dialog-overlay" onClick={acknowledge}>
+    <ModalOverlay className="dialog-overlay" onClick={acknowledge}>
       <div
         className="dialog-box"
         style={{ maxWidth: 480 }}
@@ -71,7 +72,7 @@ const StorageFallbackDialog: React.FC = () => {
           </button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { ModalOverlay } from './ModalOverlay';
 import type { Editor } from '@tiptap/react';
 import DOMPurify from 'dompurify';
 import { useTranslation } from 'react-i18next';
@@ -1435,7 +1436,7 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
 
       {/* Image Picker Overlay */}
       {imagePickerFor && (
-        <div className="dialog-overlay" onClick={() => { setImagePickerFor(null); setImagePickerFilter(''); }}>
+        <ModalOverlay className="dialog-overlay" onClick={() => { setImagePickerFor(null); setImagePickerFilter(''); }}>
           <div className="dialog-box char-image-picker-dialog" onClick={(e) => e.stopPropagation()}>
             <div className="dialog-header">
               {t('characters.selectImageFor', { name: imagePickerFor })}
@@ -1475,22 +1476,22 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
               )}
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
 
       {/* Image Lightbox */}
       {lightboxImage && (
-        <div className="dialog-overlay char-lightbox-overlay" onClick={() => setLightboxImage(null)}>
+        <ModalOverlay dialogLabel={lightboxImage.name} className="dialog-overlay char-lightbox-overlay" onClick={() => setLightboxImage(null)}>
           <div className="char-lightbox" onClick={(e) => e.stopPropagation()}>
             <img src={lightboxImage.url} alt={lightboxImage.name} />
-            <button className="char-lightbox-close" onClick={() => setLightboxImage(null)}>&times;</button>
+            <button className="char-lightbox-close" aria-label={t('common:close')} onClick={() => setLightboxImage(null)}>&times;</button>
           </div>
-        </div>
+        </ModalOverlay>
       )}
 
       {/* Per-character enlarge modal */}
       {modalChar && (
-        <div className="char-modal-overlay" onClick={() => setModalChar(null)}>
+        <ModalOverlay className="char-modal-overlay" onClick={() => setModalChar(null)}>
           <div className="char-modal-detail" onClick={(e) => e.stopPropagation()}>
             <div className="dialog-header">
               {modalChar}
@@ -1500,11 +1501,11 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
               {renderCharacterFields(modalChar, true)}
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
 
       {pendingRemoveChar && (
-        <div className="dialog-overlay" onClick={() => setPendingRemoveChar(null)}>
+        <ModalOverlay className="dialog-overlay" onClick={() => setPendingRemoveChar(null)}>
           <div className="dialog-box" onClick={(e) => e.stopPropagation()}>
             <div className="dialog-header">{t('characters.removeTitle')}</div>
             <div className="dialog-body">
@@ -1524,7 +1525,7 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
               </button>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
     </div>
   );

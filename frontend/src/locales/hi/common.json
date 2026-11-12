@@ -43,5 +43,9 @@
   "selectAll": "सभी चुनें",
   "untitled": "बिना शीर्षक",
   "warning": "चेतावनी",
-  "yes": "हाँ"
+  "yes": "हाँ",
+  "accessibility": {
+    "formattingControls": "स्वरूपण नियंत्रण",
+    "screenplayEditor": "पटकथा संपादक"
+  }
 }

@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { ModalOverlay } from './ModalOverlay';
 import { useNavigate } from 'react-router-dom';
 import { Trans, useTranslation } from 'react-i18next';
 import type { JSONContent } from '@tiptap/react';
@@ -385,7 +386,7 @@ const VersionHistory: React.FC = () => {
         </div>
       )}
       {deleteConfirm && (
-        <div className="dialog-overlay" onClick={() => { if (!deleting) setDeleteConfirm(null); }}>
+        <ModalOverlay className="dialog-overlay" onClick={() => { if (!deleting) setDeleteConfirm(null); }}>
           <div className="dialog-box" onClick={(e) => e.stopPropagation()}>
             <div className="dialog-header">{t('versions.deleteDialogTitle')}</div>
             <div className="dialog-body">
@@ -417,10 +418,10 @@ const VersionHistory: React.FC = () => {
               </button>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
       {restoreConfirm && (
-        <div className="dialog-overlay" onClick={() => setRestoreConfirm(null)}>
+        <ModalOverlay className="dialog-overlay" onClick={() => setRestoreConfirm(null)}>
           <div className="dialog-box" onClick={(e) => e.stopPropagation()}>
             <div className="dialog-header">{t('versions.restoreDialogTitle')}</div>
             <div className="dialog-body">
@@ -440,7 +441,7 @@ const VersionHistory: React.FC = () => {
               </button>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
     </div>
   );

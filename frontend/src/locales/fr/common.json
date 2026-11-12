@@ -43,5 +43,9 @@
   "selectAll": "Tout sélectionner",
   "untitled": "Sans titre",
   "warning": "Attention",
-  "yes": "Oui"
+  "yes": "Oui",
+  "accessibility": {
+    "formattingControls": "Commandes de mise en forme",
+    "screenplayEditor": "Éditeur de scénario"
+  }
 }

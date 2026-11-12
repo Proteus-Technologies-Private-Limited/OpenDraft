@@ -43,5 +43,9 @@
   "selectAll": "ସବୁ ବାଛନ୍ତୁ",
   "untitled": "ନାମହୀନ",
   "warning": "ଚେତାବନୀ",
-  "yes": "ହଁ"
+  "yes": "ହଁ",
+  "accessibility": {
+    "formattingControls": "ଫର୍ମାଟିଂ ନିୟନ୍ତ୍ରଣ",
+    "screenplayEditor": "ଚିତ୍ରନାଟ୍ୟ ସମ୍ପାଦକ"
+  }
 }

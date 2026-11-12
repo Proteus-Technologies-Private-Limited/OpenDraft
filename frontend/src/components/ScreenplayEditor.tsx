@@ -1,5 +1,7 @@
 import { readSourceFidelity } from '../utils/sourceFidelity';
 import React, { useEffect, useLayoutEffect, useCallback, useRef, useState, useMemo } from 'react';
+import { panelResize } from '../utils/panelResize';
+import { ModalOverlay } from './ModalOverlay';
 import { useTranslation, Trans } from 'react-i18next';
 import { t as tg } from '../i18n';
 import { templatePlaceholder } from '../editor/elementLabels';
@@ -2355,7 +2357,7 @@ const ScreenplayEditor: React.FC = () => {
       : rejectedCollabDocRef.current || ((urlScriptId || urlCommitHash) ? undefined : { type: 'doc', content: [{ type: 'action', content: [] }] }),
     editable: !isHistoryMode && !(collabMode && collabRole === 'viewer'),
     editorProps: {
-      attributes: { class: `screenplay-content${isHistoryMode ? ' history-readonly' : ''}`, spellcheck: 'false' },
+      attributes: { class: `screenplay-content${isHistoryMode ? ' history-readonly' : ''}`, spellcheck: 'false', role: 'textbox', 'aria-multiline': 'true', 'aria-readonly': String(isHistoryMode || (collabMode && collabRole === 'viewer')), 'aria-label': tl('common:accessibility.screenplayEditor') },
       // A script note paints itself with an inline background, and the pasted
       // highlight rule matches any element carrying one — so pasting a noted
       // passage back used to lay a second highlight over it. See
@@ -5861,7 +5863,13 @@ const ScreenplayEditor: React.FC = () => {
       <div className={`editor-layout${foldDock ? ' fold-layout' : ''}${foldNavigationClass}`} style={{ '--fold-nav-width': `${FOLD_NAV_WIDTH}px` } as React.CSSProperties}>
         {!isHistoryMode && <SceneNavigator editor={editor} scrollContainer={editorMainEl} style={navStyle} />}
         {!isHistoryMode && navigatorOpen && (
-          <div className="panel-resize-handle" onPointerDown={(e) => handleResizePointerDown('left', e)} style={{ touchAction: 'none' }} />
+          <div className="panel-resize-handle" role="separator" aria-orientation="vertical" tabIndex={0}
+            aria-label={tg('menu:pluginPanels.resize')} aria-valuenow={navWidth} aria-valuemin={160} aria-valuemax={500}
+            onKeyDown={event => {
+              const next = panelResize(navWidth, event.key, 'left', getComputedStyle(event.currentTarget).direction === 'rtl');
+              if (next !== null) { event.preventDefault(); setNavWidth(next); }
+            }}
+            onPointerDown={(e) => handleResizePointerDown('left', e)} style={{ touchAction: 'none' }} />
         )}
         <div className="editor-center">
           {!isHistoryMode && <IndexCards editor={editor} scrollContainer={editorMainEl} />}
@@ -6104,7 +6112,13 @@ const ScreenplayEditor: React.FC = () => {
           <div className="fold-panel-home" ref={tableReadHome} />
         </div>
         {!isHistoryMode && rightPanelVisible && (
-          <div className="panel-resize-handle" onPointerDown={(e) => handleResizePointerDown('right', e)} style={{ touchAction: 'none' }} />
+          <div className="panel-resize-handle" role="separator" aria-orientation="vertical" tabIndex={0}
+            aria-label={tg('menu:pluginPanels.resize')} aria-valuenow={rightPanelWidth} aria-valuemin={200} aria-valuemax={600}
+            onKeyDown={event => {
+              const next = panelResize(rightPanelWidth, event.key, 'right', getComputedStyle(event.currentTarget).direction === 'rtl');
+              if (next !== null) { event.preventDefault(); setRightPanelWidth(Math.max(200, Math.min(600, next))); }
+            }}
+            onPointerDown={(e) => handleResizePointerDown('right', e)} style={{ touchAction: 'none' }} />
         )}
         <FoldablePanelDock active={!isHistoryMode && foldDock} panels={[
           ...(!isHistoryMode ? [
@@ -6115,7 +6129,7 @@ const ScreenplayEditor: React.FC = () => {
             { id: 'tuner', label: tg('menu:view.dialogueTuner'), open: dialogueTunerOpen, content: <DialogueTuner editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} /> },
             { id: 'suggestions', label: tg('menu:view.suggestions'), open: suggestionsPanelOpen, content: <SuggestionsPanel editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} /> },
             { id: 'plugin', label: foldPlugin?.label ?? tg('menu:pluginPanels.tabs'), open: !!foldPlugin, activationKey: foldPlugin?.activation, keepHomeWhenClosed: true,
-              content: <PluginPanelTabs editor={editor} width={rightPanelWidth} onActiveChange={setFoldPlugin} onResizePointerDown={(e) => handleResizePointerDown('right', e)} /> },
+              content: <PluginPanelTabs editor={editor} width={rightPanelWidth} onResizeKeyboard={setRightPanelWidth} onActiveChange={setFoldPlugin} onResizePointerDown={(e) => handleResizePointerDown('right', e)} /> },
             { id: 'table-read', label: tg('menu:tools.tableRead'), open: tableReadOpen && !statisticsOpen && !beatBoardOpen, home: tableReadHome,
               content: tableReadOpen && editor && !statisticsOpen && !beatBoardOpen ? <TableReadPanel editor={editor} /> : null },
           ] : []),
@@ -6347,7 +6361,7 @@ const ScreenplayEditor: React.FC = () => {
         </div>
       )}
       {dropConfirmOpen && (
-        <div className="dialog-overlay" onClick={handleDropConfirmCancel}>
+        <ModalOverlay className="dialog-overlay" onClick={handleDropConfirmCancel}>
           <div className="dialog-box" onClick={(e) => e.stopPropagation()}>
             <div className="dialog-header">{tl('drop.unsavedTitle')}</div>
             <div className="dialog-body">
@@ -6361,7 +6375,7 @@ const ScreenplayEditor: React.FC = () => {
               <button className="dialog-primary" onClick={handleDropConfirmSave}>{tl('drop.saveAndOpen')}</button>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
     </div>
   );

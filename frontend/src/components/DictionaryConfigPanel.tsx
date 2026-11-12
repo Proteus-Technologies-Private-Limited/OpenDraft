@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { ModalOverlay } from './ModalOverlay';
 import { useTranslation } from 'react-i18next';
 import { useEditorStore } from '../stores/editorStore';
 import { spellChecker, PROJECT_DICT_TARGET } from '../editor/spellchecker';
@@ -175,6 +176,7 @@ const LanguageInstallerDialog: React.FC<{ onClose: () => void }> = ({ onClose })
   const installLanguage = useEditorStore((s) => s.installLanguage);
   const installLanguageFromUrls = useEditorStore((s) => s.installLanguageFromUrls);
   const [busy, setBusy] = useState<string | null>(null);
+  const [status, setStatus] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState('');
   const [customOpen, setCustomOpen] = useState(false);
@@ -196,9 +198,11 @@ const LanguageInstallerDialog: React.FC<{ onClose: () => void }> = ({ onClose })
   const handleInstall = async (code: string) => {
     setBusy(code);
     setError(null);
+    setStatus(`${code}: ${t('dictionaryConfig.installing')}`);
     try {
       const res = await installLanguage(code);
-      if (!res.ok) setError(res.error || t('dictionaryConfig.installFailed'));
+      if (!res.ok) { setError(res.error || t('dictionaryConfig.installFailed')); setStatus(''); }
+      else setStatus(`${code}: ${t('dictionaryConfig.installedButton')}`);
     } finally {
       setBusy(null);
     }
@@ -212,6 +216,7 @@ const LanguageInstallerDialog: React.FC<{ onClose: () => void }> = ({ onClose })
     }
     setBusy('__custom__');
     setError(null);
+    setStatus(`${code}: ${t('dictionaryConfig.installing')}`);
     try {
       const res = await installLanguageFromUrls({
         code,
@@ -221,7 +226,9 @@ const LanguageInstallerDialog: React.FC<{ onClose: () => void }> = ({ onClose })
       });
       if (!res.ok) {
         setError(res.error || t('dictionaryConfig.installFailed'));
+        setStatus('');
       } else {
+        setStatus(`${code}: ${t('dictionaryConfig.installedButton')}`);
         setCustomCode('');
         setCustomLabel('');
         setCustomAff('');
@@ -234,7 +241,7 @@ const LanguageInstallerDialog: React.FC<{ onClose: () => void }> = ({ onClose })
   };
 
   return (
-    <div className="dialog-overlay" onClick={onClose}>
+    <ModalOverlay className="dialog-overlay" onClick={onClose}>
       <div
         className="dialog-box"
         onClick={(e) => e.stopPropagation()}
@@ -254,12 +261,13 @@ const LanguageInstallerDialog: React.FC<{ onClose: () => void }> = ({ onClose })
             onChange={(e) => setFilter(e.target.value)}
             style={{ ...inputStyle, flex: '0 0 auto' }}
           />
+          <div role="status" aria-label={t('dictionaryConfig.addLanguageTitle')} aria-atomic="true" className="a11y-only">{status}</div>
           {error && (
-            <div
+            <div role="alert"
               style={{
                 padding: '6px 10px',
                 background: 'rgba(192,57,43,0.12)',
-                color: '#c0392b',
+                color: 'var(--fd-error-text)',
                 borderRadius: 4,
                 fontSize: 12,
               }}
@@ -394,7 +402,7 @@ const LanguageInstallerDialog: React.FC<{ onClose: () => void }> = ({ onClose })
           <button className="dialog-primary" onClick={onClose}>{t('common:done')}</button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

@@ -14,6 +14,7 @@
  * on screen nor the recovered one can change under the decision.
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { ModalOverlay } from './ModalOverlay';
 import { Trans, useTranslation } from 'react-i18next';
 import {
   readRecoverableSnapshot,
@@ -152,7 +153,7 @@ const RecoveryPromptDialog: React.FC<Props> = ({
   };
 
   return (
-    <div className="dialog-overlay" onKeyDown={handleKeyDown}>
+    <ModalOverlay className="dialog-overlay" onKeyDown={handleKeyDown}>
       <div
         className="dialog-box"
         style={{ maxWidth: 480 }}
@@ -193,7 +194,7 @@ const RecoveryPromptDialog: React.FC<Props> = ({
           </button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

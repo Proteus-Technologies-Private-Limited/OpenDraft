@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { ModalOverlay } from './ModalOverlay';
 import { FaCloud, FaDesktop, FaPlus } from 'react-icons/fa';
 import { Trans, useTranslation } from 'react-i18next';
 import { api } from '../services/api';
@@ -352,6 +353,8 @@ const SaveAsDialog: React.FC<SaveAsDialogProps> = ({
       handleSave();
     } else if (e.key === 'Escape') {
       if (dropdownOpen) {
+        e.preventDefault();
+        e.stopPropagation();
         setDropdownOpen(false);
       } else {
         onClose();
@@ -360,7 +363,7 @@ const SaveAsDialog: React.FC<SaveAsDialogProps> = ({
   };
 
   return (
-    <div className="dialog-overlay" onClick={onClose}>
+    <ModalOverlay className="dialog-overlay" onClick={onClose}>
       <div className="dialog-box" onClick={(e) => e.stopPropagation()} onKeyDown={handleKeyDown}>
         <div className="dialog-header">{t('saveAs.title')}</div>
         <div className="dialog-body">
@@ -542,7 +545,7 @@ const SaveAsDialog: React.FC<SaveAsDialogProps> = ({
           </button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

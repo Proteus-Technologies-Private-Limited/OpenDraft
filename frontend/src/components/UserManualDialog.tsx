@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ModalOverlay } from './ModalOverlay';
 import DOMPurify from 'dompurify';
 import { useTranslation } from 'react-i18next';
 import { t } from '../i18n';
@@ -358,7 +359,7 @@ const UserManualDialog: React.FC<UserManualDialogProps> = ({ onClose }) => {
   const openOnline = () => void openExternal(MANUAL_WEB_URL);
 
   return (
-    <div className="dialog-overlay" onClick={onClose}>
+    <ModalOverlay className="dialog-overlay" onClick={onClose}>
       <div
         ref={dialogRef}
         // Swipes inside the manual are the manual's own — see useSwipeEdge.
@@ -522,7 +523,7 @@ const UserManualDialog: React.FC<UserManualDialogProps> = ({ onClose }) => {
           <button className="dialog-primary" onClick={onClose}>{t('common:close')}</button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

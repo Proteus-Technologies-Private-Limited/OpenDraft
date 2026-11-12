@@ -7,6 +7,7 @@
  */
 
 import React from 'react';
+import { ModalOverlay } from './ModalOverlay';
 import { Trans, useTranslation } from 'react-i18next';
 import type { QuotaErrorDetail } from '../services/api';
 import { pluginRegistry } from '../plugins/registry';
@@ -24,7 +25,7 @@ const QuotaExceededDialog: React.FC<QuotaExceededDialogProps> = ({ detail, onClo
     | undefined;
 
   return (
-    <div className="dialog-overlay" onClick={onClose}>
+    <ModalOverlay className="dialog-overlay" onClick={onClose}>
       <div
         className="dialog-box"
         style={{ maxWidth: 420 }}
@@ -55,7 +56,7 @@ const QuotaExceededDialog: React.FC<QuotaExceededDialogProps> = ({ detail, onClo
           )}
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

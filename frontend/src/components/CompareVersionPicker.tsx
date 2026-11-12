@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { ModalOverlay } from './ModalOverlay';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { formatDate } from '../i18n/format';
@@ -56,7 +57,7 @@ const CompareVersionPicker: React.FC<CompareVersionPickerProps> = ({
   }, [loadVersions]);
 
   return (
-    <div className="dialog-overlay" onClick={onClose}>
+    <ModalOverlay className="dialog-overlay" onClick={onClose}>
       <div
         className="dialog-box compare-version-dialog"
         onClick={(e) => e.stopPropagation()}
@@ -95,7 +96,7 @@ const CompareVersionPicker: React.FC<CompareVersionPickerProps> = ({
           <button onClick={onClose}>{t('common:cancel')}</button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

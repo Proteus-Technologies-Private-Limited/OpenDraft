@@ -1,4 +1,5 @@
-import React, { useState, useCallback } from 'react';
+import React, { useId, useState, useCallback } from 'react';
+import { ModalOverlay } from './ModalOverlay';
 import { useTranslation } from 'react-i18next';
 import { useEditorStore, DEFAULT_PAGE_LAYOUT, resolveHeaderFooter } from '../stores/editorStore';
 import type { PageLayout } from '../stores/editorStore';
@@ -54,6 +55,7 @@ const PORTRAIT_MARGINS = {
 
 const PageSetupDialog: React.FC<PageSetupDialogProps> = ({ onClose }) => {
   const { t } = useTranslation(['format', 'common']);
+  const fieldPrefix = useId();
   const { pageLayout, setPageLayout, setHeaderFooterOpen } = useEditorStore();
 
   // Backwards-compatible: fill in fields missing from layouts saved by older versions
@@ -145,7 +147,7 @@ const PageSetupDialog: React.FC<PageSetupDialogProps> = ({ onClose }) => {
   }, [layout, setPageLayout, onClose, setHeaderFooterOpen]);
 
   return (
-    <div className="dialog-overlay" onClick={onClose}>
+    <ModalOverlay className="dialog-overlay" onClick={onClose}>
       <div
         className="dialog-box page-setup-dialog"
         onClick={(e) => e.stopPropagation()}
@@ -156,8 +158,8 @@ const PageSetupDialog: React.FC<PageSetupDialogProps> = ({ onClose }) => {
           <div className="page-setup-section">
             <div className="page-setup-section-title">{t('pageSetup.pageSize')}</div>
             <div className="page-setup-row">
-              <label>{t('pageSetup.size')}</label>
-              <Select
+              <label htmlFor={`${fieldPrefix}-field-0`}>{t('pageSetup.size')}</label>
+              <Select id={`${fieldPrefix}-field-0`}
                 value={currentSizeLabel}
                 onChange={handlePageSizeChange}
               >
@@ -196,8 +198,8 @@ const PageSetupDialog: React.FC<PageSetupDialogProps> = ({ onClose }) => {
             </div>
             <div className="page-setup-row-pair">
               <div className="page-setup-row">
-                <label>{t('pageSetup.width')}</label>
-                <input
+                <label htmlFor={`${fieldPrefix}-field-1`}>{t('pageSetup.width')}</label>
+                <input id={`${fieldPrefix}-field-1`}
                   type="number"
                   step="0.01"
                   min="4"
@@ -209,8 +211,8 @@ const PageSetupDialog: React.FC<PageSetupDialogProps> = ({ onClose }) => {
                 />
               </div>
               <div className="page-setup-row">
-                <label>{t('pageSetup.height')}</label>
-                <input
+                <label htmlFor={`${fieldPrefix}-field-2`}>{t('pageSetup.height')}</label>
+                <input id={`${fieldPrefix}-field-2`}
                   type="number"
                   step="0.01"
                   min="4"
@@ -229,8 +231,8 @@ const PageSetupDialog: React.FC<PageSetupDialogProps> = ({ onClose }) => {
             <div className="page-setup-section-title">{t('pageSetup.margins')}</div>
             <div className="page-setup-row-pair">
               <div className="page-setup-row">
-                <label>{t('pageSetup.top')}</label>
-                <input
+                <label htmlFor={`${fieldPrefix}-field-3`}>{t('pageSetup.top')}</label>
+                <input id={`${fieldPrefix}-field-3`}
                   type="number"
                   step="0.05"
                   min="0"
@@ -245,8 +247,8 @@ const PageSetupDialog: React.FC<PageSetupDialogProps> = ({ onClose }) => {
                 />
               </div>
               <div className="page-setup-row">
-                <label>{t('pageSetup.bottom')}</label>
-                <input
+                <label htmlFor={`${fieldPrefix}-field-4`}>{t('pageSetup.bottom')}</label>
+                <input id={`${fieldPrefix}-field-4`}
                   type="number"
                   step="0.05"
                   min="0"
@@ -263,8 +265,8 @@ const PageSetupDialog: React.FC<PageSetupDialogProps> = ({ onClose }) => {
             </div>
             <div className="page-setup-row-pair">
               <div className="page-setup-row">
-                <label>{t('pageSetup.left')}</label>
-                <input
+                <label htmlFor={`${fieldPrefix}-field-5`}>{t('pageSetup.left')}</label>
+                <input id={`${fieldPrefix}-field-5`}
                   type="number"
                   step="0.05"
                   min="0"
@@ -279,8 +281,8 @@ const PageSetupDialog: React.FC<PageSetupDialogProps> = ({ onClose }) => {
                 />
               </div>
               <div className="page-setup-row">
-                <label>{t('pageSetup.right')}</label>
-                <input
+                <label htmlFor={`${fieldPrefix}-field-6`}>{t('pageSetup.right')}</label>
+                <input id={`${fieldPrefix}-field-6`}
                   type="number"
                   step="0.05"
                   min="0"
@@ -322,7 +324,7 @@ const PageSetupDialog: React.FC<PageSetupDialogProps> = ({ onClose }) => {
           </button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

@@ -7,6 +7,7 @@
  * carries on with what they asked for.
  */
 import React, { useState } from 'react';
+import { ModalOverlay } from './ModalOverlay';
 import { useTranslation } from 'react-i18next';
 import { pickBackupFolder } from '../services/backupService';
 import { isDesktopTauri } from '../services/platform';
@@ -65,7 +66,7 @@ const BackupFolderPrompt: React.FC<Props> = ({ then, onClose, onFolderChosen }) 
   };
 
   return (
-    <div className="dialog-overlay" onClick={() => { if (!busy) onClose(); }}>
+    <ModalOverlay className="dialog-overlay" onClick={() => { if (!busy) onClose(); }}>
       <div className="dialog-box" role="dialog" aria-modal="true" style={{ maxWidth: 480 }} onClick={(e) => e.stopPropagation()}>
         <div className="dialog-header">{t('folderPrompt.title')}</div>
         <div className="dialog-body">
@@ -89,7 +90,7 @@ const BackupFolderPrompt: React.FC<Props> = ({ then, onClose, onFolderChosen }) 
           </button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

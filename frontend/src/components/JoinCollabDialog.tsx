@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { ModalOverlay } from './ModalOverlay';
 import { useTranslation } from 'react-i18next';
 import { api } from '../services/api';
 import type { CollabSession } from '../services/api';
@@ -115,7 +116,7 @@ const JoinCollabDialog: React.FC<JoinCollabDialogProps> = ({ onJoin, onClose }) 
   };
 
   return (
-    <div className="dialog-overlay" onClick={onClose}>
+    <ModalOverlay className="dialog-overlay" onClick={onClose}>
       <div
         className="dialog-box"
         style={{ maxWidth: 500 }}
@@ -158,7 +159,7 @@ const JoinCollabDialog: React.FC<JoinCollabDialogProps> = ({ onJoin, onClose }) 
           </button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

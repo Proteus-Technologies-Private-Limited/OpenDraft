@@ -10,6 +10,7 @@
  * that was probably meant: switch to the window that already has it.
  */
 import React from 'react';
+import { ModalOverlay } from './ModalOverlay';
 import { Trans, useTranslation } from 'react-i18next';
 import type { OpenElsewhere } from '../services/openDocuments';
 
@@ -31,7 +32,7 @@ const DocumentOpenElsewhereDialog: React.FC<Props> = ({
 }) => {
   const { t } = useTranslation('collab');
   return (
-  <div className="dialog-overlay">
+  <ModalOverlay className="dialog-overlay">
     <div
       className="dialog-box"
       style={{ maxWidth: 460 }}
@@ -65,7 +66,7 @@ const DocumentOpenElsewhereDialog: React.FC<Props> = ({
         </button>
       </div>
     </div>
-  </div>
+  </ModalOverlay>
   );
 };
 

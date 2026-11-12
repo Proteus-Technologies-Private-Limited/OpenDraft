@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { modalPortalContainer } from '../utils/modalAccessibility';
 import { createPortal } from 'react-dom';
 
 /**
@@ -284,7 +285,7 @@ const Select: React.FC<SelectProps> = ({
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
     onKeyDownProp?.(e);
-    if (e.defaultPrevented || disabled) return;
+    if (e.defaultPrevented || e.nativeEvent.isComposing || disabled) return;
     if (!open) {
       if (['ArrowDown', 'ArrowUp', 'Enter', ' '].includes(e.key)) {
         e.preventDefault();
@@ -320,6 +321,9 @@ const Select: React.FC<SelectProps> = ({
         className={['od-select', className].filter(Boolean).join(' ')}
         style={style}
         disabled={disabled}
+        aria-label={rest['aria-label'] ?? (rest['aria-labelledby'] || id ? undefined : title)}
+        role="combobox"
+        aria-activedescendant={open && activeIndex >= 0 ? `${listId}-option-${activeIndex}` : undefined}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={open ? listId : undefined}
@@ -345,6 +349,7 @@ const Select: React.FC<SelectProps> = ({
           id={listId}
           className="od-select-popup"
           role="listbox"
+          aria-label={rest['aria-label'] ?? title ?? selected?.text}
           style={{
             left: anchor.left,
             top: anchor.top,
@@ -364,7 +369,8 @@ const Select: React.FC<SelectProps> = ({
               <div
                 key={`o-${i}`}
                 role="option"
-                aria-selected={isSelected}
+                id={`${listId}-option-${i}`}
+                aria-selected={i === activeIndex}
                 aria-disabled={it.disabled || undefined}
                 title={it.title}
                 className={[
@@ -383,7 +389,7 @@ const Select: React.FC<SelectProps> = ({
             );
           })}
         </div>,
-        document.body,
+        modalPortalContainer(),
       )}
     </>
   );

@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react';
+import { ModalOverlay } from './ModalOverlay';
 import { useTranslation } from 'react-i18next';
 import { useEditorStore, resolveMoresContds, DEFAULT_MORES_CONTDS } from '../stores/editorStore';
 import Select from './Select';
@@ -59,7 +60,7 @@ const MoresContdsDialog: React.FC<Props> = ({ onClose }) => {
   const helpStyle: React.CSSProperties = { fontSize: 12, opacity: 0.7, margin: '0 0 16px 26px' };
 
   return (
-    <div className="dialog-overlay" onClick={onClose}>
+    <ModalOverlay className="dialog-overlay" onClick={onClose}>
       <div className="tp-editor-dialog" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 540 }}>
         <div className="dialog-header">{t('moresContds.title')}</div>
         <div className="tp-editor-body" style={{ display: 'block', padding: 20 }}>
@@ -135,7 +136,7 @@ const MoresContdsDialog: React.FC<Props> = ({ onClose }) => {
           <button className="dialog-primary" onClick={handleApply}>{t('common:apply')}</button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

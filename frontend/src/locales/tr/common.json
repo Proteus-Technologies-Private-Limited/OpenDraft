@@ -43,5 +43,9 @@
   "selectAll": "Tümünü seç",
   "untitled": "Adsız",
   "warning": "Uyarı",
-  "yes": "Evet"
+  "yes": "Evet",
+  "accessibility": {
+    "formattingControls": "Biçimlendirme denetimleri",
+    "screenplayEditor": "Senaryo düzenleyicisi"
+  }
 }

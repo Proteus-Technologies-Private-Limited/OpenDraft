@@ -8,6 +8,7 @@
  * can be changed.
  */
 import React, { useState } from 'react';
+import { ModalOverlay } from './ModalOverlay';
 import { FaFolder, FaDatabase } from 'react-icons/fa';
 import { Trans, useTranslation } from 'react-i18next';
 import type { ProjectInfo } from '../services/api';
@@ -153,7 +154,7 @@ const ProjectStorageDialog: React.FC<Props> = ({ project, onClose, onProjectChan
   });
 
   return (
-    <div className="dialog-overlay" onClick={() => { if (!busy) onClose(); }}>
+    <ModalOverlay className="dialog-overlay" onClick={() => { if (!busy) onClose(); }}>
       <div className="dialog-box" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" style={{ maxWidth: 560 }}>
         <div className="dialog-header">{t('storage.title', { name: project.name })}</div>
         <div className="dialog-body">
@@ -225,7 +226,7 @@ const ProjectStorageDialog: React.FC<Props> = ({ project, onClose, onProjectChan
           <button disabled={!!busy} onClick={onClose}>{t('common:close')}</button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

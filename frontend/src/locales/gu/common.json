@@ -43,5 +43,9 @@
   "selectAll": "બધું પસંદ કરો",
   "untitled": "શીર્ષક વગરનું",
   "warning": "ચેતવણી",
-  "yes": "હા"
+  "yes": "હા",
+  "accessibility": {
+    "formattingControls": "ફોર્મેટિંગ નિયંત્રણો",
+    "screenplayEditor": "પટકથા સંપાદક"
+  }
 }

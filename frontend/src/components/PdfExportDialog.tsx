@@ -7,6 +7,7 @@
  * two things the file needs: a range of scenes, and one scene per page.
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { ModalOverlay } from './ModalOverlay';
 import { useTranslation } from 'react-i18next';
 import { useEditorStore } from '../stores/editorStore';
 import { useSettingsStore } from '../stores/settingsStore';
@@ -141,7 +142,7 @@ const PdfExportDialog: React.FC<Props> = ({ scenes, onClose, onExport }) => {
   };
 
   return (
-    <div className="dialog-overlay" onClick={onClose}>
+    <ModalOverlay className="dialog-overlay" onClick={onClose}>
       <div
         className="dialog-box pdf-export-dialog"
         onClick={(e) => e.stopPropagation()}
@@ -278,7 +279,7 @@ const PdfExportDialog: React.FC<Props> = ({ scenes, onClose, onExport }) => {
           </button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

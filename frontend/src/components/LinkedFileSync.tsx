@@ -10,6 +10,7 @@
  *   only the writer can say which one is the script from now on.
  */
 import React, { useEffect } from 'react';
+import { ModalOverlay } from './ModalOverlay';
 import { Trans, useTranslation } from 'react-i18next';
 import { useLinkedFileStore } from '../stores/linkedFileStore';
 import { isDesktopTauri } from '../services/platform';
@@ -55,7 +56,7 @@ const LinkedFileSync: React.FC = () => {
     // No click-outside dismissal: something has to be chosen before either
     // copy can be saved again, and a dialog that vanishes leaves the question
     // open with nobody to answer it.
-    <div className="dialog-overlay">
+    <ModalOverlay className="dialog-overlay">
       <div className="dialog-box" role="alertdialog" aria-modal="true" aria-labelledby="linked-conflict-title">
         <div className="dialog-header" id="linked-conflict-title">{t('linkedFile.title')}</div>
         <div className="dialog-body">
@@ -81,7 +82,7 @@ const LinkedFileSync: React.FC = () => {
           </button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

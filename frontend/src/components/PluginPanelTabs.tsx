@@ -20,7 +20,8 @@
  * panel to the front without reaching into this component's state.
  */
 
-import React, { useEffect, useId, useState } from 'react';
+import React, { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import { panelResize } from '../utils/panelResize';
 import { useTranslation } from 'react-i18next';
 import type { Editor } from '@tiptap/react';
 
@@ -47,6 +48,7 @@ interface Props {
    *  built-in panels (Script Notes, etc.). Wire this to the editor's
    *  `handleResizePointerDown('right', e)` so the same `rightPanelWidth`
    *  state drives both the built-in and plugin panels. */
+  onResizeKeyboard?: (width: number) => void;
   onResizePointerDown?: (e: React.PointerEvent) => void;
 }
 
@@ -54,6 +56,7 @@ export const PluginPanelTabs: React.FC<Props> = ({
   editor,
   width,
   onResizePointerDown,
+  onResizeKeyboard,
   onActiveChange,
 }) => {
   const { t } = useTranslation('menu');
@@ -65,6 +68,7 @@ export const PluginPanelTabs: React.FC<Props> = ({
   );
   const [activeId, setActiveId] = useState<string | null>(null);
   const [activation, setActivation] = useState(0);
+  const pendingFocus = useRef<{ lost: HTMLElement; target: string | null } | null>(null);
   useEditorTransactions(editor, activeId !== null);
 
   // Track the registry so panels appear and disappear as plugins come and
@@ -75,12 +79,31 @@ export const PluginPanelTabs: React.FC<Props> = ({
   useEffect(() => {
     const sync = () => {
       const next = pluginRegistry.getPanels('right-sidebar');
+      const focused = document.activeElement as HTMLElement | null;
+      const owner = focused?.closest<HTMLElement>('[data-plugin-panel]');
+      const removed = owner?.dataset.pluginPanel;
+      if (removed && !next.some(panel => panel.id === removed)) {
+        const previous = Array.from(document.querySelectorAll<HTMLElement>('[role="tab"][data-plugin-panel]'));
+        const target = next[Math.min(previous.findIndex(panel => panel.dataset.pluginPanel === removed), next.length - 1)] ?? next[0];
+        pendingFocus.current = { lost: focused!, target: target?.id ?? null };
+      }
       setPanels(next);
       setActiveId(current => current && !next.some(panel => panel.id === current) ? null : current);
     };
     sync();
     return pluginRegistry.subscribe(sync);
-  }, []);
+  }, [panelPrefix]);
+
+  useLayoutEffect(() => {
+    const pending = pendingFocus.current;
+    if (!pending) return;
+    pendingFocus.current = null;
+    if (!pending.lost.isConnected && document.activeElement === document.body) {
+      const target = pending.target ? document.getElementById(`${panelPrefix}-tab-${pending.target}`)
+        : document.querySelector<HTMLElement>('[role="textbox"][contenteditable="true"]');
+      target?.focus({ preventScroll: true });
+    }
+  }, [panels, panelPrefix]);
 
   // Listen for external open/close requests from plugins.
   useEffect(() => {
@@ -92,7 +115,12 @@ export const PluginPanelTabs: React.FC<Props> = ({
         setActivation(value => value + 1);
       }
     };
-    const closeHandler = () => setActiveId(null);
+    const closeHandler = () => {
+      const content = document.activeElement?.closest<HTMLElement>('.plugin-panel-tabs__content');
+      const tab = content?.getAttribute('aria-labelledby');
+      if (tab) document.getElementById(tab)?.focus();
+      setActiveId(null);
+    };
     document.addEventListener(PLUGIN_PANEL_OPEN_EVENT, openHandler);
     document.addEventListener(PLUGIN_PANEL_CLOSE_EVENT, closeHandler);
     return () => {
@@ -113,9 +141,12 @@ export const PluginPanelTabs: React.FC<Props> = ({
 
   return (
     <>
+      {panels.filter(panel => panel.id !== active?.id).map(panel => (
+        <div key={panel.id} id={contentId(panel.id)} role="tabpanel" aria-labelledby={tabId(panel.id)} hidden />
+      ))}
       {active && (
         <div
-          className="plugin-panel-tabs__content"
+          className="plugin-panel-tabs__content" data-plugin-panel={active.id}
           id={contentId(active.id)} role="tabpanel" aria-labelledby={tabId(active.id)} tabIndex={0}
           style={{ width, minWidth: width }}
         >
@@ -125,7 +156,15 @@ export const PluginPanelTabs: React.FC<Props> = ({
               onPointerDown={onResizePointerDown}
               style={{ touchAction: 'none' }}
               aria-label={t('pluginPanels.resize')}
-              role="separator"
+              role="separator" aria-orientation="vertical"
+              tabIndex={onResizeKeyboard ? 0 : undefined}
+              aria-valuenow={onResizeKeyboard ? width : undefined}
+              aria-valuemin={onResizeKeyboard ? 200 : undefined} aria-valuemax={onResizeKeyboard ? 600 : undefined}
+              onKeyDown={event => {
+                if (!onResizeKeyboard) return;
+                const next = panelResize(width, event.key, 'right', getComputedStyle(event.currentTarget).direction === 'rtl');
+                if (next !== null) { event.preventDefault(); onResizeKeyboard(Math.max(200, Math.min(600, next))); }
+              }}
             />
           )}
           <button
@@ -145,9 +184,9 @@ export const PluginPanelTabs: React.FC<Props> = ({
           const isActive = p.id === activeId;
           return (
             <button
-              key={p.id}
+              key={p.id} data-plugin-panel={p.id}
               role="tab"
-              id={tabId(p.id)} aria-controls={isActive ? contentId(p.id) : undefined}
+              id={tabId(p.id)} aria-controls={contentId(p.id)}
               tabIndex={isActive || (!active && p === panels[0]) ? 0 : -1}
               aria-selected={isActive}
               className={
@@ -156,6 +195,9 @@ export const PluginPanelTabs: React.FC<Props> = ({
               }
               onClick={() => { setActiveId(isActive ? null : p.id); setActivation(value => value + 1); }}
               onKeyDown={event => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault(); setActiveId(p.id); setActivation(value => value + 1); return;
+                }
                 const index = panels.findIndex(panel => panel.id === p.id);
                 const next = event.key === 'ArrowDown' ? (index + 1) % panels.length
                   : event.key === 'ArrowUp' ? (index + panels.length - 1) % panels.length

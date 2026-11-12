@@ -15,6 +15,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { ModalOverlay } from './ModalOverlay';
 import { useTranslation } from 'react-i18next';
 import { templateGroup, templateName, templateTagline } from '../utils/templateLabels';
 import {
@@ -140,7 +141,7 @@ const ScriptFormatPreferencesDialog: React.FC<Props> = ({ firstRun = false, onCo
   };
 
   return (
-    <div className="dialog-overlay" onClick={firstRun ? undefined : onCancel}>
+    <ModalOverlay className="dialog-overlay" onClick={firstRun ? undefined : onCancel}>
       <div className="fmt-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="dialog-header">
           {firstRun ? t('prefs.titleFirstRun') : t('prefs.title')}
@@ -183,7 +184,7 @@ const ScriptFormatPreferencesDialog: React.FC<Props> = ({ firstRun = false, onCo
           </button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

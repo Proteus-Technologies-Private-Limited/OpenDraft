@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
+import { registerModal } from '../utils/modalAccessibility';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import { saveFile } from '../utils/fileOps';
@@ -19,10 +20,13 @@ export default function SourceBackupRecovery({ onClose }: { onClose(): void }) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   useEffect(() => {
-    dialog.current?.showModal();
+    const element = dialog.current;
+    element?.showModal();
+    const unregister = element ? registerModal(element) : () => {};
     invoke<Entry[]>('list_source_backups')
       .then(setEntries)
       .catch((e) => setError(String(e)));
+    return unregister;
   }, []);
   async function recover(entry: Entry) {
     setBusy(true);

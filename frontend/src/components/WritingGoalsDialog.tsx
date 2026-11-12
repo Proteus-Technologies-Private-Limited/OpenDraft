@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { ModalOverlay } from './ModalOverlay';
 import { Trans, useTranslation } from 'react-i18next';
 import { useWritingGoalsStore } from '../stores/writingGoalsStore';
 import { dayKey } from '../utils/writingGoals';
@@ -24,7 +25,7 @@ const WritingGoalsDialog: React.FC = () => {
   const num = (v: string) => Math.max(0, Math.floor(Number(v) || 0));
 
   return (
-    <div className="dialog-overlay" onClick={close}>
+    <ModalOverlay className="dialog-overlay" onClick={close}>
       <div
         className="dialog-box writing-goals-dialog"
         role="dialog"
@@ -107,7 +108,7 @@ const WritingGoalsDialog: React.FC = () => {
           <button className="dialog-primary" onClick={close}>{t('common:done')}</button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

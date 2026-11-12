@@ -8,6 +8,7 @@
  * collaborators like the rest of Revision Mode.
  */
 import React, { useState } from 'react';
+import { ModalOverlay } from './ModalOverlay';
 import { useTranslation } from 'react-i18next';
 import { useEditorStore } from '../stores/editorStore';
 import {
@@ -53,7 +54,7 @@ const RevisionSettingsDialog: React.FC<Props> = ({ onClose }) => {
   };
 
   return (
-    <div className="dialog-overlay" onClick={onClose}>
+    <ModalOverlay className="dialog-overlay" onClick={onClose}>
       <div
         className="dialog-box revision-settings-dialog"
         onClick={(e) => e.stopPropagation()}
@@ -114,7 +115,7 @@ const RevisionSettingsDialog: React.FC<Props> = ({ onClose }) => {
           <button className="dialog-primary" onClick={save}>{t('common:save')}</button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

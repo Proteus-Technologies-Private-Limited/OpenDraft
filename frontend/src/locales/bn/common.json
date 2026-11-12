@@ -43,5 +43,9 @@
   "selectAll": "সব নির্বাচন করুন",
   "untitled": "শিরোনামহীন",
   "warning": "সতর্কতা",
-  "yes": "হ্যাঁ"
+  "yes": "হ্যাঁ",
+  "accessibility": {
+    "formattingControls": "বিন্যাস নিয়ন্ত্রণ",
+    "screenplayEditor": "চিত্রনাট্য সম্পাদক"
+  }
 }

@@ -1,0 +1,65 @@
+name: Accessibility browser tests
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'frontend/src/**'
+      - 'frontend/index.html'
+      - 'frontend/package.json'
+      - 'frontend/package-lock.json'
+      - 'test-script/accessibility/**'
+      - 'test-script/menu-keyboard/**'
+      - '.github/workflows/test-accessibility.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  browser:
+    name: Chromium keyboard and axe checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: |
+          npm ci --prefix frontend
+          python -m pip install playwright==1.62.0
+          python -m playwright install --with-deps chromium
+      - name: Start Vite
+        working-directory: frontend
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 5173 > "$RUNNER_TEMP/accessibility-vite.log" 2>&1 &
+          for attempt in {1..60}; do
+            if curl -fsS http://127.0.0.1:5173/ > /dev/null 2>&1; then exit 0; fi
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/accessibility-vite.log"
+          exit 1
+      - name: Check dialogs, controls, panels, feedback and visual preferences
+        env:
+          OPENDRAFT_TEST_URL: http://127.0.0.1:5173/
+          OPENDRAFT_A11Y_OUTPUT: ${{ runner.temp }}/accessibility-reports
+        run: |
+          export OPENDRAFT_CHROMIUM="$(python -c 'from playwright.sync_api import sync_playwright; p=sync_playwright().start(); print(p.chromium.executable_path); p.stop()')"
+          python test-script/accessibility/regressions.py
+          OPENDRAFT_MENU_FOLDABLE=1 python test-script/accessibility/regressions.py Accessibility.test_plugin_tabs_selection_resize_and_removed_focus Accessibility.test_plugin_removal_from_content_and_editor_never_opens_neighbor
+          python test-script/menu-keyboard/regressions.py
+      - name: Upload accessibility evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: accessibility-browser-evidence
+          path: |
+            ${{ runner.temp }}/accessibility-vite.log
+            ${{ runner.temp }}/accessibility-reports
+          if-no-files-found: ignore

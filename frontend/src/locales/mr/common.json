@@ -43,5 +43,9 @@
   "selectAll": "सर्व निवडा",
   "untitled": "शीर्षकहीन",
   "warning": "इशारा",
-  "yes": "होय"
+  "yes": "होय",
+  "accessibility": {
+    "formattingControls": "स्वरूपण नियंत्रणे",
+    "screenplayEditor": "पटकथा संपादक"
+  }
 }

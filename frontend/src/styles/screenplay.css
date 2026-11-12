@@ -47,11 +47,15 @@
      never defined, so hovers fell back to near-black under dark text. */
   --fd-toolbar-hover: #4a4a4a;
   --fd-accent: #4a9eff;
+  --fd-action-bg: #1565c0;
+  --fd-error-text: #ff938b;
+  --fd-grammar-badge: #60d6b4;
+  --fd-style-badge: #8cbbff;
   --fd-border: #2a2a2a;
   --fd-chrome-separator: rgba(255,255,255,0.06);
   --fd-chrome-shadow: 0 1px 3px rgba(0,0,0,0.2);
   --fd-text: #e0e0e0;
-  --fd-text-muted: #999999;
+  --fd-text-muted: #a6a6a6;
   --fd-navigator-bg: #252525;
   --fd-status-bg: #1e1e1e;
   --fd-dropdown-bg: #2d2d2d;
@@ -106,18 +110,21 @@
 
 /* ── Light theme ── */
 [data-theme="light"] {
+  --fd-error-text: #9e2119;
+  --fd-grammar-badge: #00684f;
+  --fd-style-badge: #145aa4;
   --fd-bg: #e8e8e8;
   --fd-page-bg: #ffffff;
   --fd-toolbar-bg: #f4f4f4;
   --fd-menu-bg: #f6f6f6;
   --fd-menu-hover: #e0e0e0;
   --fd-toolbar-hover: #e0e0e0;
-  --fd-accent: #1565c0;
+  --fd-accent: #145da9;
   --fd-border: #d8d8d8;
   --fd-chrome-separator: rgba(0,0,0,0.04);
   --fd-chrome-shadow: 0 1px 3px rgba(0,0,0,0.08);
   --fd-text: #1a1a1a;
-  --fd-text-muted: #666666;
+  --fd-text-muted: #626262;
   --fd-navigator-bg: #f2f2f2;
   --fd-status-bg: #e0e0e0;
   --fd-dropdown-bg: #f5f5f5;
@@ -178,7 +185,7 @@
   font-variant-numeric: tabular-nums; letter-spacing: 0.2px;
 }
 .od-select-option.is-active .od-select-shortcut { color: rgba(255, 255, 255, 0.85); }
-.od-select-option.is-active { background: var(--fd-accent); color: #fff; }
+.od-select-option.is-active { background: var(--fd-action-bg); color: #fff; }
 .od-select-option.is-active .od-select-check { color: #fff; }
 .od-select-option.is-disabled { color: var(--fd-text-muted); cursor: default; }
 @media (pointer: coarse) {
@@ -773,7 +780,7 @@ body {
 }
 .zoom-input::-webkit-inner-spin-button,
 .zoom-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-.zoom-label { cursor: pointer; }
+.zoom-label { cursor: pointer; background: transparent; border: 0; padding: 0; font-family: inherit; }
 
 /* ── Floating zoom panel (mobile) ── */
 .zoom-panel {
@@ -3124,7 +3131,7 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: var(--p
   border: 1px solid var(--fd-border); border-radius: 4px; cursor: pointer; font-size: 14px;
 }
 .dialog-actions button:hover { background: var(--fd-menu-hover); }
-.dialog-primary { background: var(--fd-accent) !important; border-color: var(--fd-accent) !important; color: #fff !important; }
+.dialog-primary { background: var(--fd-action-bg) !important; border-color: var(--fd-action-bg) !important; color: #fff !important; }
 .dialog-primary:hover { opacity: .9; }
 .delete-script-dialog .dialog-actions button:disabled { opacity: .45; cursor: not-allowed; }
 .dialog-danger { background: #c0392b !important; border-color: #c0392b !important; color: #fff !important; }
@@ -13138,11 +13145,13 @@ del.suggestion-delete {
 .color-picker-swatch.active { border-color: #fff; box-shadow: 0 0 0 1px var(--fd-accent); }
 .color-picker-custom {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
   align-items: center;
   margin-bottom: 6px;
 }
 .color-picker-custom input[type="color"] {
+  flex: 0 0 28px;
   width: 28px;
   height: 28px;
   padding: 0;
@@ -13152,7 +13161,9 @@ del.suggestion-delete {
   background: transparent;
 }
 .color-picker-hex {
-  flex: 1;
+  flex: 1 1 80px;
+  min-width: 0;
+  width: 80px;
   height: 26px;
   font-size: 12px;
   padding: 0 6px;
@@ -13162,10 +13173,11 @@ del.suggestion-delete {
   border-radius: 4px;
 }
 .color-picker-apply {
-  height: 26px;
+  flex: none;
+  min-height: 26px;
   padding: 0 8px;
   font-size: 12px;
-  background: var(--fd-accent);
+  background: var(--fd-action-bg);
   color: #fff;
   border: none;
   border-radius: 4px;
@@ -14132,7 +14144,8 @@ del.suggestion-delete {
 .font-picker-option-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .font-picker-option.is-active { background: var(--fd-menu-hover); }
 .font-picker-option.is-selected { color: var(--fd-accent); }
-.font-picker-option.is-missing .font-picker-option-name { opacity: .55; }
+.font-picker-option.is-missing .font-picker-option-name { color: var(--fd-text-muted); }
+.font-picker-option.is-active .font-picker-option-name { color: var(--fd-text); }
 .font-picker-missing-tag {
   flex: none; font-size: 9.5px; letter-spacing: .03em; color: var(--fd-text-muted);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -15509,3 +15522,50 @@ html.foldable.wide .fold-panel-content .plugin-panel-tabs__content { flex: 1; wi
 /* A reduced visual viewport or a very short tabletop slot uses the floating
    pad, with scrollable controls rather than writing beneath the keyboard. */
 .scribble-panel.is-viewport-constrained { min-height: 0; min-width: 0; overflow-y: auto; }
+
+/* Keyboard and OS accessibility preferences apply to application chrome. */
+.a11y-only {
+  position: absolute !important;
+  width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0;
+}
+:where(button, a[href], input, select, textarea, [tabindex]:not([contenteditable="true"])):focus-visible {
+  outline: 2px solid var(--fd-accent, #4a9eff) !important;
+  outline-offset: 2px;
+}
+.toast-stack {
+  position: fixed; inset-block-end: 20px; inset-inline-end: 20px; z-index: 100000;
+  display: flex; flex-direction: column; gap: 8px;
+  max-width: min(420px, calc(100vw - 40px)); max-height: 50dvh; overflow-y: auto;
+}
+.toast-message {
+  display: flex; gap: 12px; align-items: center; padding: 10px 16px; border-radius: 6px;
+  color: #fff; font-size: 13px; overflow-wrap: anywhere; box-shadow: 0 2px 8px #0005;
+}
+.toast-message--error { background: #a92e23; }
+.toast-message--success { background: #17643b; }
+.toast-message--info { background: #2c3e50; }
+.toast-message button { background: transparent; color: inherit; border: 1px solid currentColor; border-radius: 3px; cursor: pointer; font-size: 18px; flex-shrink: 0; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important; animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important; scroll-behavior: auto !important;
+  }
+}
+@media (forced-colors: active) {
+  :where(button, input, select, textarea, [role="tab"], [role="menuitem"], .dialog-box, .toast-message) {
+    border: 1px solid ButtonText;
+  }
+  :where(button, a[href], input, [tabindex]):focus-visible { outline-color: Highlight !important; }
+  :where([aria-selected="true"], [aria-pressed="true"]) { outline: 2px solid Highlight; outline-offset: -3px; }
+  .toast-message { background: Canvas; color: CanvasText; box-shadow: none; }
+}
+
+.reports-list li:is(.selected, :hover, :focus-visible) .reports-list-desc { color: var(--fd-text); }
+
+@supports not selector(:focus-visible) {
+  button:focus, a[href]:focus, input:focus, select:focus, textarea:focus, [tabindex]:not([contenteditable="true"]):focus {
+    outline: 2px solid var(--fd-accent, #4a9eff) !important;
+    outline-offset: 2px;
+  }
+}

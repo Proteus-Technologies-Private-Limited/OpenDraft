@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { ModalOverlay } from './ModalOverlay';
 import { useTranslation } from 'react-i18next';
 import { t as translate } from '../i18n';
 import type { ProjectInfo, ProjectProperties, SubmissionEntry } from '../services/api';
@@ -182,7 +183,7 @@ const ProjectPropertiesDialog: React.FC<Props> = ({ project, onClose, onSaved })
   };
 
   return (
-    <div className="dialog-overlay" onClick={onClose}>
+    <ModalOverlay className="dialog-overlay" onClick={onClose}>
       <div className="props-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="dialog-header">{t('properties.title')}</div>
         <div className="props-dialog-body">
@@ -294,7 +295,7 @@ const ProjectPropertiesDialog: React.FC<Props> = ({ project, onClose, onSaved })
           </button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

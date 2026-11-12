@@ -4,6 +4,7 @@
  * anywhere AI voices are chosen with no provider configured (issue #131).
  */
 import React, { useEffect } from 'react';
+import { ModalOverlay } from './ModalOverlay';
 import { useTranslation } from 'react-i18next';
 import { useTableReadStore } from '../stores/tableReadStore';
 import { isAiProviderConfigured, useVoiceSettingsStore } from '../stores/voiceSettingsStore';
@@ -28,7 +29,7 @@ const VoiceProviderDialog: React.FC = () => {
   if (!open) return null;
 
   return (
-    <div className="dialog-overlay" onClick={close}>
+    <ModalOverlay className="dialog-overlay" onClick={close}>
       <div
         className="dialog-box voice-provider-dialog"
         onClick={(e) => e.stopPropagation()}
@@ -56,7 +57,7 @@ const VoiceProviderDialog: React.FC = () => {
           </button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 
