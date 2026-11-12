@@ -7,6 +7,7 @@ import { isTauri as isNativeApp, getOS as nativeOS } from '../services/platform'
 import { ExternalSaveCancelled, externalScreenplay } from '../services/externalSave';
 import React, { useState, useRef, useEffect, useCallback, useMemo, useId } from 'react';
 import { useMenuKeyboard } from '../hooks/useMenuKeyboard';
+import { menuKeyShortcuts } from '../utils/menuKeyboard';
 import { createPortal } from 'react-dom';
 import { Editor } from '@tiptap/react';
 import type { JSONContent } from '@tiptap/core';
@@ -2882,7 +2883,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
             className={`menu-submenu ${open ? 'submenu-visible' : ''}`}
             ref={(el) => { if (el && open) positionSubmenu(el); }}
           >
-            {item.children.map((child, j) => renderMenuNode(child, path, j, `${indexPath}-${j}`))}
+            {renderMenuNodes(item.children, path, label, indexPath)}
           </div>
         </div>
       );
@@ -2894,6 +2895,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
         role={item.checked == null ? 'menuitem' : item.radio ? 'menuitemradio' : 'menuitemcheckbox'}
         tabIndex={-1}
         aria-label={label}
+        aria-keyshortcuts={menuKeyShortcuts(item.shortcut)}
         aria-disabled={item.disabled || undefined}
         aria-checked={item.checked}
         onKeyDown={keyboard.onItemKeyDown}
@@ -2909,6 +2911,28 @@ const MenuBar: React.FC<MenuBarProps> = ({
         {item.shortcut && <span className="menu-shortcut">{item.shortcut}</span>}
       </div>
     );
+  };
+
+  // Keep each contiguous set of exclusive choices separate from ordinary
+  // commands, without changing its menu indices or pointer layout.
+  const renderMenuNodes = (items: MenuItem[], parentPath: string, groupLabel: string, prefix = ''): React.ReactNode[] => {
+    const result: React.ReactNode[] = [];
+    for (let i = 0; i < items.length;) {
+      const indexPath = (index: number) => prefix ? `${prefix}-${index}` : String(index);
+      if (items[i].radio && items[i].checked != null && !items[i].children) {
+        const start = i;
+        const group: React.ReactNode[] = [];
+        while (i < items.length && items[i].radio && items[i].checked != null && !items[i].children) {
+          group.push(renderMenuNode(items[i], parentPath, i, indexPath(i)));
+          i++;
+        }
+        result.push(<div key={`group-${indexPath(start)}`} role="group" aria-label={groupLabel}>{group}</div>);
+      } else {
+        result.push(renderMenuNode(items[i], parentPath, i, indexPath(i)));
+        i++;
+      }
+    }
+    return result;
   };
 
   const menus: MenuSection[] = [
@@ -4171,7 +4195,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
         onMouseDown={keepEditorSelection}
         style={{ top: dropdownPos.top, bottom: dropdownPos.bottom, left: dropdownPos.left, maxHeight: dropdownPos.maxHeight }}
       >
-        {activeMenuData.items.map((item, i) => renderMenuNode(item, '', i))}
+        {renderMenuNodes(activeMenuData.items, '', activeMenuData.label)}
       </div>,
       document.body,
     )}
