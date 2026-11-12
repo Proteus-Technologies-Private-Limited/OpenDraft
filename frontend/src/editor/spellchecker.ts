@@ -294,12 +294,13 @@ class SpellChecker {
   /** Remove a downloaded language. The built-in language can't be removed. */
   async unloadLanguage(code: string): Promise<void> {
     if (code === BUILTIN_LANGUAGE) return;
+    const wasWorking = this.enabledLanguages.has(code) && this.typos.has(code);
     this.typos.delete(code);
     this.labels.delete(code);
     this.enabledLanguages.delete(code);
     // Unavailable enabled codes do not provide a working dictionary. Keep the
     // bundled fallback active when removing the last dictionary that did.
-    if (![...this.enabledLanguages].some(language => this.typos.has(language))) {
+    if (wasWorking && ![...this.enabledLanguages].some(language => this.typos.has(language))) {
       this.enabledLanguages.add(BUILTIN_LANGUAGE);
     }
     await dbDelete(code);

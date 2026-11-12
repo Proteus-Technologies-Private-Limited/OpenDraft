@@ -72,6 +72,36 @@ describe('document transitions and dictionary removal', () => {
     stop(); stopScan();
   });
 
+  it.each(['pl', 'not-loaded'])('does not add English or edit an unavailable-only script when removing unrelated %s', async code => {
+    await loadPolish();
+    checker.beginDocument(['fr']);
+    const changed = vi.fn();
+    const stop = onScriptLanguagesChange(changed, checker);
+    const generation = checker.getDocumentGeneration();
+    try {
+      await checker.unloadLanguage(code);
+      expect(checker.getEnabledLanguages()).toEqual(['fr']);
+      expect(checker.getLoadedLanguages().some(language => language.code === code)).toBe(false);
+      expect(checker.getDocumentGeneration()).toBe(generation);
+      expect(changed).not.toHaveBeenCalled();
+    } finally {
+      stop();
+    }
+  });
+
+  it('removes an unavailable enabled code without substituting English', async () => {
+    checker.beginDocument(['fr', 'unavailable']);
+    const changed = vi.fn();
+    const stop = onScriptLanguagesChange(changed, checker);
+    try {
+      await checker.unloadLanguage('unavailable');
+      expect(checker.getEnabledLanguages()).toEqual(['fr']);
+      expect(changed).toHaveBeenCalledTimes(1);
+    } finally {
+      stop();
+    }
+  });
+
   it('preserves another working selection and cannot remove bundled English', async () => {
     await loadPolish();
     checker.setEnabledLanguages(['en_US', 'pl']);
