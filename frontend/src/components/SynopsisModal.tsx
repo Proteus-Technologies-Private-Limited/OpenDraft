@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { ModalOverlay } from './ModalOverlay';
 import { useTranslation } from 'react-i18next';
 import { formatNumber } from '../i18n/format';
 import { formatSceneDuration, getTimingColor } from '../utils/scriptTiming';
@@ -63,7 +64,7 @@ const SynopsisModal: React.FC<SynopsisModalProps> = ({ sceneHeading, synopsis, s
     : (autoTimingSeconds || 0);
 
   return (
-    <div className="dialog-overlay synopsis-modal-overlay" onClick={onClose}>
+    <ModalOverlay className="dialog-overlay synopsis-modal-overlay" onClick={onClose}>
       <div className="synopsis-modal" onClick={(e) => e.stopPropagation()}>
         <div className="dialog-header synopsis-modal-header">
           <span>{t('synopsis.title')}</span>
@@ -164,7 +165,7 @@ const SynopsisModal: React.FC<SynopsisModalProps> = ({ sceneHeading, synopsis, s
           <button className="dialog-btn dialog-btn-primary" onClick={handleSave}>{t('common:save')}</button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

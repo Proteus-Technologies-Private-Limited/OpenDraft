@@ -5,6 +5,7 @@
  */
 
 import React from 'react';
+import { ModalOverlay } from './ModalOverlay';
 import { useTranslation } from 'react-i18next';
 import { useSaveErrorStore } from '../stores/saveErrorStore';
 import { formatTime } from '../i18n/format';
@@ -30,7 +31,7 @@ const SaveErrorDialog: React.FC = () => {
   const localTime = formatTime(error.at, { timeStyle: 'medium' });
 
   return (
-    <div className="dialog-overlay" onClick={clearError}>
+    <ModalOverlay className="dialog-overlay" onClick={clearError}>
       <div
         className="dialog-box"
         style={{ maxWidth: 480 }}
@@ -75,7 +76,7 @@ const SaveErrorDialog: React.FC = () => {
           </button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { ModalOverlay } from './ModalOverlay';
 import { useNavigate } from 'react-router-dom';
 import { Trans, useTranslation } from 'react-i18next';
 import { compareText, formatDate as formatDateLocale } from '../i18n/format';
@@ -781,7 +782,7 @@ const ProjectList: React.FC = () => {
 
       {/* New Project Dialog */}
       {showNewDialog && (
-        <div className="dialog-overlay" onClick={() => setShowNewDialog(false)}>
+        <ModalOverlay className="dialog-overlay" onClick={() => setShowNewDialog(false)}>
           <div className="dialog-box" onClick={(e) => e.stopPropagation()}>
             <div className="dialog-header">{t('list.newDialog.title')}</div>
             <div className="dialog-body">
@@ -866,12 +867,12 @@ const ProjectList: React.FC = () => {
               </button>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
 
       {/* Delete Confirmation Dialog */}
       {pendingDeleteId && (
-        <div className="dialog-overlay" onClick={() => setPendingDeleteId(null)}>
+        <ModalOverlay className="dialog-overlay" onClick={() => setPendingDeleteId(null)}>
           <div className="dialog-box" onClick={(e) => e.stopPropagation()}>
             <div className="dialog-header">{t('list.deleteDialog.title')}</div>
             <div className="dialog-body">
@@ -904,7 +905,7 @@ const ProjectList: React.FC = () => {
               </button>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
     </div>
   );

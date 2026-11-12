@@ -7,6 +7,7 @@
  */
 
 import React, { useState, useCallback } from 'react';
+import { ModalOverlay } from './ModalOverlay';
 import { Trans, useTranslation } from 'react-i18next';
 import { t as translate } from '../i18n';
 import {
@@ -181,7 +182,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
     .map((r) => ({ id: r.id, label: r.label }));
 
   return (
-    <div className="template-editor-overlay" onClick={onCancel}>
+    <ModalOverlay className="template-editor-overlay" onClick={onCancel}>
       <div className="template-editor-dialog" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="template-editor-header">
@@ -732,7 +733,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
           </div>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

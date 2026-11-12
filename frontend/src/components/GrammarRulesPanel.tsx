@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
+import { ModalOverlay } from './ModalOverlay';
 import { useTranslation } from 'react-i18next';
 import { useEditorStore } from '../stores/editorStore';
 import { RETEXT_CATEGORIES, RETEXT_CATEGORY_META } from '../editor/grammar/retextProvider';
@@ -76,7 +77,7 @@ const RuleList: React.FC<{ section: RuleSection }> = ({ section }) => {
                   padding: '2px 6px',
                   borderRadius: 4,
                   background: meta.severity === 'grammar' ? 'rgba(26,168,136,0.15)' : 'rgba(46,125,215,0.15)',
-                  color: meta.severity === 'grammar' ? '#1aa888' : '#2e7dd7',
+                  color: meta.severity === 'grammar' ? 'var(--fd-grammar-badge)' : 'var(--fd-style-badge)',
                 }}
               >
                 {meta.severity === 'grammar' ? t('grammar.severityGrammar') : t('grammar.severityStyle')}
@@ -93,20 +94,30 @@ const GrammarRulesPanel: React.FC<GrammarRulesPanelProps> = ({ onClose }) => {
   const { t } = useTranslation(['settings', 'common']);
   const tabLabel = (id: TabId): string =>
     id === 'grammar' ? t('grammar.tabGrammar') : id === 'style' ? t('grammar.tabStyle') : t('grammar.tabDictionaries');
+  const tabPrefix = useId();
   const [activeTab, setActiveTab] = useState<TabId>('grammar');
   const dictionaryLibraryOpen = useEditorStore((s) => s.dictionaryLibraryOpen);
   const setDictionaryLibraryOpen = useEditorStore((s) => s.setDictionaryLibraryOpen);
 
   return (
     <>
-      <div className="dialog-overlay" onClick={onClose}>
+      <ModalOverlay className="dialog-overlay" onClick={onClose}>
         <div
           className="dialog-box"
           onClick={(e) => e.stopPropagation()}
           style={{ maxWidth: 640, width: '100%', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}
         >
           <div className="dialog-header">{t('grammar.title')}</div>
-          <div
+          <div role="tablist" aria-label={t('grammar.title')}
+            onKeyDown={event => {
+              const tabs = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
+              const index = tabs.indexOf(document.activeElement as HTMLButtonElement);
+              const rtl = getComputedStyle(event.currentTarget).direction === 'rtl';
+              const next = event.key === (rtl ? 'ArrowLeft' : 'ArrowRight') ? (index + 1) % tabs.length
+                : event.key === (rtl ? 'ArrowRight' : 'ArrowLeft') ? (index + tabs.length - 1) % tabs.length
+                : event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : -1;
+              if (next >= 0) { event.preventDefault(); tabs[next].focus(); tabs[next].click(); }
+            }}
             style={{
               display: 'flex',
               gap: 4,
@@ -119,6 +130,8 @@ const GrammarRulesPanel: React.FC<GrammarRulesPanelProps> = ({ onClose }) => {
               return (
                 <button
                   key={id}
+                  role="tab" id={`${tabPrefix}-tab-${id}`} aria-controls={`${tabPrefix}-panel-${id}`}
+                  aria-selected={active} tabIndex={active ? 0 : -1}
                   type="button"
                   onClick={() => setActiveTab(id)}
                   style={{
@@ -139,17 +152,22 @@ const GrammarRulesPanel: React.FC<GrammarRulesPanelProps> = ({ onClose }) => {
             })}
           </div>
           <div className="dialog-body" style={{ overflowY: 'auto' }}>
+            {TAB_IDS.map(id => <div key={id} role="tabpanel" id={`${tabPrefix}-panel-${id}`}
+              aria-labelledby={`${tabPrefix}-tab-${id}`} hidden={activeTab !== id} tabIndex={0}>
+              {activeTab === id && <>
             {activeTab === 'grammar' && <RuleList section={GRAMMAR_SECTION} />}
             {activeTab === 'style' && <RuleList section={STYLE_SECTION} />}
             {activeTab === 'dictionaries' && (
               <DictionaryConfigPanel onOpenLibrary={() => setDictionaryLibraryOpen(true)} />
             )}
+              </>}
+            </div>)}
           </div>
           <div className="dialog-footer">
             <button className="dialog-primary" onClick={onClose}>{t('common:done')}</button>
           </div>
         </div>
-      </div>
+      </ModalOverlay>
       {dictionaryLibraryOpen && (
         <DictionaryLibrary onClose={() => setDictionaryLibraryOpen(false)} />
       )}

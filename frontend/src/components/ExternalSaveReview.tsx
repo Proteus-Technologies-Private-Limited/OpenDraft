@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { registerModal } from '../utils/modalAccessibility';
 import { Trans, useTranslation } from 'react-i18next';
 import { useExternalSaveReview } from '../services/externalSave';
 export default function ExternalSaveReview() {
@@ -14,8 +15,11 @@ function Review({ name, warnings }: { name: string; warnings: string[] }) {
   const [acknowledged, setAcknowledged] = useState(false);
   const answer = useExternalSaveReview((s) => s.answer);
   useEffect(() => {
-    dialog.current?.showModal();
+    const element = dialog.current;
+    element?.showModal();
+    const unregister = element ? registerModal(element) : () => {};
     copyButton.current?.focus();
+    return unregister;
   }, []);
   return (
     <dialog

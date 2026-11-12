@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import React, { useCallback, useId, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { modalPortalContainer } from '../utils/modalAccessibility';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import {
@@ -110,6 +111,7 @@ const FontPicker: React.FC<FontPickerProps> = ({
   };
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const listId = useId();
   const [activeIndex, setActiveIndex] = useState(0);
   const [anchor, setAnchor] = useState<Anchor | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -270,6 +272,7 @@ const FontPicker: React.FC<FontPickerProps> = ({
   };
 
   const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.defaultPrevented || e.nativeEvent.isComposing || e.ctrlKey || e.metaKey || e.altKey) return;
     if (!open) {
       if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
@@ -279,14 +282,15 @@ const FontPicker: React.FC<FontPickerProps> = ({
     }
     if (e.key === 'ArrowDown') { e.preventDefault(); move(1); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); move(-1); }
-    else if (e.key === 'Home') { e.preventDefault(); setActiveIndex(selectableIndexes[0] ?? 0); }
-    else if (e.key === 'End') { e.preventDefault(); setActiveIndex(selectableIndexes[selectableIndexes.length - 1] ?? 0); }
+    else if (e.key === 'Home' && e.target !== searchRef.current) { e.preventDefault(); setActiveIndex(selectableIndexes[0] ?? 0); }
+    else if (e.key === 'End' && e.target !== searchRef.current) { e.preventDefault(); setActiveIndex(selectableIndexes[selectableIndexes.length - 1] ?? 0); }
     else if (e.key === 'Enter') {
       e.preventDefault();
       const row = rows[activeIndex];
       if (row?.kind === 'font') commit(row);
     } else if (e.key === 'Escape') {
       e.preventDefault();
+      e.stopPropagation();
       setOpen(false);
       buttonRef.current?.focus();
     }
@@ -303,7 +307,9 @@ const FontPicker: React.FC<FontPickerProps> = ({
         type="button"
         className={`${className} font-picker-trigger`}
         title={triggerTitle}
-        aria-haspopup="listbox"
+        aria-label={`${triggerTitle}: ${triggerLabel}`}
+        aria-haspopup="dialog"
+        aria-controls={open ? `${listId}-dialog` : undefined}
         aria-expanded={open}
         onClick={() => (open ? setOpen(false) : openList())}
         onKeyDown={onKeyDown}
@@ -318,6 +324,7 @@ const FontPicker: React.FC<FontPickerProps> = ({
       {open && anchor && createPortal(
         <div
           ref={popupRef}
+          id={`${listId}-dialog`}
           className="font-picker-popup"
           style={{
             left: anchor.left,
@@ -326,7 +333,8 @@ const FontPicker: React.FC<FontPickerProps> = ({
             width: anchor.width,
             maxHeight: anchor.maxHeight,
           }}
-          role="dialog"
+          role="dialog" aria-label={t('fontPicker.searchLabel')}
+          onKeyDown={event => { if (event.key === 'Escape') onKeyDown(event); }}
         >
           <div className="font-picker-search-row">
             <input
@@ -346,10 +354,12 @@ const FontPicker: React.FC<FontPickerProps> = ({
                 setQuery(search);
               }}
               onKeyDown={onKeyDown}
+              role="combobox" aria-autocomplete="list" aria-expanded="true" aria-controls={listId}
+              aria-activedescendant={rows[activeIndex]?.kind === 'font' ? `${listId}-${activeIndex}` : undefined}
               aria-label={t('fontPicker.searchLabel')}
             />
           </div>
-          <div className="font-picker-list" ref={listRef} role="listbox" tabIndex={-1}>
+          <div className="font-picker-list" ref={listRef} id={listId} aria-label={t('fontPicker.searchLabel')} role="listbox" tabIndex={-1}>
             {rows.length === 0 && <div className="font-picker-empty">{t('fontPicker.noMatch', { query })}</div>}
             {rows.map((row, index) => {
               if (row.kind === 'header') {
@@ -367,8 +377,8 @@ const FontPicker: React.FC<FontPickerProps> = ({
                   key={`f-${row.label}-${index}`}
                   data-index={index}
                   data-font={row.isEmpty ? undefined : row.label}
-                  role="option"
-                  aria-selected={selected}
+                  role="option" id={`${listId}-${index}`}
+                  aria-selected={index === activeIndex}
                   className={[
                     'font-picker-option',
                     index === activeIndex ? 'is-active' : '',
@@ -396,7 +406,7 @@ const FontPicker: React.FC<FontPickerProps> = ({
             </button>
           )}
         </div>,
-        document.body,
+        modalPortalContainer(),
       )}
     </>
   );

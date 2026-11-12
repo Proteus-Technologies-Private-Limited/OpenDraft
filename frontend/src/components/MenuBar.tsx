@@ -6,6 +6,7 @@ import NotOnApple from './NotOnApple';
 import { isTauri as isNativeApp, getOS as nativeOS } from '../services/platform';
 import { ExternalSaveCancelled, externalScreenplay } from '../services/externalSave';
 import React, { useState, useRef, useEffect, useCallback, useMemo, useId } from 'react';
+import { ModalOverlay } from './ModalOverlay';
 import { useMenuKeyboard } from '../hooks/useMenuKeyboard';
 import { createPortal } from 'react-dom';
 import { Editor } from '@tiptap/react';
@@ -4175,7 +4176,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
       document.body,
     )}
     {showHiddenModeIntro && createPortal(
-      <div className="dialog-overlay" onClick={() => setShowHiddenModeIntro(false)}>
+      <ModalOverlay className="dialog-overlay" onClick={() => setShowHiddenModeIntro(false)}>
         <div className="hidden-mode-intro" onClick={(e) => e.stopPropagation()}>
           <div className="dialog-header">{t('menu:hiddenModeIntro.title')}</div>
           <div className="hidden-mode-intro-body">
@@ -4202,11 +4203,11 @@ const MenuBar: React.FC<MenuBarProps> = ({
             }}>{t('menu:hiddenModeIntro.gotIt')}</button>
           </div>
         </div>
-      </div>,
+      </ModalOverlay>,
       document.body,
     )}
     {checkinOpen && (
-      <div className="dialog-overlay" onClick={() => setCheckinOpen(false)}>
+      <ModalOverlay className="dialog-overlay" onClick={() => setCheckinOpen(false)}>
         <div className="dialog-box" onClick={(e) => e.stopPropagation()}>
           <div className="dialog-header">{t('menu:checkIn.title')}</div>
           <div className="dialog-body">
@@ -4236,7 +4237,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
             </button>
           </div>
         </div>
-      </div>
+      </ModalOverlay>
     )}
     {pageSetupOpen && canEditDocumentFormat && (
       <PageSetupDialog onClose={() => setPageSetupOpen(false)} />
@@ -4304,7 +4305,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
     />
 
     {aboutOpen && (
-      <div className="dialog-overlay" onClick={() => setAboutOpen(false)}>
+      <ModalOverlay className="dialog-overlay" onClick={() => setAboutOpen(false)}>
         <div className="dialog-box about-dialog" onClick={(e) => e.stopPropagation()}>
           <div className="dialog-header">{t('menu:help.aboutOpenDraft')}</div>
           <div className="dialog-body about-body">
@@ -4799,11 +4800,11 @@ const MenuBar: React.FC<MenuBarProps> = ({
             <button className="dialog-primary" onClick={() => setAboutOpen(false)}>{t('common:close')}</button>
           </div>
         </div>
-      </div>
+      </ModalOverlay>
     )}
     {manualOpen && <UserManualDialog onClose={() => setManualOpen(false)} />}
     {diagnosticsOpen && (
-      <div className="dialog-overlay" onClick={() => setDiagnosticsOpen(false)}>
+      <ModalOverlay className="dialog-overlay" onClick={() => setDiagnosticsOpen(false)}>
         <div className="dialog-box about-dialog" onClick={(e) => e.stopPropagation()}>
           <div className="dialog-header">{t('menu:help.diagnostics')}</div>
           <div className="dialog-body about-body">
@@ -4864,7 +4865,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
             <button className="dialog-primary" onClick={() => setDiagnosticsOpen(false)}>{t('common:close')}</button>
           </div>
         </div>
-      </div>
+      </ModalOverlay>
     )}
     {scriptProfileOpen && (
       <ScriptProfileDialog
@@ -4912,7 +4913,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
       />
     )}
     {clearRevisionsOpen && (
-      <div className="dialog-overlay" onClick={() => setClearRevisionsOpen(false)}>
+      <ModalOverlay className="dialog-overlay" onClick={() => setClearRevisionsOpen(false)}>
         <div className="dialog-box" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
           <div className="dialog-header">{t('menu:clearRevisions.title')}</div>
           <div className="dialog-body">
@@ -4943,10 +4944,10 @@ const MenuBar: React.FC<MenuBarProps> = ({
             </button>
           </div>
         </div>
-      </div>
+      </ModalOverlay>
     )}
     {discardConfirmOpen && (
-      <div className="dialog-overlay" onClick={handleDiscardConfirmCancel}>
+      <ModalOverlay className="dialog-overlay" onClick={handleDiscardConfirmCancel}>
         <div className="dialog-box" onClick={(e) => e.stopPropagation()}>
           <div className="dialog-header">{t('menu:unsaved.title')}</div>
           <div className="dialog-body">
@@ -4960,7 +4961,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
             <button className="dialog-primary" onClick={handleDiscardConfirmSave}>{t('menu:unsaved.saveAndContinue')}</button>
           </div>
         </div>
-      </div>
+      </ModalOverlay>
     )}
     {inPlaceElsewhere && (
       <DocumentOpenElsewhereDialog
@@ -4986,7 +4987,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
       />
     )}
     {foreignFormatNotice && (
-      <div className="dialog-overlay" onClick={() => setForeignFormatNotice(null)}>
+      <ModalOverlay className="dialog-overlay" onClick={() => setForeignFormatNotice(null)}>
         <div className="dialog-box" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
           <div className="dialog-header">{t('menu:foreignFormat.title', { extension: foreignFormatNotice.extension })}</div>
           <div className="dialog-body">
@@ -5020,7 +5021,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
             </button>
           </div>
         </div>
-      </div>
+      </ModalOverlay>
     )}
     {avColumnWarning && (() => {
       const isCue = avColumnWarning.which === 'cue';
@@ -5029,7 +5030,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
         ? t('menu:avColumnWarning.cueCount', { count: rows })
         : t('menu:avColumnWarning.storyboardCount', { count: rows });
       return (
-        <div className="dialog-overlay" onClick={() => setAvColumnWarning(null)}>
+        <ModalOverlay className="dialog-overlay" onClick={() => setAvColumnWarning(null)}>
           <div className="dialog-box" onClick={(e) => e.stopPropagation()}>
             <div className="dialog-header">
               {isCue ? t('menu:avColumnWarning.titleCue') : t('menu:avColumnWarning.titleStoryboard')}
@@ -5047,11 +5048,11 @@ const MenuBar: React.FC<MenuBarProps> = ({
               <button className="dialog-primary" onClick={confirmAvColumnToggle}>{t('menu:avColumnWarning.confirm')}</button>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       );
     })()}
     {docxImportWarningOpen && (
-      <div className="dialog-overlay" onClick={() => setDocxImportWarningOpen(false)}>
+      <ModalOverlay className="dialog-overlay" onClick={() => setDocxImportWarningOpen(false)}>
         <div className="dialog-box" onClick={(e) => e.stopPropagation()}>
           <div className="dialog-header">{t('menu:docxWarning.title')}</div>
           <div className="dialog-body">
@@ -5075,7 +5076,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
             <button className="dialog-primary" onClick={handleConfirmDocxImport}>{t('common:continue')}</button>
           </div>
         </div>
-      </div>
+      </ModalOverlay>
     )}
     </>
   );

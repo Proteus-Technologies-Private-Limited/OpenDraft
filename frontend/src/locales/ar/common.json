@@ -43,5 +43,9 @@
   "selectAll": "تحديد الكل",
   "untitled": "بدون عنوان",
   "warning": "تنبيه",
-  "yes": "نعم"
+  "yes": "نعم",
+  "accessibility": {
+    "formattingControls": "أدوات التنسيق",
+    "screenplayEditor": "محرر السيناريو"
+  }
 }

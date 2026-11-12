@@ -14,6 +14,8 @@
  * be there to make it.
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useModalAccessibility } from '../hooks/useModalAccessibility';
+import { ModalOverlay } from './ModalOverlay';
 import type { Editor } from '@tiptap/react';
 import { useTranslation } from 'react-i18next';
 import { useEditorStore } from '../stores/editorStore';
@@ -87,7 +89,7 @@ const StoryTimeline: React.FC<Props> = ({ editor, onClose, docked = false }) => 
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
+      if (e.key !== 'Escape' || e.defaultPrevented || e.isComposing) return;
       if (docked && (e.defaultPrevented || !rootRef.current?.contains(e.target as Node))) return;
       e.preventDefault();
       if (pendingDelete) setPendingDelete(null);
@@ -98,6 +100,7 @@ const StoryTimeline: React.FC<Props> = ({ editor, onClose, docked = false }) => 
   }, [docked, onClose, pendingDelete]);
 
   // A version from history is read-only, and so is its timeline.
+  useModalAccessibility(rootRef, !docked);
   const editable = editor.isEditable;
 
   const toggle = (scene: TimelineScene, plotlineId: string) => {
@@ -311,7 +314,7 @@ const StoryTimeline: React.FC<Props> = ({ editor, onClose, docked = false }) => 
       </div>
 
       {pendingDelete && (
-        <div className="dialog-overlay" onClick={(e) => { e.stopPropagation(); setPendingDelete(null); }}>
+        <ModalOverlay className="dialog-overlay" onClick={(e) => { e.stopPropagation(); setPendingDelete(null); }}>
           <div className="dialog-box" onClick={(e) => e.stopPropagation()}>
             <div className="dialog-header">{t('timeline.deleteHeader')}</div>
             <div className="dialog-body">
@@ -324,7 +327,7 @@ const StoryTimeline: React.FC<Props> = ({ editor, onClose, docked = false }) => 
               <button className="dialog-primary" style={{ background: '#c0392b' }} onClick={confirmDelete}>{t('common:delete')}</button>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
     </div>
   );

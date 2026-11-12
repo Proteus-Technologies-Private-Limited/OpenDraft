@@ -43,5 +43,9 @@
   "selectAll": "ಎಲ್ಲವನ್ನೂ ಆಯ್ಕೆಮಾಡಿ",
   "untitled": "ಶೀರ್ಷಿಕೆರಹಿತ",
   "warning": "ಎಚ್ಚರಿಕೆ",
-  "yes": "ಹೌದು"
+  "yes": "ಹೌದು",
+  "accessibility": {
+    "formattingControls": "ಸ್ವರೂಪಣ ನಿಯಂತ್ರಣಗಳು",
+    "screenplayEditor": "ಚಿತ್ರಕಥೆ ಸಂಪಾದಕ"
+  }
 }

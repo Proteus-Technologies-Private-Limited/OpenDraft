@@ -43,5 +43,9 @@
   "selectAll": "ਸਭ ਚੁਣੋ",
   "untitled": "ਬਿਨਾਂ ਨਾਮ",
   "warning": "ਚੇਤਾਵਨੀ",
-  "yes": "ਹਾਂ"
+  "yes": "ਹਾਂ",
+  "accessibility": {
+    "formattingControls": "ਫਾਰਮੈਟਿੰਗ ਨਿਯੰਤਰਣ",
+    "screenplayEditor": "ਪਟਕਥਾ ਸੰਪਾਦਕ"
+  }
 }

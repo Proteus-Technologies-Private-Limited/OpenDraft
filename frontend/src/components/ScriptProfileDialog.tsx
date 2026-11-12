@@ -12,6 +12,7 @@
  *   They do not move the estimate — see utils/scriptProfile for why.
  */
 import React, { useMemo, useState } from 'react';
+import { ModalOverlay } from './ModalOverlay';
 import { useTranslation } from 'react-i18next';
 import type { JSONContent } from '@tiptap/react';
 import { useEditorStore } from '../stores/editorStore';
@@ -129,7 +130,7 @@ const ScriptProfileDialog: React.FC<Props> = ({ onClose, getDoc }) => {
   };
 
   return (
-    <div className="dialog-overlay" onClick={onClose}>
+    <ModalOverlay className="dialog-overlay" onClick={onClose}>
       <div
         className="dialog-box script-profile-dialog"
         onClick={(e) => e.stopPropagation()}
@@ -212,7 +213,7 @@ const ScriptProfileDialog: React.FC<Props> = ({ onClose, getDoc }) => {
           <button className="dialog-primary" onClick={save}>{t('common:save')}</button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { ModalOverlay } from './ModalOverlay';
 import { useTranslation } from 'react-i18next';
 import type { Editor } from '@tiptap/react';
 import type { Node as PMNode } from '@tiptap/pm/model';
@@ -300,7 +301,7 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
   }, [editor, onClose, t]);
 
   return (
-    <div className="dialog-overlay" onClick={onClose}>
+    <ModalOverlay className="dialog-overlay" onClick={onClose}>
       <div className="tp-editor-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="dialog-header">{t('titlePage.title')}</div>
         <div className="tp-editor-body">
@@ -547,7 +548,7 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
           </button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

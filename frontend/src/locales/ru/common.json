@@ -43,5 +43,9 @@
   "selectAll": "Выделить всё",
   "untitled": "Без названия",
   "warning": "Предупреждение",
-  "yes": "Да"
+  "yes": "Да",
+  "accessibility": {
+    "formattingControls": "Элементы форматирования",
+    "screenplayEditor": "Редактор сценария"
+  }
 }

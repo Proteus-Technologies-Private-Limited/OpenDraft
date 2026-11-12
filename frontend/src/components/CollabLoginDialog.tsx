@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { ModalOverlay } from './ModalOverlay';
 import { Trans, useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
 import { collabAuthApi, handleAuthResponse, isDeviceChallenge, isUnknownAccountError } from '../services/collabAuth';
@@ -231,7 +232,7 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
   // confines fixed children to its bounds, which made the dialog open but
   // appear off-screen / clipped — so it looked like the tap did nothing.
   return createPortal(
-    <div className="dialog-overlay" onClick={onClose}>
+    <ModalOverlay className="dialog-overlay" onClick={onClose}>
       <div
         className="dialog-box"
         style={{ maxWidth: 440 }}
@@ -546,7 +547,7 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
           <button className="dialog-btn" onClick={onClose}>{t('common:cancel')}</button>
         </div>
       </div>
-    </div>,
+    </ModalOverlay>,
     document.body,
   );
 };

@@ -1,4 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
+import { ModalOverlay } from './ModalOverlay';
 import { useTranslation } from 'react-i18next';
 import { useEditorStore } from '../stores/editorStore';
 
@@ -99,7 +100,7 @@ const DictionaryLibrary: React.FC<DictionaryLibraryProps> = ({ onClose }) => {
   const selectedWords = selected ? customDictionaries[selected] ?? [] : [];
 
   return (
-    <div className="dialog-overlay" onClick={onClose}>
+    <ModalOverlay className="dialog-overlay" onClick={onClose}>
       <div
         className="dialog-box"
         onClick={(e) => e.stopPropagation()}
@@ -249,7 +250,7 @@ const DictionaryLibrary: React.FC<DictionaryLibraryProps> = ({ onClose }) => {
           <button className="dialog-primary" onClick={onClose}>{t('common:done')}</button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

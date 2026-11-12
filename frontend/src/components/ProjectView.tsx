@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { ModalOverlay } from './ModalOverlay';
 import type { JSONContent } from '@tiptap/react';
 import { withoutSuggestionsJSON } from '../editor/suggestions';
 import { DEFAULT_SCRIPT_PROFILE } from '../utils/scriptProfile';
@@ -1521,7 +1522,7 @@ const ProjectView: React.FC = () => {
 
       {/* New Treatment — name prompt */}
       {treatmentNamePrompt !== null && (
-        <div
+        <ModalOverlay
           className="dialog-overlay"
           onClick={() => setTreatmentNamePrompt(null)}
         >
@@ -1562,7 +1563,7 @@ const ProjectView: React.FC = () => {
               </button>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
 
       {emptyPrompt && project && (
@@ -1579,7 +1580,7 @@ const ProjectView: React.FC = () => {
 
       {/* Delete Confirmation Dialog */}
       {pendingDeleteId && (
-        <div
+        <ModalOverlay
           className="dialog-overlay"
           onClick={() => setPendingDeleteId(null)}
         >
@@ -1613,7 +1614,7 @@ const ProjectView: React.FC = () => {
               </button>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
 
       {showStorage && project && (

@@ -43,5 +43,9 @@
   "selectAll": "انتخاب همه",
   "untitled": "بدون عنوان",
   "warning": "هشدار",
-  "yes": "بله"
+  "yes": "بله",
+  "accessibility": {
+    "formattingControls": "کنترل‌های قالب‌بندی",
+    "screenplayEditor": "ویرایشگر فیلم‌نامه"
+  }
 }

@@ -1,4 +1,5 @@
 import React from 'react';
+import { ModalOverlay } from './ModalOverlay';
 import { Trans, useTranslation } from 'react-i18next';
 import logoUrl from '../assets/opendraft-icon.svg';
 
@@ -11,7 +12,7 @@ interface WelcomeDialogProps {
 const WelcomeDialog: React.FC<WelcomeDialogProps> = ({ onChoice }) => {
   const { t } = useTranslation('projects');
   return (
-    <div className="dialog-overlay">
+    <ModalOverlay className="dialog-overlay">
       <div className="welcome-card" onClick={(e) => e.stopPropagation()}>
         <div className="welcome-hero">
           <img className="welcome-logo" src={logoUrl} alt="" />
@@ -65,7 +66,7 @@ const WelcomeDialog: React.FC<WelcomeDialogProps> = ({ onChoice }) => {
           {t('welcome.footer')}
         </p>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

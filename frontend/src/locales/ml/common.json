@@ -43,5 +43,9 @@
   "selectAll": "എല്ലാം തിരഞ്ഞെടുക്കുക",
   "untitled": "പേരില്ലാത്തത്",
   "warning": "മുന്നറിയിപ്പ്",
-  "yes": "അതെ"
+  "yes": "അതെ",
+  "accessibility": {
+    "formattingControls": "ഫോർമാറ്റിംഗ് നിയന്ത്രണങ്ങൾ",
+    "screenplayEditor": "തിരക്കഥ എഡിറ്റർ"
+  }
 }

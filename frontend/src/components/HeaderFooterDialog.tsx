@@ -1,4 +1,5 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useId, useMemo, useRef, useState } from 'react';
+import { ModalOverlay } from './ModalOverlay';
 import { useTranslation } from 'react-i18next';
 import {
   useEditorStore,
@@ -38,6 +39,7 @@ const POSITIONS: Array<{ key: keyof HeaderFooterContent }> = [
 
 const HeaderFooterDialog: React.FC<HeaderFooterDialogProps> = ({ onClose, focusBand }) => {
   const { t } = useTranslation(['format', 'common']);
+  const fieldPrefix = useId();
   const fieldText = (token: (typeof FIELD_TOKENS)[number]): { label: string; hint: string } => {
     switch (token) {
       case '{page}': return { label: t('headerFooter.field.page.label'), hint: t('headerFooter.field.page.hint') };
@@ -205,8 +207,8 @@ const HeaderFooterDialog: React.FC<HeaderFooterDialogProps> = ({ onClose, focusB
         </label>
         <div className="hf-row-pair">
           <div className="hf-row">
-            <label>{t('headerFooter.startShowing')}</label>
-            <input
+            <label htmlFor={`${fieldPrefix}-${band}-field-0`}>{t('headerFooter.startShowing')}</label>
+            <input id={`${fieldPrefix}-${band}-field-0`}
               type="number"
               step="1"
               min="1"
@@ -216,8 +218,8 @@ const HeaderFooterDialog: React.FC<HeaderFooterDialogProps> = ({ onClose, focusB
             />
           </div>
           <div className="hf-row">
-            <label>{marginLabel}</label>
-            <input
+            <label htmlFor={`${fieldPrefix}-${band}-field-1`}>{marginLabel}</label>
+            <input id={`${fieldPrefix}-${band}-field-1`}
               type="number"
               step="0.05"
               min="0"
@@ -232,7 +234,7 @@ const HeaderFooterDialog: React.FC<HeaderFooterDialogProps> = ({ onClose, focusB
   };
 
   return (
-    <div className="dialog-overlay" onClick={onClose}>
+    <ModalOverlay className="dialog-overlay" onClick={onClose}>
       <div
         className="dialog-box hf-dialog"
         onClick={(e) => e.stopPropagation()}
@@ -263,8 +265,8 @@ const HeaderFooterDialog: React.FC<HeaderFooterDialogProps> = ({ onClose, focusB
           <div className="hf-section">
             <div className="hf-section-title">{t('headerFooter.pageNumbering')}</div>
             <div className="hf-row">
-              <label>{t('headerFooter.startNumbering')}</label>
-              <input
+              <label htmlFor={`${fieldPrefix}-field-2`}>{t('headerFooter.startNumbering')}</label>
+              <input id={`${fieldPrefix}-field-2`}
                 type="number"
                 step="1"
                 min="1"
@@ -324,7 +326,7 @@ const HeaderFooterDialog: React.FC<HeaderFooterDialogProps> = ({ onClose, focusB
           </button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

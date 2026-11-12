@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 interface ColorPickerProps {
+  label: string;
   value: string;
   onChange: (color: string | null) => void;
   onClose: () => void;
@@ -14,10 +15,16 @@ const PRESET_COLORS = [
   '#ff6666', '#ffcc66', '#ffff66', '#66ff66', '#66ccff', '#cc66ff',
 ];
 
-const ColorPicker: React.FC<ColorPickerProps> = ({ value, onChange, onClose }) => {
+const ColorPicker: React.FC<ColorPickerProps> = ({ label, value, onChange, onClose }) => {
   const { t } = useTranslation('common');
   const ref = useRef<HTMLDivElement>(null);
   const [customColor, setCustomColor] = useState(value || '#000000');
+  const opener = useRef<HTMLElement | null>(typeof document !== 'undefined' ? document.activeElement as HTMLElement : null);
+  const validColor = /^#[0-9a-f]{6}$/i.test(customColor);
+
+  useEffect(() => {
+    ref.current?.querySelector('button')?.focus();
+  }, []);
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -30,7 +37,13 @@ const ColorPicker: React.FC<ColorPickerProps> = ({ value, onChange, onClose }) =
   }, [onClose]);
 
   return (
-    <div className="color-picker-popup" ref={ref}>
+    <div className="color-picker-popup" ref={ref} role="dialog" aria-label={label}
+      onKeyDown={event => {
+        if (event.key !== 'Escape' || event.defaultPrevented || event.nativeEvent.isComposing) return;
+        event.preventDefault(); event.stopPropagation();
+        opener.current?.focus();
+        onClose();
+      }}>
       <div className="color-picker-swatches">
         {PRESET_COLORS.map((color) => (
           <button
@@ -39,18 +52,22 @@ const ColorPicker: React.FC<ColorPickerProps> = ({ value, onChange, onClose }) =
             style={{ backgroundColor: color }}
             onClick={() => onChange(color)}
             title={color}
+            aria-pressed={value.toLowerCase() === color}
           />
         ))}
       </div>
       <div className="color-picker-custom">
         <input
           type="color"
+          aria-label={label}
           value={customColor}
           onChange={(e) => setCustomColor(e.target.value)}
           className="color-picker-input"
         />
         <input
           type="text"
+          aria-label={`${label} (#RRGGBB)`}
+          aria-invalid={!validColor}
           value={customColor}
           onChange={(e) => setCustomColor(e.target.value)}
           className="color-picker-hex"
@@ -59,6 +76,7 @@ const ColorPicker: React.FC<ColorPickerProps> = ({ value, onChange, onClose }) =
         />
         <button
           className="color-picker-apply"
+          disabled={!validColor}
           onClick={() => onChange(customColor)}
         >
           {t('apply')}

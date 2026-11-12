@@ -8,6 +8,7 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react';
+import { ModalOverlay } from './ModalOverlay';
 import { FaCheck } from 'react-icons/fa';
 import { Trans, useTranslation } from 'react-i18next';
 
@@ -61,7 +62,7 @@ const DeleteEmptyProjectDialog: React.FC<DeleteEmptyProjectDialogProps> = ({
     : t('deleteEmpty.history');
 
   return (
-    <div className="dialog-overlay" onClick={() => { if (!busy) onKeep(); }}>
+    <ModalOverlay className="dialog-overlay" onClick={() => { if (!busy) onKeep(); }}>
       <div
         className="dialog-box delete-script-dialog"
         role="dialog"
@@ -112,7 +113,7 @@ const DeleteEmptyProjectDialog: React.FC<DeleteEmptyProjectDialogProps> = ({
           </button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

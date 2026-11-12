@@ -17,6 +17,7 @@
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { ModalOverlay } from './ModalOverlay';
 import { useTranslation } from 'react-i18next';
 import { compareText, formatDate } from '../i18n/format';
 import { FaChevronRight, FaCloud, FaDesktop, FaSearch, FaThLarge } from 'react-icons/fa';
@@ -173,7 +174,7 @@ const OpenFile: React.FC<OpenFileProps> = ({ onOpen, onClose, onManageProjects, 
   };
 
   return (
-    <div className="dialog-overlay" onClick={onClose}>
+    <ModalOverlay className="dialog-overlay" onClick={onClose}>
       <div
         className="dialog-box open-from-project-dialog"
         onClick={(e) => e.stopPropagation()}
@@ -298,7 +299,7 @@ const OpenFile: React.FC<OpenFileProps> = ({ onOpen, onClose, onManageProjects, 
           <button onClick={onClose}>{t('common:cancel')}</button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

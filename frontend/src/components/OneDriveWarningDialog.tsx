@@ -8,6 +8,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
+import { ModalOverlay } from './ModalOverlay';
 import { Trans, useTranslation } from 'react-i18next';
 import { isDesktopTauri } from '../services/platform';
 
@@ -49,7 +50,7 @@ const OneDriveWarningDialog: React.FC = () => {
   };
 
   return (
-    <div className="dialog-overlay" onClick={dismiss}>
+    <ModalOverlay className="dialog-overlay" onClick={dismiss}>
       <div
         className="dialog-box"
         style={{ maxWidth: 520 }}
@@ -97,7 +98,7 @@ const OneDriveWarningDialog: React.FC = () => {
           </button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

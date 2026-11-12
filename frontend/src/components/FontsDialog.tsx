@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { ModalOverlay } from './ModalOverlay';
 import { useTranslation, Trans } from 'react-i18next';
 import { t as tGlobal } from '../i18n';
 import {
@@ -208,7 +209,7 @@ const FontsDialog: React.FC<Props> = ({ onClose }) => {
   }, [t]);
 
   return (
-    <div className="dialog-overlay" onClick={onClose}>
+    <ModalOverlay className="dialog-overlay" onClick={onClose}>
       <div className="tp-editor-dialog" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 620 }}>
         <div className="dialog-header">{t('fonts.title')}</div>
         <div className="tp-editor-body" style={{ display: 'block', padding: 20 }}>
@@ -328,7 +329,7 @@ const FontsDialog: React.FC<Props> = ({ onClose }) => {
           <button className="dialog-primary" onClick={onClose}>{t('common:done')}</button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

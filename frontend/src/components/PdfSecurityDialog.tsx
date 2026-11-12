@@ -9,6 +9,7 @@
  * with that name, and saves them together as a .zip.
  */
 import React, { useState } from 'react';
+import { ModalOverlay } from './ModalOverlay';
 import { useTranslation } from 'react-i18next';
 import { watermarkFor, type PdfSecurity, type PdfWatermark } from '../utils/pdfExporter';
 
@@ -93,7 +94,7 @@ const PdfSecurityDialog: React.FC<Props> = ({ onExport, onClose }) => {
   };
 
   return (
-    <div className="dialog-overlay" onClick={onClose}>
+    <ModalOverlay className="dialog-overlay" onClick={onClose}>
       <div
         className="dialog-box pdf-security-dialog"
         onClick={(e) => e.stopPropagation()}
@@ -166,7 +167,7 @@ const PdfSecurityDialog: React.FC<Props> = ({ onExport, onClose }) => {
           </button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

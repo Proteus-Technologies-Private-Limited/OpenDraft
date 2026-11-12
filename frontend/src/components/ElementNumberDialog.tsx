@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { registerModal } from '../utils/modalAccessibility';
 import { useTranslation } from 'react-i18next';
 export default function ElementNumberDialog({
   initialValue,
@@ -15,9 +16,12 @@ export default function ElementNumberDialog({
   const [value, setValue] = useState(initialValue);
   const [error, setError] = useState('');
   useEffect(() => {
-    dialog.current?.showModal();
+    const element = dialog.current;
+    element?.showModal();
+    const unregister = element ? registerModal(element) : () => {};
     input.current?.focus();
     input.current?.select();
+    return unregister;
   }, []);
   function save(number: string | null) {
     if (onSave(number)) onClose();

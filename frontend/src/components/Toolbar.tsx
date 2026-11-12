@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
+import React, { useEffect, useLayoutEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Editor } from '@tiptap/react';
 import type { Mark } from '@tiptap/pm/model';
@@ -102,7 +102,7 @@ function selectCaret(ed: Editor | null) {
 // Priority 5 = font face & size
 const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
   const foldState = useFoldState();
-  const { t } = useTranslation('toolbar');
+  const { t } = useTranslation(['toolbar', 'common']);
   const {
     activeElement,
     setActiveElement,
@@ -352,13 +352,28 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
   const [zoomInput, setZoomInput] = useState(String(zoomLevel));
   const [zoomEditing, setZoomEditing] = useState(false);
   const zoomInputRef = useRef<HTMLInputElement>(null);
+  const zoomReturnTo = useRef<HTMLElement | null>(null);
+  useLayoutEffect(() => {
+    if (zoomEditing || !zoomReturnTo.current) return;
+    const parent = zoomReturnTo.current;
+    zoomReturnTo.current = null;
+    const target = parent.querySelector<HTMLButtonElement>('.zoom-label');
+    if (document.activeElement === document.body && target?.getClientRects().length) target.focus();
+  }, [zoomEditing]);
   useEffect(() => { if (!zoomEditing) setZoomInput(String(zoomLevel)); }, [zoomLevel, zoomEditing]);
-  const commitZoom = () => {
+  const commitZoom = useCallback(() => {
     const val = parseInt(zoomInput, 10);
     if (!isNaN(val) && val >= 50 && val <= 300) setZoomLevel(val);
     else setZoomInput(String(zoomLevel));
     setZoomEditing(false);
-  };
+  }, [zoomInput, zoomLevel, setZoomLevel]);
+  const onZoomKeyDown = useCallback((event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.nativeEvent.isComposing || (event.key !== 'Enter' && event.key !== 'Escape')) return;
+    event.preventDefault();
+    zoomReturnTo.current = event.currentTarget.parentElement;
+    if (event.key === 'Enter') commitZoom();
+    else { setZoomInput(String(zoomLevel)); setZoomEditing(false); }
+  }, [commitZoom, zoomLevel]);
 
   // ── Responsive overflow ──────────────────────────────────────────────
   const toolbarRef = useRef<HTMLDivElement>(null);
@@ -661,6 +676,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
       <div className="toolbar-group">
         <button
           className={`toolbar-btn ${isActive('bold') ? 'active' : ''}`}
+          aria-pressed={isActive('bold')}
           title={t('toolbar.bold', { shortcut: '⌘B' })}
           disabled={locked.bold}
           onClick={() => {
@@ -676,6 +692,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
         </button>
         <button
           className={`toolbar-btn ${isActive('italic') ? 'active' : ''}`}
+          aria-pressed={isActive('italic')}
           title={t('toolbar.italic', { shortcut: '⌘I' })}
           disabled={locked.italic}
           onClick={() => {
@@ -691,6 +708,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
         </button>
         <button
           className={`toolbar-btn ${isActive('underline') ? 'active' : ''}`}
+          aria-pressed={isActive('underline')}
           title={t('toolbar.underline', { shortcut: '⌘U' })}
           disabled={locked.underline}
           onClick={() => {
@@ -706,6 +724,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
         </button>
         <button
           className={`toolbar-btn ${isActive('strike') ? 'active' : ''}`}
+          aria-pressed={isActive('strike')}
           title={t('toolbar.strikethrough')}
           disabled={locked.strikethrough}
           onClick={() => { if (!locked.strikethrough) editor?.chain().focus(undefined, { scrollIntoView: false }).toggleStrike().run(); }}
@@ -714,6 +733,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
         </button>
         <button
           className={`toolbar-btn ${isActive('subscript') ? 'active' : ''}`}
+          aria-pressed={isActive('subscript')}
           title={t('toolbar.subscript')}
           disabled={locked.subscript}
           onClick={() => { if (!locked.subscript) editor?.chain().focus(undefined, { scrollIntoView: false }).toggleSubscript().run(); }}
@@ -722,6 +742,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
         </button>
         <button
           className={`toolbar-btn ${isActive('superscript') ? 'active' : ''}`}
+          aria-pressed={isActive('superscript')}
           title={t('toolbar.superscript')}
           disabled={locked.superscript}
           onClick={() => { if (!locked.superscript) editor?.chain().focus(undefined, { scrollIntoView: false }).toggleSuperscript().run(); }}
@@ -736,6 +757,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
         <button
           className="toolbar-btn"
           title={t('toolbar.textColor')}
+          aria-haspopup="dialog" aria-expanded={textColorOpen}
           disabled={locked.textColor}
           onClick={() => { if (!locked.textColor) { setTextColorOpen(!textColorOpen); setBgColorOpen(false); } }}
         >
@@ -743,6 +765,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
         </button>
         {showPopups && textColorOpen && (
           <ColorPicker
+            label={t('toolbar.textColor')}
             value={currentTextColor}
             onChange={(color) => {
               setCurrentTextColor(color || '#000000');
@@ -760,6 +783,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
         <button
           className="toolbar-btn"
           title={t('toolbar.highlightColor')}
+          aria-haspopup="dialog" aria-expanded={bgColorOpen}
           disabled={locked.backgroundColor}
           onClick={() => { if (!locked.backgroundColor) { setBgColorOpen(!bgColorOpen); setTextColorOpen(false); } }}
         >
@@ -767,6 +791,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
         </button>
         {showPopups && bgColorOpen && (
           <ColorPicker
+            label={t('toolbar.highlightColor')}
             value={currentBgColor}
             onChange={(color) => {
               setCurrentBgColor(color || '#ffff00');
@@ -792,6 +817,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
     <div className="toolbar-group" key="alignment">
       <button
         className={`toolbar-btn ${caret?.align === 'left' ? 'active' : ''}`}
+        aria-pressed={caret?.align === 'left'}
         title={t('toolbar.alignLeft')}
         onClick={() => editor?.chain().focus().setTextAlign('left').run()}
         disabled={locked.textAlign}
@@ -800,6 +826,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
       </button>
       <button
         className={`toolbar-btn ${caret?.align === 'center' ? 'active' : ''}`}
+        aria-pressed={caret?.align === 'center'}
         title={t('toolbar.alignCenter')}
         onClick={() => editor?.chain().focus().setTextAlign('center').run()}
         disabled={locked.textAlign}
@@ -808,6 +835,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
       </button>
       <button
         className={`toolbar-btn ${caret?.align === 'right' ? 'active' : ''}`}
+        aria-pressed={caret?.align === 'right'}
         title={t('toolbar.alignRight')}
         onClick={() => editor?.chain().focus().setTextAlign('right').run()}
         disabled={locked.textAlign}
@@ -816,6 +844,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
       </button>
       <button
         className={`toolbar-btn ${caret?.align === 'justify' ? 'active' : ''}`}
+        aria-pressed={caret?.align === 'justify'}
         title={t('toolbar.justify')}
         onClick={() => editor?.chain().focus().setTextAlign('justify').run()}
         disabled={locked.textAlign}
@@ -848,15 +877,19 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
     <div className="toolbar-group" key="notes-tags">
       <button
         className={`toolbar-btn${scriptNotesOpen ? ' active' : ''}`}
+        aria-pressed={scriptNotesOpen}
         title={t('toolbar.scriptNotes')}
         onPointerDown={(e) => { handleNotesClick(e); if (inOverflow) setOverflowOpen(false); }}
+        onClick={e => { if (e.detail === 0) { handleNotesClick(e); if (inOverflow) setOverflowOpen(false); } }}
       >
         <FaStickyNote />
       </button>
       <button
         className={`toolbar-btn${tagsPanelOpen ? ' active' : ''}`}
+        aria-pressed={tagsPanelOpen}
         title={t('toolbar.productionTags')}
         onPointerDown={(e) => { handleTagsClick(e); if (inOverflow) setOverflowOpen(false); }}
+        onClick={e => { if (e.detail === 0) { handleTagsClick(e); if (inOverflow) setOverflowOpen(false); } }}
       >
         <FaTags />
       </button>
@@ -879,22 +912,23 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
           className="zoom-input"
           type="number"
           min={50}
-          max={200}
+          max={300}
           step={10}
           value={zoomInput}
           onChange={(e) => setZoomInput(e.target.value)}
           onBlur={commitZoom}
-          onKeyDown={(e) => { if (e.key === 'Enter') commitZoom(); if (e.key === 'Escape') { setZoomInput(String(zoomLevel)); setZoomEditing(false); } }}
+          aria-label={t('toolbar.zoom')}
+          onKeyDown={onZoomKeyDown}
           autoFocus
         />
       ) : (
-        <span
+        <button type="button" aria-label={`${t('toolbar.zoom')}: ${zoomLevel}%`}
           className="zoom-label"
           onClick={() => { setZoomEditing(true); setTimeout(() => zoomInputRef.current?.select(), 0); }}
           title={t('toolbar.editZoom')}
         >
           {zoomLevel}%
-        </span>
+        </button>
       )}
       <button
         className="toolbar-btn"
@@ -905,7 +939,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
         <FaSearchPlus />
       </button>
     </div>
-  ), [zoomLevel, zoomEditing, zoomInput, setZoomLevel, commitZoom, t]);
+  ), [zoomLevel, zoomEditing, zoomInput, setZoomLevel, commitZoom, onZoomKeyDown, t]);
 
   const renderZoomMin = useCallback((_inOverflow = false) => (
     <div className="toolbar-group zoom-group" key="zoom-min">
@@ -973,6 +1007,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
     <div
       className={`toolbar${(toolbarMode === 'comfortable' || (foldState.foldable && foldState.size === 'phone' && toolbarMode === 'hidden')) ? ' toolbar-comfortable' : ''}${isInsideAvRow ? ' toolbar-av' : ''}`}
       ref={toolbarRef}
+      role="group" aria-label={t('common:accessibility.formattingControls')}
     >
       {/* Undo / Redo — always visible */}
       <div className="toolbar-group">
@@ -1105,10 +1140,17 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
 
       {/* Overflow 3-dot menu */}
       {hasOverflow && (
-        <div className="toolbar-group toolbar-overflow-wrap" ref={overflowRef}>
+        <div className="toolbar-group toolbar-overflow-wrap" ref={overflowRef}
+          onKeyDown={event => {
+            if (event.key === 'Escape' && !event.defaultPrevented && overflowOpen) {
+              event.preventDefault(); setOverflowOpen(false);
+              overflowRef.current?.querySelector<HTMLButtonElement>('.toolbar-overflow-btn')?.focus();
+            }
+          }}>
           <button
             className={`toolbar-btn toolbar-overflow-btn${overflowOpen ? ' active' : ''}`}
             title={t('toolbar.moreFormatting')}
+            aria-expanded={overflowOpen}
             onClick={() => setOverflowOpen(!overflowOpen)}
           >
             <FaEllipsisV />
@@ -1139,22 +1181,23 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
             className="zoom-input"
             type="number"
             min={50}
-            max={200}
+            max={300}
             step={10}
             value={zoomInput}
             onChange={(e) => setZoomInput(e.target.value)}
             onBlur={commitZoom}
-            onKeyDown={(e) => { if (e.key === 'Enter') commitZoom(); if (e.key === 'Escape') { setZoomInput(String(zoomLevel)); setZoomEditing(false); } }}
+            aria-label={t('toolbar.zoom')}
+            onKeyDown={onZoomKeyDown}
             autoFocus
           />
         ) : (
-          <span
+          <button type="button" aria-label={`${t('toolbar.zoom')}: ${zoomLevel}%`}
             className="zoom-label"
             onClick={() => { setZoomEditing(true); setTimeout(() => zoomInputRef.current?.select(), 0); }}
             title={t('toolbar.editZoom')}
           >
             {zoomLevel}%
-          </span>
+          </button>
         )}
         <button
           className="toolbar-btn"
@@ -1171,6 +1214,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
         <button
           className="toolbar-btn"
           title={t('toolbar.zoom')}
+          aria-expanded={zoomPanelOpen} aria-controls={zoomPanelOpen ? 'zoom-panel' : undefined}
           onClick={() => setZoomPanelOpen(!zoomPanelOpen)}
         >
           <FaSearchPlus />

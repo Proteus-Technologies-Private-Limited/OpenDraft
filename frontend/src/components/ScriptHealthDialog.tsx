@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useId } from 'react';
+import { registerModal } from '../utils/modalAccessibility';
 import type { Editor } from '@tiptap/react';
 import { TextSelection } from '@tiptap/pm/state';
 import { useTranslation } from 'react-i18next';
@@ -37,8 +38,10 @@ export default function ScriptHealthDialog({ editor, onClose }: { editor: Editor
     const opener = document.activeElement;
     const element = dialog.current;
     element?.showModal();
+    const unregister = element ? registerModal(element) : () => {};
     return () => {
       element?.close();
+      unregister();
       if (restoreFocus.current && opener instanceof HTMLElement && opener.isConnected) opener.focus();
     };
   }, []);

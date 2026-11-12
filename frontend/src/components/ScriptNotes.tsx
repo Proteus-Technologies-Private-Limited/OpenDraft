@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { ModalOverlay } from './ModalOverlay';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { formatDate as formatLocalDate } from '../i18n/format';
@@ -1044,7 +1045,7 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
         )}
       </div>
       {pendingDeleteNoteId && (
-        <div className="dialog-overlay" onClick={() => setPendingDeleteNoteId(null)}>
+        <ModalOverlay className="dialog-overlay" onClick={() => setPendingDeleteNoteId(null)}>
           <div className="dialog-box" onClick={(e) => e.stopPropagation()}>
             <div className="dialog-header">{t('notes.deleteDialogTitle')}</div>
             <div className="dialog-body">
@@ -1057,7 +1058,7 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
               </button>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
       </>}
 
@@ -1183,7 +1184,7 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
             )}
           </div>
           {pendingDeleteGeneralNoteId && (
-            <div className="dialog-overlay" onClick={() => setPendingDeleteGeneralNoteId(null)}>
+            <ModalOverlay className="dialog-overlay" onClick={() => setPendingDeleteGeneralNoteId(null)}>
               <div className="dialog-box" onClick={(e) => e.stopPropagation()}>
                 <div className="dialog-header">{t('notes.deleteDialogTitle')}</div>
                 <div className="dialog-body">
@@ -1196,7 +1197,7 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
                   </button>
                 </div>
               </div>
-            </div>
+            </ModalOverlay>
           )}
         </>
       )}

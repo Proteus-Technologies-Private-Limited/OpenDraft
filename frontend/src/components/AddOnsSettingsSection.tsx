@@ -10,6 +10,7 @@
  * The section is not shown at all when no add-on is installed.
  */
 import React, { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { ModalOverlay } from './ModalOverlay';
 import { useTranslation } from 'react-i18next';
 import { pluginRegistry, resolvePluginText, type OpenDraftPlugin } from '../plugins/registry';
 import { showToast } from './Toast';
@@ -92,7 +93,7 @@ const AddOnSettingsDialog: React.FC<SettingsDialogProps> = ({ plugin, mode, onCl
   };
 
   return (
-    <div className="dialog-overlay" onClick={() => { if (!busy) onClose(); }}>
+    <ModalOverlay className="dialog-overlay" onClick={() => { if (!busy) onClose(); }}>
       <div
         className="dialog-box addon-dialog"
         onClick={(e) => e.stopPropagation()}
@@ -125,7 +126,7 @@ const AddOnSettingsDialog: React.FC<SettingsDialogProps> = ({ plugin, mode, onCl
           </button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 
@@ -163,7 +164,7 @@ const AddOnDisableDialog: React.FC<{ plugin: OpenDraftPlugin; onClose: () => voi
   };
 
   return (
-    <div className="dialog-overlay" onClick={() => { if (!busy) onClose(); }}>
+    <ModalOverlay className="dialog-overlay" onClick={() => { if (!busy) onClose(); }}>
       <div
         className="dialog-box addon-dialog"
         onClick={(e) => e.stopPropagation()}
@@ -187,7 +188,7 @@ const AddOnDisableDialog: React.FC<{ plugin: OpenDraftPlugin; onClose: () => voi
           {!error && <button className="dialog-primary" onClick={turnOff} disabled={busy}>{t('addOns.turnOff')}</button>}
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

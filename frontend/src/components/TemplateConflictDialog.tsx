@@ -7,6 +7,7 @@
  */
 
 import React, { useState } from 'react';
+import { ModalOverlay } from './ModalOverlay';
 import { Trans, useTranslation } from 'react-i18next';
 import type { TemplateConflicts, DisabledElementConflict, FormattingViolation } from '../utils/templateConflicts';
 import Select from './Select';
@@ -57,7 +58,7 @@ const TemplateConflictDialog: React.FC<TemplateConflictDialogProps> = ({
   };
 
   return (
-    <div className="template-conflict-overlay" onClick={onCancel}>
+    <ModalOverlay className="template-conflict-overlay" onClick={onCancel}>
       <div className="template-conflict-dialog" onClick={(e) => e.stopPropagation()}>
         <h3>{t('conflict.title')}</h3>
         <p className="template-conflict-desc">
@@ -143,7 +144,7 @@ const TemplateConflictDialog: React.FC<TemplateConflictDialogProps> = ({
           </button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

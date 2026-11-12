@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { ModalOverlay } from './ModalOverlay';
 import { useTranslation } from 'react-i18next';
 import { formatNumber } from '../i18n/format';
 import { useAssetStore } from '../stores/assetStore';
@@ -352,7 +353,7 @@ const AssetManager: React.FC<AssetManagerProps> = ({ projectId, embedded = false
   if (!assetManagerOpen) return null;
 
   return (
-    <div className="dialog-overlay" onClick={() => setAssetManagerOpen(false)}>
+    <ModalOverlay className="dialog-overlay" onClick={() => setAssetManagerOpen(false)}>
       <div className="asset-manager dialog" onClick={(e) => e.stopPropagation()}>
         <div className="asset-manager-header">
           <span>{t('assets.title')}</span>
@@ -362,7 +363,7 @@ const AssetManager: React.FC<AssetManagerProps> = ({ projectId, embedded = false
         </div>
         {content}
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

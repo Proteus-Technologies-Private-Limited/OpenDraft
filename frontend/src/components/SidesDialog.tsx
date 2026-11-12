@@ -13,6 +13,7 @@
  * a landscape sheet is an option for any of it.
  */
 import React, { useMemo, useState } from 'react';
+import { ModalOverlay } from './ModalOverlay';
 import type { JSONContent } from '@tiptap/react';
 import { useTranslation } from 'react-i18next';
 import { useEditorStore } from '../stores/editorStore';
@@ -139,7 +140,7 @@ const SidesDialog: React.FC<Props> = ({ doc, intent = 'export', onExport, onPrin
   );
 
   return (
-    <div className="dialog-overlay" onClick={onClose}>
+    <ModalOverlay className="dialog-overlay" onClick={onClose}>
       <div
         className="dialog-box sides-dialog"
         onClick={(e) => e.stopPropagation()}
@@ -243,7 +244,7 @@ const SidesDialog: React.FC<Props> = ({ doc, intent = 'export', onExport, onPrin
           {intent === 'print' ? [exportButton, printButton] : [printButton, exportButton]}
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

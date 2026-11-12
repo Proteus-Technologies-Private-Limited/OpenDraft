@@ -15,6 +15,7 @@
  * the Location radio already does.
  */
 import React, { useCallback, useMemo, useState } from 'react';
+import { ModalOverlay } from './ModalOverlay';
 import { useTranslation, Trans } from 'react-i18next';
 import {
   useEditorStore,
@@ -94,7 +95,7 @@ const FootnoteDialog: React.FC<FootnoteDialogProps> = ({ onClose }) => {
   const isEndnote = fn.placement === 'endnote';
 
   return (
-    <div className="dialog-overlay" onClick={onClose}>
+    <ModalOverlay className="dialog-overlay" onClick={onClose}>
       <div
         className="dialog-box fn-dialog"
         onClick={(e) => e.stopPropagation()}
@@ -273,7 +274,7 @@ const FootnoteDialog: React.FC<FootnoteDialogProps> = ({ onClose }) => {
           </button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

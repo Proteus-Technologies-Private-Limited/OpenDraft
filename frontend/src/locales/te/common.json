@@ -43,5 +43,9 @@
   "selectAll": "అన్నీ ఎంచుకో",
   "untitled": "పేరు లేనిది",
   "warning": "హెచ్చరిక",
-  "yes": "అవును"
+  "yes": "అవును",
+  "accessibility": {
+    "formattingControls": "ఆకృతీకరణ నియంత్రణలు",
+    "screenplayEditor": "స్క్రీన్‌ప్లే ఎడిటర్"
+  }
 }

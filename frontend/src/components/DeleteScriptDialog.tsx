@@ -9,6 +9,7 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react';
+import { ModalOverlay } from './ModalOverlay';
 import { FaCheck, FaChevronRight, FaCloud, FaDesktop, FaFileAlt, FaInfoCircle } from 'react-icons/fa';
 import { Trans, useTranslation } from 'react-i18next';
 import { formatDate as formatDateLocale } from '../i18n/format';
@@ -98,7 +99,7 @@ const DeleteScriptDialog: React.FC<DeleteScriptDialogProps> = ({
   ].filter(Boolean).join(' · ');
 
   return (
-    <div className="dialog-overlay" onClick={() => { if (!busy) onCancel(); }}>
+    <ModalOverlay className="dialog-overlay" onClick={() => { if (!busy) onCancel(); }}>
       <div
         className="dialog-box delete-script-dialog"
         role="dialog"
@@ -194,7 +195,7 @@ const DeleteScriptDialog: React.FC<DeleteScriptDialogProps> = ({
           </button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

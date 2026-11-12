@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { ModalOverlay } from './ModalOverlay';
 import type { Editor } from '@tiptap/react';
 import { useTranslation } from 'react-i18next';
 import { useEditorStore } from '../stores/editorStore';
@@ -90,7 +91,7 @@ const RenameCharacterDialog: React.FC<RenameCharacterDialogProps> = ({ editor, n
   };
 
   return (
-    <div className="dialog-overlay" onClick={onClose}>
+    <ModalOverlay className="dialog-overlay" onClick={onClose}>
       <div
         className="dialog-box rename-char-dialog"
         role="dialog"
@@ -166,7 +167,7 @@ const RenameCharacterDialog: React.FC<RenameCharacterDialogProps> = ({ editor, n
           <button className="dialog-primary" onClick={apply} disabled={!canApply}>{t('common:rename')}</button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

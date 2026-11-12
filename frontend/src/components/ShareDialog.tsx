@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { ModalOverlay } from './ModalOverlay';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { formatDateTime } from '../i18n/format';
@@ -186,7 +187,7 @@ const ShareDialog: React.FC<ShareDialogProps> = ({
   };
 
   return (
-    <div
+    <ModalOverlay
       className="dialog-overlay"
       onPointerDown={(e) => { overlayPointerDown.current = e.target === e.currentTarget; }}
       onClick={(e) => { if (e.target === e.currentTarget && overlayPointerDown.current) onClose(); overlayPointerDown.current = false; }}
@@ -353,7 +354,7 @@ const ShareDialog: React.FC<ShareDialogProps> = ({
           </button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

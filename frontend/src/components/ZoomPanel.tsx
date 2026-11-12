@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useEditorStore } from '../stores/editorStore';
 
 const ZoomPanel: React.FC = () => {
-  const { t } = useTranslation('common');
+  const { t } = useTranslation(['common', 'toolbar']);
   const { zoomLevel, setZoomLevel, zoomPanelOpen, setZoomPanelOpen } = useEditorStore();
   const [inputValue, setInputValue] = useState(String(zoomLevel));
   const panelRef = useRef<HTMLDivElement>(null);
@@ -12,6 +12,20 @@ const ZoomPanel: React.FC = () => {
   useEffect(() => {
     setInputValue(String(zoomLevel));
   }, [zoomLevel]);
+
+  useEffect(() => {
+    if (!zoomPanelOpen) return;
+    const panel = panelRef.current;
+    const opener = document.activeElement;
+    // Keyboard entry gets initial focus; a tap need not summon a soft keyboard.
+    if (opener instanceof HTMLElement && CSS.supports('selector(:focus-visible)') && opener.matches(':focus-visible')) panel?.querySelector('input')?.focus();
+    return () => {
+      queueMicrotask(() => {
+        if (opener instanceof HTMLElement && opener.isConnected &&
+          (document.activeElement === document.body || panel?.contains(document.activeElement))) opener.focus({ preventScroll: true });
+      });
+    };
+  }, [zoomPanelOpen]);
 
   if (!zoomPanelOpen) return null;
 
@@ -25,9 +39,13 @@ const ZoomPanel: React.FC = () => {
   };
 
   return (
-    <div className="zoom-panel" ref={panelRef}>
+    <div className="zoom-panel" id="zoom-panel" role="group" aria-label={t('toolbar:toolbar.zoom')} ref={panelRef}
+      onKeyDown={event => {
+        if (event.key === 'Escape' && !event.nativeEvent.isComposing) { event.preventDefault(); event.stopPropagation(); setZoomPanelOpen(false); }
+      }}>
       <button
         className="zoom-panel-btn"
+        aria-label={t('toolbar:toolbar.zoomOut')}
         onClick={() => setZoomLevel(zoomLevel - 10)}
         disabled={zoomLevel <= 50}
       >
@@ -36,6 +54,7 @@ const ZoomPanel: React.FC = () => {
       <div className="zoom-panel-input-wrap">
         <input
           className="zoom-panel-input"
+          aria-label={t('toolbar:toolbar.zoom')}
           type="number"
           min={50}
           max={300}
@@ -51,6 +70,7 @@ const ZoomPanel: React.FC = () => {
       </div>
       <button
         className="zoom-panel-btn"
+        aria-label={t('toolbar:toolbar.zoomIn')}
         onClick={() => setZoomLevel(zoomLevel + 10)}
         disabled={zoomLevel >= 300}
       >

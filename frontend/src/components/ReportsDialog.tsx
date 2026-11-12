@@ -6,6 +6,7 @@
  * spreadsheet or a scheduling program — or as a PDF to hand round.
  */
 import React, { useEffect, useMemo, useState } from 'react';
+import { ModalOverlay } from './ModalOverlay';
 import type { Editor } from '@tiptap/react';
 import { useTranslation } from 'react-i18next';
 import { useEditorStore } from '../stores/editorStore';
@@ -110,7 +111,7 @@ const ReportsDialog: React.FC<Props> = ({ editor, onClose }) => {
   };
 
   return (
-    <div className="dialog-overlay" onClick={onClose}>
+    <ModalOverlay className="dialog-overlay" onClick={onClose}>
       <div
         className="dialog-box reports-dialog"
         onClick={(e) => e.stopPropagation()}
@@ -126,10 +127,21 @@ const ReportsDialog: React.FC<Props> = ({ editor, onClose }) => {
                 key={c.key}
                 role="option"
                 aria-selected={c.key === selected}
-                tabIndex={0}
+                tabIndex={c.key === selected ? 0 : -1}
                 className={c.key === selected ? 'selected' : ''}
                 onClick={() => setSelected(c.key)}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(c.key); } }}
+                onKeyDown={event => {
+                  const index = choices.indexOf(c);
+                  const next = event.key === 'ArrowDown' ? (index + 1) % choices.length
+                    : event.key === 'ArrowUp' ? (index + choices.length - 1) % choices.length
+                    : event.key === 'Home' ? 0 : event.key === 'End' ? choices.length - 1
+                    : event.key === 'Enter' || event.key === ' ' ? index : -1;
+                  if (next >= 0) {
+                    event.preventDefault();
+                    setSelected(choices[next].key);
+                    event.currentTarget.parentElement?.querySelectorAll<HTMLElement>('[role="option"]')[next]?.focus();
+                  }
+                }}
               >
                 <span className="reports-list-label">{c.label}</span>
                 {c.description && <span className="reports-list-desc">{c.description}</span>}
@@ -167,7 +179,7 @@ const ReportsDialog: React.FC<Props> = ({ editor, onClose }) => {
           <button className="dialog-primary" onClick={() => { void exportAs('pdf'); }} disabled={!table || busy}>{t('reports.exportPdf')}</button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

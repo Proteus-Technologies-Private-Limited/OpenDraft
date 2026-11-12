@@ -16,6 +16,7 @@
  * single-script and additive; the two must not share code or vocabulary.
  */
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { ModalOverlay } from './ModalOverlay';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { formatDateTime, formatNumber } from '../i18n/format';
@@ -244,7 +245,7 @@ const RecoverBackupDialog: React.FC<Props> = ({ open, onClose, onBeforeReplace }
   if (!open) return null;
 
   return (
-    <div className="dialog-overlay" onClick={onClose}>
+    <ModalOverlay className="dialog-overlay" onClick={onClose}>
       <div className="dialog recover-backup-dialog" onClick={(e) => e.stopPropagation()}>
         <h2 className="dialog-title">{t('recover.title')}</h2>
 
@@ -364,7 +365,7 @@ const RecoverBackupDialog: React.FC<Props> = ({ open, onClose, onBeforeReplace }
           </div>
         )}
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

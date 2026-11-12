@@ -1,4 +1,5 @@
 import React from 'react';
+import { ModalOverlay } from './ModalOverlay';
 import { useTranslation } from 'react-i18next';
 import { formatNumber } from '../i18n/format';
 import type { Asset } from '../stores/assetStore';
@@ -60,7 +61,7 @@ const AssetViewer: React.FC<AssetViewerProps> = ({ asset, projectId, onClose }) 
   };
 
   return (
-    <div className="asset-viewer-overlay" onClick={onClose}>
+    <ModalOverlay dialogLabel={asset.original_name} className="asset-viewer-overlay" onClick={onClose}>
       <div className="asset-viewer" onClick={(e) => e.stopPropagation()}>
         <div className="asset-viewer-header">
           <span className="asset-viewer-title">{asset.original_name}</span>
@@ -76,7 +77,7 @@ const AssetViewer: React.FC<AssetViewerProps> = ({ asset, projectId, onClose }) 
           {renderPreview()}
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

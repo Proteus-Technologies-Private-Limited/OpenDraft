@@ -11,6 +11,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { ModalOverlay } from './ModalOverlay';
 import type { Editor } from '@tiptap/react';
 import { useTranslation } from 'react-i18next';
 import { templateDescription, templateName } from '../utils/templateLabels';
@@ -257,7 +258,7 @@ const TemplateSelectDialog: React.FC<TemplateSelectDialogProps> = ({ editor, onC
   };
 
   return (
-    <div className="template-select-overlay" onClick={onClose}>
+    <ModalOverlay className="template-select-overlay" onClick={onClose}>
       <div className="template-select-dialog template-select-dialog-wide" onClick={(e) => e.stopPropagation()}>
         <h3>{t('select.title')}</h3>
         <p className="template-select-hint">
@@ -371,7 +372,7 @@ const TemplateSelectDialog: React.FC<TemplateSelectDialogProps> = ({ editor, onC
           />
         )}
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 
