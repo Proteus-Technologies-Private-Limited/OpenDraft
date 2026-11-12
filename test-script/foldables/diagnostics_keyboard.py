@@ -126,6 +126,10 @@ class FoldDiagnosticsKeyboard(unittest.TestCase):
         self.page.keyboard.press("Enter")
         details = self.page.locator(".diagnostics-display")
         expect(details).to_be_visible()
+        self.assertEqual(self.page.locator(".menu-bar--floating:visible").count(), 0)
+        fab = self.page.locator(".menu-fab")
+        if fab.count():
+            expect(fab).to_have_attribute("aria-expanded", "false")
         details.locator("summary").focus()
         self.page.keyboard.press("Enter")
         expect(details).to_have_attribute("open", "")

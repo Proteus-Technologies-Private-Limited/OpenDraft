@@ -143,7 +143,8 @@ no longer start foldable browser CI; manual dispatch remains available.
 
 Open **Help → Diagnostics**, expand **Display and fold posture**, and use the
 existing **Copy Report** button when reporting a foldable layout problem. The
-report is a snapshot; close and reopen Diagnostics after changing posture to
+floating application menu closes when Diagnostics opens, keeping the report
+unobstructed on a cover screen. The report is a snapshot; close and reopen Diagnostics after changing posture to
 capture the new state. No new menu or persistent device flag is introduced.
 
 The snapshot distinguishes the current `window.viewport.segments` API from

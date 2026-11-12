@@ -1278,6 +1278,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
     const { collectDiagnostics } = await import('../services/diagnostics');
     setDiagnosticsReport(await collectDiagnostics());
     setDiagnosticsCopied(false);
+    setFloatingMenuOpen(false);
     setDiagnosticsOpen(true);
   }, []);
 
