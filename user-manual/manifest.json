@@ -1,6 +1,5 @@
 {
-  "version": "4f05c1d6a7f5812a",
-  "version": "987e3576beecbea9",
+  "version": "69426845eb7933a6",
   "pages": [
     {
       "slug": "index.html",
@@ -12,7 +11,7 @@
       "slug": "getting-started.html",
       "title": "Getting Started",
       "section": "Getting Started",
-      "hash": "5d06292de87924dc"
+      "hash": "880f00b54a761b08"
     },
     {
       "slug": "installation.html",
@@ -138,7 +137,7 @@
       "slug": "backups.html",
       "title": "Backups & Recovery",
       "section": "Projects & Files",
-      "hash": "ca543ef73b98edcc"
+      "hash": "eeb62dab6edcbae4"
     },
     {
       "slug": "import-export.html",

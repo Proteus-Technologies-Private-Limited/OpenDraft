@@ -107,4 +107,56 @@ describe('watchSettledDoc', () => {
     vi.advanceTimersByTime(1000);
     expect(onSettle).not.toHaveBeenCalled();
   });
+
+  it('reports an edit that never pauses every maxWait, with the document as it stands', () => {
+    vi.useFakeTimers();
+    const ed = emitter();
+    const seen: string[] = [];
+    watchSettledDoc(ed as never, 300, (d) => seen.push(d.textContent), 3000);
+    // A key every 100 ms for 7 s: never a 300 ms pause.
+    let text = 'A';
+    for (let t = 0; t < 7000; t += 100) {
+      text += 'x';
+      ed.edit(text);
+      vi.advanceTimersByTime(100);
+    }
+    expect(seen).toHaveLength(2);
+    expect(seen[0].length).toBe(31); // the 30th key landed at 2.9 s
+    expect(seen[1].length).toBe(61);
+    // Once the typing stops, the last document is reported after the pause.
+    vi.advanceTimersByTime(300);
+    expect(seen).toHaveLength(3);
+    expect(seen[2]).toBe(text);
+  });
+
+  it('starts the longest wait again after each report', () => {
+    vi.useFakeTimers();
+    const ed = emitter();
+    const onSettle = vi.fn();
+    watchSettledDoc(ed as never, 300, onSettle, 3000);
+    ed.edit('AB');
+    vi.advanceTimersByTime(300);
+    expect(onSettle).toHaveBeenCalledTimes(1);
+    // A fresh burst 1 s later is not cut short by the earlier one's clock.
+    vi.advanceTimersByTime(1000);
+    for (let t = 0; t < 2900; t += 100) { ed.edit(`AB${t}`); vi.advanceTimersByTime(100); }
+    expect(onSettle).toHaveBeenCalledTimes(1);
+    ed.edit('ABC');
+    vi.advanceTimersByTime(100);
+    expect(onSettle).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps reporting after a reader throws', () => {
+    vi.useFakeTimers();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const ed = emitter();
+    const onSettle = vi.fn().mockImplementationOnce(() => { throw new Error('boom'); });
+    watchSettledDoc(ed as never, 300, onSettle, 3000);
+    ed.edit('AB');
+    vi.advanceTimersByTime(300);
+    ed.edit('ABC');
+    vi.advanceTimersByTime(300);
+    expect(onSettle).toHaveBeenCalledTimes(2);
+    expect(warn).toHaveBeenCalledWith('[editor] a settled-document reader failed', expect.any(Error));
+  });
 });

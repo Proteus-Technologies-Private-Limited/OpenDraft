@@ -65,8 +65,9 @@ const ElementPicker: React.FC<ElementPickerProps> = ({
   const [hasNavigated, setHasNavigated] = useState(!onInsertBlankLine);
   // Pointer hover is highlight only, never navigation: on iPad an Apple Pencil
   // hovering over the menu raises mouseenter without the writer choosing
-  // anything, and that must not quietly turn Enter back into "accept".
-  const [hoverIndex, setHoverIndex] = useState(-1);
+  // anything, and that must not quietly turn Enter back into "accept". The
+  // hover is drawn by CSS in its own, quieter style, so it never looks like a
+  // second selected row beside the keyboard's.
   const menuRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
 
@@ -102,14 +103,12 @@ const ElementPicker: React.FC<ElementPickerProps> = ({
         e.preventDefault();
         e.stopPropagation();
         setHasNavigated(true);
-        setHoverIndex(-1);
         setSelectedIndex(i => (hasNavigated ? Math.min(i + 1, orderedTypes.length - 1) : i));
         break;
       case 'ArrowUp':
         e.preventDefault();
         e.stopPropagation();
         setHasNavigated(true);
-        setHoverIndex(-1);
         setSelectedIndex(i => (hasNavigated ? Math.max(i - 1, 0) : i));
         break;
       case 'Enter':
@@ -166,10 +165,8 @@ const ElementPicker: React.FC<ElementPickerProps> = ({
         <div
           key={type}
           ref={el => { itemRefs.current[i] = el; }}
-          className={`element-picker-item${(hasNavigated && i === selectedIndex) || i === hoverIndex ? ' selected' : ''}`}
+          className={`element-picker-item${hasNavigated && i === selectedIndex ? ' selected' : ''}`}
           onMouseDown={(e) => { e.preventDefault(); onSelect(type); }}
-          onMouseEnter={() => setHoverIndex(i)}
-          onMouseLeave={() => setHoverIndex(h => (h === i ? -1 : h))}
           title={elementDescription(type)}
         >
           <span className="element-picker-label">{labelFor(type)}</span>

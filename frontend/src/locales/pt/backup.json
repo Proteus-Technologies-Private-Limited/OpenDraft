@@ -1,7 +1,7 @@
 {
   "sourceRecovery": {
     "title": "Recuperar um arquivo original",
-    "intro": "São cópias byte a byte feitas antes de sobrescrever documentos externos. Exporte uma cópia para o app Arquivos ou para o provedor de sua escolha. A recuperação mantém intactos o documento atual e o backup.",
+    "intro": "São cópias byte a byte feitas antes de sobrescrever arquivos. Exporte uma cópia para o local de sua escolha. A recuperação mantém intactos o documento atual e o backup.",
     "empty": "Nenhum original foi copiado neste dispositivo.",
     "entry": "{{name}} ({{size}} bytes)"
   },
