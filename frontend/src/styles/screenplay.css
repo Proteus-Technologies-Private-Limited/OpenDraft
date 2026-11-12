@@ -3322,6 +3322,9 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: var(--p
   display: flex; flex-direction: column; gap: 2px; outline: none;
 }
 .reports-list li:hover, .reports-list li:focus-visible { background: var(--fd-menu-hover); }
+/* Keyboard focus carries an outline, as in the menus, so it never looks the
+   same as the row the pointer is resting on. */
+.reports-list li:focus-visible { outline: 2px solid var(--fd-accent); outline-offset: -2px; }
 .reports-list li.selected { border-color: var(--fd-accent); background: var(--fd-menu-hover); }
 .reports-list-label { font-size: 14px; font-weight: 600; color: var(--fd-text); }
 .reports-list-desc { font-size: 12px; color: var(--fd-text-muted); line-height: 1.35; }
@@ -4398,6 +4401,8 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: var(--p
   border-radius: 3px;
   margin: 0 4px;
 }
+/* Pointer hover: quieter than the keyboard's selected row (see ElementPicker). */
+.element-picker-item:hover { background: var(--fd-menu-hover); }
 .element-picker-item.selected {
   background: var(--fd-accent);
   color: #fff;
@@ -4477,7 +4482,9 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: var(--p
   text-transform: uppercase;
   letter-spacing: 0.3px;
 }
-.smarttype-popup-item:hover,
+/* The pointer gets a quieter style than the keyboard's selected row, so the
+   two never read as two selections. .selected comes after so it wins. */
+.smarttype-popup-item:hover { background: var(--fd-menu-hover); }
 .smarttype-popup-item.selected {
   background: var(--fd-accent);
   color: #fff;
@@ -5994,7 +6001,9 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: var(--p
   font-size: 12px;
   color: var(--fd-text);
 }
-.note-asset-option:hover,
+/* Pointer hover is quieter than the keyboard's selected row, so the two never
+   read as two selections. */
+.note-asset-option:hover { background: var(--fd-menu-hover); }
 .note-asset-option.selected {
   background: var(--fd-accent);
   color: #fff;
@@ -6002,7 +6011,6 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: var(--p
 .note-asset-option-icon { font-size: 14px; flex-shrink: 0; }
 .note-asset-option-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .note-asset-option-tags { font-size: 10px; color: var(--fd-text-muted); flex-shrink: 0; }
-.note-asset-option:hover .note-asset-option-tags,
 .note-asset-option.selected .note-asset-option-tags { color: rgba(255,255,255,.6); }
 /* ── Note actions row ── */
 /* The note's controls, stacked rather than crammed onto one line: six colour
