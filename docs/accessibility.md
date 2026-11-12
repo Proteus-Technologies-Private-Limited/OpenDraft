@@ -18,8 +18,8 @@ screen-reader conformance.
   tabs use Up/Down, Home and End. Enter/Space selects a plugin tab; the close
   button collapses it. Tabs reference labelled panels, including inactive shells
   for lazily rendered plugin content. Removal of a focused plugin returns focus
-  to a surviving tab, or the editor if none remain. The existing foldable dock
-  continues moving its stable portal hosts without remounting panel content.
+  to a surviving tab without opening its panel, or the editor if none remain.
+  The existing foldable dock continues moving its stable portal hosts without remounting panel content.
 - Focusable sidebar splitters support Left/Right in 10-pixel steps, Home for
   minimum width, and End for maximum width. Their ARIA values match pointer
   limits and directions mirror with the interface.
@@ -36,15 +36,17 @@ screen-reader conformance.
   Enter/Escape returns focus after committing/cancelling an edit. The floating
   zoom palette has named controls and Escape/return focus.
 - Explicit operation feedback uses polite status messages; failures use alerts.
-  Toast messages stay until dismissed and can be dismissed with a keyboard,
-  without an arrival moving focus. Persistent live-region hosts move into modal
-  scopes without remounting, including native top-layer dialogs. Dictionary
+  Routine toast messages dismiss after four seconds, with the timer paused
+  while hovered or focused. Errors stay until dismissed. Clicking a toast or
+  its keyboard-accessible dismiss button closes it; arrival does not move focus.
+  Persistent live-region hosts move into modal scopes without remounting, including native top-layer dialogs. Dictionary
   installation announces start/completion and exposes failures as alerts. The
   editor's per-keystroke word counts and autosave cycles are not live regions.
 - Focus rings remain visible, forced colors retain control boundaries and
-  selected states, and reduced motion suppresses interface animation. Browser
-  zoom is permitted by the viewport metadata. Contrast corrections cover the
-  audited editor, dialog buttons, selected options and grammar severity badges.
+  selected states, and reduced motion suppresses interface animation. Writing
+  areas retain their caret without a permanent focus outline. Mobile viewport
+  zoom changes are deferred for separate phone/WebView validation. Contrast
+  corrections cover the audited editor, dialog buttons, selected options and grammar severity badges.
 
 ## Automated verification
 
@@ -68,6 +70,10 @@ OPENDRAFT_TEST_URL=http://127.0.0.1:5173/ python test-script/accessibility/regre
 suite uses system Chromium when available, then Playwright's bundled Chromium.
 All script text and notifications are synthetic. `OPENDRAFT_A11Y_OUTPUT` selects
 the directory for axe JSON evidence; the default is a temporary directory.
+Reports retain the existing `meta-viewport` violation, explicitly recorded as
+`deferred` while viewport changes await phone/WebView validation. No rule is
+disabled; the regression assertion rejects every other violation and checks
+that the deferred finding targets only the viewport metadata.
 
 The suite uses real Chromium keyboard events and pinned axe-core 4.14.0 with
 WCAG 2 A/AA, 2.1 AA and 2.2 AA tags. It audits defined editor/dialog/popup states,

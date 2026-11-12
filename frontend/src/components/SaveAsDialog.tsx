@@ -353,6 +353,8 @@ const SaveAsDialog: React.FC<SaveAsDialogProps> = ({
       handleSave();
     } else if (e.key === 'Escape') {
       if (dropdownOpen) {
+        e.preventDefault();
+        e.stopPropagation();
         setDropdownOpen(false);
       } else {
         onClose();

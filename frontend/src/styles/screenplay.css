@@ -15529,7 +15529,7 @@ html.foldable.wide .fold-panel-content .plugin-panel-tabs__content { flex: 1; wi
   width: 1px; height: 1px; padding: 0; margin: -1px;
   overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0;
 }
-:where(button, a[href], input, select, textarea, [tabindex], [contenteditable="true"]):focus-visible {
+:where(button, a[href], input, select, textarea, [tabindex]:not([contenteditable="true"])):focus-visible {
   outline: 2px solid var(--fd-accent, #4a9eff) !important;
   outline-offset: 2px;
 }
@@ -15564,7 +15564,7 @@ html.foldable.wide .fold-panel-content .plugin-panel-tabs__content { flex: 1; wi
 .reports-list li:is(.selected, :hover, :focus-visible) .reports-list-desc { color: var(--fd-text); }
 
 @supports not selector(:focus-visible) {
-  button:focus, a[href]:focus, input:focus, select:focus, textarea:focus, [tabindex]:focus, [contenteditable="true"]:focus {
+  button:focus, a[href]:focus, input:focus, select:focus, textarea:focus, [tabindex]:not([contenteditable="true"]):focus {
     outline: 2px solid var(--fd-accent, #4a9eff) !important;
     outline-offset: 2px;
   }

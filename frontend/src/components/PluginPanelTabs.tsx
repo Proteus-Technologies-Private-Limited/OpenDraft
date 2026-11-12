@@ -86,7 +86,6 @@ export const PluginPanelTabs: React.FC<Props> = ({
         const previous = Array.from(document.querySelectorAll<HTMLElement>('[role="tab"][data-plugin-panel]'));
         const target = next[Math.min(previous.findIndex(panel => panel.dataset.pluginPanel === removed), next.length - 1)] ?? next[0];
         pendingFocus.current = { lost: focused!, target: target?.id ?? null };
-        if (target) setActiveId(target.id);
       }
       setPanels(next);
       setActiveId(current => current && !next.some(panel => panel.id === current) ? null : current);

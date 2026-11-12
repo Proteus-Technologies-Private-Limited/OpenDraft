@@ -52,6 +52,7 @@ jobs:
         run: |
           export OPENDRAFT_CHROMIUM="$(python -c 'from playwright.sync_api import sync_playwright; p=sync_playwright().start(); print(p.chromium.executable_path); p.stop()')"
           python test-script/accessibility/regressions.py
+          OPENDRAFT_MENU_FOLDABLE=1 python test-script/accessibility/regressions.py Accessibility.test_plugin_tabs_selection_resize_and_removed_focus Accessibility.test_plugin_removal_from_content_and_editor_never_opens_neighbor
           python test-script/menu-keyboard/regressions.py
       - name: Upload accessibility evidence
         if: always()

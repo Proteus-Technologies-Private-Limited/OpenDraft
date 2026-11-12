@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { focusableElements, modalPortalContainer, subscribeModalLayers } from '../utils/modalAccessibility';
@@ -20,8 +20,32 @@ export function showToast(text: string, type: ToastMessage['type'] = 'info') {
   listeners.forEach(fn => fn(msg));
 }
 
-const Toast: React.FC = () => {
+/** Routine feedback expires after four seconds of unpaused viewing. */
+const ToastItem: React.FC<{ message: ToastMessage; dismiss: (id: number) => void }> = ({ message, dismiss }) => {
   const { t } = useTranslation('common');
+  const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const remaining = useRef(4000);
+  useEffect(() => {
+    if (message.type === 'error' || hovered || focused) return;
+    const started = performance.now();
+    const timer = window.setTimeout(() => dismiss(message.id), remaining.current);
+    return () => {
+      window.clearTimeout(timer);
+      remaining.current = Math.max(0, remaining.current - (performance.now() - started));
+    };
+  }, [message, hovered, focused, dismiss]);
+  return <div className={`toast-message toast-message--${message.type}`} data-toast-id={message.id}
+    onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
+    onFocusCapture={() => setFocused(true)}
+    onBlurCapture={event => { if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false); }}
+    onClick={() => dismiss(message.id)}>
+    <span>{message.text}</span>
+    <button type="button" aria-label={`${t('dismiss')}: ${message.text}`}>×</button>
+  </div>;
+};
+
+const Toast: React.FC = () => {
   const [messages, setMessages] = useState<ToastMessage[]>([]);
   const [announcement, setAnnouncement] = useState<{ polite: ToastMessage | null; assertive: ToastMessage | null }>({ polite: null, assertive: null });
   const [host] = useState(() => typeof document === 'undefined' ? null : document.createElement('div'));
@@ -42,34 +66,30 @@ const Toast: React.FC = () => {
     return () => { listeners.delete(add); };
   }, []);
 
-  // Keep live regions mounted before their text changes. Messages stay available
-  // until dismissed: no reading deadline and no focus movement on arrival.
+  const dismiss = useCallback((id: number) => {
+    const current = host?.querySelector<HTMLElement>(`[data-toast-id="${id}"] button`);
+    if (current && document.activeElement === current) {
+      const buttons = Array.from(host!.querySelectorAll<HTMLElement>('.toast-stack button'));
+      const next = buttons[buttons.indexOf(current) + 1] ?? buttons[buttons.indexOf(current) - 1];
+      const previous = returnFocus.current;
+      const container = modalPortalContainer();
+      const fallback = container === document.body
+        ? document.querySelector<HTMLElement>('[role="textbox"][contenteditable="true"]')
+        : focusableElements(container).find(element => !host?.contains(element));
+      (next ?? (previous?.isConnected && !previous.closest('[inert], [hidden]') ? previous : fallback))?.focus();
+    }
+    setMessages(previous => previous.filter(item => item.id !== id));
+  }, [host]);
+
+  // Live regions remain mounted even after a visual notification expires.
+  // Arrival and automatic dismissal never move focus.
   const content = <>
     <div className="a11y-only" role="status" aria-atomic="true"><span key={announcement.polite?.id}>{announcement.polite?.text}</span></div>
     <div className="a11y-only" role="alert" aria-atomic="true"><span key={announcement.assertive?.id}>{announcement.assertive?.text}</span></div>
     <div className="toast-stack" onFocusCapture={event => {
       if (event.relatedTarget instanceof HTMLElement && !event.currentTarget.contains(event.relatedTarget)) returnFocus.current = event.relatedTarget;
     }}>
-      {messages.map(message => (
-        <div key={message.id} className={`toast-message toast-message--${message.type}`}>
-          <span>{message.text}</span>
-          <button type="button" aria-label={`${t('dismiss')}: ${message.text}`}
-            onClick={event => {
-              const current = event.currentTarget;
-              const buttons = Array.from(current.closest('.toast-stack')!.querySelectorAll('button'));
-              const next = buttons[buttons.indexOf(current) + 1] ?? buttons[buttons.indexOf(current) - 1];
-              if (document.activeElement === current) {
-                const previous = returnFocus.current;
-                const container = modalPortalContainer();
-                const fallback = container === document.body
-                  ? document.querySelector<HTMLElement>('[role="textbox"][contenteditable="true"]')
-                  : focusableElements(container).find(element => !host?.contains(element));
-                (next ?? (previous?.isConnected && !previous.closest('[inert], [hidden]') ? previous : fallback))?.focus();
-              }
-              setMessages(previous => previous.filter(item => item.id !== message.id));
-            }}>×</button>
-        </div>
-      ))}
+      {messages.map(message => <ToastItem key={message.id} message={message} dismiss={dismiss} />)}
     </div>
   </>;
   return host ? createPortal(content, host) : content;
