@@ -101,7 +101,7 @@ See `docs/RELEASE.md` for the full checklist. Key points:
 - GitHub Actions builds **all platforms**: macOS (.dmg), Windows (.exe/.msi), Linux (.deb/.AppImage), Android (.apk/.aab), iOS (.ipa)
 - macOS builds are signed and notarized via Apple secrets in GitHub
 - Update "What's New" content in MenuBar.tsx and user-manual before releasing
-- **Never name Android in text the iOS or Mac app shows** (release notes, manual, translations) — App Review rejects it under guideline 2.3.10. Use `<NotOnApple>` in MenuBar.tsx and `data-platform="android"` in the manual; see `docs/RELEASE.md` step 3
+- **Never name another mobile platform in an app's UI text** — no "Android" anywhere the iOS or Mac app shows it, and no "iOS", "iPhone" or "iPad" anywhere the Android app shows it. This covers release notes, What's New, the user manual, store notes, translations, toasts and dialogs. App Review rejects it under guideline 2.3.10, and store reviewers treat the reverse the same way. Write platform-neutral words ("phones and tablets", "the mobile app"), or gate the text by platform: `<NotOnApple>` in MenuBar.tsx and `data-platform="android"` in the manual for Android-only wording. See `docs/RELEASE.md` step 3
 
 ---
 

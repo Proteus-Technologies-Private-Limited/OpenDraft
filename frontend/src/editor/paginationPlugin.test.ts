@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { EditorState, TextSelection } from '@tiptap/pm/state';
-import { createPaginationPlugin, buildTemplateHints, type PaginationState, paginationPluginKey } from './pagination';
+import { createPaginationPlugin, buildTemplateHints, type PaginationState, paginationPluginKey, TITLE_REGION_CLASS } from './pagination';
 import { DEFAULT_PAGE_LAYOUT } from '../stores/editorStore';
 import { testSchema, block, doc, pmDoc } from '../test/screenplaySchema';
 
@@ -162,5 +162,44 @@ describe('pagination plugin — decorations are reused while nothing they show h
     const first = decorationsOf(plugin, state);
     layout = { ...DEFAULT_PAGE_LAYOUT };
     expect(decorationsOf(plugin, state)).not.toBe(first);
+  });
+});
+
+describe('pagination plugin — title-page region (#98)', () => {
+  /** The top-level node indexes carrying `.sp-title-region`, in order. */
+  function titleRegionIndexes(plugin: ReturnType<typeof createPaginationPlugin>, state: EditorState): number[] {
+    const set = plugin.props.decorations!.call(plugin, state) as unknown as {
+      find: () => { from: number; type: { attrs?: { class?: string } } }[];
+    };
+    const starts: number[] = [];
+    state.doc.forEach((_node, offset) => starts.push(offset));
+    return set
+      .find()
+      .filter((d) => (d.type.attrs?.class ?? '').split(/\s+/).includes(TITLE_REGION_CLASS))
+      .map((d) => starts.indexOf(d.from))
+      .sort((a, b) => a - b);
+  }
+
+  const withTitlePage = () => doc(
+    block('titlePage'),
+    block('titlePage', 'THE SCRIPT'),
+    block('titlePage', 'Written by A. Writer'),
+    block('sceneHeading', 'INT. ROOM - DAY'),
+    block('action', 'Something happens.'),
+  );
+
+  it('marks every block above the body, spacers included, and nothing after', () => {
+    const { plugin, state } = makeState(withTitlePage());
+    expect(breaksOf(state).find((b) => b.isTitlePage)?.nodeIndex).toBe(3);
+    expect(titleRegionIndexes(plugin, state)).toEqual([0, 1, 2]);
+  });
+
+  it('follows the region as it grows, and marks nothing in a script without one', () => {
+    const { plugin, state } = makeState(withTitlePage());
+    const grown = state.apply(state.tr.insert(0, testSchema.nodes.titlePage.create()));
+    expect(titleRegionIndexes(plugin, grown)).toEqual([0, 1, 2, 3]);
+
+    const plain = makeState(doc(block('sceneHeading', 'INT. ROOM - DAY'), block('action', 'Something happens.')));
+    expect(titleRegionIndexes(plain.plugin, plain.state)).toEqual([]);
   });
 });

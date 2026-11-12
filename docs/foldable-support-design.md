@@ -1,6 +1,8 @@
 # Foldable support: design document and spec
 
-Status: **proposal, looking for contributors.** Written November 2026.
+Status: **design/acceptance checklist; browser implementation partly merged.** Written November 2026.
+See [implementation and validation status](foldable-implementation-status.md) for
+merged work and remaining native/dependency work.
 Everything said here about current behaviour comes from reading the code;
 none of it has been run on a foldable yet.
 

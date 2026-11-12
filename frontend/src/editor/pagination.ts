@@ -359,6 +359,7 @@ export function createPaginationPlugin(
         );
       }
     }
+    decos.push(...titleRegionDecorations(state.doc, ps.breaks));
     decos.push(...dualDecorations(state.doc, ps.breaks, linesPerPage, sepHeightPx, layout, getFootnotes()));
     for (const brk of ps.breaks) {
       if (brk.dualRow !== undefined) continue;
@@ -402,6 +403,35 @@ export function createPaginationPlugin(
     }
     return DecorationSet.create(state.doc, decos);
   }
+}
+
+/** Class on every top-level block above the title-page break (issue #98). */
+export const TITLE_REGION_CLASS = 'sp-title-region';
+
+/**
+ * Marks the title-page region so Print can drop it when the writer has asked
+ * for a script without one (`.print-skip-title-page .sp-title-region`). Marked
+ * by model index rather than by node type: the region takes in the blank
+ * spacers and any images above the title, and only the titlePage nodes carry a
+ * class of their own. The title-page break is where the body starts, so its
+ * nodeIndex is the region's length.
+ *
+ * A decoration, not a class added to the DOM: ProseMirror's DOM observer
+ * treated an added class as a foreign change and redrew the node without it,
+ * so the class never stayed and the title page printed regardless.
+ */
+export function titleRegionDecorations(doc: PmNode, breaks: readonly BreakInfo[]): Decoration[] {
+  const titleBreak = breaks.find((b) => b.isTitlePage);
+  if (!titleBreak) return [];
+  const end = Math.min(titleBreak.nodeIndex, doc.childCount);
+  const decos: Decoration[] = [];
+  let pos = 0;
+  for (let i = 0; i < end; i++) {
+    const node = doc.child(i);
+    decos.push(Decoration.node(pos, pos + node.nodeSize, { class: TITLE_REGION_CLASS }));
+    pos += node.nodeSize;
+  }
+  return decos;
 }
 
 const EMPTY_IDS: string[] = [];

@@ -417,6 +417,7 @@
     }
   },
   "diagnostics": {
+    "displayPosture": "Affichage et posture de pliage",
     "fileFailure": "Dernier échec de fichier (cette session)",
     "intro": "Informations d’exécution à joindre aux rapports de bogue. Cliquez sur « Copier » pour copier le rapport complet dans le presse-papiers, puis collez-le dans le ticket GitHub.",
     "oneDrive": "<strong>Interférence OneDrive suspectée.</strong> Le dossier de données de votre application semble se trouver dans un emplacement synchronisé par OneDrive. OneDrive peut corrompre les fichiers SQLite WAL en cours d’écriture, provoquant des échecs d’enregistrement silencieux. Pour y remédier, excluez le dossier de données d’OpenDraft de la sauvegarde OneDrive, ou déplacez votre dossier AppData de Windows hors de la synchronisation OneDrive.",
