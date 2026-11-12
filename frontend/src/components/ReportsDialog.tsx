@@ -69,7 +69,8 @@ const ReportsDialog: React.FC<Props> = ({ editor, onClose }) => {
       key: `plugin:${r.id}`,
       label: r.label,
       description: r.description,
-      build: () => r.build({ editor, doc, title: useEditorStore.getState().documentTitle }),
+      // Plugins may mutate their input. Never expose the shared document cache.
+      build: () => r.build({ editor, doc: editorDoc?.toJSON() ?? { type: 'doc', content: [] }, title: useEditorStore.getState().documentTitle }),
     }));
     return [...builtIn, ...fromPlugins];
   }, [editor]);

@@ -39,8 +39,10 @@ identity before using a position, so a result from an older document cannot
 silently jump to different text.
 
 The dialog previews up to 300 findings and explains that excerpts are shortened
-to 180 user-perceived characters (Unicode grapheme clusters), preserving emoji,
-vowel signs and conjuncts at the cutoff. Its CSV export includes every finding, with separate scene
+to 180 characters, using the browser's Unicode grapheme boundaries when available.
+Older runtimes fall back to Unicode code points, avoiding broken surrogate pairs
+but potentially separating emoji sequences or combining signs. Conjunct boundaries
+also depend on the runtime's Unicode version. Its CSV export includes every finding, with separate scene
 number, scene heading, explanation and excerpt columns. Exports use the
 production scene number with an ordinal fallback, matching the other reports.
 An empty script title falls back to `Untitled` in the filename.
@@ -53,8 +55,10 @@ include a fake summary row. Both dialogs use the existing CSV exporter with
 UTF-8, quotation and spreadsheet-formula protection; the Reports dialog also
 provides PDF export. The navigation dialog keeps export success/failure and
 stale-document feedback inside its modal live region. Feedback belongs to the
-findings snapshot and disappears as soon as findings refresh, including a
-collaborator edit racing a jump or an export completing after a refresh. Cancellation does not
+document current when the result is set, and clears on the next document edit.
+A refused stale-position jump stays visible after the racing refresh. An export's
+success or failure also remains visible if a collaborator edited while saving;
+the exported report is still the snapshot selected when Export was clicked. Cancellation does not
 report success. Jump buttons describe their finding, context and excerpt;
 findings without a navigation target do not show a disabled jump button.
 

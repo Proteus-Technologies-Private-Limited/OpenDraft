@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useId } from 'react';
 import type { Editor } from '@tiptap/react';
+import type { Node as PmNode } from '@tiptap/pm/model';
 import { TextSelection } from '@tiptap/pm/state';
 import { useTranslation } from 'react-i18next';
 import { useEditorDoc } from '../hooks/useEditorTransactions';
@@ -22,7 +23,7 @@ export default function ScriptHealthDialog({ editor, onClose }: { editor: Editor
   const documentTitle = useEditorStore((state) => state.documentTitle);
   const template = useFormattingTemplateStore((state) => state.getActiveTemplate());
   const findingId = useId();
-  const [feedback, setFeedback] = useState<{ text: string; error?: boolean; snapshot: readonly HealthFinding[] } | null>(null);
+  const [feedback, setFeedback] = useState<{ text: string; error?: boolean; doc: PmNode | null } | null>(null);
   const [busy, setBusy] = useState(false);
   const options = useMemo(() => healthOptionsForFormat(template.rules, sceneNumbersVisible, notes), [template.rules, sceneNumbersVisible, notes]);
   const { findings, error } = useMemo(() => {
@@ -33,9 +34,9 @@ export default function ScriptHealthDialog({ editor, onClose }: { editor: Editor
       return { findings: [], error: failure instanceof Error ? failure.message : String(failure) };
     }
   }, [doc, options]);
-  // A racing action/export can finish after React refreshes the findings. Tie
-  // feedback to its report snapshot rather than clearing it in a later effect.
-  const visibleFeedback = feedback?.snapshot === findings ? feedback : null;
+  // Keep an operation's result through a racing refresh; the next document
+  // edit clears it. In particular, never silently discard an export failure.
+  const visibleFeedback = feedback && feedback.doc === doc ? feedback : null;
 
   useEffect(() => {
     const opener = document.activeElement;
@@ -49,7 +50,7 @@ export default function ScriptHealthDialog({ editor, onClose }: { editor: Editor
 
   const current = () => {
     if (!editor || editor.isDestroyed || editor.state.doc !== doc) {
-      setFeedback({ text: t('scriptHealth.changed'), snapshot: findings });
+      setFeedback({ text: t('scriptHealth.changed'), doc: editor?.state.doc ?? null });
       return false;
     }
     return true;
@@ -82,9 +83,10 @@ export default function ScriptHealthDialog({ editor, onClose }: { editor: Editor
       // i18n-ignore: keep the same disk-name fallback as ReportsDialog
       const name = sanitizeExportFilename(`${documentTitle.trim() || 'Untitled'} - ${table.title}`);
       const saved = await saveFile(reportToCsv(table), `${name}.csv`, [{ name: 'CSV', extensions: ['csv'] }]);
-      if (saved) setFeedback({ text: t('reports.exported', { title: table.title }), snapshot: findings });
+      if (saved) setFeedback({ text: t('reports.exported', { title: table.title }), doc: editor?.state.doc ?? null });
     } catch (error) {
-      setFeedback({ text: t('reports.exportFailed', { message: error instanceof Error ? error.message : String(error) }), error: true, snapshot: findings });
+      console.error('[script-health] export failed', error);
+      setFeedback({ text: t('reports.exportFailed', { message: error instanceof Error ? error.message : String(error) }), error: true, doc: editor?.state.doc ?? null });
     } finally {
       setBusy(false);
     }
