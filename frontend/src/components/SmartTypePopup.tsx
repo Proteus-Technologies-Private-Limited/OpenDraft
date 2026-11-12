@@ -107,8 +107,11 @@ const SmartTypePopup: React.FC<SmartTypePopupProps> = ({
           key={item}
           ref={el => { itemRefs.current[i] = el; }}
           className={`smarttype-popup-item${showSelection && i === selectedIndex ? ' selected' : ''}`}
+          // Hover is drawn by CSS in a quieter style and does not move the
+          // selection: arrow keys scroll the list under a resting pointer, and
+          // the row sliding beneath it must not take the selection back, or
+          // show as a second selected row. A click still picks any row.
           onMouseDown={(e) => { e.preventDefault(); onSelect(item); }}
-          onMouseEnter={() => setSelectedIndex(i)}
         >
           {item}
         </div>

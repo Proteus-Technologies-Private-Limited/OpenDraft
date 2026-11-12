@@ -1795,56 +1795,46 @@ fn get_opened_file(state: tauri::State<PendingFile>) -> Option<String> {
     state.0.lock().unwrap().take()
 }
 
-// Mobile originals are kept outside the working database, and can be exported
-// through File > Recover Original File without overwriting the provider's copy.
+// Recovery bytes and path metadata remain local, outside the working database.
 #[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 struct SourceBackupEntry {
     name: String,
+    original_name: String,
+    source_path: Option<String>,
+    modified_at: u64,
     size: u64,
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn list_source_backups(app: tauri::AppHandle) -> Result<Vec<SourceBackupEntry>, String> {
     let dir = app
         .path()
         .app_data_dir()
         .map_err(|e| e.to_string())?
         .join("source-backups");
-    if !dir.exists() {
-        return Ok(Vec::new());
-    }
-    let mut result = Vec::new();
-    for entry in std::fs::read_dir(dir).map_err(|e| e.to_string())? {
-        let entry = entry.map_err(|e| e.to_string())?;
-        let metadata = entry.metadata().map_err(|e| e.to_string())?;
-        if metadata.is_file() {
-            result.push(SourceBackupEntry {
-                name: entry.file_name().to_string_lossy().into_owned(),
-                size: metadata.len(),
-            });
-        }
-    }
-    result.sort_by(|a, b| b.name.cmp(&a.name));
-    Ok(result)
+    safe_file::source_backups::list(&dir).map(|entries| {
+        entries
+            .into_iter()
+            .map(|entry| SourceBackupEntry {
+                name: entry.name,
+                original_name: entry.original_name,
+                source_path: entry.source_path,
+                modified_at: entry.modified_at,
+                size: entry.size,
+            })
+            .collect()
+    })
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn read_source_backup(app: tauri::AppHandle, name: String) -> Result<Vec<u8>, String> {
-    let path = std::path::Path::new(&name);
-    if path.components().count() != 1
-        || !matches!(
-            path.components().next(),
-            Some(std::path::Component::Normal(_))
-        )
-    {
-        return Err("Invalid backup name".into());
-    }
     let dir = app
         .path()
         .app_data_dir()
         .map_err(|e| e.to_string())?
         .join("source-backups");
-    std::fs::read(dir.join(path)).map_err(|e| e.to_string())
+    safe_file::source_backups::read(&dir, &name)
 }
 
 // ── File I/O commands ──────────────────────────────────────────────────────
@@ -1867,7 +1857,7 @@ fn same_file_path(first: String, second: String) -> Result<bool, String> {
 
 /// `backup` (default true): copy another application's file aside before
 /// replacing it. The app passes false when the file holds its own last save.
-#[tauri::command]
+#[tauri::command(async)]
 fn save_text_to_path(
     app: tauri::AppHandle,
     path: String,
@@ -1877,7 +1867,7 @@ fn save_text_to_path(
     save_desktop_file(&app, &path, contents.as_bytes(), backup.unwrap_or(true))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn save_binary_to_path(
     app: tauri::AppHandle,
     path: String,
@@ -1907,7 +1897,7 @@ fn save_desktop_file(
             contents,
             backup,
             &recovery,
-            macos_file::replace,
+            |path, bytes| macos_file::replace(path, bytes, &recovery),
         )
     }
     #[cfg(not(target_os = "macos"))]

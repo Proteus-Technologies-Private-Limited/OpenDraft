@@ -1,7 +1,7 @@
 {
   "sourceRecovery": {
     "title": "Récupérer un fichier d’origine",
-    "intro": "Ce sont des copies octet par octet réalisées avant l’écrasement de documents externes. Exportez une copie vers Fichiers ou le fournisseur de votre choix. La récupération laisse intacts le document actuel et la sauvegarde.",
+    "intro": "Ce sont des copies octet par octet réalisées avant l’écrasement de fichiers. Exportez une copie vers l’emplacement de votre choix. La récupération laisse intacts le document actuel et la sauvegarde.",
     "empty": "Aucun original n’a été sauvegardé sur cet appareil.",
     "entry": "{{name}} ({{size}} octets)"
   },

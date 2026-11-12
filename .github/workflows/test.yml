@@ -79,8 +79,11 @@ jobs:
         with:
           targets: aarch64-linux-android
 
-      - name: Check file-save failure stages and original-file safety
+      # Host Linux tests, before Android cross-checking. Permissions must not
+      # be tested as root, which bypasses the file-only-grant assertions.
+      - name: Check portable file-save and recovery safety on Linux
         run: |
+          test "$(id -u)" -ne 0
           rustc --edition=2021 --test src-tauri/src/safe_file.rs -o "$RUNNER_TEMP/file-save-tests"
           "$RUNNER_TEMP/file-save-tests"
 
@@ -146,7 +149,7 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - name: Exercise coordinated text and binary saves and original recovery
         run: |
-          xcrun clang -fobjc-arc -fblocks -c src-tauri/src/macos_file.m -o "$RUNNER_TEMP/macos_file.o"
+          xcrun clang -DOPENDRAFT_FILE_TESTING -fobjc-arc -fblocks -c src-tauri/src/macos_file.m -o "$RUNNER_TEMP/macos_file.o"
           ar crs "$RUNNER_TEMP/libopendraft_macos_file.a" "$RUNNER_TEMP/macos_file.o"
           rustc --edition=2021 --test test-script/macos_file_native.rs \
             -L "native=$RUNNER_TEMP" -l static=opendraft_macos_file \

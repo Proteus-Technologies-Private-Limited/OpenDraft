@@ -1761,22 +1761,9 @@ const ScreenplayEditor: React.FC = () => {
       : allChildren;
     const breaks = breaksRef.current;
 
-    // Mark the title-page region so Print can drop it when the writer has asked
-    // for a script without one. Marked by model index rather than by class: the
-    // region takes in the blank spacers and any images above the title, and only
-    // the titlePage nodes carry a class of their own (issue #98). The title-page
-    // break is where the body starts, so its nodeIndex is the region's length.
-    const titleEnd = breaks.find((b) => b.isTitlePage)?.nodeIndex ?? 0;
-    // Only the region and whatever was marked before need touching, not every
-    // block of the script on every keystroke (#229).
-    const region = children.slice(0, titleEnd);
-    const inRegion = new Set<Element>(region);
-    root.querySelectorAll(':scope > .sp-title-region').forEach((el) => {
-      if (!inRegion.has(el)) el.classList.remove('sp-title-region');
-    });
-    for (const el of region) {
-      if (!el.classList.contains('sp-title-region')) el.classList.add('sp-title-region');
-    }
+    // The title-page region's `.sp-title-region` is a decoration from the
+    // pagination plugin (titleRegionDecorations), not set here: a class added
+    // to the editor's DOM is redrawn away by ProseMirror (issue #98).
 
     if (breaks.length === 0) { setOverlays((prev) => (prev.length === 0 ? prev : [])); return; }
 
