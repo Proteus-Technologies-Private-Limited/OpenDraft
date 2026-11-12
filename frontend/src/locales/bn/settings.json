@@ -190,6 +190,7 @@
     "loadingBuiltin": "বিল্ট-ইন ভাষা লোড হচ্ছে…",
     "bundled": "সঙ্গে আসা",
     "installed": "ইনস্টল করা",
+    "languageInstalled": "{{language}} ইনস্টল করা হয়েছে।",
     "loaded": "লোড হয়েছে",
     "removeLanguage": "এই ভাষা সরান",
     "installFailed": "ইনস্টল ব্যর্থ হয়েছে।",

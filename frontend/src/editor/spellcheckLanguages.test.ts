@@ -7,15 +7,19 @@ function fixture(enabled = ['en_US'], loaded = ['en_US']) {
   let generation = 0;
   const installed = new Set(loaded);
   const listeners = new Set<() => void>();
+  const documentListeners = new Set<() => void>();
   const emit = () => listeners.forEach(listener => listener());
   const checker = {
     getEnabledLanguages: () => [...codes].sort(),
     getLoadedLanguages: () => [...installed].map(code => ({ code, label: code })),
     setEnabledLanguages: vi.fn((next: string[]) => { codes = [...next]; emit(); }),
     getDocumentGeneration: () => generation,
+    onDocumentChange: (listener: () => void) => { documentListeners.add(listener); return () => { documentListeners.delete(listener); }; },
     onChange: (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; },
   };
-  const beginDocument = (next: string[] = ['en_US']) => { generation++; checker.setEnabledLanguages(next); };
+  const beginDocument = (next: string[] = ['en_US']) => {
+    generation++; checker.setEnabledLanguages(next); documentListeners.forEach(listener => listener());
+  };
   return { checker, installed, emit, beginDocument };
 }
 

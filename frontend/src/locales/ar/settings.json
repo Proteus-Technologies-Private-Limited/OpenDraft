@@ -206,6 +206,7 @@
     "loadingBuiltin": "جارٍ تحميل اللغة المضمّنة…",
     "bundled": "مضمّنة",
     "installed": "مثبّتة",
+    "languageInstalled": "تم تثبيت {{language}}.",
     "loaded": "محمّلة",
     "removeLanguage": "إزالة هذه اللغة",
     "installFailed": "فشل التثبيت.",

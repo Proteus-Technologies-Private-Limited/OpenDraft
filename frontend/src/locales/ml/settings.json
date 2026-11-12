@@ -190,6 +190,7 @@
     "loadingBuiltin": "ബിൽറ്റ്-ഇൻ ഭാഷ ലോഡ് ചെയ്യുന്നു…",
     "bundled": "ഉൾപ്പെടുത്തിയത്",
     "installed": "ഇൻസ്റ്റാൾ ചെയ്തത്",
+    "languageInstalled": "{{language}} ഇൻസ്റ്റാൾ ചെയ്തു.",
     "loaded": "ലോഡ് ചെയ്തത്",
     "removeLanguage": "ഈ ഭാഷ നീക്കം ചെയ്യുക",
     "installFailed": "ഇൻസ്റ്റാൾ പരാജയപ്പെട്ടു.",

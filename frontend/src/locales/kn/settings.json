@@ -190,6 +190,7 @@
     "loadingBuiltin": "ಅಂತರ್ಗತ ಭಾಷೆ ಲೋಡ್ ಆಗುತ್ತಿದೆ…",
     "bundled": "ಅಂತರ್ಗತ",
     "installed": "ಇನ್‌ಸ್ಟಾಲ್ ಆಗಿದೆ",
+    "languageInstalled": "{{language}} ಸ್ಥಾಪಿಸಲಾಗಿದೆ.",
     "loaded": "ಲೋಡ್ ಆಗಿದೆ",
     "removeLanguage": "ಈ ಭಾಷೆಯನ್ನು ತೆಗೆಯಿರಿ",
     "installFailed": "ಇನ್‌ಸ್ಟಾಲ್ ವಿಫಲವಾಯಿತು.",

@@ -190,6 +190,7 @@
     "loadingBuiltin": "در حال بارگذاری زبان داخلی…",
     "bundled": "داخلی",
     "installed": "نصب‌شده",
+    "languageInstalled": "{{language}} نصب شد.",
     "loaded": "بارگذاری‌شده",
     "removeLanguage": "برداشتن این زبان",
     "installFailed": "نصب ناموفق بود.",

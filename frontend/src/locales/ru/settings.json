@@ -198,6 +198,7 @@
     "loadingBuiltin": "Загрузка встроенного языка…",
     "bundled": "встроен",
     "installed": "установлен",
+    "languageInstalled": "Словарь {{language}} установлен.",
     "loaded": "загружен",
     "removeLanguage": "Удалить этот язык",
     "installFailed": "Не удалось установить.",

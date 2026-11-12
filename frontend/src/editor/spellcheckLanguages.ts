@@ -2,7 +2,7 @@ import { spellChecker } from './spellchecker';
 
 /** State used by both the quick menu and Dictionary Settings. */
 export type LanguageChecker = Pick<typeof spellChecker,
-  'getEnabledLanguages' | 'getLoadedLanguages' | 'setEnabledLanguages' | 'getDocumentGeneration' | 'onChange'>;
+  'getEnabledLanguages' | 'getLoadedLanguages' | 'setEnabledLanguages' | 'getDocumentGeneration' | 'onChange' | 'onDocumentChange'>;
 
 export function canDisableLanguage(code: string, enabled: readonly string[], loaded: ReadonlySet<string>): boolean {
   return !enabled.includes(code) || !loaded.has(code) || enabled.filter(language => loaded.has(language)).length > 1;
@@ -40,7 +40,11 @@ export async function setScriptLanguageEnabled(code: string, on: boolean, {
 export function onScriptLanguagesChange(listener: () => void, checker: LanguageChecker = spellChecker): () => void {
   let generation = checker.getDocumentGeneration();
   let previous = JSON.stringify(checker.getEnabledLanguages());
-  return checker.onChange(() => {
+  const stopDocument = checker.onDocumentChange(() => {
+    generation = checker.getDocumentGeneration();
+    previous = JSON.stringify(checker.getEnabledLanguages());
+  });
+  const stopChange = checker.onChange(() => {
     const nextGeneration = checker.getDocumentGeneration();
     const next = JSON.stringify(checker.getEnabledLanguages());
     const changed = nextGeneration === generation && next !== previous;
@@ -48,4 +52,5 @@ export function onScriptLanguagesChange(listener: () => void, checker: LanguageC
     previous = next;
     if (changed) listener();
   });
+  return () => { stopDocument(); stopChange(); };
 }

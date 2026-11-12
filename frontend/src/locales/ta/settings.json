@@ -190,6 +190,7 @@
     "loadingBuiltin": "உள்ளமைந்த மொழியை ஏற்றுகிறது…",
     "bundled": "உள்ளமைந்தது",
     "installed": "நிறுவப்பட்டது",
+    "languageInstalled": "{{language}} நிறுவப்பட்டது.",
     "loaded": "ஏற்றப்பட்டது",
     "removeLanguage": "இந்த மொழியை அகற்று",
     "installFailed": "நிறுவ முடியவில்லை.",

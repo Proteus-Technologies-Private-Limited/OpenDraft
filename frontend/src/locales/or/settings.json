@@ -190,6 +190,7 @@
     "loadingBuiltin": "ଅନ୍ତର୍ନିହିତ ଭାଷା ଲୋଡ୍ ହେଉଛି…",
     "bundled": "ସାଥିରେ ଆସିଛି",
     "installed": "ଇନଷ୍ଟଲ୍ ହୋଇଛି",
+    "languageInstalled": "{{language}} ଇନଷ୍ଟଲ୍ ହୋଇଛି।",
     "loaded": "ଲୋଡ୍ ହୋଇଛି",
     "removeLanguage": "ଏହି ଭାଷା ହଟାନ୍ତୁ",
     "installFailed": "ଇନଷ୍ଟଲ୍ ବିଫଳ ହେଲା।",

@@ -194,6 +194,7 @@
     "loadingBuiltin": "Carregando idioma integrado…",
     "bundled": "incluído",
     "installed": "instalado",
+    "languageInstalled": "O dicionário {{language}} foi instalado.",
     "loaded": "carregado",
     "removeLanguage": "Remover este idioma",
     "installFailed": "Falha na instalação.",
