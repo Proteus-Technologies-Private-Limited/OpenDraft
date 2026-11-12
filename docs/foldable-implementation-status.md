@@ -16,7 +16,7 @@ untested native behavior as complete.
 | WP8 | Fit-width page with 70% minimum, Navigator docking at 80%, one 300 px panel column with tabs, Table Read in that column, plugin panels, and Story Timeline as a bottom band. Stable portal hosts preserve mounted panel subtrees. | Long-script reading position, selection, typing/undo, panel focus (including the appendChild fallback), plugin activation and browser keyboard/ARIA regressions are covered. Physical touch targets, screen readers and native keyboard behavior still need device validation. |
 | WP9 | No split-screen implementation duplicated. | Merge #214, then connect its companion panes and crease default. |
 | WP10 | No replacement toolbar or element selector added. | Merge #217, then arrange the writer's items in two rows and implement the accessible horizontal choice line. Measure the native keyboard before deciding which side of the crease holds the rows. |
-| WP11 | Browser book/laptop detection, book script reflow, right/lower panel slots, larger current Table Read line. | Book companion panes and empty-companion continuation; writing pad placement; final laptop/flip layout together with WP10. The current toolbar remains at the top. This package is partial. |
+| WP11 | Browser book/laptop detection, book script reflow, right/lower panel slots, larger current Table Read line, and a writing pad sharing the book/laptop companion tabs without losing its draft or selection. | Book companion panes and empty-companion continuation; final laptop/flip layout together with WP10. The current toolbar remains at the top. This package is partial. |
 | WP12 | Browser Media Session controls were merged separately in #237. | Native iOS remote commands/audio-session/background-mode support and Android MediaSession/background service. Browser Media Session alone cannot guarantee playback after a web view is suspended. |
 | WP13 | No hardware capability is inferred from a model name. | Native Pencil capability and native refusal of New Window on a cover screen, after WP4. |
 
@@ -50,6 +50,7 @@ Start Vite, install Python Playwright and system Chromium, then run:
 OPENDRAFT_TEST_URL=http://127.0.0.1:5173/ python test-script/foldables/posture.py
 OPENDRAFT_TEST_URL=http://127.0.0.1:5173/ python test-script/foldables/regressions.py
 OPENDRAFT_TEST_URL=http://127.0.0.1:5173/ python test-script/foldables/review_regressions.py
+OPENDRAFT_TEST_URL=http://127.0.0.1:5173/ python test-script/foldables/writing_pad.py
 # From PR #235:
 OPENDRAFT_TEST_URL=http://127.0.0.1:5173/ python test-script/foldables/responsive.py
 ```
@@ -86,3 +87,48 @@ and actual store updates. No physical Mac, iPhone, iPad or foldable is available
 for this contribution. Native and physical-device checks remain explicitly
 unverified; contributors who have those tools should record their results
 against the design's acceptance checklist before claiming native support.
+
+## Writing-pad placement
+
+On confirmed browser foldables, Handwriting shares the companion tabs on the
+right in book posture and below the crease in laptop/tabletop posture. Repeating
+the open request selects its tab. Switching panels hides the writing draft
+without discarding it; Escape closes the pad only from within it while docked.
+The same textarea, text selection and live editor insertion target survive
+posture changes, including the appendChild fallback. Insert still clears only
+the pad and is undoable in the editor.
+
+In Focus Mode, open-flat, cover screens and ordinary devices it floats. Its
+floating home is mounted before the dock and outside the editor layout so
+Focus Mode cannot hide it. Escape from the script still closes the floating
+pad; docked Escape is limited to unhandled events inside its pane. The docked
+pad is a labelled region inside the tabpanel, rather than a nested dialog. Docking
+does not overwrite the saved floating size/position; floating dimensions are
+clamped to the available viewport. Short dock slots scroll to keep tools and
+Insert reachable. This is browser layout coverage, not native Pencil or system
+keyboard validation. WP10's keyboard-aware toolbar placement remains separate.
+
+## Review follow-ups from #236 and #247
+
+Book posture uses the Phone zoom bucket for rendering and pinch changes even
+when the saved layout choice is Page. Returning to laptop/open Page view uses
+its separate Page zoom. Cover-screen Page fitting follows width, posture and
+page-layout changes; height-only changes preserve custom zoom, including a
+layout viewport resized for a keyboard. Navigator docking and rendering share
+the 240px width, independently of an earlier manual Navigator resize. Docked
+Story Timeline ignores Escape already handled by a popup or sent outside it.
+
+A reduced visual viewport (over 120px less height than the layout viewport) or
+a lower slot shorter than 240px temporarily floats the same writing pad. The
+floating pad follows visual-viewport offsets and scrolls its controls; restoring
+space docks it again without losing text/selection or overwriting floating
+preferences. Browser tests supply viewport geometry and exercise the Keyboard
+toggle; this is not a physical keyboard or IME validation. WP10 still owns the
+native keyboard-aware toolbar layout. A Mac, iPhone, iPad and physical foldable
+remain unavailable, so native checks remain unverified.
+
+The writing-pad suite also checks ordinary-device Focus Mode and Escape from
+the script, foldable Focus Mode, book pinch persistence, cover height-only
+resizes, a previously widened Navigator, short tabletop slots, visual viewport
+reduction/offsets, and docked Timeline Escape. Dependency manifest changes alone
+no longer start foldable browser CI; manual dispatch remains available.

@@ -8,7 +8,9 @@ export interface FoldablePanel {
   id: string;
   label: string;
   open: boolean;
-  /** A new request can activate an already-open plugin panel. */
+  /** Keep a floating panel at home in postures where it has no dock slot. */
+  dock?: boolean;
+  /** A new request can activate an already-open panel. */
   activationKey?: string | number;
   content: ReactNode;
   /** Table Read normally lives below the script, rather than on its right. */
@@ -56,10 +58,11 @@ export default function FoldablePanelDock({ active, panels }: { active: boolean;
   const { t } = useTranslation('menu');
   const dock = useRef<HTMLDivElement>(null);
   const [selection, setSelection] = useState<FoldPanelSelection>(() => ({ selected: '', opened: new Map() }));
-  const nextSelection = reconcileFoldPanels(selection, panels);
+  const eligible = panels.filter(panel => panel.dock !== false);
+  const nextSelection = reconcileFoldPanels(selection, eligible);
   if (nextSelection !== selection) setSelection(nextSelection);
   const current = nextSelection.selected;
-  const opened = panels.filter(panel => panel.open);
+  const opened = eligible.filter(panel => panel.open);
   const select = (id: string) => setSelection(previous => ({ ...previous, selected: id }));
   const focusedPanel = useRef<string | null>(null);
   useEffect(() => {
@@ -112,6 +115,6 @@ export default function FoldablePanelDock({ active, panels }: { active: boolean;
       </nav>
       <div className="fold-panel-content" ref={dock} />
     </aside>
-    {panels.map(panel => <PanelSlot key={panel.id} panel={panel} dock={dock} active={active && (!panel.keepHomeWhenClosed || panel.open)} selected={current === panel.id} />)}
+    {panels.map(panel => <PanelSlot key={panel.id} panel={panel} dock={dock} active={active && panel.dock !== false && (!panel.keepHomeWhenClosed || panel.open)} selected={current === panel.id} />)}
   </>;
 }

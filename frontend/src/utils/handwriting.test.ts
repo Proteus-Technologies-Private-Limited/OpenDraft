@@ -11,6 +11,14 @@ const PANEL = { width: 700, height: 400 };
 const IPAD = { width: 1180, height: 820 };
 
 describe('clampPanelPosition', () => {
+  it('keeps the pad inside a panned visual viewport', () => {
+    const view = { width: 390, height: 360, left: 20, top: 80 };
+    expect(clampPanelPosition({ left: 0, top: 0 }, { width: 374, height: 344 }, view))
+      .toEqual({ left: 28, top: 88 });
+    expect(defaultPanelPosition({ width: 374, height: 344 }, view))
+      .toEqual({ left: 28, top: 88 });
+  });
+
   it('leaves a panel that is already on screen where it is', () => {
     expect(clampPanelPosition({ left: 200, top: 100 }, PANEL, IPAD))
       .toEqual({ left: 200, top: 100 });
