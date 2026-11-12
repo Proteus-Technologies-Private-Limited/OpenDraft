@@ -8,6 +8,7 @@
 
   // Search index: each entry has page, title, section, text, url
   const searchIndex = [
+    { page: 'Getting Started', title: 'Display and Fold Posture Diagnostics', section: 'Reporting a display or foldable layout problem', text: 'Help Diagnostics Copy Report display posture foldable segments crease hinge screen viewport keyboard geometry bug report snapshot', url: 'getting-started.html#display-diagnostics' },
     { page: 'Writing', title: 'Dictation and Voice Commands', section: 'Dictation', text: 'Settings Add-ons opt-in privacy Tools Dictation microphone speech to text local Whisper browser device speech recognition iOS Android new scene character Sarah literal commands review transcript insert', url: 'writing-screenplay.html#dictation' },
     // Index / Home
     { page: 'Home', title: 'Welcome to OpenDraft', section: '', text: 'Free open-source screenwriting application. Professional screenplay editing with real-time collaboration. No subscription required.', url: 'index.html' },
