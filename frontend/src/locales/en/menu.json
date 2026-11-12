@@ -412,6 +412,7 @@
     }
   },
   "diagnostics": {
+    "displayPosture": "Display and fold posture",
     "fileFailure": "Last file failure (this session)",
     "intro": "Runtime info to attach to bug reports. Click \"Copy\" to copy the full report to your clipboard, then paste it into the GitHub issue.",
     "oneDrive": "<strong>OneDrive interference suspected.</strong> Your app data folder appears to be inside a OneDrive-synced location. OneDrive can corrupt SQLite WAL files mid-write, causing silent save failures. To fix this, exclude OpenDraft's data folder from OneDrive backup, or move your Windows AppData folder out of OneDrive sync.",

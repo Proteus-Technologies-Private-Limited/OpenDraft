@@ -16,7 +16,7 @@ class MenuKeyboard(unittest.TestCase):
         cls.playwright = sync_playwright().start()
         cls.browser = cls.playwright.chromium.launch(
             executable_path=os.environ.get('OPENDRAFT_CHROMIUM') or '/usr/bin/chromium',
-            args=['--no-sandbox'],
+            args=['--no-sandbox', '--enable-experimental-web-platform-features'],
         )
 
     @classmethod
@@ -32,12 +32,23 @@ class MenuKeyboard(unittest.TestCase):
             localStorage.setItem('opendraft:viewState', JSON.stringify({navigatorOpen:false,toolbarMode:'compact'}));
             localStorage.setItem('opendraft:hiddenModeIntroShown','1');
         """)
+        if os.environ.get('OPENDRAFT_MENU_FOLDABLE') == '1':
+            cdp = self.page.context.new_cdp_session(self.page)
+            cdp.send('Emulation.setDeviceMetricsOverride', {
+                'width':1440, 'height':1000, 'screenWidth':1440, 'screenHeight':1000,
+                'deviceScaleFactor':1, 'mobile':True,
+                'displayFeature':{'orientation':'vertical','offset':710,'maskLength':20},
+            })
+            cdp.send('Emulation.setTouchEmulationEnabled', {'enabled':True})
+            cdp.send('Emulation.setDevicePostureOverride', {'posture':{'type':'continuous'}})
         self.page.goto(os.environ.get('OPENDRAFT_TEST_URL', 'http://127.0.0.1:5173/'))
         self.page.locator('.editor-main').wait_for()
         blank = self.page.get_by_role('button', name='Blank Document', exact=False)
         if blank.count():
             blank.click()
         self.page.locator('.ProseMirror').wait_for()
+        if os.environ.get('OPENDRAFT_MENU_FOLDABLE') == '1':
+            self.page.wait_for_function("document.documentElement.classList.contains('foldable')")
         self.page.evaluate("""async () => {
             let element=document.querySelector('.ProseMirror');
             while (element && !window.testEditor) {

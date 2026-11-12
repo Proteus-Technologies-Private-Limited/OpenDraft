@@ -83,9 +83,18 @@ export function useEditorDoc(editor: Editor | null | undefined, enabled = true):
 export const DOC_SETTLE_MS = 300;
 
 /**
+ * The longest a settled reader waits during an edit that never pauses —
+ * steady typing, or a collaborator who keeps writing. Past this it is shown
+ * the document as it stands, and the wait starts over.
+ */
+export const DOC_SETTLE_MAX_MS = 3000;
+
+/**
  * The editor's document while `enabled`, else null — but only once it has gone
- * `delayMs` without changing. Typing and held Backspace re-render the caller
- * once, after the burst, instead of once per key.
+ * `delayMs` without changing, or `maxWaitMs` since the first change it has not
+ * seen. Typing and held Backspace re-render the caller once, after the burst,
+ * instead of once per key; a burst that never stops still shows every few
+ * seconds.
  *
  * For panels whose figures come from walking the whole script (the navigator's
  * scene lengths and timings, the status bar's runtime and word count). On a
@@ -96,6 +105,7 @@ export function useSettledEditorDoc(
   editor: Editor | null | undefined,
   enabled = true,
   delayMs = DOC_SETTLE_MS,
+  maxWaitMs = DOC_SETTLE_MAX_MS,
 ): PMNode | null {
   const ed = enabled && editor && !editor.isDestroyed ? editor : null;
   const [settled, setSettled] = useState<{ editor: Editor | null; doc: PMNode | null }>(
@@ -111,8 +121,8 @@ export function useSettledEditorDoc(
     if (!ed) return;
     return watchSettledDoc(ed, delayMs, (doc) => {
       setSettled((prev) => (prev.editor === ed && prev.doc === doc ? prev : { editor: ed, doc }));
-    });
-  }, [ed, delayMs]);
+    }, maxWaitMs);
+  }, [ed, delayMs, maxWaitMs]);
 
   if (!ed) return null;
   return settled.editor === ed ? settled.doc : ed.state.doc;
@@ -120,25 +130,48 @@ export function useSettledEditorDoc(
 
 /**
  * Calls `onSettle(doc)` once `editor`'s document has gone `delayMs` without a
- * change; a burst of edits calls it once, after the last. Selection-only
+ * change; a burst of edits calls it once, after the last. A burst that runs on
+ * is reported every `maxWaitMs` as well, counted from the first change not yet
+ * reported, so a reader is never more than that behind. Selection-only
  * transactions are not changes. Returns the unsubscribe.
  */
 export function watchSettledDoc(
   editor: Pick<Editor, 'on' | 'off' | 'state' | 'isDestroyed'>,
   delayMs: number,
   onSettle: (doc: PMNode) => void,
+  maxWaitMs = Infinity,
 ): () => void {
-  let timer: ReturnType<typeof setTimeout> | undefined;
+  let settleTimer: ReturnType<typeof setTimeout> | undefined;
+  let maxTimer: ReturnType<typeof setTimeout> | undefined;
+  const clear = () => {
+    clearTimeout(settleTimer);
+    clearTimeout(maxTimer);
+    settleTimer = undefined;
+    maxTimer = undefined;
+  };
+  const report = () => {
+    clear();
+    if (editor.isDestroyed) return;
+    try {
+      onSettle(editor.state.doc);
+    } catch (err) {
+      // A reader that throws must not stop later edits from being reported.
+      console.warn('[editor] a settled-document reader failed', err);
+    }
+  };
   const onTransaction = ({ transaction }: { transaction: { docChanged: boolean } }) => {
     if (!transaction.docChanged) return;
-    clearTimeout(timer);
-    timer = setTimeout(() => {
-      if (!editor.isDestroyed) onSettle(editor.state.doc);
-    }, delayMs);
+    clearTimeout(settleTimer);
+    settleTimer = setTimeout(report, delayMs);
+    // The first change of a burst starts the longest wait; later ones don't
+    // push it back.
+    if (maxTimer === undefined && Number.isFinite(maxWaitMs) && maxWaitMs > delayMs) {
+      maxTimer = setTimeout(report, maxWaitMs);
+    }
   };
   editor.on('transaction', onTransaction);
   return () => {
-    clearTimeout(timer);
+    clear();
     editor.off('transaction', onTransaction);
   };
 }

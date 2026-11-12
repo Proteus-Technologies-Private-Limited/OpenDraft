@@ -198,6 +198,22 @@
       <li><strong>Reveal</strong> (desktop only) &mdash; shows the file in Finder or Explorer.</li>
     </ul>
 
+    <h2 id="recover-original">Recovering an overwritten original</h2>
+
+    <p>On Mac, choose <strong>File &gt; Recover Original File</strong> to export a preserved
+      original without replacing your current script. Entries show the original filename,
+      its source location when known, and the backup time. The save dialog suggests the
+      original filename. Recovery leaves both your working script and the backup intact.</p>
+    <p>Same-named files in different folders keep separate histories, with up to five versions
+      per source. Repeated failed saves of identical bytes reuse the latest copy. Older backups
+      may have no source location. Originals saved by older Mac versions in
+      <code>.opendraft-originals</code> remain beside their files; use the file manager to copy
+      those versions back.</p>
+    <p>If a drive cannot support temporary replacement, OpenDraft preserves a recovery copy
+      before writing in place. If a failed write cannot restore the file, recover that copy
+      before trying to save again. External and network drives still need validation with a
+      signed, sandboxed Mac build.</p>
+
     <h2 id="unsaved">Recovering Unsaved Work</h2>
 
     <p>Separately from all of the above, OpenDraft keeps a snapshot of the document you are editing &mdash; even one that was never saved into a project &mdash; and offers it back if the app closes unexpectedly or the system shuts it down. You will see <strong>Recover unsaved changes?</strong> the next time you open OpenDraft, with the choice to <strong>Restore</strong> or <strong>Discard</strong>.</p>
