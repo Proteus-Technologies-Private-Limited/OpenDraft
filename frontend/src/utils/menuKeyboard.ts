@@ -1,3 +1,5 @@
+import { graphemeSegmenter } from './textSegmentation';
+
 /** Fold Latin accents while retaining vowel signs and viramas in other scripts. */
 export function menuSearchText(value: string): string {
   return value.normalize('NFKD').replace(/(\p{Script=Latin})\p{M}+/gu, '$1').toLocaleLowerCase();
@@ -6,7 +8,8 @@ export function menuSearchText(value: string): string {
 /** KeyboardEvent.key can contain an entire grapheme, or a separate vowel sign. */
 export function menuSearchKey(key: string): boolean {
   if (!key || /[\p{Cc}\p{Z}]/u.test(key)) return false;
-  return [...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(key)].length === 1;
+  return graphemeSegmenter ? [...graphemeSegmenter.segment(key)].length === 1
+    : /^\P{M}?\p{M}*$/u.test(key) && Array.from(key).length <= 4;
 }
 
 /** Convert the platform's displayed shortcut to ARIA's modifier/key spelling. */

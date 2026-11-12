@@ -11,11 +11,13 @@ The harness uses `/usr/bin/chromium`; set `OPENDRAFT_CHROMIUM` to use another
 Chromium executable. It creates an isolated browser context for each case and
 uses synthetic script text and a temporary plugin with four menu levels.
 
-The fourteen cases cover roving focus, wrapping, Home/End, repeated-letter search,
+The sixteen cases cover roving focus, wrapping, Home/End, repeated-letter search,
 focusable but inert disabled items and separators, nested Escape/arrow handling, single activation,
 checkbox/radio states and named radio groups, Tab/Shift+Tab exit, formatting a selected range and undo,
 pointer selection, immediate and delayed dialogs, returning to the originating editor/input after commands, the hidden-toolbar button, toolbar layout changes,
-plugin removal, language changes, a 390px inline layout and RTL navigation. They also check ARIA shortcut metadata and Hindi typeahead with separate vowel signs, conjuncts and IME composition.
+plugin removal, language changes, a 390px inline layout and RTL navigation. They also check ARIA shortcut metadata for the current platform and an emulated Mac keyboard, Hindi typeahead with separate vowel signs, conjuncts and IME composition, and a full application load and Latin/Indic menu search with `Intl.Segmenter` removed.
+
+The segmenter is guarded and cached once, using the same helper as #254. Without the API, menu search accepts a single code point or a base plus combining signs (at most four code points); it conservatively rejects more complex multi-base grapheme keys. Ordinary successive key events still build the search prefix.
 
 Set `OPENDRAFT_SCREENSHOTS` to capture the zoom command/radio group for review.
 Pure typeahead and shortcut-conversion regressions run with the frontend unit tests.
