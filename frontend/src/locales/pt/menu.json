@@ -417,6 +417,7 @@
     }
   },
   "diagnostics": {
+    "displayPosture": "Ecrã e postura de dobragem",
     "fileFailure": "Última falha de arquivo (nesta sessão)",
     "intro": "Informações de execução para anexar a relatórios de bugs. Clique em \"Copiar\" para copiar o relatório completo para a área de transferência e cole-o na issue do GitHub.",
     "oneDrive": "<strong>Suspeita de interferência do OneDrive.</strong> A pasta de dados do app parece estar em um local sincronizado pelo OneDrive. O OneDrive pode corromper arquivos WAL do SQLite durante a gravação, causando falhas silenciosas ao salvar. Para corrigir, exclua a pasta de dados do OpenDraft do backup do OneDrive ou tire a pasta AppData do Windows da sincronização do OneDrive.",

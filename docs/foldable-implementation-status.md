@@ -3,11 +3,13 @@
 Tracks implementation against [the design](foldable-support-design.md) and
 [#231](https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/issues/231).
 The proposal remains the acceptance checklist; this document does not mark
-untested native behavior as complete.
+untested native behavior as complete. Browser foundations (#235, #236, #237)
+and writing-pad placement/review fixes (#247) are merged. Native bridges,
+background execution and the split-screen/custom-toolbar dependencies remain open.
 
 | Package | Implemented here | Remaining work |
 | --- | --- | --- |
-| WP1–WP2 | Responsive menu, Location overlay and live swipe checks were merged in PR #235. | Included by the merge of main into this branch. |
+| WP1–WP2 | Responsive menu, Location overlay and live swipe checks were merged in PR #235. | Merged browser fixes; keep their responsive regressions covered. |
 | WP3 | Browser posture, current `window.viewport.segments`, legacy fallback, size fallback, segment media queries, 150 ms debounce, HTML classes and crease variables. Capability is remembered only for the current document after observing two valid segments. | Verify System WebView on Android; add WindowManager integration if those browser APIs are absent. A first launch on a cover screen cannot establish capability from size alone. |
 | WP4 | No native bridge is included. | Implement and compile the iOS 27.1 bridge against the actual SDK, then exercise the Duo simulator. UIKit calls the region `division`, not `fold`; Objective-C uses `reservedRegionsOfKind:options:`. Read it in `updateConstraints`, where UIKit tracks changes; include inactive regions to establish capability while flat. |
 | WP5 | The original screen-based phone rule and its explanation are retained for all ordinary devices. Confirmed browser foldables use the separate window-based posture state. | Defer any iPhone-specific sizing change until there is native/device evidence to test. |
@@ -51,6 +53,8 @@ OPENDRAFT_TEST_URL=http://127.0.0.1:5173/ python test-script/foldables/posture.p
 OPENDRAFT_TEST_URL=http://127.0.0.1:5173/ python test-script/foldables/regressions.py
 OPENDRAFT_TEST_URL=http://127.0.0.1:5173/ python test-script/foldables/review_regressions.py
 OPENDRAFT_TEST_URL=http://127.0.0.1:5173/ python test-script/foldables/writing_pad.py
+OPENDRAFT_TEST_URL=http://127.0.0.1:5173/ python test-script/foldables/diagnostics_keyboard.py
+OPENDRAFT_TEST_URL=http://127.0.0.1:5173/ OPENDRAFT_MENU_FOLDABLE=1 python test-script/menu-keyboard/regressions.py
 # From PR #235:
 OPENDRAFT_TEST_URL=http://127.0.0.1:5173/ python test-script/foldables/responsive.py
 ```
@@ -68,7 +72,9 @@ unregistering, focused text selection and the older-browser reparenting fallback
 Keyboard checks cover roving focus, Home/End, RTL arrows, labelled tab panels,
 hidden controls and focus after closing a panel. The tests are run by
 `.github/workflows/test-foldables.yml` for the listed fold-specific
-paths, or by `workflow_dispatch`. Changes to shared editor, menu, toolbar, store,
+paths, or by `workflow_dispatch`. The diagnostics services, menu-keyboard hook
+and menu-keyboard browser scripts are also focused triggers. The same menu
+suite runs on a confirmed emulated foldable in addition to the posture suites. Changes to shared editor, menu, toolbar, store,
 startup and stylesheet files alone do not start it; use the manual workflow when
 those changes need foldable integration coverage. The
 review regression checks cover preserved custom zoom on ordinary desktop, iPhone
@@ -132,3 +138,39 @@ the script, foldable Focus Mode, book pinch persistence, cover height-only
 resizes, a previously widened Navigator, short tabletop slots, visual viewport
 reduction/offsets, and docked Timeline Escape. Dependency manifest changes alone
 no longer start foldable browser CI; manual dispatch remains available.
+
+## Display and posture diagnostics
+
+Open **Help → Diagnostics**, expand **Display and fold posture**, and use the
+existing **Copy Report** button when reporting a foldable layout problem. The
+report is a snapshot; close and reopen Diagnostics after changing posture to
+capture the new state. No new menu or persistent device flag is introduced.
+
+The snapshot distinguishes the current `window.viewport.segments` API from
+legacy `visualViewport.segments`, reports Device Posture API availability/value,
+and records the applied posture classes, retained detection, crease, direction,
+layout/visual viewport sizes and offsets, screen dimensions, pixel ratio and
+coarse-pointer query. It copies at most eight segment rectangles and only
+finite numeric geometry. Unsupported, invalid or throwing APIs have explicit
+statuses; their exception text and arbitrary browser-object properties are not
+copied. The technical field names stay identical in the dialog and copied report;
+the section heading follows the interface language.
+
+Collection does not call the state-changing detector, emit events, write
+preferences or read script text/title/panel drafts. API presence and a small
+window do not prove foldable capability. A cold launch on a cover screen remains
+unconfirmed without positive segment evidence. Raw signals and applied classes
+can differ during the 150 ms debounce. Visual viewport reduction/offsets describe
+visible geometry; they do not establish whether a system keyboard is open.
+These are browser signals, including in a native web view, not a native capability
+or SDK probe.
+
+`diagnostics_keyboard.py` verifies geometry and clipboard contents in open,
+book, laptop and cover postures, read-only collection, cold cover startup, frozen
+snapshots/reopening, 390px Arabic layout, nested-menu Escape, F10, formatting and
+undo with the selected script text across postures. The menu suite's
+`OPENDRAFT_MENU_FOLDABLE=1` profile uses a confirmed open foldable and works with
+the baseline menu implementation and the extended #253 suite. Integration with
+#253 is validated in a temporary checkout; its commits are not bundled here.
+Native keyboard/IME, physical touch, screen readers, Pencil and background audio
+still require the native work and device validation listed above.

@@ -12,6 +12,9 @@ on:
       - 'frontend/src/utils/phoneDevice*.ts'
       - 'frontend/src/utils/zoomAnchor*.ts'
       - 'frontend/src/hooks/useFold*.ts'
+      - 'frontend/src/hooks/useMenuKeyboard.ts'
+      - 'frontend/src/services/foldDiagnostics*.ts'
+      - 'frontend/src/services/diagnostics*.ts'
       - 'frontend/src/components/FoldablePanelDock.tsx'
       - 'frontend/src/components/ScribbleInput.tsx'
       - 'frontend/src/components/TextareaCaret.tsx'
@@ -20,6 +23,7 @@ on:
       - 'frontend/src/stores/foldBookZoom.test.ts'
       - 'frontend/vite.config.ts'
       - 'test-script/foldables/**'
+      - 'test-script/menu-keyboard/**'
       - '.github/workflows/test-foldables.yml'
 
 permissions:
@@ -65,6 +69,12 @@ jobs:
           python test-script/foldables/regressions.py
           python test-script/foldables/review_regressions.py
           python test-script/foldables/writing_pad.py
+          python test-script/foldables/diagnostics_keyboard.py
+      - name: Check application menus on a confirmed browser foldable
+        env:
+          OPENDRAFT_TEST_URL: http://127.0.0.1:5173/
+          OPENDRAFT_MENU_FOLDABLE: '1'
+        run: python test-script/menu-keyboard/regressions.py
       - name: Upload Vite log on failure
         if: failure()
         uses: actions/upload-artifact@v4

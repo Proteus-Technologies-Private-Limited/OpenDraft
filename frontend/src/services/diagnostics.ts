@@ -11,6 +11,7 @@ import { useStorageStatusStore } from '../stores/storageStatusStore';
 import { isDesktopTauri } from './platform';
 import { readAppVersion } from './appVersion';
 import { getLastFileFailure, formatFileFailure, type FileFailure } from './fileDiagnostics';
+import { collectFoldDiagnostics, type FoldDiagnostics } from './foldDiagnostics';
 export { getAppVersion } from './appVersion';
 
 export interface DiagnosticsReport {
@@ -25,6 +26,7 @@ export interface DiagnosticsReport {
   oneDriveSuspect: boolean;
   compat: Array<{ label: string; mode: string; using: string; errorReason?: string }>;
   collectedAt: string;
+  display: FoldDiagnostics | null;
 }
 
 /** Best-effort OS string from the user-agent. */
@@ -94,6 +96,7 @@ export async function collectDiagnostics(): Promise<DiagnosticsReport> {
       errorReason: e.errorReason,
     })),
     collectedAt: new Date().toISOString(),
+    display: collectFoldDiagnostics(),
   };
 }
 
@@ -124,6 +127,9 @@ export function formatReport(r: DiagnosticsReport): string {
     lines.push(`  - ${c.label}: ${c.mode} (${c.using})${c.errorReason ? ` — ${c.errorReason}` : ''}`);
   }
   lines.push('');
+  if (r.display) {
+    lines.push('Display and posture (browser snapshot):', JSON.stringify(r.display, null, 2), '');
+  }
   lines.push(`User-Agent: ${r.userAgent}`);
   return lines.join('\n');
 }

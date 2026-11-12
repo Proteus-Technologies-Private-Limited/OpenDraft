@@ -4848,6 +4848,13 @@ const MenuBar: React.FC<MenuBarProps> = ({
                     )}
                   </tbody>
                 </table>
+                {diagnosticsReport.display && <details className="diagnostics-display" style={{ marginTop: 12 }}>
+                  <summary>{t('menu:diagnostics.displayPosture')}</summary>
+                  {/* i18n-ignore: fixed technical field names match the copyable diagnostic report. */}
+                  <pre dir="ltr" style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', textAlign: 'start', fontSize: 12 }}>
+                    {JSON.stringify(diagnosticsReport.display, null, 2)}
+                  </pre>
+                </details>}
               </>
             ) : (
               <div style={{ marginTop: 12, color: 'var(--fd-text-secondary)' }}>{t('common:loading')}</div>
