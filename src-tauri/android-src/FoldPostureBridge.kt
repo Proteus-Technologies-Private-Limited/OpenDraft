@@ -39,20 +39,20 @@ class FoldPostureBridge internal constructor(
     private var destroyed = false
     private var status = "pending"
     private var feature: FoldingFeature? = null
+    private var generation = 0
+    private var consumer: Consumer<WindowLayoutInfo>? = null
     // JavaScript interfaces run on a WebView thread. Only this immutable copy
     // crosses threads; Android views and WindowManager are read on the UI thread.
     @Volatile private var cached = "{\"version\":1,\"status\":\"pending\",\"active\":false,\"confirmed\":false}"
-    private val consumer = Consumer<WindowLayoutInfo> { info ->
-        if (started && !destroyed) {
-            status = "available"
-            feature = info.displayFeatures.filterIsInstance<FoldingFeature>().firstOrNull { fold ->
-                val r = fold.bounds
-                r.left >= 0 && r.top >= 0 && r.width() >= 0 && r.height() >= 0 &&
-                    (r.width() > 0 || r.height() > 0)
-            }
-            if (feature != null) confirmed = true
-            publish()
+    private fun acceptLayout(info: WindowLayoutInfo) {
+        status = "available"
+        feature = info.displayFeatures.filterIsInstance<FoldingFeature>().firstOrNull { fold ->
+            val r = fold.bounds
+            r.left >= 0 && r.top >= 0 && r.width() >= 0 && r.height() >= 0 &&
+                (r.width() > 0 || r.height() > 0)
         }
+        if (feature != null) confirmed = true
+        publish()
     }
     private val layoutListener = View.OnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> publish() }
     private val globalLayoutListener = android.view.ViewTreeObserver.OnGlobalLayoutListener { publish() }
@@ -75,11 +75,18 @@ class FoldPostureBridge internal constructor(
         status = "pending"
         feature = null
         publish()
+        val token = ++generation
+        val listener = Consumer<WindowLayoutInfo> { info ->
+            if (started && !destroyed && token == generation) acceptLayout(info)
+        }
+        consumer = listener
         try {
-            source.start(consumer)
+            source.start(listener)
         } catch (_: Exception) {
             // Unsupported OEM extensions must not prevent the editor opening.
-            try { source.stop(consumer) } catch (_: Exception) { /* optional source */ }
+            generation++
+            consumer = null
+            try { source.stop(listener) } catch (_: Exception) { /* optional source */ }
             status = "unavailable"
             publish()
         }
@@ -87,7 +94,12 @@ class FoldPostureBridge internal constructor(
 
     override fun onStop(owner: LifecycleOwner) {
         started = false
-        try { source.stop(consumer) } catch (_: Exception) { /* already detached */ }
+        generation++
+        val listener = consumer
+        consumer = null
+        if (listener != null) {
+            try { source.stop(listener) } catch (_: Exception) { /* already detached */ }
+        }
         feature = null
         status = "pending"
         publish()

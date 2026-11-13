@@ -191,7 +191,8 @@ still require the native work and device validation listed above.
 `FoldPostureBridge.kt` observes Jetpack WindowManager 1.3.0 for each Activity's
 WebView. Both MainActivity and the extra WindowActivities attach it through
 Wry's `onWebViewCreate` hook. The adapter registers at Activity STARTED, removes
-its callback at STOPPED, ignores late callbacks, and removes the read-only
+its callback at STOPPED, rejects callbacks from previous registrations even
+after a new STARTED session, and removes the read-only
 JavaScript interface and view listeners at destruction. It does not replace
 Tauri's WebViewClient, add a permission, poll, or retain Activity references in
 static state. A missing/failing OEM extension leaves the browser/size fallback.
@@ -226,7 +227,8 @@ gradle -p test-script/android-fold testDebugUnitTest --no-daemon
 ```
 
 The focused Android library compiles the real tracked Kotlin sources against
-Android/AndroidX. Its TauriActivity stand-in supplies Wry's Activity inheritance
+Android/AndroidX using Tauri's Kotlin 1.9.25 compiler and JVM 1.8 target.
+Its TauriActivity stand-in supplies Wry's Activity inheritance
 and public hook without starting Rust; it is not packaged into the app.
 Robolectric tests exercise API 28 and 35 lifecycle, geometry snapshots, retained
 capability, window isolation, invalid features and OEM failure. The separate

@@ -514,10 +514,11 @@ class MenuKeyboard(unittest.TestCase):
     def test_locale_change_and_removed_plugin_recover_focus(self):
         self.fixture()
         self.page.evaluate("testRegistry.unregister('keyboard-fixture')")
-        self.assertTrue(self.page.locator(":focus").is_visible())
-        self.assertTrue(
-            self.page.locator(":focus").evaluate("el=>!!el.closest('[role=menu]')")
-        )
+        # Wait for React's removal commit before Escape closes the root menu.
+        expect(self.row("Keyboard fixture")).to_have_count(0)
+        expect(
+            self.page.locator('[role="menu"]:visible [role="menuitem"]:focus')
+        ).to_have_count(1)
         self.press("Escape")
         expect(self.row("Tools")).to_be_focused()
         self.open("View")

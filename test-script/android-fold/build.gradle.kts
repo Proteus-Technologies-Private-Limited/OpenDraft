@@ -1,6 +1,7 @@
 plugins {
     id("com.android.library") version "8.9.1"
-    id("org.jetbrains.kotlin.android") version "2.1.20"
+    // Match the compiler in Tauri's Android project template.
+    id("org.jetbrains.kotlin.android") version "1.9.25"
 }
 
 android {
@@ -9,12 +10,12 @@ android {
     defaultConfig { minSdk = 26 }
     sourceSets["main"].java.srcDir("../../src-tauri/android-src")
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
     }
+    kotlinOptions { jvmTarget = "1.8" }
     testOptions.unitTests.isIncludeAndroidResources = true
 }
-kotlin { compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) } }
 dependencies {
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("androidx.activity:activity:1.9.3")

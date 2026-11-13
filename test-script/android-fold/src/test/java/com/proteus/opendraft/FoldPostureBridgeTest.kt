@@ -68,6 +68,7 @@ class FoldPostureBridgeTest {
         assertEquals(1, source.starts)
         source.emit(Fold())
         assertTrue(JSONObject(bridge.snapshot()).getBoolean("confirmed"))
+        val previousRegistration = source.callback!!
         controller.pause().stop()
         assertEquals(1, source.stops)
         val stopped = bridge.snapshot()
@@ -78,6 +79,9 @@ class FoldPostureBridgeTest {
         controller.restart().start().resume()
         assertEquals(2, source.starts)
         assertTrue(JSONObject(bridge.snapshot()).getBoolean("confirmed"))
+        val resumed = bridge.snapshot()
+        previousRegistration.accept(WindowLayoutInfo(listOf(Fold())))
+        assertEquals(resumed, bridge.snapshot())
         controller.pause().stop().destroy()
         assertNull(shadowOf(view).getJavascriptInterface(FoldPostureBridge.INTERFACE))
         val destroyed = bridge.snapshot()
