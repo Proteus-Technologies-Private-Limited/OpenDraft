@@ -31,3 +31,10 @@ and checked/unchecked options. Test touch/hover switching after keyboard use.
 Chromium checks do not replace physical WebView or screen-reader testing.
 VoiceOver on macOS/iOS and NVDA on Windows remain manual validation; no physical
 Mac or iPhone was available for this change.
+
+Plugin-removal checks wait for the removed row to leave the DOM and for focus
+to reach the surviving menu before sending Escape. Registry changes schedule
+a React commit; an Escape delivered before that commit correctly closes the
+old submenu first. A focus-event trace reproduced this ordering once in 35
+attempts on unchanged main. The check uses observable DOM/focus conditions,
+not a delay or an increased assertion timeout.
