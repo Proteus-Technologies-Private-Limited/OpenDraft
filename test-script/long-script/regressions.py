@@ -120,8 +120,14 @@ class LongScript(unittest.TestCase):
             window.closeUndoGroup=(await import('/src/test/fixtures/browserActions.ts')).closeUndoGroup;
             closeUndoGroup(testEditor);
         }""")
-        self.page.keyboard.type(" undo probe")
-        self.page.wait_for_function("!testEditor.state.doc.eq(beforeLong)")
+        probe = " undo probe"
+        self.page.keyboard.type(probe)
+        # WebKit may still be flushing input mutations after keyboard.type.
+        # Undo only once the entire probe has reached the document model.
+        self.page.wait_for_function(
+            "testEditor.state.doc.content.size===beforeLong.content.size+"
+            + str(len(probe))
+        )
         modifier = (
             "Meta"
             if self.page.evaluate("/Mac/i.test(navigator.platform)")
