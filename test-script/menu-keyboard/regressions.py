@@ -188,6 +188,7 @@ class MenuKeyboard(unittest.TestCase):
         self.press("k")
         expect(self.row("Keyboard fixture")).to_be_focused()
         self.press("ArrowRight")
+        expect(self.row("Disabled action")).to_be_focused()
 
     def test_entry_roving_wrap_home_end_and_f10_return(self):
         self.press("F10")
@@ -271,8 +272,11 @@ class MenuKeyboard(unittest.TestCase):
         self.press("Escape")
         self.fixture()
         self.press("End")
+        expect(self.row("Deeper menu")).to_be_focused()
         self.press("ArrowRight")
+        expect(self.row("Further menu")).to_be_focused()
         self.press("ArrowRight")
+        expect(self.row("Final action")).to_be_focused()
         expect(self.row("Checked fixture", "menuitemcheckbox")).to_have_attribute(
             "aria-checked", "true"
         )
