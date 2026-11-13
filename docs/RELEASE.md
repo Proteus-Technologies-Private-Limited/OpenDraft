@@ -35,7 +35,7 @@ only matters somewhere, or to keep a build out of Apple and Google review.
   did not skip that platform, so it does not wait on stores for a build never
   submitted.
 
-**Before running**, manually update the "What's New" content (step 3 below) since that requires writing the changelog for the new version.
+**Before running**, manually update the "What's New" content (step 3 below) since that requires writing the changelog for the new version. The script refuses to start without it, because the GitHub release page is written from it.
 
 **What the script does:**
 1. Updates version in all source files (tauri.conf.json, Cargo.toml, main.py, MenuBar.tsx, README, workflow, user manual)
@@ -185,7 +185,6 @@ Two constraints on the number you pick:
 | 3 | `backend/app/main.py` | Three occurrences of `version="X.Y.Z"` (FastAPI app + two health endpoints) |
 | 4 | `frontend/src/components/MenuBar.tsx` | `Version X.Y.Z` in the About dialog |
 | 5 | `README.md` | Download link filenames (`.dmg`, `.exe`, `.msi`, `.deb`, `.AppImage`, `.rpm`) |
-| 6 | `.github/workflows/release.yml` | Release body download table filenames |
 
 After updating Cargo.toml, run `cargo generate-lockfile` in `src-tauri/` to sync `Cargo.lock`.
 
@@ -252,12 +251,24 @@ This triggers the GitHub Actions workflow (`.github/workflows/release.yml`) whic
 
 Wait for the workflow to complete successfully. Verify all platform assets are present on the release.
 
+The release page's description is written by the `publish-release` job just
+before it publishes: this version's What's New from `MenuBar.tsx` (converted
+by `.github/scripts/release-notes.py`), then a download table of the files
+actually on the release. Nothing has to be pasted into GitHub. To correct a
+published page, fix the What's New on `main` and run the **Rewrite release
+notes** workflow (`release-notes.yml`) with the tag. To preview a page locally:
+
+```bash
+python3 .github/scripts/release-notes.py X.Y.Z --notes-only
+```
+
 ### 7. Post-release verification
 
 - [ ] Download link from README works for each platform
 - [ ] User manual "Download" header link goes to the release page
 - [ ] User manual installation page links to the latest release
 - [ ] About dialog in the app shows the new version and correct "What's New"
+- [ ] The GitHub release page shows the same What's New and a download row per platform
 - [ ] open-draft.com updated (next section)
 
 ### 8. Update the server (open-draft.com)
@@ -300,5 +311,4 @@ user-manual/index.html             # What's New + footer
 user-manual/search.js              # search index
 user-manual/*.html                 # footer version (all pages)
 README.md                          # download link filenames
-.github/workflows/release.yml      # release body filenames
 ```

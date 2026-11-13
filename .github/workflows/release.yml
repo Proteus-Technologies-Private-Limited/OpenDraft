@@ -278,46 +278,11 @@ jobs:
           tauriScript: npx --prefix frontend tauri
           tagName: ${{ env.RELEASE_TAG }}
           releaseName: 'OpenDraft ${{ env.RELEASE_TAG }}'
-          releaseBody: |
-            ## OpenDraft ${{ env.RELEASE_TAG }}
-
-            A free, open-source screenwriting application. Professional screenplay editing with real-time collaboration — no subscription required.
-
-            ### Download for your platform
-
-            | Platform | File |
-            |----------|------|
-            | **macOS** (Apple Silicon) | `OpenDraft_${{ steps.get_version.outputs.VERSION }}_aarch64.dmg` |
-            | **Windows** (64-bit) | `OpenDraft_${{ steps.get_version.outputs.VERSION }}_x64-setup.exe` or `.msi` |
-            | **Linux** (Debian/Ubuntu) | `OpenDraft_${{ steps.get_version.outputs.VERSION }}_amd64.deb` |
-            | **Linux** (AppImage) | `OpenDraft_${{ steps.get_version.outputs.VERSION }}_amd64.AppImage` |
-            | **Android** (APK) | `OpenDraft_${{ steps.get_version.outputs.VERSION }}_android.apk` |
-            | **iOS** (IPA) | `OpenDraft_${{ steps.get_version.outputs.VERSION }}_ios.ipa` |
-
-            ### Installation
-
-            **macOS:** Open the `.dmg`, drag OpenDraft to Applications, double-click to launch.
-
-            > First launch: Right-click the app, select Open, click Open in the dialog. You only need to do this once.
-
-            **Windows:** Run the `.msi` or `.exe` installer, follow the prompts.
-            **Linux:** Install the `.deb` with `sudo dpkg -i OpenDraft_*.deb` or run the `.AppImage` directly.
-            **Android:** Download the `.apk` file on your device, enable "Install from unknown sources" if prompted, and install.
-            **iOS:** Available on the App Store (search "OpenDraft"), or sideload the `.ipa` via Finder/iTunes.
-
-            > The desktop app is fully standalone — no Python, Node.js, or internet connection required after installation.
-
-            ---
-
-            ### Run in browser (self-hosted)
-
-            ```
-            git clone https://github.com/Proteus-Technologies-Private-Limited/OpenDraft.git
-            cd OpenDraft
-            ./setup.sh
-            ```
-
-            See [INSTALLATION.md](https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/blob/main/docs/INSTALLATION.md) for details.
+          # Only a placeholder: whichever job reaches GitHub first creates the
+          # draft, and most create it with no description at all. The
+          # publish-release job writes the real one, from What's New and the
+          # files actually attached, just before it publishes.
+          releaseBody: 'Release notes are added when the release is published.'
           releaseDraft: true
           prerelease: false
           includeUpdaterJson: false
@@ -332,7 +297,7 @@ jobs:
           tauriScript: npx --prefix frontend tauri
           tagName: ${{ env.RELEASE_TAG }}
           releaseName: 'OpenDraft ${{ env.RELEASE_TAG }}'
-          releaseBody: ''
+          releaseBody: 'Release notes are added when the release is published.'
           releaseDraft: true
           prerelease: false
           includeUpdaterJson: false
@@ -2035,6 +2000,27 @@ jobs:
           fi
 
           echo "All expected assets verified."
+
+      # The release page's description: this version's What's New from the
+      # About dialog, then a download table of the files actually on the
+      # release (a platform left out of this release keeps the earlier
+      # version's files, and the table names those). Written here, not when
+      # the draft is created, because the jobs race to create it and most leave
+      # the description empty. release.sh already refused to tag a version
+      # with no What's New, so --allow-missing only matters on a manual re-run.
+      - name: Write the release notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh release view "${{ env.RELEASE_TAG }}" --repo "${{ github.repository }}" \
+            --json assets -q '.assets[].name' > "$RUNNER_TEMP/assets.txt"
+          python3 .github/scripts/release-notes.py "${{ steps.version.outputs.VERSION }}" \
+            --assets "$RUNNER_TEMP/assets.txt" --repo "${{ github.repository }}" \
+            --allow-missing > "$RUNNER_TEMP/release-notes.md"
+          gh release edit "${{ env.RELEASE_TAG }}" --repo "${{ github.repository }}" \
+            --notes-file "$RUNNER_TEMP/release-notes.md"
+          cat "$RUNNER_TEMP/release-notes.md" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Publish release (remove draft status)
         env:

@@ -80,6 +80,15 @@ echo "Current version: ${OLD_VERSION}"
 echo "New version:     ${NEW_VERSION}"
 echo ""
 
+# The GitHub release page is written from this version's What's New in the
+# About dialog (publish-release in release.yml). Without one the page would
+# carry the downloads alone, so stop before anything is tagged.
+if ! python3 "$PROJECT_ROOT/.github/scripts/release-notes.py" "$NEW_VERSION" --check; then
+  echo "Error: write the What's New for v${NEW_VERSION} in frontend/src/components/MenuBar.tsx"
+  echo "       first (docs/RELEASE.md step 3). The GitHub release notes are made from it."
+  exit 1
+fi
+
 # ── Step 1: Create release branch and update versions ───────────────────────
 echo "=== Step 1/4: Updating version numbers ==="
 
