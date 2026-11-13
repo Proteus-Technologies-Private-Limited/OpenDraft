@@ -56,6 +56,16 @@ class MenuKeyboard(unittest.TestCase):
             "http://127.0.0.1:8008/api/formatting-templates/",
             lambda route: route.fulfill(json=[]),
         )
+        self.page.route(
+            "http://127.0.0.1:8008/api/auth/config",
+            lambda route: route.fulfill(
+                json={
+                    "googleEnabled": False,
+                    "emailVerificationRequired": False,
+                    "smtpConfigured": False,
+                }
+            ),
+        )
         if missing_segmenter:
             self.page.add_init_script("delete Intl.Segmenter")
         if platform:
