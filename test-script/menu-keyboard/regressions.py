@@ -46,6 +46,16 @@ class MenuKeyboard(unittest.TestCase):
         self.page = self.browser.new_page(viewport={"width": 1440, "height": 1000})
         self.errors = []
         self.page.on("pageerror", lambda error: self.errors.append(str(error)))
+        # These signed-out startup reads need no backend for browser UI tests.
+        # Fulfil them rather than hiding WebKit's network page errors in CI.
+        self.page.route(
+            "http://127.0.0.1:8008/api/demo-info",
+            lambda route: route.fulfill(json={"demo": False, "message": None}),
+        )
+        self.page.route(
+            "http://127.0.0.1:8008/api/formatting-templates/",
+            lambda route: route.fulfill(json=[]),
+        )
         if missing_segmenter:
             self.page.add_init_script("delete Intl.Segmenter")
         if platform:

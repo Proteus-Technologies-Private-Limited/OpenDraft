@@ -13,6 +13,9 @@ uses Playwright's Linux WebKit build. Install that browser and its dependencies
 with `python -m playwright install --with-deps webkit`. CDP foldable emulation
 requires Chromium. It creates an isolated browser context for each case and
 uses synthetic script text and a temporary plugin with four menu levels.
+The shared fixture fulfils the default local backend's demo-mode and formatting-
+template startup reads with non-demo/empty responses. These UI suites run without
+a backend; unexpected page errors still fail, including other network failures.
 
 The sixteen cases cover roving focus, wrapping, Home/End, repeated-letter search,
 focusable but inert disabled items and separators, nested Escape/arrow handling, single activation,
