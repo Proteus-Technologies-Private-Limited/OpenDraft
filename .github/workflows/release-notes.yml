@@ -1,0 +1,59 @@
+name: Rewrite release notes
+
+# Rewrites the description of existing GitHub releases from the What's New list
+# in the About dialog (frontend/src/components/MenuBar.tsx on main) and the
+# files attached to each release, with .github/scripts/release-notes.py: the
+# same thing release.yml does just before it publishes a release.
+#
+# Use it to fill in releases published with an empty or generic description
+# (v2.8.2 to v2.12.0 were, issue #255), or to pick up a correction to a
+# version's What's New after it shipped. Only the description changes:
+# assets, title, tag and draft state are left alone.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tags:
+        description: 'Release tags to rewrite, space-separated, e.g. "v2.11.0 v2.12.0"'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  rewrite:
+    runs-on: ubuntu-latest
+    name: Rewrite release notes
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+
+      - name: Rewrite each release's description
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          TAGS: ${{ inputs.tags }}
+        run: |
+          set -euo pipefail
+          failed=0
+          for tag in $TAGS; do
+            case "$tag" in v[0-9]*.[0-9]*.[0-9]*) ;; *)
+              echo "::error::'$tag' is not a release tag like v2.12.0"; failed=1; continue ;;
+            esac
+            echo "── $tag"
+            if ! gh release view "$tag" --repo "$REPO" --json assets -q '.assets[].name' > "$RUNNER_TEMP/assets.txt"; then
+              echo "::error::no release for $tag"; failed=1; continue
+            fi
+            # No --allow-missing: a version with no What's New should be fixed
+            # in MenuBar.tsx, not given a page with downloads only.
+            if ! python3 .github/scripts/release-notes.py "$tag" --assets "$RUNNER_TEMP/assets.txt" \
+                --repo "$REPO" > "$RUNNER_TEMP/notes.md"; then
+              failed=1; continue
+            fi
+            gh release edit "$tag" --repo "$REPO" --notes-file "$RUNNER_TEMP/notes.md"
+            { echo "## $tag"; echo; cat "$RUNNER_TEMP/notes.md"; echo; } >> "$GITHUB_STEP_SUMMARY"
+            echo "   rewritten"
+          done
+          exit "$failed"

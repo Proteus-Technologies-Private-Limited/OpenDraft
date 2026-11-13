@@ -51,6 +51,18 @@ jobs:
         working-directory: .
         run: node test-script/i18n_scan_literals.mjs --max 0
 
+      # The GitHub release page is written from the About dialog's What's New
+      # (.github/scripts/release-notes.py). Every version must still convert,
+      # so markup the converter does not know fails here rather than while a
+      # release is being published.
+      - name: What's New converts to release notes
+        working-directory: .
+        run: |
+          set -euo pipefail
+          versions=$(grep -o 'about-subsection-title">v[0-9.]*' frontend/src/components/MenuBar.tsx | sed 's/.*">v//')
+          test -n "$versions"
+          for v in $versions; do python3 .github/scripts/release-notes.py "$v" --check; done
+
       - name: Build
         run: npm run build
 
