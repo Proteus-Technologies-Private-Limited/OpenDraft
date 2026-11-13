@@ -78,6 +78,13 @@ export async function collectDiagnostics(): Promise<DiagnosticsReport> {
   }
 
   const oneDriveSuspect = /Windows/i.test(os) && isUnderOneDrive(appDataDir);
+  let display: FoldDiagnostics | null = null;
+  try {
+    display = collectFoldDiagnostics();
+  } catch {
+    // Optional browser geometry must not prevent storage/save diagnostics.
+    // Exception text may contain private data, so do not copy or log it.
+  }
 
   return {
     appVersion: await readAppVersion(),
@@ -96,7 +103,7 @@ export async function collectDiagnostics(): Promise<DiagnosticsReport> {
       errorReason: e.errorReason,
     })),
     collectedAt: new Date().toISOString(),
-    display: collectFoldDiagnostics(),
+    display,
   };
 }
 
