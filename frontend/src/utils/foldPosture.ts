@@ -1,6 +1,7 @@
 /** Fold signals use layout-viewport CSS pixels, never visual-viewport height
  * (which also changes when a keyboard opens). API presence alone does not
  * identify a foldable: ordinary Chrome exposes Device Posture too. */
+import { ANDROID_FOLD_CHANGE_EVENT, androidFoldGeometry, readAndroidFoldSnapshot } from './androidFoldPosture';
 export interface FoldState {
   size: 'phone' | 'wide';
   fold: 'flat' | 'laptop' | 'book';
@@ -48,10 +49,21 @@ export function getFoldState(): FoldState {
   const size = coarse && Math.min(window.innerWidth, window.innerHeight) < 600 ? 'phone' : 'wide';
   // Chrome 138 ships window.viewport. Older origin-trial builds used
   // visualViewport.segments; keep that fallback without requiring either API.
-  const viewport = (window as Window & { viewport?: SegmentViewport }).viewport;
-  const segments = viewport?.segments ?? (window.visualViewport as (VisualViewport & SegmentViewport) | null)?.segments ?? [];
-  const geometry = foldFromSegments(segments, (navigator as PostureNavigator).devicePosture?.type === 'folded');
+  let geometry: Pick<FoldState, 'fold' | 'foldRect'> = { fold: 'flat', foldRect: null };
+  const native = readAndroidFoldSnapshot();
+  try {
+    const viewport = (window as Window & { viewport?: SegmentViewport }).viewport;
+    const segments = viewport?.segments ?? (window.visualViewport as (VisualViewport & SegmentViewport) | null)?.segments ?? [];
+    const posture = (navigator as PostureNavigator).devicePosture?.type;
+    const folded = posture === 'folded' || (posture !== 'continuous' && native?.active
+      && native.status === 'available' && native.feature?.folded === true);
+    geometry = foldFromSegments(segments, !!folded);
+  } catch { /* An experimental API failure must not mask the native fallback. */ }
   if (geometry.foldRect) rememberFoldable();
+  // Native evidence is scoped to this Activity, including an observed feature
+  // retained after folding to the cover. Browser segments keep precedence.
+  if (native?.confirmed) rememberFoldable();
+  if (!geometry.foldRect && native) return { size, ...androidFoldGeometry(native, window.innerWidth, window.innerHeight) };
   return { size, ...geometry };
 }
 
@@ -88,9 +100,13 @@ export function watchFoldPosture(onChange: (state: FoldState) => void): () => vo
     window.dispatchEvent(new CustomEvent(FOLD_CHANGE_EVENT, { detail: state }));
   };
   const schedule = () => { clearTimeout(timer); timer = setTimeout(apply, 150); };
-  const posture = (navigator as PostureNavigator).devicePosture;
+  let posture: PostureNavigator['devicePosture'];
+  try { posture = (navigator as PostureNavigator).devicePosture; } catch { /* optional API */ }
   window.addEventListener('resize', schedule);
   window.addEventListener('orientationchange', schedule);
+  window.addEventListener(ANDROID_FOLD_CHANGE_EVENT, schedule);
+  // Refresh on foregrounding even if a notification arrived while paused.
+  document.addEventListener?.('visibilitychange', schedule);
   window.visualViewport?.addEventListener('resize', schedule);
   posture?.addEventListener('change', schedule);
   const queries = ['(pointer: coarse)', '(horizontal-viewport-segments: 2)', '(vertical-viewport-segments: 2)'].map(query => window.matchMedia?.(query));
@@ -103,6 +119,8 @@ export function watchFoldPosture(onChange: (state: FoldState) => void): () => vo
     clearTimeout(timer);
     window.removeEventListener('resize', schedule);
     window.removeEventListener('orientationchange', schedule);
+    window.removeEventListener(ANDROID_FOLD_CHANGE_EVENT, schedule);
+    document.removeEventListener?.('visibilitychange', schedule);
     window.visualViewport?.removeEventListener('resize', schedule);
     posture?.removeEventListener('change', schedule);
     queries.forEach(query => {

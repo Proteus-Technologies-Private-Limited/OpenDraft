@@ -28,6 +28,7 @@ import re
 import shutil
 import sys
 from pathlib import Path
+from android_fold_build import patch_fold_bridge
 
 ROOT = Path(__file__).resolve().parent.parent
 GEN = ROOT / "src-tauri/gen/android"
@@ -142,6 +143,7 @@ if __name__ == "__main__":
     if not GEN.exists():
         sys.exit("src-tauri/gen/android does not exist — run `tauri android init` first")
     copy_sources()
+    patch_fold_bridge(GEN, SRC)
     patch_manifest()
     patch_tts_query()
     patch_locale_config()

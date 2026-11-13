@@ -470,6 +470,7 @@ jobs:
           # ProGuard keep rules for JNI-called classes (R8 can't trace JNI reflection)
           cp src-tauri/android-src/jni-keep-rules.pro src-tauri/gen/android/app/jni-keep-rules.pro
           echo "JNI ProGuard rules copied"
+          python3 test-script/android_fold_build.py
 
       - name: Add file association intent-filters to AndroidManifest.xml
         run: |

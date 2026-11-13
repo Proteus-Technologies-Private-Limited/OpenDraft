@@ -1,0 +1,140 @@
+package com.proteus.opendraft
+
+import android.webkit.JavascriptInterface
+import android.webkit.WebView
+import android.view.View
+import androidx.activity.ComponentActivity
+import androidx.annotation.Keep
+import androidx.core.content.ContextCompat
+import androidx.core.util.Consumer
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
+import androidx.window.java.layout.WindowInfoTrackerCallbackAdapter
+import androidx.window.layout.FoldingFeature
+import androidx.window.layout.WindowInfoTracker
+import androidx.window.layout.WindowLayoutInfo
+import org.json.JSONObject
+
+/** Per-Activity geometry only. No script data, permissions or global device flag. */
+@Keep
+class FoldPostureBridge internal constructor(
+    private val activity: ComponentActivity,
+    private val webView: WebView,
+    private val source: LayoutSource,
+) : DefaultLifecycleObserver {
+    internal interface LayoutSource {
+        fun start(consumer: Consumer<WindowLayoutInfo>)
+        fun stop(consumer: Consumer<WindowLayoutInfo>)
+    }
+
+    private class JetpackSource(private val activity: ComponentActivity) : LayoutSource {
+        private val tracker = WindowInfoTrackerCallbackAdapter(WindowInfoTracker.getOrCreate(activity))
+        override fun start(consumer: Consumer<WindowLayoutInfo>) =
+            tracker.addWindowLayoutInfoListener(activity, ContextCompat.getMainExecutor(activity), consumer)
+        override fun stop(consumer: Consumer<WindowLayoutInfo>) = tracker.removeWindowLayoutInfoListener(consumer)
+    }
+
+    private var confirmed = false
+    private var started = false
+    private var destroyed = false
+    private var status = "pending"
+    private var feature: FoldingFeature? = null
+    // JavaScript interfaces run on a WebView thread. Only this immutable copy
+    // crosses threads; Android views and WindowManager are read on the UI thread.
+    @Volatile private var cached = "{\"version\":1,\"status\":\"pending\",\"active\":false,\"confirmed\":false}"
+    private val consumer = Consumer<WindowLayoutInfo> { info ->
+        if (started && !destroyed) {
+            status = "available"
+            feature = info.displayFeatures.filterIsInstance<FoldingFeature>().firstOrNull { fold ->
+                val r = fold.bounds
+                r.left >= 0 && r.top >= 0 && r.width() >= 0 && r.height() >= 0 &&
+                    (r.width() > 0 || r.height() > 0)
+            }
+            if (feature != null) confirmed = true
+            publish()
+        }
+    }
+    private val layoutListener = View.OnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> publish() }
+    private val globalLayoutListener = android.view.ViewTreeObserver.OnGlobalLayoutListener { publish() }
+
+    init {
+        webView.addJavascriptInterface(this, INTERFACE)
+        // Global layout also catches a WebView moving within its window without
+        // changing size. Feature bounds are window pixels, not screen pixels/dp.
+        webView.addOnLayoutChangeListener(layoutListener)
+        webView.viewTreeObserver.addOnGlobalLayoutListener(globalLayoutListener)
+        activity.lifecycle.addObserver(this)
+    }
+
+    @JavascriptInterface
+    fun snapshot(): String = cached
+
+    override fun onStart(owner: LifecycleOwner) {
+        if (destroyed || started) return
+        started = true
+        status = "pending"
+        feature = null
+        publish()
+        try {
+            source.start(consumer)
+        } catch (_: Exception) {
+            // Unsupported OEM extensions must not prevent the editor opening.
+            try { source.stop(consumer) } catch (_: Exception) { /* optional source */ }
+            status = "unavailable"
+            publish()
+        }
+    }
+
+    override fun onStop(owner: LifecycleOwner) {
+        started = false
+        try { source.stop(consumer) } catch (_: Exception) { /* already detached */ }
+        feature = null
+        status = "pending"
+        publish()
+    }
+
+    override fun onDestroy(owner: LifecycleOwner) {
+        onStop(owner)
+        destroyed = true
+        webView.removeOnLayoutChangeListener(layoutListener)
+        if (webView.viewTreeObserver.isAlive) webView.viewTreeObserver.removeOnGlobalLayoutListener(globalLayoutListener)
+        webView.removeJavascriptInterface(INTERFACE)
+        activity.lifecycle.removeObserver(this)
+    }
+
+    private fun publish() {
+        if (destroyed) return
+        val location = IntArray(2)
+        webView.getLocationInWindow(location)
+        val geometry = feature?.let { fold ->
+            val r = fold.bounds
+            JSONObject().put("left", r.left).put("top", r.top)
+                .put("width", r.width()).put("height", r.height())
+                .put("orientation", if (fold.orientation == FoldingFeature.Orientation.HORIZONTAL) "horizontal" else "vertical")
+                .put("folded", fold.state == FoldingFeature.State.HALF_OPENED)
+        }
+        val next = JSONObject().put("version", 1).put("status", status)
+            .put("active", started).put("confirmed", confirmed)
+            .put("webView", JSONObject().put("left", location[0]).put("top", location[1])
+                .put("width", webView.width).put("height", webView.height))
+            .put("feature", geometry ?: JSONObject.NULL).toString()
+        if (next == cached) return
+        cached = next
+        // A payload-free notification: the document pulls the latest snapshot,
+        // including on first load. Never replace Tauri's WebViewClient or bridge.
+        try {
+            webView.evaluateJavascript("window.dispatchEvent(new Event('$EVENT'))", null)
+        } catch (_: IllegalStateException) { /* WebView teardown; startup/resume pulls the snapshot. */ }
+    }
+
+    companion object {
+        const val INTERFACE = "OpenDraftAndroidFold"
+        const val EVENT = "opendraft:androidfoldchange"
+
+        fun attach(activity: ComponentActivity, webView: WebView): FoldPostureBridge? = try {
+            FoldPostureBridge(activity, webView, JetpackSource(activity))
+        } catch (_: Exception) {
+            null // The existing browser/size detector remains the fallback.
+        }
+    }
+}

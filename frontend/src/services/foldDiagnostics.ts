@@ -1,4 +1,5 @@
 import { isFoldableDevice } from '../utils/foldPosture';
+import { readAndroidFoldSnapshot, type AndroidFoldSnapshot } from '../utils/androidFoldPosture';
 
 type Status = 'available' | 'unsupported' | 'error' | 'invalid';
 interface Probe { status: Status; value?: unknown }
@@ -11,6 +12,7 @@ export interface FoldDiagnostics {
   windowSegments: Segments;
   legacySegments: Segments;
   devicePosture: { status: Status; value: 'continuous' | 'folded' | 'unrecognized' | null };
+  nativeAndroid: AndroidFoldSnapshot | null;
   applied: {
     confirmed: boolean;
     foldableClass: boolean;
@@ -77,6 +79,7 @@ export function collectFoldDiagnostics(): FoldDiagnostics | null {
   const pointer = probe(() => window.matchMedia?.('(pointer: coarse)').matches);
   return {
     kind: 'browser-snapshot',
+    nativeAndroid: readAndroidFoldSnapshot(),
     // Match the detector's nullish precedence, including an empty current list.
     segmentsSource: current.status === 'error' ? 'unreadable'
       : current.status === 'available' ? 'window.viewport.segments'
