@@ -175,3 +175,9 @@ the baseline menu implementation and the extended #253 suite. Integration with
 #253 is validated in a temporary checkout; its commits are not bundled here.
 Native keyboard/IME, physical touch, screen readers, Pencil and background audio
 still require the native work and device validation listed above.
+
+The display snapshot is optional even if an unexpected error escapes its
+individual API probes. Diagnostics then omits that section and still opens and
+copies its version, storage and file-save information. The exception text is not
+logged or added to the report. Unit fault injection and a Chromium check that
+throws during crease-style reading cover this fallback.
