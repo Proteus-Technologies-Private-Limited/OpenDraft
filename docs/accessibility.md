@@ -56,7 +56,7 @@ then run Vite in a separate terminal:
 ```sh
 npm ci --prefix frontend
 python -m pip install playwright==1.62.0
-python -m playwright install chromium
+python -m playwright install --with-deps chromium webkit
 npm run dev --prefix frontend -- --host 127.0.0.1 --port 5173
 ```
 
@@ -64,26 +64,48 @@ Run the browser checks:
 
 ```sh
 OPENDRAFT_TEST_URL=http://127.0.0.1:5173/ python test-script/accessibility/regressions.py
+OPENDRAFT_BROWSER=webkit OPENDRAFT_TEST_URL=http://127.0.0.1:5173/ python test-script/accessibility/regressions.py
 ```
 
 `OPENDRAFT_CHROMIUM` optionally selects a Chromium executable. Otherwise the
 suite uses system Chromium when available, then Playwright's bundled Chromium.
-All script text and notifications are synthetic. `OPENDRAFT_A11Y_OUTPUT` selects
+`OPENDRAFT_BROWSER=webkit` uses Playwright's Linux WebKit build instead. CDP
+foldable emulation and the native AX shortcut-property assertion run only in
+Chromium; shortcut attributes, roles and radio behavior run in both engines. All script text and notifications are synthetic. `OPENDRAFT_A11Y_OUTPUT` selects
 the directory for axe JSON evidence; the default is a temporary directory.
 Reports retain the existing `meta-viewport` violation, explicitly recorded as
 `deferred` while viewport changes await phone/WebView validation. No rule is
 disabled; the regression assertion rejects every other violation and checks
 that the deferred finding targets only the viewport metadata.
 
-The suite uses real Chromium keyboard events and pinned axe-core 4.14.0 with
+The suite uses real Chromium and WebKit keyboard events and pinned axe-core 4.14.0 with
 WCAG 2 A/AA, 2.1 AA and 2.2 AA tags. It audits defined editor/dialog/popup states,
 including light/dark editor themes, Page Setup, Header & Footer, Diagnostics,
-grammar tabs, reports, Script Health, font/color popups and feedback. Additional
+grammar tabs, reports, Script Health, font/color popups and feedback. The
+signed-out Settings page (both themes), empty project list, New Project dialog,
+PDF export range/pick/watermark controls and PDF import preview are also audited.
+Import preview uses a synthetic parsed document; Cancel preserves the script,
+and exports are cancelled without writing a file. Additional
 checks cover nested scopes, unavailable native `inert`, busy dismissal guards,
 active-descendant targets, splitter values, plugin removal, reduced motion and
 forced colors. The 200% reflow check uses CSS zoom; it does not claim browser-UI
 zoom or physical-device validation. Existing menu and foldable browser suites
 provide the integration coverage for their own interactions.
+
+The accessibility workflow has independent Chromium/WebKit jobs and uploads
+engine-labelled axe evidence. Each runs 24 accessibility cases, 16 menu cases,
+and four long-script scenarios; Chromium also runs two foldable plugin cases.
+See [the long-script checks](../test-script/long-script/README.md) for the
+Navigator/spellcheck combinations. This adds Linux WebKit coverage, not native
+Fedora/WebKitGTK, Safari, GPU or system-keyboard validation.
+
+Settings URL fields, saving/invite selectors, project sorting/name and export
+fields use their existing translated labels. Primary Settings/project buttons
+use the contrast-tested action color. The import-preview listbox exposes active
+rows and selection itself, without nested focusable checkbox controls. Its
+visual marks retain pointer toggling. Arrows select, Home/End go to the ends,
+Ctrl/Meta+arrows move the active row without clearing a multiple selection, and
+Space (also Ctrl/Meta+Space) toggles that row. Shift+arrows and Ctrl/Meta+A retain their range/all behavior.
 
 The accessibility workflow runs without device credentials. An axe pass does
 not establish speech output, braille behavior, native WebView compatibility,
@@ -100,7 +122,8 @@ adding ARIA roles without their required behavior:
 - [w3c/aria-practices](https://github.com/w3c/aria-practices):
   [modal dialog](https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/),
   [tabs](https://www.w3.org/WAI/ARIA/apg/patterns/tabs/),
-  [combobox](https://www.w3.org/WAI/ARIA/apg/patterns/combobox/) and
+  [combobox](https://www.w3.org/WAI/ARIA/apg/patterns/combobox/),
+  [listbox](https://www.w3.org/WAI/ARIA/apg/patterns/listbox/) and
   [toolbar](https://www.w3.org/WAI/ARIA/apg/patterns/toolbar/) guidance.
 - [w3c-cg/aria-at](https://github.com/w3c-cg/aria-at): assistive-technology
   interoperability tests. Its initial scope is manual testing of desktop screen

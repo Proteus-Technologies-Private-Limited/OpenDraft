@@ -3211,7 +3211,7 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: var(--p
 }
 .dialog-btn:hover { background: var(--fd-toolbar-hover); }
 .dialog-btn-primary {
-  background: var(--fd-accent); border-color: var(--fd-accent); color: #fff;
+  background: var(--fd-action-bg); border-color: var(--fd-action-bg); color: #fff;
 }
 .dialog-btn-primary:hover { opacity: .9; }
 
@@ -8508,7 +8508,7 @@ body.selection-bands-active .page .ProseMirror::selection { background: transpar
 .project-new-btn {
   height: 36px;
   padding: 0 20px;
-  background: var(--fd-accent);
+  background: var(--fd-action-bg);
   color: #fff;
   border: none;
   border-radius: 6px;
@@ -14819,7 +14819,14 @@ html.phone .menu-bar.chrome-comfortable .menu-item { min-height: 46px; }
 .pdf-review-row:hover { background: var(--fd-overlay-light); }
 .pdf-review-row.selected { background: var(--fd-accent-bg, rgba(59,130,246,0.2)); }
 .pdf-review-row.locked { color: var(--fd-text-muted); }
-.pdf-review-row input[type="checkbox"] { margin: 0; flex-shrink: 0; }
+.pdf-review-checkbox {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; box-sizing: border-box; flex-shrink: 0;
+  border: 1px solid var(--fd-text-muted); border-radius: 3px;
+  font-size: 16px; line-height: 1; cursor: pointer;
+}
+.pdf-review-checkbox.is-checked { background: var(--fd-action-bg); color: #fff; border-color: var(--fd-action-bg); }
+.pdf-review-row.locked .pdf-review-checkbox { cursor: default; opacity: .5; }
 .pdf-review-scene { width: 2.5em; flex-shrink: 0; text-align: right; color: var(--fd-text-muted); font-variant-numeric: tabular-nums; }
 .pdf-review-type { width: 7.5em; flex-shrink: 0; font-size: 12px; color: var(--fd-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pdf-review-type-sceneHeading { color: var(--fd-text); font-weight: 600; }
@@ -14853,7 +14860,7 @@ html.phone .menu-bar.chrome-comfortable .menu-item { min-height: 46px; }
   .pdf-review-type { width: 6.5em; }
 }
 html.phone .pdf-review-row { font-size: 14px; gap: 10px; }
-html.phone .pdf-review-row input[type="checkbox"] { width: 20px; height: 20px; }
+html.phone .pdf-review-checkbox { width: 24px; height: 24px; }
 html.phone .pdf-review-toolbar .dialog-btn, html.phone .pdf-review-apply .dialog-btn,
 html.phone .pdf-review-filter .od-select, html.phone .pdf-review-settype .od-select { height: 40px; font-size: 15px; }
 /* ============ INLINE ELEMENT NUMBERS ============

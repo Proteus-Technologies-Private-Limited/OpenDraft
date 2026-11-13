@@ -636,6 +636,7 @@ const ProjectList: React.FC = () => {
         </div>
         <div className="project-list-controls">
           <Select
+            aria-label={t('open.sortLabel')}
             className="sort-select"
             value={sortKey}
             onChange={(e) => setSortKey(e.target.value as SortKey)}
@@ -787,8 +788,9 @@ const ProjectList: React.FC = () => {
             <div className="dialog-header">{t('list.newDialog.title')}</div>
             <div className="dialog-body">
               <div className="dialog-row">
-                <label>{t('list.newDialog.name')}</label>
+                <label htmlFor="new-project-name">{t('list.newDialog.name')}</label>
                 <input
+                  id="new-project-name"
                   type="text"
                   placeholder={t('list.newDialog.namePlaceholder')}
                   value={newProjectName}

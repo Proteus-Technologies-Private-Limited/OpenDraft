@@ -138,8 +138,9 @@ const SaveSettingsSection: React.FC = () => {
       )}
 
       <div className="settings-row">
-        <label>{t('saving.every')}</label>
+        <label htmlFor="settings-save-interval">{t('saving.every')}</label>
         <Select
+          id="settings-save-interval"
           className="dialog-input"
           value={autoSaveIntervalSeconds}
           disabled={!autoSaveLibrary && !(filesSupported && autoSaveFiles)}

@@ -7,8 +7,11 @@ and run from the repository root:
 OPENDRAFT_TEST_URL=http://127.0.0.1:5173 python test-script/menu-keyboard/regressions.py
 ```
 
-The harness uses `/usr/bin/chromium`; set `OPENDRAFT_CHROMIUM` to use another
-Chromium executable. It creates an isolated browser context for each case and
+The harness defaults to system Chromium when present, or Playwright Chromium;
+set `OPENDRAFT_CHROMIUM` to choose an executable. `OPENDRAFT_BROWSER=webkit`
+uses Playwright's Linux WebKit build. Install that browser and its dependencies
+with `python -m playwright install --with-deps webkit`. CDP foldable emulation
+requires Chromium. It creates an isolated browser context for each case and
 uses synthetic script text and a temporary plugin with four menu levels.
 
 The sixteen cases cover roving focus, wrapping, Home/End, repeated-letter search,
@@ -38,3 +41,12 @@ a React commit; an Escape delivered before that commit correctly closes the
 old submenu first. A focus-event trace reproduced this ordering once in 35
 attempts on unchanged main. The check uses observable DOM/focus conditions,
 not a delay or an increased assertion timeout.
+
+Synthetic editor setup uses synchronous view focus. Tiptap's queued focus can
+otherwise arrive after the next popup has opened, stealing its input focus in
+WebKit; browser-event traces cover that ordering.
+
+The native Chromium accessibility-tree assertion for shortcut exposure uses CDP
+and runs only there. Both engines still check shortcut attributes, accessible
+roles/names, radio grouping and all keyboard interactions. Playwright WebKit
+does not expose an equivalent native AX-tree API; no speech result is inferred.
