@@ -20,6 +20,7 @@ spec.loader.exec_module(fixture)
 class Accessibility(unittest.TestCase):
     # Reuse the existing synthetic script and Vite module fixtures, not real files.
     setUp = fixture.MenuKeyboard.setUp
+    start_page = fixture.MenuKeyboard.start_page
     tearDown = fixture.MenuKeyboard.tearDown
     open = fixture.MenuKeyboard.open
     row = fixture.MenuKeyboard.row
