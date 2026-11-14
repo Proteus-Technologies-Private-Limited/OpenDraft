@@ -165,7 +165,7 @@ function attach(editor: Editor) {
     if (anchor !== null) anchor = transaction.mapping.map(anchor);
     // A native queue is an immutable reading snapshot. Pause on edits rather
     // than highlighting obsolete positions or reading silently changed text.
-    if (nativeRead) {
+    if (nativeRead && (store().status === 'playing' || store().status === 'loading')) {
       void nativeRead.command('pause').catch(() => {});
       store().patch({ status: 'paused', word: null });
       highlight({ block: null, word: null });
@@ -198,7 +198,7 @@ function abortCurrent() {
 
 function syncNativeRead(state: BackgroundState) {
   const previous = store();
-  const status = state.status;
+  const status = stale && (state.status === 'playing' || state.status === 'loading') ? 'paused' : state.status;
   const index = Number.isInteger(state.index) ? state.index! : store().current;
   const line = store().lines[index];
   if (!line || index < 0 || index >= store().lines.length) return;

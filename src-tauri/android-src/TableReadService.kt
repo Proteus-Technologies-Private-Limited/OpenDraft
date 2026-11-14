@@ -286,7 +286,7 @@ class TableReadService : Service() {
                             cached = JSONObject(cached).put("status", "idle").toString()
                         }
                     }
-                    if (service?.playback?.owner == owner && service.playback.session == target) {
+                    if (service != null && service.playback.owner == owner && service.playback.session == target) {
                         service.control(action, request.optInt("index"))
                     }
                     }

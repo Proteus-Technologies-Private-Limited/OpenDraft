@@ -76,8 +76,11 @@ describe('Table Read native queue integration', () => {
   it('pauses on document edits and rebuilds the native snapshot on resume', async () => {
     player.play(editor, 0); await vi.advanceTimersByTimeAsync(0);
     transaction({ transaction: { docChanged: true, mapping: { map: pos => pos + 1 } } });
+    transaction({ transaction: { docChanged: true, mapping: { map: pos => pos + 1 } } });
+    transaction({ transaction: { docChanged: true, mapping: { map: pos => pos + 1 } } });
     await vi.advanceTimersByTimeAsync(0);
     expect(store.getState().status).toBe('paused');
+    expect(fixture.invoke.mock.calls.filter(([, args]) => args.request.action === 'pause')).toHaveLength(1);
     player.resume(); await vi.advanceTimersByTimeAsync(0);
     await vi.waitFor(() => expect(fixture.invoke.mock.calls.filter(([, args]) => args.request.action === 'start')).toHaveLength(2));
   });
