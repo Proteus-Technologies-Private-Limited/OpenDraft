@@ -1197,6 +1197,31 @@ jobs:
           # Fail now rather than ship a store build without the fold bridge.
           xcodebuild -showsdks | grep -q 'iphoneos27\.2' || { echo "::error::iOS 27.2 SDK missing from $XCODE"; exit 1; }
 
+      # Xcode 27's SwiftPM defaults to the new `swiftbuild` engine, which appends
+      # its own `-sdk MacOSX… -target arm64-apple-macos…` after the iOS flags
+      # swift-rs passes for Tauri's Swift package. The package then fails with
+      # "could not build module 'AppKit'/'UIKit'" (v2.13.0's first run). A
+      # `swift` first on PATH turns `swift build` into the native build system,
+      # which honours the iOS SDK and target; every other subcommand passes
+      # straight through. Remove once swift-rs or SwiftPM handles cross builds.
+      - name: Use SwiftPM's native build system (Xcode 27)
+        run: |
+          set -euo pipefail
+          SHIM="$RUNNER_TEMP/swift-native"
+          mkdir -p "$SHIM"
+          cat > "$SHIM/swift" <<'SH'
+          #!/bin/bash
+          if [ "${1:-}" = "build" ]; then
+            shift
+            exec /usr/bin/swift build --build-system native "$@"
+          fi
+          exec /usr/bin/swift "$@"
+          SH
+          chmod +x "$SHIM/swift"
+          echo "$SHIM" >> "$GITHUB_PATH"
+          PATH="$SHIM:$PATH" swift build --help | grep -q -- '--build-system' \
+            || { echo "::error::this SwiftPM has no --build-system option"; exit 1; }
+
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
