@@ -20,6 +20,14 @@ export function activeWakeLocks(dump) {
 }
 function assertFormat(value, message) { if (!value) throw new Error(message); }
 
+export function tableReadMediaState(dump) {
+  const section = dump.slice(dump.indexOf('OpenDraft Table Read'));
+  // Android 15 includes the enum name, e.g. PLAYING(3); older releases use 3.
+  const state = /state\s*=\s*PlaybackState\s*\{\s*state\s*=\s*(?:[A-Z_]+\()?([0-9]+)\)?/.exec(section);
+  const line = /description=Table Read,\s*(\d+)\s*\/\s*(\d+)/.exec(section);
+  return { state: state ? Number(state[1]) : null, line: line ? Number(line[1]) : null, total: line ? Number(line[2]) : null };
+}
+
 export function supportedStates(text) {
   const found = [...text.matchAll(/identifier\s*=\s*(\d+)[^}]*?name\s*=\s*['"]([^'"]+)['"]/gi)]
     .map(m => ({ id: Number(m[1]), name: m[2] }));

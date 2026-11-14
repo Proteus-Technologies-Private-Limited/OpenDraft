@@ -112,6 +112,8 @@ class TableReadService : Service() {
             }
             if (entry != null) {
                 labels = entry.labels
+                // A new start can arrive while the preceding read is stopping.
+                startForeground(NOTIFICATION, notification())
                 focusSuspended = false
                 loadingQueue = true
                 try { playback.load(entry.owner, entry.session, entry.lines, entry.index, entry.offset, entry.paused) }
@@ -120,6 +122,9 @@ class TableReadService : Service() {
             } else if (playback.status == "idle") stopSelf(startId)
         } else if (intent != null && intent.getStringExtra("session") == playback.session) {
             control(intent.action ?: "")
+        } else if (playback.status == "idle" || playback.status == "error") {
+            // A stale notification must not keep an empty service alive.
+            stopSelf(startId)
         }
         return START_NOT_STICKY // Never restore private script text after process death.
     }

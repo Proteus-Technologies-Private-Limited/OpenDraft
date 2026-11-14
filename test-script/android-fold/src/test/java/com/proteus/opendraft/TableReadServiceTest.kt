@@ -2,6 +2,7 @@ package com.proteus.opendraft
 
 import android.app.Application
 import android.app.NotificationManager
+import android.content.Intent
 import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.media.session.MediaSession
@@ -49,6 +50,14 @@ class TableReadServiceTest {
             .put(JSONObject().put("text", "Synthetic next line").put("voice", "reader").put("gap", 250)))
     private fun send(value: JSONObject) = JSONObject(TableReadService.request(app, value.toString()))
     private fun snapshot() = send(request("snapshot"))
+
+    @Test fun staleNotificationCannotKeepAnEmptyServiceAlive() {
+        val intent = Intent(app, TableReadService::class.java).setAction("play").putExtra("session", "obsolete")
+        val controller = Robolectric.buildService(TableReadService::class.java, intent).create().startCommand(0, 1)
+        assertTrue(shadowOf(controller.get()).isStoppedBySelf)
+        controller.destroy()
+        assertTrue(shadowOf(ShadowTextToSpeech.getLastTextToSpeechInstance()).isShutdown)
+    }
 
     @Test fun nativeQueueAndMediaControlsWorkWithoutAnyFrontendPollLoop() {
         ControlledReadSpeech.spoken.clear()

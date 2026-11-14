@@ -1,6 +1,14 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { activeWakeLocks, bridgeKept, Cdp, displayInputPoint, flatFeature, imeShown, physicalDisplays, pngImage, rotationLock, supportedStates, tableReadServiceReady, waitFor, windowInputFrame } from './protocol.mjs';
+import { activeWakeLocks, bridgeKept, Cdp, displayInputPoint, flatFeature, imeShown, physicalDisplays, pngImage, rotationLock, supportedStates, tableReadMediaState, tableReadServiceReady, waitFor, windowInputFrame } from './protocol.mjs';
+
+test('parses Android 15 named playback states and older numeric states', () => {
+  for (const state of ['PLAYING(3)', '3']) {
+    assert.deepEqual(tableReadMediaState(`OpenDraft Table Read\n state=PlaybackState {state=${state}, position=-1}\n metadata: size=4, description=Table Read, 9 / 20, null`), { state: 3, line: 9, total: 20 });
+  }
+  assert.equal(tableReadMediaState('OpenDraft Table Read\nstate=PlaybackState {state=PAUSED(2)}').state, 2);
+  assert.deepEqual(tableReadMediaState('No active sessions'), { state: null, line: null, total: null });
+});
 
 test('validates compiled foreground-service masks as well as source enum names', () => {
   const manifest = type => '<manifest>' + ['FOREGROUND_SERVICE', 'FOREGROUND_SERVICE_MEDIA_PLAYBACK', 'WAKE_LOCK']

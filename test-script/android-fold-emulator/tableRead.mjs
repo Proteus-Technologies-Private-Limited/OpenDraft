@@ -1,19 +1,13 @@
 import assert from 'node:assert/strict';
 import { setTimeout as delay } from 'node:timers/promises';
-import { activeWakeLocks, waitFor } from './protocol.mjs';
+import { activeWakeLocks, tableReadMediaState, waitFor } from './protocol.mjs';
 
 /** Real APK, real native media/TTS services. Only the disposable TTS provider
  * emits deterministic tones. No production state or playback signals are mocked. */
 export async function tableReadChecks({ client, shell, startMain, capture }) {
   const evidence = { phases: [], speech: 'test-only synthetic TTS tones; no pronunciation claim' };
   let frozen = false;
-  const native = () => {
-    const dump = shell('dumpsys', 'media_session');
-    const section = dump.slice(dump.indexOf('OpenDraft Table Read'));
-    const state = /state=PlaybackState\s*\{state=(\d+)/.exec(section);
-    const line = /description=Table Read,\s*(\d+)\s*\/\s*(\d+)/.exec(section);
-    return { state: state ? Number(state[1]) : null, line: line ? Number(line[1]) : null, total: line ? Number(line[2]) : null };
-  };
+  const native = () => tableReadMediaState(shell('dumpsys', 'media_session'));
   const record = (phase, data) => { evidence.phases.push({ phase, ...data }); console.log(`table-read ${phase}: ${JSON.stringify(data)}`); };
   try {
     shell('settings', 'put', 'secure', 'tts_default_synth', 'com.proteus.opendraft');
@@ -82,7 +76,7 @@ export async function tableReadChecks({ client, shell, startMain, capture }) {
     evidence.status = 'passed';
     return evidence;
   } catch (error) {
-    error.message += `\nTable Read evidence: ${JSON.stringify({ ...evidence, lastNative: native() })}`;
+    error.message += `\nTable Read evidence: ${JSON.stringify({ ...evidence, lastNative: native(), mediaDump: shell('dumpsys', 'media_session').slice(0, 4000) })}`;
     throw error;
   } finally {
     if (frozen) await client.call('Page.setWebLifecycleState', { state: 'active' }).catch(() => {});
