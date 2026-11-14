@@ -165,7 +165,8 @@ function attach(editor: Editor) {
     if (anchor !== null) anchor = transaction.mapping.map(anchor);
     // Discard the immutable native snapshot on edits. A remote Play must not
     // resume obsolete text; Resume in the panel rebuilds from this anchor.
-    if (nativeRead && (store().status === 'playing' || store().status === 'loading')) {
+    const nativePending = controller && hasAndroidBackgroundRead() && activeEngineKind() === 'system';
+    if ((nativeRead || nativePending) && (store().status === 'playing' || store().status === 'loading')) {
       abortCurrent();
       store().patch({ status: 'paused', word: null });
       highlight({ block: null, word: null });

@@ -5,6 +5,7 @@ const fixture = vi.hoisted(() => ({
   kind: 'system' as 'system' | 'ai',
   speak: vi.fn(async () => {}),
   invoke: vi.fn(),
+  engineGate: null as Promise<void> | null,
   lines: [
     { index: 0, kind: 'action', speaker: null, from: 1, to: 12, spoken: 'First line', text: 'First line' },
     { index: 1, kind: 'dialogue', speaker: 'SARAH', from: 14, to: 30, spoken: 'Second line', text: 'Second line' },
@@ -17,7 +18,10 @@ vi.mock('../../stores/voiceSettingsStore', () => ({ useVoiceSettingsStore: { get
 vi.mock('../../editor/extensions/TableReadHighlight', () => ({ tableReadPluginKey: 'read-highlight' }));
 vi.mock('./engines', () => ({
   activeEngineKind: () => fixture.kind,
-  engineFor: async () => ({ engine: { id: fixture.kind === 'system' ? 'native' : 'ai', kind: fixture.kind, label: 'Synthetic engine', speak: fixture.speak }, voices: [] }),
+  engineFor: async () => {
+    await fixture.engineGate;
+    return { engine: { id: fixture.kind === 'system' ? 'native' : 'ai', kind: fixture.kind, label: 'Synthetic engine', speak: fixture.speak }, voices: [] };
+  },
   NeedsProviderError: class extends Error {},
 }));
 vi.mock('./voiceAssign', () => ({ inferGenders: () => ({}), castVoices: () => ({ narrator: 'narrator', bySpeaker: new Map([['SARAH', 'actor']]) }) }));
@@ -34,7 +38,7 @@ describe('Table Read native queue integration', () => {
   let transaction: (event: { transaction: { docChanged: boolean; mapping: { map: (pos: number) => number } } }) => void;
   let editor: Editor;
   beforeEach(async () => {
-    vi.resetModules(); vi.useFakeTimers(); fixture.kind = 'system'; fixture.speak.mockClear();
+    vi.resetModules(); vi.useFakeTimers(); fixture.kind = 'system'; fixture.engineGate = null; fixture.speak.mockClear();
     vi.stubGlobal('window', Object.assign(new EventTarget(), { __TAURI_INTERNALS__: { invoke: fixture.invoke } }));
     vi.stubGlobal('document', Object.assign(new EventTarget(), { visibilityState: 'visible' }));
     vi.stubGlobal('navigator', { language: 'en' });
@@ -99,5 +103,17 @@ describe('Table Read native queue integration', () => {
     expect(fixture.invoke.mock.calls.some(([, args]) => args.request.action === 'start')).toBe(false);
     expect(fixture.speak).toHaveBeenCalledTimes(2);
     expect(store.getState().status).toBe('idle');
+  });
+
+  it('does not start an obsolete queue after an edit during voice initialization', async () => {
+    player.resetEngine();
+    let ready = () => {};
+    fixture.engineGate = new Promise<void>(resolve => { ready = resolve; });
+    player.play(editor, 0);
+    expect(store.getState().status).toBe('loading');
+    transaction({ transaction: { docChanged: true, mapping: { map: pos => pos + 1 } } });
+    ready(); await vi.advanceTimersByTimeAsync(0);
+    expect(store.getState().status).toBe('paused');
+    expect(fixture.invoke.mock.calls.some(([, args]) => args.request.action === 'start')).toBe(false);
   });
 });
