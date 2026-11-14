@@ -1,5 +1,12 @@
+import { focusWithoutKeyboard, nativeKeyboardVisible } from './softKeyboard';
+
 /** Reparent a portal without remounting it. moveBefore preserves focus and
- * selection natively; older web views need those restored after appendChild. */
+ * selection natively; older web views need those restored after appendChild.
+ *
+ * That restoring focus() raises Android's keyboard, so folding, unfolding or
+ * turning the device with the writing pad focused opened a keyboard the writer
+ * had closed. Where the app can tell the keyboard was down, the caret comes
+ * back without it; a keyboard that was up stays up. */
 export function movePanelHost(host: HTMLElement, target: HTMLElement): void {
   if (host.parentElement === target) return;
   const movable = target as HTMLElement & { moveBefore?: (node: Node, child: Node | null) => void };
@@ -16,8 +23,11 @@ export function movePanelHost(host: HTMLElement, target: HTMLElement): void {
   const selection = window.getSelection();
   // Inputs own their selection separately from the document selection.
   const range = !field && selection?.rangeCount && host.contains(selection.anchorNode) ? selection.getRangeAt(0).cloneRange() : null;
+  // Read before the move: losing focus during it can take the keyboard down.
+  const keyboardWasDown = focused ? nativeKeyboardVisible() === false : false;
   target.appendChild(host);
-  focused?.focus({ preventScroll: true });
+  if (focused && keyboardWasDown) focusWithoutKeyboard(focused);
+  else focused?.focus({ preventScroll: true });
   if (field && start != null && end != null) field.setSelectionRange(start, end, direction ?? undefined);
   if (selection && range) {
     selection.removeAllRanges();

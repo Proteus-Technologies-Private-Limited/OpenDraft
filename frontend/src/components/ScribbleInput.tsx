@@ -43,6 +43,8 @@ import {
   clampPanelPosition, defaultPanelPosition, joinHandwriting, splitHandwriting,
   type PanelPos, type PanelSize,
 } from '../utils/handwriting';
+import { getOS } from '../services/platform';
+import { focusWithoutKeyboard } from '../utils/softKeyboard';
 import { showToast } from './Toast';
 import TextareaCaret from './TextareaCaret';
 
@@ -534,6 +536,12 @@ const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose, docked =
    *
    * The keyboard itself cannot be restored — iOS raises it only for a real
    * gesture, and a tap on the now-focused field is that gesture.
+   *
+   * Android is the other way round: a scripted focus does raise it, so coming
+   * back to the app, or to the first window after a second one, opened a
+   * keyboard the writer had closed — and Android then kept restoring it on
+   * each return, down to folding onto the cover screen. There the caret comes
+   * back without the keyboard, as on iOS, and the same tap raises it.
    */
   const fieldHadFocus = useRef(true);
   useEffect(() => {
@@ -543,7 +551,13 @@ const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose, docked =
     const restore = () => {
       if (document.visibilityState !== 'visible' || !fieldHadFocus.current) return;
       const el = areaRef.current;
-      if (el && document.activeElement !== el) el.focus();
+      if (!el || document.activeElement === el) return;
+      try {
+        if (getOS() === 'android') focusWithoutKeyboard(el);
+        else el.focus();
+      } catch (error) {
+        console.error('[handwriting] could not put the caret back in the writing field:', error);
+      }
     };
     const onVisibility = () => {
       if (document.visibilityState === 'visible') restore();

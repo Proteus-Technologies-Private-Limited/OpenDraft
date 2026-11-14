@@ -6,6 +6,11 @@
     @android.webkit.JavascriptInterface <methods>;
 }
 
+# Soft keyboard visibility for the page (OpenDraftKeyboard.isVisible), read by name.
+-keep class com.proteus.opendraft.KeyboardVisibility {
+    @android.webkit.JavascriptInterface <methods>;
+}
+
 # FileProvider — used by android_share_file() for export share intent
 -keep class androidx.core.content.FileProvider {
     public static android.net.Uri getUriForFile(android.content.Context, java.lang.String, java.io.File);

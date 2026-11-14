@@ -25,6 +25,7 @@ class MainActivity : TauriActivity() {
     override fun onWebViewCreate(webView: android.webkit.WebView) {
         super.onWebViewCreate(webView)
         FoldPostureBridge.attach(this, webView)
+        KeyboardVisibility.attach(webView)
     }
 
     /**
@@ -79,6 +80,9 @@ class MainActivity : TauriActivity() {
             navigationBarStyle = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT),
         )
         super.onCreate(savedInstanceState)
+        // A keyboard the writer closed stays closed when the app comes back
+        // (see WindowActivities.kt).
+        keepKeyboardStateOnReturn()
 
         // No parent-view padding — the WebView is full-bleed so HTML content
         // sees the real env(safe-area-inset-*) values and can place the menu
