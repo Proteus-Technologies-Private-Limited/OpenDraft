@@ -74,7 +74,12 @@ class KeyboardStateTest {
 
     @Config(sdk = [35])
     @Test fun geometryIsRelativeToEachWebViewAndRecoversAfterHideAndResize() {
-        val activity = Robolectric.buildActivity(ComponentActivity::class.java).setup().get()
+        val controller = Robolectric.buildActivity(ComponentActivity::class.java)
+        val activity = controller.get()
+        // Match the app's edge-to-edge, no-native-action-bar window. The
+        // default test Activity theme otherwise adds a 56 px content offset.
+        activity.setTheme(android.R.style.Theme_Material_Light_NoActionBar)
+        controller.setup()
         val root = android.widget.FrameLayout(activity)
         val view = WebView(activity)
         root.addView(view, android.widget.FrameLayout.LayoutParams(1000, 1600).apply {
