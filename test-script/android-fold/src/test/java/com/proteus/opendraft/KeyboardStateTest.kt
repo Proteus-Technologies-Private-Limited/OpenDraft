@@ -86,7 +86,16 @@ class KeyboardStateTest {
         root.measure(android.view.View.MeasureSpec.makeMeasureSpec(1200, android.view.View.MeasureSpec.EXACTLY),
             android.view.View.MeasureSpec.makeMeasureSpec(2000, android.view.View.MeasureSpec.EXACTLY))
         root.layout(0, 0, 1200, 2000)
-        view.layout(100, 200, 1100, 1800)
+        // WebView.setFrame delegates to its provider; Robolectric's provider
+        // is a stub. Set the View frame explicitly, then exercise real inset
+        // dispatch/global-layout handling. APK tests cover actual WebView layout.
+        fun frame(left: Int, top: Int, right: Int, bottom: Int) {
+            org.robolectric.util.ReflectionHelpers.setField(view, "mLeft", left)
+            org.robolectric.util.ReflectionHelpers.setField(view, "mTop", top)
+            org.robolectric.util.ReflectionHelpers.setField(view, "mRight", right)
+            org.robolectric.util.ReflectionHelpers.setField(view, "mBottom", bottom)
+        }
+        frame(100, 200, 1100, 1800)
         KeyboardVisibility.attach(view, activity)
         val report = shadowOf(view).getJavascriptInterface(KeyboardVisibility.INTERFACE) as KeyboardVisibility
         fun dispatch(visible: Boolean, bottom: Int) = ViewCompat.dispatchApplyWindowInsets(view,
@@ -98,7 +107,7 @@ class KeyboardStateTest {
         assertEquals(1600, json.getInt("height"))
         assertEquals(1000, json.getInt("bottom")) // 2000 - 800 - WebView top 200
         // A WebView already resized above the IME must not lose that height again.
-        view.layout(100, 200, 1100, 1200)
+        frame(100, 200, 1100, 1200)
         view.viewTreeObserver.dispatchOnGlobalLayout()
         json = org.json.JSONObject(report.snapshot())
         assertEquals(1000, json.getInt("height"))
