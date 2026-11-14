@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { bridgeKept, Cdp, imeShown, physicalDisplays, pngImage, rotationLock, supportedStates, waitFor } from './protocol.mjs';
+import { bridgeKept, Cdp, displayInputPoint, flatFeature, imeShown, physicalDisplays, pngImage, rotationLock, supportedStates, waitFor, windowInputFrame } from './protocol.mjs';
 
 test('discovers state IDs by names and excludes rear-display states', () => {
   const data = "Supported states: [DeviceState{identifier=4, name='CLOSED'}, DeviceState{identifier=8, name='HALF_OPENED'}, DeviceState{identifier=12, name='OPENED'}, DeviceState{identifier=15, name='REAR_DISPLAY'}]";
@@ -21,6 +21,35 @@ test('keyboard visibility needs explicit InputMethodManager evidence', () => {
   assert(!imeShown('mShowRequested=true mInputShown=false'));
   assert(imeShown('isInputViewShown: true'));
   assert.throws(() => imeShown('visualViewport.height=300'), /cannot establish/);
+});
+test('flat readiness requires fresh positive native FoldingFeature evidence', () => {
+  const native = { status: 'available', active: true, confirmed: true, feature: { folded: false } };
+  assert(flatFeature({ native }));
+  for (const change of [{ feature: null }, { feature: undefined }, { feature: { folded: true } },
+    { active: false }, { status: 'pending' }, { confirmed: false }]) {
+    assert(!flatFeature({ native: { ...native, ...change } }));
+  }
+  assert(!flatFeature(null));
+});
+test('native field taps use the visible app window frame and logical display', () => {
+  const app = 'com.proteus.opendraft/com.proteus.opendraft.MainActivity';
+  const dump = `Window #0 Window{ime u0 InputMethod}:
+    mDisplayId=0 mHasSurface=true isVisible=true
+    Frames: frame=[0,1400][1840,2208]
+  Window #1 Window{app u0 ${app}}:
+    mDisplayId=3 mHasSurface=true isVisible=true
+    Frames: parent=[0,0][2208,1840] display=[0,0][2208,1840] frame=[120,80][1720,1680] last=[0,0][1600,1600]
+  Window #2 Window{other u0 com.other/.Main}:
+    mDisplayId=0 mHasSurface=true isVisible=true
+    Frames: frame=[0,0][2208,1840]`;
+  const frame = windowInputFrame(dump, app);
+  assert.deepEqual(frame, { displayId: 3, left: 120, top: 80, width: 1600, height: 1600 });
+  assert.deepEqual(displayInputPoint({ x: 390, y: 800 }, frame), { x: 510, y: 880, displayId: 3 });
+  assert.throws(() => displayInputPoint({ x: 1600, y: 100 }, frame), /outside/);
+  assert.throws(() => displayInputPoint({ x: NaN, y: 100 }, frame), /outside/);
+  assert.throws(() => windowInputFrame(dump + dump, app), /Expected one visible/);
+  assert.throws(() => windowInputFrame(dump.replace('frame=[120,80][1720,1680]', ''), app), /no display\/frame/);
+  assert.throws(() => windowInputFrame(dump.replace('frame=[120,80][1720,1680]', 'frame=[120,80][120,80]'), app), /empty/);
 });
 class Socket extends EventTarget {
   sent = [];

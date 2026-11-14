@@ -33,6 +33,41 @@ export function imeShown(text) {
   return match[1] === 'true';
 }
 
+/** A missing/stale feature is not proof that the device opened flat. */
+export function flatFeature(snapshot) {
+  const native = snapshot?.native;
+  return native?.status === 'available' && native.active === true
+    && native.confirmed === true && native.feature?.folded === false;
+}
+
+/** WindowManager's full window dump uses display pixels, like adb input. */
+export function windowInputFrame(text, component) {
+  const sections = text.split(/(?=^\s*Window #\d+ Window\{)/m);
+  const matches = sections.filter(section => {
+    const header = section.trimStart().split('\n')[0];
+    return header.startsWith('Window #') && header.includes(component)
+      && /\bmHasSurface=true\b/.test(section) && !/\bisVisible=false\b/.test(section);
+  });
+  if (matches.length !== 1) throw new Error(`Expected one visible ${component} window, got ${matches.length}`);
+  const section = matches[0];
+  const display = section.match(/\bmDisplayId=(\d+)\b/);
+  const bounds = section.match(/\bframe=\[(-?\d+),(-?\d+)\]\[(-?\d+),(-?\d+)\]/)
+    ?? section.match(/\bmFrame=\[(-?\d+),(-?\d+)\]\[(-?\d+),(-?\d+)\]/)
+    ?? section.match(/\bmFrame=Rect\((-?\d+),\s*(-?\d+) - (-?\d+),\s*(-?\d+)\)/);
+  if (!display || !bounds) throw new Error('Window dump has no display/frame; request dumpsys window -a windows');
+  const [left, top, right, bottom] = bounds.slice(1).map(Number);
+  if (right <= left || bottom <= top) throw new Error('Window frame is empty');
+  return { displayId: Number(display[1]), left, top, width: right - left, height: bottom - top };
+}
+
+export function displayInputPoint(point, frame) {
+  if (![point?.x, point?.y, frame.left, frame.top, frame.width, frame.height].every(Number.isFinite)
+    || point.x < 0 || point.y < 0 || point.x >= frame.width || point.y >= frame.height) {
+    throw new Error('Writing-field point lies outside the current window');
+  }
+  return { x: Math.round(frame.left + point.x), y: Math.round(frame.top + point.y), displayId: frame.displayId };
+}
+
 export function rotationLock(text) {
   const value = text.trim();
   if (value === 'free') return ['free'];

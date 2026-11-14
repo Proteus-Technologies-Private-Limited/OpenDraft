@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { Cdp, imeShown, physicalDisplays, pngImage, rotationLock, supportedStates, waitFor } from './protocol.mjs';
+import { Cdp, displayInputPoint, flatFeature, imeShown, physicalDisplays, pngImage, rotationLock, supportedStates, waitFor, windowInputFrame } from './protocol.mjs';
 import * as probes from './probes.mjs';
 
 const [variant, serial] = process.argv.slice(2);
@@ -68,13 +68,16 @@ async function connect(exclude = new Set()) {
   clients.push(client);
   return { client, page, port };
 }
-async function phase(label, client, predicate = () => true) {
+async function phase(label, client, predicate = () => true, { stopped = false } = {}) {
   const data = await waitFor(label, async () => {
     const s = await client.evaluate(probes.snapshot);
     evidence.lastObserved = { label, ...s };
-    return s.native?.status === 'available' && s.native.active && predicate(s) ? s : false;
+    const ready = stopped ? s.native?.status === 'pending' && s.native.active === false
+      : s.native?.status === 'available' && s.native.active === true;
+    return ready && predicate(s) ? s : false;
   });
   for (const [name, okay] of Object.entries(data.invariants)) assert(okay, `${label}: ${name} was lost`);
+  assert.equal(data.pendingReflows.length, 0, `${label}: a pending/inactive snapshot triggered a reflow`);
   evidence.phases.push({ label, ...data, captures: capture(label) });
   writeFileSync(join(output, 'report.json'), JSON.stringify(evidence, null, 2) + '\n');
   console.log(`${label}: native=${data.native.feature?.orientation ?? 'none'}, confirmed=${data.native.confirmed}`);
@@ -112,26 +115,36 @@ try {
   }
 
   overrideState(evidence.states.open.id);
-  await phase('open', main.client, s => !s.native.feature?.folded
+  await phase('open', main.client, s => flatFeature(s) && s.classes.includes('foldable') && s.classes.includes('wide')
+    && !s.classes.includes('fold-book') && !s.classes.includes('fold-laptop')
     && (s.viewport.width > cold.viewport.width + 100 || s.viewport.height > cold.viewport.height + 100));
   overrideState(evidence.states.half.id);
   const half = await phase('half-open', main.client, s => s.native.feature?.folded && s.classes.includes(s.native.feature.orientation === 'vertical' ? 'fold-book' : 'fold-laptop'));
 
   shell('wm', 'user-rotation', 'lock', '1');
   await waitFor('WindowManager rotation lock', async () => rotationLock(shell('wm', 'user-rotation')).join(' ') === 'lock 1');
-  await phase('rotated', main.client, s => s.native.feature?.folded && s.native.feature.orientation !== half.native.feature.orientation
+  const rotated = await phase('rotated', main.client, s => s.native.feature?.folded && s.native.feature.orientation !== half.native.feature.orientation
     && s.classes.includes(s.native.feature.orientation === 'vertical' ? 'fold-book' : 'fold-laptop'));
 
   const point = await waitFor('keyboard-enabled writing field', () => main.client.evaluate(probes.prepareKeyboard));
   // WebView script focus alone does not reliably request Android's IME. Only
   // tap while it is hidden, so the tap cannot land on the overlay keyboard.
-  if (!imeShown(shell('dumpsys', 'input_method'))) shell('input', 'tap', String(point.x), String(point.y));
+  const dump = shell('dumpsys', 'window', '-a', 'windows');
+  writeFileSync(join(output, 'tap-window.txt'), dump);
+  const frame = windowInputFrame(dump, `${pkg}/${pkg}.MainActivity`);
+  evidence.inputWindow = frame;
+  if (!imeShown(shell('dumpsys', 'input_method'))) {
+    const tap = displayInputPoint(point, frame);
+    evidence.keyboardTap = { frame, point, ...tap };
+    shell('input', '-d', String(tap.displayId), 'tap', String(tap.x), String(tap.y));
+  }
   await waitFor('actual Android soft keyboard', async () => imeShown(shell('dumpsys', 'input_method')));
+  await waitFor('writing-pad caret restored after the native tap', () => main.client.evaluate(probes.finishKeyboardPreparation));
   // Android's bulk `input text` can outrun WebView key dispatch; acknowledge each
   // character in the real controlled field before sending the next key.
   let expected = (await main.client.evaluate(probes.snapshot)).input.value;
   for (const character of 'nativekeys') {
-    shell('input', 'text', character);
+    shell('input', '-d', String(frame.displayId), 'text', character);
     expected += character;
     await waitFor(`Android key committed into the pad (${expected.length})`, async () => {
       evidence.lastObserved = { label: 'native-key-input', ...await main.client.evaluate(probes.snapshot) };
@@ -140,15 +153,20 @@ try {
   }
   await phase('keyboard-visible', main.client);
   writeFileSync(join(output, 'input-method-visible.txt'), shell('dumpsys', 'input_method'));
-  shell('input', 'keyevent', 'KEYCODE_BACK');
+  shell('input', '-d', String(frame.displayId), 'keyevent', 'KEYCODE_BACK');
   await waitFor('soft keyboard dismissed', async () => !imeShown(shell('dumpsys', 'input_method')));
   await phase('keyboard-dismissed', main.client);
 
-  shell('input', 'keyevent', 'KEYCODE_HOME');
+  await main.client.evaluate(probes.watchPendingReflows);
+  shell('input', '-d', String(frame.displayId), 'keyevent', 'KEYCODE_HOME');
+  const heldClass = rotated.native.feature.orientation === 'vertical' ? 'fold-book' : 'fold-laptop';
+  await phase('background-stopped', main.client, s => s.classes.includes(heldClass), { stopped: true });
   overrideState(evidence.states.open.id);
+  await phase('background-posture-changed', main.client, s => s.classes.includes(heldClass), { stopped: true });
   startMain();
-  await phase('resumed-after-posture-change', main.client, s => s.native.confirmed && !s.native.feature?.folded
+  await phase('resumed-after-posture-change', main.client, s => flatFeature(s)
     && !s.classes.includes('fold-book') && !s.classes.includes('fold-laptop'));
+  await main.client.evaluate(probes.stopWatchingPendingReflows);
 
   const before = new Set((await targets(main.port)).map(p => p.id));
   await main.client.evaluate(probes.openExtraWindow);

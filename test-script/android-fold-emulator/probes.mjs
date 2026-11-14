@@ -24,7 +24,7 @@ export function initialize(label) {
   editor.view.focus();
   window.__foldTest = { editor, doc: editor.state.doc, from: 15, to: 24,
     element: document.querySelector('.ProseMirror'), token: crypto.randomUUID(),
-    expectedPad: `Synthetic ${label} writing-pad draft`, area: null, padFrom: 0, padTo: 9 };
+    expectedPad: `Synthetic ${label} writing-pad draft. `.repeat(8).trim(), area: null, padFrom: 0, padTo: 9 };
   window.dispatchEvent(new CustomEvent('opendraft:handwriting'));
   return true;
 }
@@ -55,6 +55,7 @@ export function snapshot() {
       legacySegments: window.visualViewport?.segments?.length ?? null, devicePosture: navigator.devicePosture?.type ?? null },
     input: { focused: document.activeElement === area, readOnly: area?.readOnly ?? null,
       value: area?.value ?? null, selectionStart: area?.selectionStart ?? null, selectionEnd: area?.selectionEnd ?? null },
+    pendingReflows: test?.pendingReflows ?? [],
     invariants: {
       sameEditor: !!test && test.element === document.querySelector('.ProseMirror'),
       documentIntact: !!test && test.editor.state.doc.eq(test.doc),
@@ -81,6 +82,36 @@ export function prepareKeyboard() {
   if (r.width <= 0 || r.height <= 0 || v.width <= 0 || v.height <= 0) return false;
   return { x: Math.round(v.left + (r.left + r.width / 2) * v.width / innerWidth),
     y: Math.round(v.top + (r.top + r.height / 2) * v.height / innerHeight) };
+}
+
+/** A native tap can put the caret into wrapped text. Restore it after the IME
+ * opens, without hiding a missed tap by moving focus to another element. */
+export function finishKeyboardPreparation() {
+  const area = document.querySelector('.scribble-area');
+  const test = window.__foldTest;
+  if (!test || area !== test.area || document.activeElement !== area || area.readOnly
+    || area.value !== test.expectedPad) return false;
+  area.setSelectionRange(area.value.length, area.value.length);
+  test.padFrom = area.selectionStart; test.padTo = area.selectionEnd;
+  return area.selectionStart === area.value.length && area.selectionEnd === area.value.length;
+}
+
+export function watchPendingReflows() {
+  const test = window.__foldTest;
+  test.pendingReflows = [];
+  test.pendingListener = () => {
+    const native = JSON.parse(window.OpenDraftAndroidFold.snapshot());
+    if ((!native.active || native.status === 'pending') && test.pendingReflows.length < 8) {
+      test.pendingReflows.push({ active: native.active, status: native.status });
+    }
+  };
+  window.addEventListener('opendraft:beforefoldchange', test.pendingListener);
+  return true;
+}
+
+export function stopWatchingPendingReflows() {
+  window.removeEventListener('opendraft:beforefoldchange', window.__foldTest.pendingListener);
+  return true;
 }
 
 export function acceptTypedPad(expected) {
