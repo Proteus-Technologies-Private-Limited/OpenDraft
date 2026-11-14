@@ -240,8 +240,12 @@ class MenuKeyboard(unittest.TestCase):
         expect(self.row("Further menu")).to_have_attribute("aria-expanded", "false")
         self.press("ArrowLeft")
         expect(self.row("Deeper menu")).to_be_focused()
+        # Focus returns synchronously; WebKit can still be committing the
+        # submenu close. Require that state before testing Escape one level up.
+        expect(self.row("Deeper menu")).to_have_attribute("aria-expanded", "false")
         self.press("Escape")
         expect(self.row("Keyboard fixture")).to_be_focused()
+        expect(self.row("Keyboard fixture")).to_have_attribute("aria-expanded", "false")
         self.press("Escape")
         expect(self.row("Tools")).to_be_focused()
         self.assertEqual(self.page.locator(".menu-dropdown").count(), 0)
