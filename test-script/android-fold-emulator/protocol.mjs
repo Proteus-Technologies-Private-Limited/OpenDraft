@@ -33,6 +33,33 @@ export function imeShown(text) {
   return match[1] === 'true';
 }
 
+export function rotationLock(text) {
+  const value = text.trim();
+  if (value === 'free') return ['free'];
+  const match = value.match(/^lock ([0-3])$/);
+  if (!match) throw new Error(`Unrecognized WindowManager rotation lock: ${value}`);
+  return ['lock', match[1]];
+}
+
+export function physicalDisplays(text) {
+  const ids = [...new Set([...text.matchAll(/\bDisplay\s+(\d+)\s+\(/g)].map(m => m[1]))];
+  if (!ids.length) throw new Error('No physical SurfaceFlinger display IDs');
+  return ids; // Keep 64-bit IDs as strings, not imprecise JavaScript numbers.
+}
+
+export function pngImage(bytes) {
+  const signature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+  const offset = bytes.indexOf(signature);
+  if (offset < 0) throw new Error('Screenshot is not PNG data');
+  const data = bytes.subarray(offset);
+  if (data.length < 33 || data.toString('ascii', 12, 16) !== 'IHDR' || data.toString('ascii', data.length - 8, data.length - 4) !== 'IEND') {
+    throw new Error('Screenshot PNG is incomplete');
+  }
+  const width = data.readUInt32BE(16); const height = data.readUInt32BE(20);
+  if (!width || !height) throw new Error('Screenshot PNG has no dimensions');
+  return { data, width, height };
+}
+
 export async function waitFor(label, read, { timeout = 60_000, interval = 250 } = {}) {
   const deadline = Date.now() + timeout;
   let last;

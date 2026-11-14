@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { bridgeKept, Cdp, imeShown, supportedStates, waitFor } from './protocol.mjs';
+import { bridgeKept, Cdp, imeShown, physicalDisplays, pngImage, rotationLock, supportedStates, waitFor } from './protocol.mjs';
 
 test('discovers state IDs by names and excludes rear-display states', () => {
   const data = "Supported states: [DeviceState{identifier=4, name='CLOSED'}, DeviceState{identifier=8, name='HALF_OPENED'}, DeviceState{identifier=12, name='OPENED'}, DeviceState{identifier=15, name='REAR_DISPLAY'}]";
@@ -28,6 +28,20 @@ class Socket extends EventTarget {
   reply(id, value) { this.dispatchEvent(new MessageEvent('message', { data: JSON.stringify({ id, ...value }) })); }
   close() { this.dispatchEvent(new Event('close')); }
 }
+test('rotation uses the WindowManager lock command and preserves its original mode', () => {
+  assert.deepEqual(rotationLock('lock 1\n'), ['lock', '1']);
+  assert.deepEqual(rotationLock('free\n'), ['free']);
+  assert.throws(() => rotationLock('lock 9'), /Unrecognized/);
+});
+test('multi-display screenshots keep exact IDs and remove only stdout before PNG bytes', () => {
+  assert.deepEqual(physicalDisplays('Display 4619827259835644672 (HWC display 0)\nDisplay 4619827551948147201 (HWC display 1)'), ['4619827259835644672', '4619827551948147201']);
+  const original = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aKJ0AAAAASUVORK5CYII=', 'base64');
+  const parsed = pngImage(Buffer.concat([Buffer.from('[Warning] Multiple displays were found\n'), original]));
+  assert.deepEqual(parsed.data, original);
+  assert.equal(parsed.width, 1); assert.equal(parsed.height, 1);
+  assert.throws(() => pngImage(original.subarray(0, 32)), /incomplete/);
+  assert.throws(() => pngImage(Buffer.from('screencap failed')), /not PNG/);
+});
 test('CDP correlates out-of-order replies and rejects protocol/page errors', async () => {
   const socket = new Socket(); const client = new Cdp(socket);
   const a = client.call('A'); const b = client.call('B');

@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { Cdp, imeShown, supportedStates, waitFor } from './protocol.mjs';
+import { Cdp, imeShown, physicalDisplays, pngImage, rotationLock, supportedStates, waitFor } from './protocol.mjs';
 import * as probes from './probes.mjs';
 
 const [variant, serial] = process.argv.slice(2);
@@ -26,10 +26,21 @@ const evidence = { build, serial, phases: [], status: 'running' };
 const clients = [];
 const forwards = [];
 let lastPid;
+let previousRotation;
 const previous = {};
 const settings = [ ['system', 'accelerometer_rotation'], ['system', 'user_rotation'], ['secure', 'show_ime_with_hard_keyboard'] ];
 const capture = label => {
-  writeFileSync(join(output, `${label}.png`), adb(['exec-out', 'screencap', '-p'], true));
+  const captures = [];
+  for (const display of physicalDisplays(shell('dumpsys', 'SurfaceFlinger', '--display-id'))) {
+    try {
+      const image = pngImage(adb(['exec-out', 'screencap', '-p', '-d', display], true));
+      const file = `${label}-display-${display}.png`;
+      writeFileSync(join(output, file), image.data);
+      captures.push({ display, file, width: image.width, height: image.height });
+    } catch { /* An inactive physical display may not support capture. */ }
+  }
+  assert(captures.length, `No valid display screenshot for ${label}`);
+  return captures;
 };
 const startMain = () => shell('am', 'start', '-W', '-n', `${pkg}/.MainActivity`);
 const overrideState = id => {
@@ -59,10 +70,11 @@ async function connect(exclude = new Set()) {
 async function phase(label, client, predicate = () => true) {
   const data = await waitFor(label, async () => {
     const s = await client.evaluate(probes.snapshot);
+    evidence.lastObserved = { label, ...s };
     return s.native?.status === 'available' && s.native.active && predicate(s) ? s : false;
   });
   for (const [name, okay] of Object.entries(data.invariants)) assert(okay, `${label}: ${name} was lost`);
-  evidence.phases.push({ label, ...data }); capture(label);
+  evidence.phases.push({ label, ...data, captures: capture(label) });
   writeFileSync(join(output, 'report.json'), JSON.stringify(evidence, null, 2) + '\n');
   console.log(`${label}: native=${data.native.feature?.orientation ?? 'none'}, confirmed=${data.native.confirmed}`);
   return data;
@@ -76,10 +88,10 @@ try {
   evidence.api = shell('getprop', 'ro.build.version.sdk');
   writeFileSync(join(output, 'webview-provider.txt'), shell('dumpsys', 'webviewupdate'));
   for (const [space, key] of settings) previous[`${space}/${key}`] = shell('settings', 'get', space, key);
-  shell('settings', 'put', 'system', 'accelerometer_rotation', '0');
-  shell('settings', 'put', 'system', 'user_rotation', '0');
+  previousRotation = rotationLock(shell('wm', 'user-rotation'));
   shell('settings', 'put', 'secure', 'show_ime_with_hard_keyboard', '1');
   overrideState(states.closed.id);
+  shell('wm', 'user-rotation', 'lock', '0');
   const install = adb(['install', '-r', '-t', join(artifact, 'test-only.apk')]);
   assert(install.includes('Success'), install);
   assert.equal(shell('pm', 'clear', pkg), 'Success');
@@ -103,7 +115,8 @@ try {
   overrideState(evidence.states.half.id);
   const half = await phase('half-open', main.client, s => s.native.feature?.folded && s.classes.includes(s.native.feature.orientation === 'vertical' ? 'fold-book' : 'fold-laptop'));
 
-  shell('settings', 'put', 'system', 'user_rotation', '1');
+  shell('wm', 'user-rotation', 'lock', '1');
+  await waitFor('WindowManager rotation lock', async () => rotationLock(shell('wm', 'user-rotation')).join(' ') === 'lock 1');
   await phase('rotated', main.client, s => s.native.feature?.folded && s.native.feature.orientation !== half.native.feature.orientation
     && s.classes.includes(s.native.feature.orientation === 'vertical' ? 'fold-book' : 'fold-laptop'));
 
@@ -144,6 +157,9 @@ try {
 } catch (error) {
   evidence.status = 'failed'; evidence.error = error.stack ?? String(error);
   try { capture('failure'); } catch { /* Process/emulator may have exited. */ }
+  for (const [name, command] of [['window-manager', ['dumpsys', 'window']], ['display', ['dumpsys', 'display']], ['rotation-lock', ['wm', 'user-rotation']]]) {
+    try { writeFileSync(join(output, `${name}.txt`), shell(...command)); } catch { /* retain other evidence */ }
+  }
   throw error;
 } finally {
   writeFileSync(join(output, 'report.json'), JSON.stringify(evidence, null, 2) + '\n');
@@ -156,5 +172,6 @@ try {
     if (value === undefined) continue;
     try { shell('settings', value === 'null' ? 'delete' : 'put', space, key, ...(value === 'null' ? [] : [value])); } catch { /* emulator teardown */ }
   }
+  if (previousRotation) try { shell('wm', 'user-rotation', ...previousRotation); } catch { /* emulator teardown */ }
   try { shell('cmd', 'device_state', 'state', 'reset'); } catch { /* emulator teardown */ }
 }

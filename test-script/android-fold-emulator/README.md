@@ -8,11 +8,15 @@ x86_64 APKs with the production frontend, tracked Kotlin and real Rust library.
 Separate jobs install them on API 35 Google APIs Pixel Fold emulators with KVM.
 The runtime image must report distinct closed, half-open and open states. The
 runner discovers their IDs by name; it never assumes fixed state numbers.
+Rotation is requested directly with WindowManager's `wm user-rotation lock`,
+then verified against real native geometry and applied classes. A settings-key
+write alone can leave the display unrotated and is not used as the control.
 Missing folding features, a missing bridge or unavailable soft keyboard fail
 the test, rather than silently skipping checks.
 
 The checks cover cold cover startup, unfold, half-open, rotation, Android IME
-show/type/hide, a posture change while backgrounded, foreground refresh, a real
+show/hide and Android key-injected text while it is visible, a posture change
+while backgrounded, foreground refresh, a real
 extra Activity and returning to the main window, then folding back. At each
 stage the original editor/document/selection and writing-pad node/draft/selection
 must survive. The extra window has its own document marker and native bridge.
@@ -34,7 +38,10 @@ in the APK, checks the manifest's debug flag, and requires the minified R8 map t
 retain `FoldPostureBridge.snapshot`. APK SHA-256/build metadata accompanies the
 one-day test artifacts. Runtime evidence (seven-day retention) includes phase
 snapshots, synthetic screenshots, WebView provider, supported device states,
-IME/Activity dumps and app/crash logs. Only disposable emulator data is used.
+IME/Activity dumps and app/crash logs. Physical display IDs are explicit in
+screenshots, whose PNG bytes/dimensions are validated. Failures retain the last
+observed native/UI snapshot and WindowManager/display dumps. Only disposable
+emulator data is used. IME composition is not covered by key injection.
 
 ## Run
 

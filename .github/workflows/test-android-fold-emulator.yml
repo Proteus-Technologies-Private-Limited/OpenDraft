@@ -70,7 +70,7 @@ jobs:
         run: |
           printf '%s\n' '{"private":true,"scripts":{"tauri":"tauri"}}' > package.json
           ln -s frontend/node_modules node_modules
-          npx --prefix frontend tauri android init --ci
+          npx --prefix frontend tauri android init --ci --skip-targets-install
           python3 test-script/android-fold-emulator/prepare.py
       - name: Build APK
         env:
