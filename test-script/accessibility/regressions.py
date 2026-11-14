@@ -241,11 +241,28 @@ class Accessibility(unittest.TestCase):
         expect(lines.locator('[aria-selected="true"]')).to_have_count(2)
         self.press("Control+Space")
         expect(lines.locator('[aria-selected="true"]')).to_have_count(1)
+        # Leave the list with the pointer, so the checkbox click is what focuses it.
+        dialog.locator(".pdf-review-help").click()
         lines.locator(".pdf-review-checkbox").nth(1).click()
         expect(lines.locator('[aria-selected="true"]')).to_have_count(2)
-        lines.focus()
-        self.press("Meta+ArrowDown")
-        expect(lines.locator('[aria-selected="true"]')).to_have_count(2)
+        # A click focuses the list without :focus-visible, and Ctrl/Cmd+arrow
+        # doesn't turn it on, so the outline must not depend on it alone.
+        self.assertTrue(lines.evaluate("el=>document.activeElement===el"))
+        self.assertFalse(lines.evaluate("el=>el.matches(':focus-visible')"))
+        clicked = self.page.locator(f'[id="{lines.get_attribute("aria-activedescendant")}"]')
+        self.assertEqual(
+            clicked.evaluate("el=>getComputedStyle(el).outlineStyle"), "none"
+        )
+        for key in ("Control+ArrowDown", "Meta+ArrowDown"):
+            self.press(key)
+            expect(lines.locator('[aria-selected="true"]')).to_have_count(2)
+            moved = self.page.locator(
+                f'[id="{lines.get_attribute("aria-activedescendant")}"]'
+            )
+            expect(moved).to_have_attribute("aria-selected", "false")
+            self.assertEqual(
+                moved.evaluate("el=>getComputedStyle(el).outlineStyle"), "solid"
+            )
         self.audit()
         screenshots = os.environ.get("OPENDRAFT_SCREENSHOTS")
         if screenshots:

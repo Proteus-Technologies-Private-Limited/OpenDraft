@@ -52,6 +52,10 @@ export const PdfImportPreviewDialog: React.FC<DialogProps> = ({ filename, parsed
   const [filter, setFilter] = useState<Filter>('all');
   /** Touch has no shift key: the next tap extends from the anchor. */
   const [rangeNext, setRangeNext] = useState(false);
+  /** Set by list navigation keys, cleared by the pointer. Browsers don't treat
+   * Ctrl/Cmd+arrow as keyboard use for :focus-visible, so after a click the
+   * active row would otherwise move invisibly. */
+  const [keyboardNav, setKeyboardNav] = useState(false);
 
   // Row height follows the layout: a phone row has to be a finger tall.
   const [rowHeight] = useState(() => (isPhone() ? 44 : 28));
@@ -161,6 +165,7 @@ export const PdfImportPreviewDialog: React.FC<DialogProps> = ({ filename, parsed
     if (e.key === ' ' && !e.altKey) {
       e.preventDefault();
       e.stopPropagation();
+      setKeyboardNav(true);
       const target = sel.anchor !== null && order.includes(sel.anchor) ? sel.anchor : order.find((i) => !isLocked(i));
       if (target !== undefined && !isLocked(target)) click(target, { toggle: true });
       return;
@@ -168,6 +173,7 @@ export const PdfImportPreviewDialog: React.FC<DialogProps> = ({ filename, parsed
     if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) {
       e.preventDefault();
       e.stopPropagation();
+      setKeyboardNav(true);
       if (order.length === 0) return;
       const pos = sel.anchor === null ? -1 : order.indexOf(sel.anchor);
       const step = e.key === 'ArrowDown' || e.key === 'Home' ? 1 : -1;
@@ -284,7 +290,7 @@ export const PdfImportPreviewDialog: React.FC<DialogProps> = ({ filename, parsed
 
           <div
             ref={listRef}
-            className="pdf-review-list"
+            className={`pdf-review-list${keyboardNav ? ' keyboard-nav' : ''}`}
             role="listbox"
             aria-multiselectable="true"
             aria-activedescendant={sel.anchor !== null && order.indexOf(sel.anchor) >= first && order.indexOf(sel.anchor) < last
@@ -292,6 +298,7 @@ export const PdfImportPreviewDialog: React.FC<DialogProps> = ({ filename, parsed
             aria-label={t('pdfImport.importedLines')}
             tabIndex={0}
             onKeyDown={onListKeyDown}
+            onPointerDown={() => setKeyboardNav(false)}
             onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
           >
             {total === 0 && <p className="pdf-review-empty">{t('pdfImport.noLines')}</p>}

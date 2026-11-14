@@ -105,7 +105,9 @@ use the contrast-tested action color. The import-preview listbox exposes active
 rows and selection itself, without nested focusable checkbox controls. Its
 visual marks retain pointer toggling. Arrows select, Home/End go to the ends,
 Ctrl/Meta+arrows move the active row without clearing a multiple selection.
-A visible outline marks that row while the list has keyboard focus. Space
+A visible outline marks that row while the list has keyboard focus, and after
+any navigation key once the list was clicked (browsers don't count Ctrl/Meta+
+arrows as keyboard use for `:focus-visible`). Space
 (also Ctrl/Meta+Space) toggles that row. Shift+arrows extend the selection;
 Shift+Home/End includes every unlocked visible row through the respective end,
 including rows outside the virtualized viewport. Ctrl/Meta+A selects all unlocked
