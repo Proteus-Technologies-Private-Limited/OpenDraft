@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { cpSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { bridgeKept } from './protocol.mjs';
+import { bridgeKept, tableReadServiceReady } from './protocol.mjs';
 
 const variant = process.argv[2];
 assert(['debug', 'minified'].includes(variant), 'variant must be debug or minified');
@@ -22,9 +22,8 @@ const debuggable = execFileSync(analyzer, ['manifest', 'debuggable', apk], { enc
 assert.equal(debuggable, String(variant === 'debug'), 'Minified test APK must retain the release manifest flag');
 const manifest = execFileSync(analyzer, ['manifest', 'print', apk], { encoding: 'utf8', timeout: 120_000 });
 for (const activity of ['MainActivity', 'WindowActivity1', 'WindowActivity2', 'WindowActivity3']) assert(manifest.includes(activity), `${activity} missing from APK manifest`);
-for (const value of ['TableReadService', 'mediaPlayback', 'FOREGROUND_SERVICE_MEDIA_PLAYBACK', 'WAKE_LOCK', 'TableReadTestSpeech']) {
-  assert(manifest.includes(value), `${value} missing from disposable Table Read APK`);
-}
+assert(tableReadServiceReady(manifest), 'APK lacks a private media-playback service or its required permissions');
+assert(manifest.includes('TableReadTestSpeech'), 'Test-only speech provider missing');
 const entries = execFileSync('unzip', ['-Z1', apk], { encoding: 'utf8', timeout: 30_000 });
 assert(entries.includes('lib/x86_64/libopendraft_lib.so'), 'Expected real OpenDraft x86_64 Rust library');
 const out = resolve('test-script/output/android-fold-apk', variant);

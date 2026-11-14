@@ -1,6 +1,23 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { bridgeKept, Cdp, displayInputPoint, flatFeature, imeShown, physicalDisplays, pngImage, rotationLock, supportedStates, waitFor, windowInputFrame } from './protocol.mjs';
+import { activeWakeLocks, bridgeKept, Cdp, displayInputPoint, flatFeature, imeShown, physicalDisplays, pngImage, rotationLock, supportedStates, tableReadServiceReady, waitFor, windowInputFrame } from './protocol.mjs';
+
+test('validates compiled foreground-service masks as well as source enum names', () => {
+  const manifest = type => '<manifest>' + ['FOREGROUND_SERVICE', 'FOREGROUND_SERVICE_MEDIA_PLAYBACK', 'WAKE_LOCK']
+    .map(name => `<uses-permission android:name="android.permission.${name}"/>`).join('')
+    + `<application><service android:name="com.proteus.opendraft.TableReadService" android:exported="false" android:foregroundServiceType="${type}"/></application></manifest>`;
+  for (const type of ['mediaPlayback', '0x00000002', '2', 'mediaPlayback|dataSync']) assert(tableReadServiceReady(manifest(type)));
+  for (const type of ['dataSync', '0x00000001', '', 'garbage']) assert(!tableReadServiceReady(manifest(type)));
+  assert(!tableReadServiceReady(manifest('2').replace('exported="false"', 'exported="true"')));
+  assert(!tableReadServiceReady(manifest('2').replace('android.permission.WAKE_LOCK', 'other.permission')));
+});
+
+test('checks active wake locks without mistaking released history for a leak', () => {
+  const history = "Wake Locks: size=0\n\nSuspend Blockers: size=1\nWakeLockLog:\n RELEASE OpenDraft:TableRead\n";
+  assert(!activeWakeLocks(history).includes('OpenDraft:TableRead'));
+  assert(activeWakeLocks(history.replace('size=0\n', "size=1\n  PARTIAL_WAKE_LOCK 'OpenDraft:TableRead'\n")).includes('OpenDraft:TableRead'));
+  assert.throws(() => activeWakeLocks('unknown power format'), /section/);
+});
 
 test('discovers state IDs by names and excludes rear-display states', () => {
   const data = "Supported states: [DeviceState{identifier=4, name='CLOSED'}, DeviceState{identifier=8, name='HALF_OPENED'}, DeviceState{identifier=12, name='OPENED'}, DeviceState{identifier=15, name='REAR_DISPLAY'}]";

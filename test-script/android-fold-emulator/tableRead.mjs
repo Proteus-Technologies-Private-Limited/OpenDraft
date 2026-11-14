@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { setTimeout as delay } from 'node:timers/promises';
-import { waitFor } from './protocol.mjs';
+import { activeWakeLocks, waitFor } from './protocol.mjs';
 
 /** Real APK, real native media/TTS services. Only the disposable TTS provider
  * emits deterministic tones. No production state or playback signals are mocked. */
@@ -77,7 +77,7 @@ export async function tableReadChecks({ client, shell, startMain, capture }) {
     evidence.screenshots = capture('table-read-foreground');
     await client.evaluate(() => document.querySelector('.table-read-panel button[aria-label="Stop"]')?.click());
     await waitFor('native playback service released', () => !shell('dumpsys', 'activity', 'services', 'com.proteus.opendraft').includes('TableReadService'));
-    assert(!shell('dumpsys', 'power').includes('OpenDraft:TableRead'), 'Playback wake lock survived Stop');
+    assert(!activeWakeLocks(shell('dumpsys', 'power')).includes('OpenDraft:TableRead'), 'Playback wake lock survived Stop');
     record('stopped', native());
     evidence.status = 'passed';
     return evidence;
