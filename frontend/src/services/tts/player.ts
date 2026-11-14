@@ -163,11 +163,14 @@ function attach(editor: Editor) {
     if (!transaction.docChanged) return;
     stale = true;
     if (anchor !== null) anchor = transaction.mapping.map(anchor);
-    // A native queue is an immutable reading snapshot. Pause on edits rather
-    // than highlighting obsolete positions or reading silently changed text.
+    // Discard the immutable native snapshot on edits. A remote Play must not
+    // resume obsolete text; Resume in the panel rebuilds from this anchor.
     if (nativeRead && (store().status === 'playing' || store().status === 'loading')) {
-      void nativeRead.command('pause').catch(() => {});
+      abortCurrent();
       store().patch({ status: 'paused', word: null });
+      highlight({ block: null, word: null });
+    } else if (nativeRead) {
+      abortCurrent();
       highlight({ block: null, word: null });
     }
   };

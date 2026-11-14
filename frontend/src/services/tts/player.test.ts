@@ -88,7 +88,7 @@ describe('Table Read native queue integration', () => {
     transaction({ transaction: { docChanged: true, mapping: { map: pos => pos + 1 } } });
     await vi.advanceTimersByTimeAsync(0);
     expect(store.getState().status).toBe('paused');
-    expect(fixture.invoke.mock.calls.filter(([, args]) => args.request.action === 'pause')).toHaveLength(1);
+    await vi.waitFor(() => expect(fixture.invoke.mock.calls.filter(([, args]) => args.request.action === 'stop')).toHaveLength(1));
     player.resume(); await vi.advanceTimersByTimeAsync(0);
     await vi.waitFor(() => expect(fixture.invoke.mock.calls.filter(([, args]) => args.request.action === 'start')).toHaveLength(2));
   });

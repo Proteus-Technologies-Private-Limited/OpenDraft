@@ -11,7 +11,8 @@ stop and move between lines. Pausing remembers the beginning of the latest
 reported word; engines without word events restart the current utterance.
 Long lines are chunked below the platform limit without splitting surrogate
 pairs. Changing speed/cast or jumping rebuilds the queue. Editing the document
-pauses this snapshot; Resume rebuilds it against the mapped document position.
+pauses the panel and discards the native snapshot, so remote Play cannot resume
+obsolete text. Resume in the panel rebuilds it against the mapped document position.
 
 This implements the Android **system-voice** part of #231 WP12. AI-provider
 audio retains its existing foreground JavaScript player. Browser Media Session
