@@ -4,19 +4,18 @@ Tracks implementation against [the design](foldable-support-design.md) and
 [#231](https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/issues/231).
 The proposal remains the acceptance checklist; this document does not mark
 untested native behavior as complete. Browser foundations (#235, #236, #237)
-and writing-pad placement/review fixes (#247) are merged. The Apple native bridge,
-background execution and the split-screen/custom-toolbar dependencies remain open.
-Android WindowManager posture fallback is now implemented; OEM/device validation
-and the Apple native bridge remain outstanding.
+and writing-pad placement/review fixes (#247) are merged. The iOS hinge bridge (WP4) is in;
+background execution and the split-screen/custom-toolbar dependencies remain open. Android WindowManager
+fallback is implemented in #260; physical OEM validation remains outstanding.
 
 | Package | Implemented here | Remaining work |
 | --- | --- | --- |
 | WP1–WP2 | Responsive menu, Location overlay and live swipe checks were merged in PR #235. | Merged browser fixes; keep their responsive regressions covered. |
-| WP3 | Browser posture, current `window.viewport.segments`, legacy fallback, size fallback, segment media queries, 150 ms debounce, HTML classes and crease variables. Android WindowManager fallback supplies per-WebView geometry when browser segments are missing, and half-open state when only segments are exposed. Native capability requires an observed FoldingFeature and lasts for that Activity. | Verify OEM System WebView/WindowManager behavior on a foldable. A cold cover launch with no reported FoldingFeature cannot establish capability from size alone. |
-| WP4 | No native bridge is included. | Implement and compile the iOS 27.1 bridge against the actual SDK, then exercise the Duo simulator. UIKit calls the region `division`, not `fold`; Objective-C uses `reservedRegionsOfKind:options:`. Read it in `updateConstraints`, where UIKit tracks changes; include inactive regions to establish capability while flat. |
-| WP5 | The original screen-based phone rule and its explanation are retained for all ordinary devices. Confirmed browser foldables use the separate window-based posture state. | Defer any iPhone-specific sizing change until there is native/device evidence to test. |
+| WP3 | Browser posture, current `window.viewport.segments`, legacy fallback, size fallback, segment media queries, 150 ms debounce, HTML classes and crease variables. Android WindowManager fallback supplies per-WebView geometry when browser segments are missing, and half-open state when only segments are exposed. Native capability requires an observed FoldingFeature and lasts for that Activity. Inactive/pending snapshots keep the applied posture until a fresh layout arrives. | Verify OEM System WebView/WindowManager behavior on a foldable. A cold cover launch with no reported FoldingFeature cannot establish capability from size alone. |
+| WP4 | Native bridge in `src-tauri/gen/apple/Sources/opendraft/FoldPosture.m`, started by the `fold_watch_start` command (`src-tauri/src/fold.rs`) for the web view that calls it. A transparent tracker view pinned over the WKWebView attaches `UIHingeInteraction` (closed / partiallyOpen / fullyOpen, or no hinge) and reads `reservedRegionsOfKind:divisionRegionKind options:IncludeInactive` in `updateConstraints`. It pushes `{hinge, angle, division, viewport}` to the page as `window.__opendraftNativeFold` plus `opendraft:nativefold`; `foldPosture.ts` uses it whenever the browser APIs report no crease. Built only against an SDK with the API and run only on iOS 27.1+, so older Xcode builds and older iOS keep browser detection. Verified on the Xcode 27.2 iPhone Duo simulator: cold start on the cover confirms a foldable; book (`partiallyOpen`, 40 px crease at x 455.5 of 951, CSS px = UIKit points), laptop (rotated) and `fullyOpen` (crease kept, region inactive) all apply the browser-built layouts; Diagnostics shows the native report. | Physical Duo. Split View on the open screen (the crease outside a pane is ignored, untested). The release job (`build-ios`, `macos-26`) does not pin Xcode: if the image's default SDK predates iOS 27.1, the bridge compiles out and the store build keeps browser detection only. Check the Xcode version in the next release log, and pin 27.1+ if needed. |
+| WP5 | The original screen-based phone rule and its explanation are retained for all ordinary devices. Confirmed foldables, now including the native hinge on iOS, use the separate window-based posture state, which fixes the Duo's open screen: WebKit keeps reporting the cover's `window.screen` (466×678) there, so the screen rule called a 951×669 screen a phone. | Device validation. |
 | WP6 | Independent folded/open preferences; one-time migration of explicit legacy choices into both postures; selecting an already-active layout still records a choice. Automatic geometry changes do not overwrite choices or reset zoom in the same layout. | Native posture-event validation after WP4. |
-| WP7 | On confirmed folded foldables, Hidden keeps the phone-sized toolbar; the existing draggable menu button starts below it at the right. Focus Mode and ordinary-device Hidden retain their behavior. | Native safe-area validation. |
+| WP7 | On confirmed folded foldables, Hidden keeps the phone-sized toolbar; the existing draggable menu button starts below it at the right. Focus Mode and ordinary-device Hidden retain their behavior. The button and its floating menu are clamped inside the side safe-area insets: the Duo's cover keeps its clock and status in a column down the right edge, which had covered the default position. | Physical-device check. |
 | WP8 | Fit-width page with 70% minimum, Navigator docking at 80%, one 300 px panel column with tabs, Table Read in that column, plugin panels, and Story Timeline as a bottom band. Stable portal hosts preserve mounted panel subtrees. | Long-script reading position, selection, typing/undo, panel focus (including the appendChild fallback), plugin activation and browser keyboard/ARIA regressions are covered. Physical touch targets, screen readers and native keyboard behavior still need device validation. |
 | WP9 | No split-screen implementation duplicated. | Merge #214, then connect its companion panes and crease default. |
 | WP10 | No replacement toolbar or element selector added. | Merge #217, then arrange the writer's items in two rows and implement the accessible horizontal choice line. Measure the native keyboard before deciding which side of the crease holds the rows. |
@@ -56,7 +55,6 @@ OPENDRAFT_TEST_URL=http://127.0.0.1:5173/ python test-script/foldables/regressio
 OPENDRAFT_TEST_URL=http://127.0.0.1:5173/ python test-script/foldables/review_regressions.py
 OPENDRAFT_TEST_URL=http://127.0.0.1:5173/ python test-script/foldables/writing_pad.py
 OPENDRAFT_TEST_URL=http://127.0.0.1:5173/ python test-script/foldables/diagnostics_keyboard.py
-OPENDRAFT_TEST_URL=http://127.0.0.1:5173/ python test-script/foldables/android_bridge.py
 OPENDRAFT_TEST_URL=http://127.0.0.1:5173/ OPENDRAFT_MENU_FOLDABLE=1 python test-script/menu-keyboard/regressions.py
 # From PR #235:
 OPENDRAFT_TEST_URL=http://127.0.0.1:5173/ python test-script/foldables/responsive.py
@@ -166,15 +164,8 @@ window do not prove foldable capability. A cold launch on a cover screen remains
 unconfirmed without positive segment evidence. Raw signals and applied classes
 can differ during the 150 ms debounce. Visual viewport reduction/offsets describe
 visible geometry; they do not establish whether a system keyboard is open.
-These browser fields describe signals exposed to the web view, rather than
-probing the native SDK.
-
-On Android, `nativeAndroid` additionally contains the bridge's fixed geometry,
-availability, active-observer and observed-capability fields (or `null` without
-the bridge). This is independent of `segmentsSource`, which still describes
-the browser segment APIs. Reading the native snapshot does not run detection,
-register a listener, or change preferences. No device model, identifier, error
-description or document content is included.
+These are browser signals, including in a native web view, not a native capability
+or SDK probe.
 
 `diagnostics_keyboard.py` verifies geometry and clipboard contents in open,
 book, laptop and cover postures, read-only collection, cold cover startup, frozen
@@ -185,6 +176,39 @@ the baseline menu implementation and the extended #253 suite. Integration with
 #253 is validated in a temporary checkout; its commits are not bundled here.
 Native keyboard/IME, physical touch, screen readers, Pencil and background audio
 still require the native work and device validation listed above.
+
+## Duo-specific layout (verified on the Xcode 27.2 iPhone Duo simulator)
+
+All of it is scoped to a confirmed foldable (`html.foldable`, `fold-book`, or
+`html.ios.foldable.wide`), so ordinary phones, tablets and desktops render as
+before; an iPhone 17 simulator running the same build showed the same layout.
+
+- **Top touch band.** The open screen reports no top safe-area inset (its
+  status sits in a column on the trailing edge) but iOS keeps the top 24 pt:
+  menu-bar taps there never reached the page. On the iOS app's wide foldable
+  screens the chrome now starts at `max(env(safe-area-inset-top), 24px)`
+  (`--fold-chrome-top`), as do full-screen sheets and the overlay navigator.
+- **Fully open toolbar.** The toolbar re-measures its overflow after every fold
+  change and again once the posture settles; it had been left measured for the
+  previous posture, with its last items under the 84 px status column.
+- **Book posture: controls side.** The menu bar stays over the script on the
+  left. The toolbar moves to the top of the right half in two 44 px rows
+  (overflow measured from the wrapped layout, separators dropped), and its
+  pulldowns (element, size) open as a horizontal choice line over the second
+  row (`Select`, `aria-orientation="horizontal"`, Left/Right keys). Panels fill
+  the right half below it; the system keyboard takes the bottom while typing.
+  The font picker still opens its own list. Menu-bar menus stay on the script
+  side of the crease.
+- **Menu button in the status column.** On a folded foldable with a side inset
+  at least 44 px wide (the Duo cover, either orientation), the ☰ button
+  defaults to the foot of that column (above the home indicator, centred
+  across it) instead of over the toolbar; taps there reach the app. A dragged
+  position is remembered. Dropped with its centre over the column it snaps back
+  in, centred, so the button can be returned there after being moved onto the
+  script; anywhere else it is clamped inside the safe area as before.
+
+Still open: WP10's full choice-line spec (leading crumb button, trailing ✕) and
+the laptop posture's toolbar at the keyboard side, both waiting on #217.
 
 ## Android WindowManager fallback
 
@@ -215,8 +239,8 @@ unconfirmed. An OEM reporting nothing on a cold cover launch remains an ordinary
 phone: neither model names nor screen dimensions prove capability.
 
 After `tauri android init`, `test-script/patch-android-local.py` installs the
-source/dependency for local builds. Release CI invokes the same
-`android_fold_build.py` helper. The tracked R8 rules and `@Keep` preserve the
+source/dependency for local builds. Release CI copies the bridge beside the
+Activity sources and patches the dependency with the other generated Gradle settings. The tracked R8 rules and `@Keep` preserve the
 read-only `snapshot` method. No generated Android project is checked in.
 
 With JDK 17, Android SDK 35 and Gradle 8.13 installed:
@@ -242,3 +266,20 @@ remain outstanding.
 Android references: [WindowInfoTracker](https://developer.android.com/reference/kotlin/androidx/window/layout/WindowInfoTracker),
 [FoldingFeature](https://developer.android.com/reference/kotlin/androidx/window/layout/FoldingFeature),
 [Java callback adapter](https://developer.android.com/reference/kotlin/androidx/window/java/layout/WindowInfoTrackerCallbackAdapter).
+
+### Android review hardening
+
+Stopping or restarting the Activity publishes a pending native snapshot, which
+means no new geometry. The frontend retains its applied posture and size during
+that gap, without before-change events, class changes or posture-preference
+transitions. Fresh available geometry, including an empty cover-screen layout,
+then applies normally. Subscribers share the watcher's applied state, avoiding
+repeated synchronous Java bridge reads during one event.
+
+Only the global-layout listener republishes WebView geometry; an unchanged
+snapshot emits no event. Optional WindowManager calls contain both ordinary
+exceptions and vendor linkage errors during attach/start/stop. Unit tests cover
+startup and cleanup failures, stale callbacks, and book/laptop lifecycle gaps.
+The release workflow copies the bridge beside the existing Activity sources and
+patches its Gradle dependency alongside signing; production builds do not invoke
+the test helper. Physical OEM and native keyboard validation remain outstanding.

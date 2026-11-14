@@ -269,6 +269,10 @@ and Arch reproduce it; Debian 12 and Ubuntu 22.04/24.04 do not.
 
 The iOS `.ipa` is built via **GitHub Actions** (in `.github/workflows/release.yml`, the `build-ios` job). It runs on a macOS runner, builds the Tauri iOS app, and uploads to both the GitHub Release and App Store Connect.
 
+The job runs on GitHub's `xcode-27` image and selects **Xcode 27.2** (`/Applications/Xcode_27.2.app`). It must stay on an iOS 27.1+ SDK: `FoldPosture.m`, the iPhone Duo hinge bridge (#231), only compiles its hinge code against one, and `macos-26` stops at Xcode 26.6. The step fails the build if 27.2 or its iOS 27.2 SDK is missing, rather than shipping without it.
+
+Xcode 27's SwiftPM builds with its new `swiftbuild` engine by default, which forces macOS SDK flags onto Tauri's Swift package and fails with "could not build module 'AppKit'/'UIKit'". The next step puts a `swift` shim first on `PATH` that runs `swift build --build-system native`; local Xcode 27 builds need the same shim. v2.13.0's first run failed here before it was added.
+
 ### How it works
 
 1. CI runs `tauri ios init` to generate the Xcode project (since `src-tauri/gen/` is gitignored)

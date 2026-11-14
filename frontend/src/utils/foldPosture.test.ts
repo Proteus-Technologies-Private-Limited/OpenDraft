@@ -171,3 +171,77 @@ describe('browser detection', () => {
   });
 
 });
+
+// The iOS app's report from UIKit's hinge (FoldPosture.m), for the WKWebView
+// that has none of the browser fold APIs. Each test loads a fresh module,
+// since a confirmed foldable is remembered for the life of the page.
+describe('native hinge (iOS app)', () => {
+  const duoBook = { x: 470, y: 0, width: 11, height: 669 };
+  const duoLaptop = { x: 0, y: 470, width: 669, height: 11 };
+  const fresh = async () => { vi.resetModules(); return import('./foldPosture'); };
+  const nativeWindow = (report: unknown, size = { innerWidth: 951, innerHeight: 669 }) =>
+    Object.assign(new EventTarget(), { ...size, matchMedia: () => ({ matches: true }), __opendraftNativeFold: report });
+
+  it('maps hinge status and crease direction to postures', async () => {
+    const { foldFromNative } = await fresh();
+    const viewport = { width: 951, height: 669 };
+    expect(foldFromNative({ hinge: 'partiallyOpen', division: duoBook }, viewport)).toEqual({ fold: 'book', foldRect: new Rect(470, 0, 11, 669) });
+    expect(foldFromNative({ hinge: 'partiallyOpen', division: duoLaptop }, { width: 669, height: 951 })).toEqual({ fold: 'laptop', foldRect: new Rect(0, 470, 669, 11) });
+    // Fully open is flat but keeps the crease, like the browser's 'continuous'.
+    expect(foldFromNative({ hinge: 'fullyOpen', division: { ...duoBook, active: false } }, viewport)).toEqual({ fold: 'flat', foldRect: new Rect(470, 0, 11, 669) });
+    expect(foldFromNative({ hinge: 'closed', division: duoBook }, viewport)).toEqual({ fold: 'flat', foldRect: null });
+  });
+
+  it('ignores a crease that is invalid or outside this window', async () => {
+    const { foldFromNative } = await fresh();
+    for (const division of [null, { x: NaN, y: 0, width: 11, height: 669 }, { x: 0, y: 0, width: 0, height: 0 }, { x: 0, y: 0, width: -1, height: 669 }]) {
+      expect(foldFromNative({ hinge: 'partiallyOpen', division }, { width: 951, height: 669 })).toEqual({ fold: 'flat', foldRect: null });
+    }
+    // Split View: a pane on one half of the open screen does not contain the crease.
+    expect(foldFromNative({ hinge: 'fullyOpen', division: duoBook }, { width: 470, height: 669 }).foldRect).toBeNull();
+  });
+
+  it('confirms a foldable from the hinge, including on the cover screen', async () => {
+    const { getFoldState, isFoldableDevice } = await fresh();
+    vi.stubGlobal('navigator', {});
+    vi.stubGlobal('window', nativeWindow({ hinge: 'closed', division: null }, { innerWidth: 466, innerHeight: 678 }));
+    expect(getFoldState()).toEqual({ size: 'phone', fold: 'flat', foldRect: null });
+    expect(isFoldableDevice()).toBe(true);
+  });
+
+  it('does not confirm a foldable without a hinge, or before the hinge has answered', async () => {
+    const { getFoldState, isFoldableDevice } = await fresh();
+    vi.stubGlobal('navigator', {});
+    for (const report of [{ hinge: 'none', division: null }, { hinge: 'unknown', division: duoBook }, { hinge: 'sideways', division: duoBook }, 'closed', null]) {
+      vi.stubGlobal('window', nativeWindow(report));
+      expect(getFoldState()).toEqual({ size: 'wide', fold: 'flat', foldRect: null });
+    }
+    expect(isFoldableDevice()).toBe(false);
+  });
+
+  it('lets the browser APIs win when they report a crease', async () => {
+    const { getFoldState } = await fresh();
+    vi.stubGlobal('navigator', { devicePosture: { type: 'folded' } });
+    vi.stubGlobal('window', Object.assign(nativeWindow({ hinge: 'closed', division: null }, { innerWidth: 800, innerHeight: 800 }), { viewport: { segments: vertical } }));
+    expect(getFoldState().fold).toBe('book');
+  });
+
+  it('re-reads posture when the app reports a hinge change', async () => {
+    vi.useFakeTimers();
+    const { watchFoldPosture, NATIVE_FOLD_EVENT } = await fresh();
+    const win = nativeWindow({ hinge: 'closed', division: null }, { innerWidth: 466, innerHeight: 678 });
+    vi.stubGlobal('window', win);
+    vi.stubGlobal('navigator', {});
+    vi.stubGlobal('document', { documentElement: { classList: { toggle: vi.fn() }, style: { setProperty: vi.fn() } } });
+    const seen = vi.fn();
+    const stop = watchFoldPosture(seen);
+    expect(seen).toHaveBeenLastCalledWith({ size: 'phone', fold: 'flat', foldRect: null });
+    Object.assign(win, { innerWidth: 951, innerHeight: 669, __opendraftNativeFold: { hinge: 'partiallyOpen', division: duoBook } });
+    win.dispatchEvent(new Event(NATIVE_FOLD_EVENT));
+    vi.advanceTimersByTime(150);
+    expect(seen).toHaveBeenLastCalledWith({ size: 'wide', fold: 'book', foldRect: new Rect(470, 0, 11, 669) });
+    stop();
+    win.dispatchEvent(new Event(NATIVE_FOLD_EVENT)); vi.runAllTimers();
+    expect(seen).toHaveBeenCalledTimes(2);
+  });
+});

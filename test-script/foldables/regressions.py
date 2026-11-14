@@ -243,7 +243,7 @@ class FoldableRegressions(unittest.TestCase):
         # can legitimately form several history groups on a slow CI runner.
         self.page.keyboard.insert_text('continued')
         self.assertEqual(self.page.evaluate('(start)=>testEditor.state.doc.textBetween(start,start+9)', start), 'continued')
-        self.page.keyboard.press('Control+z')
+        self.page.keyboard.press('ControlOrMeta+z')
         self.assertEqual(self.page.evaluate('testEditor.state.doc.textContent'), before)
 
 

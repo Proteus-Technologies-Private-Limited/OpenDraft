@@ -1,5 +1,5 @@
 /** Optional Android WindowManager bridge. It exposes geometry only, with no
- * persistent capability flag. Coordinates arrive in window pixels and must
+ * persistent device flag. The confirmed bit records evidence for this Activity only. Coordinates arrive in window pixels and must
  * be translated/scaled into this WebView's layout-viewport CSS pixels. */
 export const ANDROID_FOLD_CHANGE_EVENT = 'opendraft:androidfoldchange';
 export interface AndroidFoldSnapshot {

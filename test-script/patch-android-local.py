@@ -43,7 +43,7 @@ EXTRA_WINDOWS = 3
 
 def copy_sources() -> None:
     JAVA.mkdir(parents=True, exist_ok=True)
-    for name in ("MainActivity.kt", "WindowActivities.kt"):
+    for name in ("MainActivity.kt", "WindowActivities.kt", "FoldPostureBridge.kt"):
         shutil.copy(SRC / name, JAVA / name)
         print(f"copied {name}")
 

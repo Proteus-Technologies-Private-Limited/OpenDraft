@@ -35,13 +35,19 @@ class FoldPostureBridgeTest {
         var starts = 0
         var stops = 0
         var fail = false
+        var startFailure: LinkageError? = null
+        var stopFailure: LinkageError? = null
         override fun start(consumer: Consumer<WindowLayoutInfo>) {
             starts++
             callback = consumer
+            startFailure?.let { throw it }
             if (fail) throw IllegalStateException("synthetic OEM failure")
             emit()
         }
-        override fun stop(consumer: Consumer<WindowLayoutInfo>) { stops++ }
+        override fun stop(consumer: Consumer<WindowLayoutInfo>) {
+            stops++
+            stopFailure?.let { throw it }
+        }
         fun emit(feature: FoldingFeature? = null) {
             callback?.accept(WindowLayoutInfo(if (feature == null) emptyList() else listOf(feature)))
         }
@@ -164,4 +170,63 @@ class FoldPostureBridgeTest {
         assertNotNull(FoldPostureBridge::class.java.getMethod("snapshot").getAnnotation(JavascriptInterface::class.java))
         controller.pause().stop().destroy()
     }
+    @Test fun vendorLinkageFailuresCannotEscapeStartupOrCleanup() {
+        for (failure in listOf(NoSuchMethodError(), NoClassDefFoundError(), AbstractMethodError())) {
+            val controller = Robolectric.buildActivity(ComponentActivity::class.java).setup()
+            val source = Source().apply { startFailure = failure; stopFailure = failure }
+            val bridge = FoldPostureBridge(controller.get(), WebView(controller.get()), source)
+            assertEquals("unavailable", JSONObject(bridge.snapshot()).getString("status"))
+            assertFalse(JSONObject(bridge.snapshot()).getBoolean("confirmed"))
+            source.emit(Fold())
+            assertEquals("unavailable", JSONObject(bridge.snapshot()).getString("status"))
+            controller.pause().stop().destroy()
+        }
+    }
+
+    @Test fun vendorStopFailureStillInvalidatesCallbacksAndDetachesOnDestroy() {
+        val controller = Robolectric.buildActivity(ComponentActivity::class.java).setup()
+        val source = Source().apply { stopFailure = NoSuchMethodError() }
+        val view = WebView(controller.get())
+        val bridge = FoldPostureBridge(controller.get(), view, source)
+        source.emit(Fold())
+        val previous = source.callback!!
+        controller.pause().stop()
+        val stopped = bridge.snapshot()
+        assertFalse(JSONObject(stopped).getBoolean("active"))
+        previous.accept(WindowLayoutInfo(listOf(Fold())))
+        assertEquals(stopped, bridge.snapshot())
+        controller.destroy()
+        assertNull(shadowOf(view).getJavascriptInterface(FoldPostureBridge.INTERFACE))
+    }
+
+    @Test fun linkageFailureWhileAttachingLeavesBrowserFallbackAvailable() {
+        val controller = Robolectric.buildActivity(ComponentActivity::class.java).setup()
+        val view = object : WebView(controller.get()) {
+            override fun addJavascriptInterface(instance: Any?, name: String?) {
+                throw NoClassDefFoundError("synthetic attachment mismatch")
+            }
+        }
+        assertNull(FoldPostureBridge.attach(controller.get(), view))
+        controller.pause().stop().destroy()
+    }
+
+    @Test fun vendorFeatureGetterLinkageFailureCannotEscapeAnAsyncCallback() {
+        val controller = Robolectric.buildActivity(ComponentActivity::class.java).setup()
+        val source = Source()
+        val bridge = FoldPostureBridge(controller.get(), WebView(controller.get()), source)
+        val badFeature = object : FoldingFeature {
+            override val bounds: Rect get() = throw AbstractMethodError()
+            override val state = FoldingFeature.State.HALF_OPENED
+            override val orientation = FoldingFeature.Orientation.VERTICAL
+            override val isSeparating = true
+            override val occlusionType = FoldingFeature.OcclusionType.FULL
+        }
+        source.emit(badFeature)
+        assertEquals("unavailable", JSONObject(bridge.snapshot()).getString("status"))
+        assertFalse(JSONObject(bridge.snapshot()).getBoolean("confirmed"))
+        source.emit(Fold())
+        assertEquals("unavailable", JSONObject(bridge.snapshot()).getString("status"))
+        controller.pause().stop().destroy()
+    }
+
 }

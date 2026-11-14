@@ -18,6 +18,38 @@ type SegmentViewport = { segments?: readonly Segment[] };
 type PostureNavigator = Navigator & { devicePosture?: EventTarget & { type?: string } };
 let confirmed = false;
 
+/**
+ * The hinge as the native app reports it (FoldPosture.m, iOS 27.1+).
+ *
+ * WKWebView has none of the browser fold APIs, so the iOS app pushes UIKit's
+ * hinge state and crease into the page instead: `window.__opendraftNativeFold`,
+ * plus NATIVE_FOLD_EVENT whenever it changes. `division` is the crease in the
+ * page's CSS pixels, reported while fully open too (the region is then only
+ * inactive); `hinge: 'none'` means the device has no hinge.
+ */
+export interface NativeFold {
+  hinge: 'none' | 'unknown' | 'closed' | 'partiallyOpen' | 'fullyOpen';
+  angle?: number;
+  division: { x: number; y: number; width: number; height: number; active?: boolean } | null;
+  viewport?: { width: number; height: number };
+}
+export const NATIVE_FOLD_EVENT = 'opendraft:nativefold';
+type NativeFoldWindow = Window & { __opendraftNativeFold?: NativeFold };
+
+/** The native report, if the app has sent a well-formed one. */
+export function readNativeFold(): NativeFold | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const value = (window as NativeFoldWindow).__opendraftNativeFold;
+    if (!value || typeof value !== 'object') return null;
+    const hinges: readonly NativeFold['hinge'][] = ['none', 'unknown', 'closed', 'partiallyOpen', 'fullyOpen'];
+    if (!hinges.includes(value.hinge)) return null;
+    return value;
+  } catch {
+    return null;
+  }
+}
+
 export function isFoldableDevice(): boolean {
   return confirmed;
 }
@@ -42,7 +74,37 @@ export function foldFromSegments(segments: readonly Segment[], folded: boolean):
   return { fold: folded ? orientation : 'flat', foldRect: rect };
 }
 
+/**
+ * The same answer from the native hinge, for the app on a foldable iPhone.
+ *
+ * Closed means the cover screen: no crease on this display. Open, the crease
+ * is the division region; it runs down a book-held device (taller than wide)
+ * and across a laptop-held one. Fully open is flat, as the browser's
+ * 'continuous' posture is, but keeps the crease for docking. A crease outside
+ * the reported viewport (a Split View pane on one half) is no crease here.
+ */
+export function foldFromNative(native: NativeFold, viewport: { width: number; height: number }): Pick<FoldState, 'fold' | 'foldRect'> {
+  if (native.hinge === 'none' || native.hinge === 'closed' || !native.division) return { fold: 'flat', foldRect: null };
+  const { x, y, width, height } = native.division;
+  const finite = [x, y, width, height].every(Number.isFinite);
+  if (!finite || width < 0 || height < 0 || (width === 0 && height === 0)) return { fold: 'flat', foldRect: null };
+  const inside = x < viewport.width && y < viewport.height && x + width > 0 && y + height > 0;
+  if (!inside) return { fold: 'flat', foldRect: null };
+  const orientation: FoldState['fold'] = height > width ? 'book' : 'laptop';
+  return { fold: native.hinge === 'partiallyOpen' ? orientation : 'flat', foldRect: new DOMRect(x, y, width, height) };
+}
+
+let lastAndroidState: FoldState | null = null;
+let watchedState: FoldState | null = null;
+let waitingForAndroidLayout = false;
+
+/** Subscribers share the geometry applied by the watcher, including native
+ * reads; a posture event must not repeatedly block on the Java interface. */
 export function getFoldState(): FoldState {
+  return watchedState ?? detectFoldState();
+}
+
+function detectFoldState(): FoldState {
   if (typeof window === 'undefined') return { size: 'wide', fold: 'flat', foldRect: null };
   let coarse = false;
   try { coarse = window.matchMedia('(pointer: coarse)').matches; } catch { /* unsupported */ }
@@ -50,20 +112,32 @@ export function getFoldState(): FoldState {
   // Chrome 138 ships window.viewport. Older origin-trial builds used
   // visualViewport.segments; keep that fallback without requiring either API.
   let geometry: Pick<FoldState, 'fold' | 'foldRect'> = { fold: 'flat', foldRect: null };
-  const native = readAndroidFoldSnapshot();
+  const android = readAndroidFoldSnapshot();
+  waitingForAndroidLayout = false;
+  // Stopped/pending is a lifecycle gap, not evidence that a half-open hinge
+  // became flat. Preserve size too, so backgrounding cannot change preferences.
+  if (android && (!android.active || android.status === 'pending') && lastAndroidState) {
+    waitingForAndroidLayout = true;
+    return lastAndroidState;
+  }
   try {
     const viewport = (window as Window & { viewport?: SegmentViewport }).viewport;
     const segments = viewport?.segments ?? (window.visualViewport as (VisualViewport & SegmentViewport) | null)?.segments ?? [];
     const posture = (navigator as PostureNavigator).devicePosture?.type;
-    const folded = posture === 'folded' || (posture !== 'continuous' && native?.active
-      && native.status === 'available' && native.feature?.folded === true);
+    const folded = posture === 'folded' || (posture !== 'continuous' && android?.active
+      && android.status === 'available' && android.feature?.folded === true);
     geometry = foldFromSegments(segments, !!folded);
-  } catch { /* An experimental API failure must not mask the native fallback. */ }
+  } catch { /* Experimental browser APIs must not mask native evidence. */ }
   if (geometry.foldRect) rememberFoldable();
-  // Native evidence is scoped to this Activity, including an observed feature
-  // retained after folding to the cover. Browser segments keep precedence.
-  if (native?.confirmed) rememberFoldable();
-  if (!geometry.foldRect && native) return { size, ...androidFoldGeometry(native, window.innerWidth, window.innerHeight) };
+  const native = geometry.foldRect ? null : readNativeFold();
+  if (native && native.hinge !== 'none' && native.hinge !== 'unknown') {
+    rememberFoldable();
+    geometry = foldFromNative(native, { width: window.innerWidth, height: window.innerHeight });
+  } else if (!geometry.foldRect && android) {
+    if (android.confirmed) rememberFoldable();
+    geometry = androidFoldGeometry(android, window.innerWidth, window.innerHeight);
+  }
+  if (android?.active && android.status === 'available') lastAndroidState = { size, ...geometry };
   return { size, ...geometry };
 }
 
@@ -83,7 +157,9 @@ export function watchFoldPosture(onChange: (state: FoldState) => void): () => vo
   let last = '';
   let timer: ReturnType<typeof setTimeout> | undefined;
   const apply = () => {
-    const state = getFoldState();
+    const state = detectFoldState();
+    if (waitingForAndroidLayout && watchedState) return;
+    watchedState = state;
     const next = signature(state);
     if (next === last) return;
     last = next;
@@ -109,6 +185,7 @@ export function watchFoldPosture(onChange: (state: FoldState) => void): () => vo
   document.addEventListener?.('visibilitychange', schedule);
   window.visualViewport?.addEventListener('resize', schedule);
   posture?.addEventListener('change', schedule);
+  window.addEventListener(NATIVE_FOLD_EVENT, schedule);
   const queries = ['(pointer: coarse)', '(horizontal-viewport-segments: 2)', '(vertical-viewport-segments: 2)'].map(query => window.matchMedia?.(query));
   queries.forEach(query => {
     if (query?.addEventListener) query.addEventListener('change', schedule);
@@ -116,6 +193,7 @@ export function watchFoldPosture(onChange: (state: FoldState) => void): () => vo
   });
   apply();
   return () => {
+    watchedState = null;
     clearTimeout(timer);
     window.removeEventListener('resize', schedule);
     window.removeEventListener('orientationchange', schedule);
@@ -123,6 +201,7 @@ export function watchFoldPosture(onChange: (state: FoldState) => void): () => vo
     document.removeEventListener?.('visibilitychange', schedule);
     window.visualViewport?.removeEventListener('resize', schedule);
     posture?.removeEventListener('change', schedule);
+    window.removeEventListener(NATIVE_FOLD_EVENT, schedule);
     queries.forEach(query => {
       if (query?.removeEventListener) query.removeEventListener('change', schedule);
       else query?.removeListener?.(schedule);

@@ -21,6 +21,7 @@
 		C4F440040A8416019A7010A9 /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0854948C3ABFAA90D73DFE6D /* MetalKit.framework */; };
 		D626DE9AA79BB61DF4687334 /* main.mm in Sources */ = {isa = PBXBuildFile; fileRef = 9F12C46C2A49D29336D952CE /* main.mm */; };
 		E1A2B3C4D5E6F708A9B0C1D2 /* FileHelpers.m in Sources */ = {isa = PBXBuildFile; fileRef = F3B4C5D6E7F80912A3B4C5D6 /* FileHelpers.m */; };
+		0FD1A2B3C4D5E6F708192A3B /* FoldPosture.m in Sources */ = {isa = PBXBuildFile; fileRef = 0FD1C2D3E4F5061728394A5B /* FoldPosture.m */; };
 		F2C80451C06D6C77F2C38E95 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 23190DB29802596A247A202D /* Metal.framework */; };
 /* End PBXBuildFile section */
 
@@ -41,6 +42,7 @@
 		99C9A8353124C89440993839 /* opendraft_iOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = opendraft_iOS.entitlements; sourceTree = "<group>"; };
 		9F12C46C2A49D29336D952CE /* main.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = main.mm; sourceTree = "<group>"; };
 		F3B4C5D6E7F80912A3B4C5D6 /* FileHelpers.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = FileHelpers.m; sourceTree = "<group>"; };
+		0FD1C2D3E4F5061728394A5B /* FoldPosture.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = FoldPosture.m; sourceTree = "<group>"; };
 		A8A9CEA433DA04771C0991D2 /* opendraft_iOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = opendraft_iOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B0F2E787EEF0370AFCDBBA57 /* libapp.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libapp.a; sourceTree = "<group>"; };
 		B45581133489B87393B52C32 /* lib.rs */ = {isa = PBXFileReference; path = lib.rs; sourceTree = "<group>"; };
@@ -141,6 +143,7 @@
 			children = (
 				9F12C46C2A49D29336D952CE /* main.mm */,
 				F3B4C5D6E7F80912A3B4C5D6 /* FileHelpers.m */,
+				0FD1C2D3E4F5061728394A5B /* FoldPosture.m */,
 				59F885513ACD5EF54F9F4253 /* bindings */,
 			);
 			path = opendraft;
@@ -283,6 +286,7 @@
 			files = (
 				D626DE9AA79BB61DF4687334 /* main.mm in Sources */,
 				E1A2B3C4D5E6F708A9B0C1D2 /* FileHelpers.m in Sources */,
+				0FD1A2B3C4D5E6F708192A3B /* FoldPosture.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

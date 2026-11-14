@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
-"""Install the native posture source/dependency in Tauri's generated project."""
+"""Install the native posture dependency in Tauri's generated project."""
 
-import shutil
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -19,9 +18,6 @@ def patch_fold_bridge(gen: Path, src: Path) -> None:
             + WINDOW_DEPENDENCY
             + "\n}\n"
         )
-    java = gen / "app/src/main/java/com/proteus/opendraft"
-    java.mkdir(parents=True, exist_ok=True)
-    shutil.copy(src / "FoldPostureBridge.kt", java / "FoldPostureBridge.kt")
 
 
 if __name__ == "__main__":

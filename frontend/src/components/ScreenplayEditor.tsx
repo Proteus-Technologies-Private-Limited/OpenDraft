@@ -80,7 +80,7 @@ import TableReadPanel from './TableReadPanel';
 import FoldablePanelDock from './FoldablePanelDock';
 import { useFoldState } from '../hooks/useFoldState';
 import { useFoldWritingPadDock } from '../hooks/useFoldWritingPadDock';
-import { FOLD_WILL_CHANGE_EVENT, isFoldableDevice } from '../utils/foldPosture';
+import { FOLD_CHANGE_EVENT, FOLD_WILL_CHANGE_EVENT, isFoldableDevice } from '../utils/foldPosture';
 import { foldLayout, FOLD_NAV_WIDTH } from '../utils/foldLayout';
 import VoiceProviderDialog from './VoiceProviderDialog';
 import { TableReadHighlight } from '../editor/extensions/TableReadHighlight';
@@ -1310,6 +1310,21 @@ const ScreenplayEditor: React.FC = () => {
     }, 100);
     return () => clearTimeout(timer);
   }, [foldState.foldable, foldState.fold, foldState.size, foldState.viewportWidth, foldOpen, phoneView, pageLayout.pageWidth, setZoomLevel]);
+
+  // Where the editor starts, for the laptop posture's height above the crease.
+  // Measured in the same task the posture classes change, before the reading
+  // anchor is restored: the book posture lifts the toolbar out of the flow, so
+  // a value left from book is a toolbar short, and correcting it 100ms later
+  // would move the writer's line after it had been put back.
+  useEffect(() => {
+    const measure = () => {
+      if (!isFoldableDevice()) return;
+      const root = document.querySelector<HTMLElement>('.editor-layout');
+      if (root) root.style.setProperty('--fold-content-top', `${root.getBoundingClientRect().top}px`);
+    };
+    window.addEventListener(FOLD_CHANGE_EVENT, measure);
+    return () => window.removeEventListener(FOLD_CHANGE_EVENT, measure);
+  }, []);
 
   // Foldable panel/toolbar changes must never refit an ordinary user's page.
   useEffect(() => {

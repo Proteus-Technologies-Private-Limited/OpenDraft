@@ -143,4 +143,55 @@ describe('detector integration', () => {
     doc.dispatchEvent(new Event('visibilitychange')); vi.runAllTimers();
     expect(changed).toHaveBeenCalledTimes(2);
   });
+  it.each(['book', 'laptop'] as const)('keeps %s layout and preferences through stop/pending until fresh geometry arrives', async posture => {
+    vi.useFakeTimers();
+    const value = snapshot();
+    if (posture === 'laptop') value.feature = {
+      left: 0, top: 840, width: 1680, height: 0, orientation: 'horizontal', folded: true,
+    };
+    raw = JSON.stringify(value);
+    const toggle = vi.fn();
+    vi.stubGlobal('document', { documentElement: { classList: { toggle }, style: { setProperty: vi.fn() } } });
+    const detector = await import('./foldPosture');
+    const changed = vi.fn();
+    const before = vi.fn();
+    win.addEventListener(detector.FOLD_WILL_CHANGE_EVENT, before);
+    const stop = detector.watchFoldPosture(changed);
+    const initial = detector.getFoldState();
+    expect(initial.fold).toBe(posture);
+    const appliedClasses = toggle.mock.calls.length;
+    for (const active of [false, true]) {
+      raw = JSON.stringify({ ...value, active, status: 'pending', feature: null });
+      Object.assign(win, { innerWidth: 400, innerHeight: 700 });
+      win.dispatchEvent(new Event(ANDROID_FOLD_CHANGE_EVENT));
+      vi.advanceTimersByTime(500);
+      expect(detector.getFoldState()).toEqual(initial);
+      expect(changed).toHaveBeenCalledTimes(1);
+      expect(before).toHaveBeenCalledTimes(1);
+      expect(toggle).toHaveBeenCalledTimes(appliedClasses);
+    }
+    raw = JSON.stringify({ ...value, feature: null });
+    win.dispatchEvent(new Event(ANDROID_FOLD_CHANGE_EVENT));
+    vi.advanceTimersByTime(150);
+    expect(changed).toHaveBeenCalledTimes(2);
+    expect(detector.getFoldState()).toEqual({ size: 'phone', fold: 'flat', foldRect: null });
+    stop();
+  });
+  it('shares one native read across all subscribers in each applied event', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('document', { documentElement: { classList: { toggle: vi.fn() }, style: { setProperty: vi.fn() } } });
+    const detector = await import('./foldPosture');
+    const stop = detector.watchFoldPosture(() => {
+      for (let i = 0; i < 4; i++) detector.getFoldState();
+    });
+    expect(win.OpenDraftAndroidFold.snapshot).toHaveBeenCalledTimes(1);
+    for (let i = 0; i < 4; i++) detector.getFoldState();
+    expect(win.OpenDraftAndroidFold.snapshot).toHaveBeenCalledTimes(1);
+    raw = JSON.stringify({ ...snapshot(), feature: null });
+    win.dispatchEvent(new Event(ANDROID_FOLD_CHANGE_EVENT));
+    vi.advanceTimersByTime(150);
+    expect(win.OpenDraftAndroidFold.snapshot).toHaveBeenCalledTimes(2);
+    stop();
+  });
+
 });

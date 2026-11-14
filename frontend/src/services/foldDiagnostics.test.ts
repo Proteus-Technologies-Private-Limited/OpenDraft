@@ -61,6 +61,19 @@ describe('foldable diagnostic snapshot', () => {
     expect(css).toEqual({});
   });
 
+  it('reports the iOS app\'s native hinge read-only, copying only its fixed fields', () => {
+    expect(collect()!.nativeHinge).toEqual({ status: 'unsupported', hinge: null, angle: null, division: null, divisionActive: null });
+    win.__opendraftNativeFold = { hinge: 'partiallyOpen', angle: 1.6, extra: 'not copied',
+      division: { x: 470, y: 0, width: 11, height: 669, active: true } };
+    const report = collect()!;
+    expect(report.segmentsSource).toBe('native-hinge');
+    expect(report.nativeHinge).toEqual({ status: 'available', hinge: 'partiallyOpen', angle: 1.6,
+      division: { left: 470, top: 0, width: 11, height: 669 }, divisionActive: true });
+    // Reading it confirms nothing: that is the detector's job, not Diagnostics'.
+    expect(detector.isFoldableDevice()).toBe(false);
+    expect(classes).toEqual(new Set(['wide']));
+  });
+
   it('uses the legacy location only when the current list is absent, not when it is empty', () => {
     win.visualViewport = { segments: book, width: 800, height: 400, offsetLeft: 0, offsetTop: 80, scale: 1 };
     expect(collect()!.segmentsSource).toBe('visualViewport.segments');

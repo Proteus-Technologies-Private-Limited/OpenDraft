@@ -8,6 +8,8 @@ mod native_menu;
 /// Platform text-to-speech for Table Read (issue #131).
 mod tts;
 mod dictation;
+/// Native hinge posture for foldable iPhones (issue #231).
+mod fold;
 use percent_encoding::percent_decode_str;
 use tauri::{Emitter, Manager};
 #[cfg(desktop)]
@@ -3083,6 +3085,7 @@ pub fn run() {
             set_window_title,
             set_native_menu_language,
             open_url,
+            fold::fold_watch_start,
             dictation::dictation_native_start,
             dictation::dictation_native_stop,
             dictation::dictation_native_cancel,

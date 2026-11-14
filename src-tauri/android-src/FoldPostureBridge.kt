@@ -2,7 +2,6 @@ package com.proteus.opendraft
 
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
-import android.view.View
 import androidx.activity.ComponentActivity
 import androidx.annotation.Keep
 import androidx.core.content.ContextCompat
@@ -14,6 +13,16 @@ import androidx.window.layout.FoldingFeature
 import androidx.window.layout.WindowInfoTracker
 import androidx.window.layout.WindowLayoutInfo
 import org.json.JSONObject
+
+/** Vendor WindowManager extensions may link against a different SDK. Keep
+ * those optional failures contained without swallowing VM-fatal errors. */
+private inline fun <T> optionalWindowCall(block: () -> T): T? = try {
+    block()
+} catch (_: Exception) {
+    null
+} catch (_: LinkageError) {
+    null
+}
 
 /** Per-Activity geometry only. No script data, permissions or global device flag. */
 @Keep
@@ -34,6 +43,7 @@ class FoldPostureBridge internal constructor(
         override fun stop(consumer: Consumer<WindowLayoutInfo>) = tracker.removeWindowLayoutInfoListener(consumer)
     }
 
+    private val location = IntArray(2)
     private var confirmed = false
     private var started = false
     private var destroyed = false
@@ -54,14 +64,12 @@ class FoldPostureBridge internal constructor(
         if (feature != null) confirmed = true
         publish()
     }
-    private val layoutListener = View.OnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> publish() }
     private val globalLayoutListener = android.view.ViewTreeObserver.OnGlobalLayoutListener { publish() }
 
     init {
         webView.addJavascriptInterface(this, INTERFACE)
         // Global layout also catches a WebView moving within its window without
         // changing size. Feature bounds are window pixels, not screen pixels/dp.
-        webView.addOnLayoutChangeListener(layoutListener)
         webView.viewTreeObserver.addOnGlobalLayoutListener(globalLayoutListener)
         activity.lifecycle.addObserver(this)
     }
@@ -77,19 +85,25 @@ class FoldPostureBridge internal constructor(
         publish()
         val token = ++generation
         val listener = Consumer<WindowLayoutInfo> { info ->
-            if (started && !destroyed && token == generation) acceptLayout(info)
+            if (started && !destroyed && token == generation) {
+                if (optionalWindowCall { acceptLayout(info); true } != true) sourceUnavailable()
+            }
         }
         consumer = listener
-        try {
-            source.start(listener)
-        } catch (_: Exception) {
-            // Unsupported OEM extensions must not prevent the editor opening.
-            generation++
-            consumer = null
-            try { source.stop(listener) } catch (_: Exception) { /* optional source */ }
-            status = "unavailable"
-            publish()
+        if (optionalWindowCall { source.start(listener); true } != true) {
+            sourceUnavailable()
         }
+    }
+
+    private fun sourceUnavailable() {
+        // Unsupported OEM extensions must not prevent the editor opening.
+        generation++
+        val listener = consumer
+        consumer = null
+        if (listener != null) optionalWindowCall { source.stop(listener) }
+        feature = null
+        status = "unavailable"
+        publish()
     }
 
     override fun onStop(owner: LifecycleOwner) {
@@ -98,7 +112,7 @@ class FoldPostureBridge internal constructor(
         val listener = consumer
         consumer = null
         if (listener != null) {
-            try { source.stop(listener) } catch (_: Exception) { /* already detached */ }
+            optionalWindowCall { source.stop(listener) }
         }
         feature = null
         status = "pending"
@@ -108,7 +122,6 @@ class FoldPostureBridge internal constructor(
     override fun onDestroy(owner: LifecycleOwner) {
         onStop(owner)
         destroyed = true
-        webView.removeOnLayoutChangeListener(layoutListener)
         if (webView.viewTreeObserver.isAlive) webView.viewTreeObserver.removeOnGlobalLayoutListener(globalLayoutListener)
         webView.removeJavascriptInterface(INTERFACE)
         activity.lifecycle.removeObserver(this)
@@ -116,7 +129,6 @@ class FoldPostureBridge internal constructor(
 
     private fun publish() {
         if (destroyed) return
-        val location = IntArray(2)
         webView.getLocationInWindow(location)
         val geometry = feature?.let { fold ->
             val r = fold.bounds
@@ -143,10 +155,8 @@ class FoldPostureBridge internal constructor(
         const val INTERFACE = "OpenDraftAndroidFold"
         const val EVENT = "opendraft:androidfoldchange"
 
-        fun attach(activity: ComponentActivity, webView: WebView): FoldPostureBridge? = try {
+        fun attach(activity: ComponentActivity, webView: WebView): FoldPostureBridge? = optionalWindowCall {
             FoldPostureBridge(activity, webView, JetpackSource(activity))
-        } catch (_: Exception) {
-            null // The existing browser/size detector remains the fallback.
         }
     }
 }

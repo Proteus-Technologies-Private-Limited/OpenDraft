@@ -95,7 +95,7 @@ hover.
 | Platform | Posture / fold | Notes |
 |---|---|---|
 | Android (Chromium WebView) | `@media (device-posture: folded)`; Viewport Segments (`env(viewport-segment-*)`, `visualViewport.segments`, `horizontal-/vertical-viewport-segments`) | Stable in Chrome 138. **Whether the WebView exposes them is unconfirmed — check first.** Jetpack WindowManager via a Tauri plugin is the fallback. |
-| iOS (WKWebView) | None in shipping Safari | Native `UIView.reservedRegions(kind:options:)` (iOS 27.1) reports the fold region when partially open. A small Tauri iOS plugin passes it to the page. |
+| iOS (WKWebView) | None. Safari 27.1 has Viewport Segments and Device Posture only behind developer feature flags, and WKWebView can reach them only through a private preference. | Native, iOS 27.1: `UIHingeInteraction` reports the hinge (closed / partially open / fully open, or no hinge at all), and `reservedRegionsOfKind:divisionRegionKind options:includeInactive` the crease. `FoldPosture.m` passes both to the page. |
 | Both | window size, `resize`, `orientationchange` | Always available. Enough for folded/open, not for 90°. |
 
 ## 5. What already exists and is reused
@@ -331,9 +331,12 @@ export const FOLD_CHANGE_EVENT = 'opendraft:foldchange';
 ```
 
 **Sources, in order:**
-1. **iOS:** a Tauri plugin (`plugins/fold`) observes
-   `reservedRegions(kind: .fold)` and posts `{ rect, orientation }` on
-   change.
+1. **iOS:** `FoldPosture.m`, attached to the web view by the
+   `fold_watch_start` command, observes `UIHingeInteraction` and the
+   `division` reserved region (UIKit's name for it; there is no `.fold`) and
+   pushes `{ hinge, angle, division, viewport }` to the page as
+   `window.__opendraftNativeFold` plus an `opendraft:nativefold` event. Browser
+   segments still win if WebKit ever ships them.
 2. **Android:** `visualViewport.segments` plus `device-posture`. If the
    WebView lacks them, a Tauri plugin built on Jetpack WindowManager
    `FoldingFeature`.

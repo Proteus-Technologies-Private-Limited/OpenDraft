@@ -1,4 +1,4 @@
-import { isFoldableDevice } from '../utils/foldPosture';
+import { isFoldableDevice, readNativeFold } from '../utils/foldPosture';
 import { readAndroidFoldSnapshot, type AndroidFoldSnapshot } from '../utils/androidFoldPosture';
 
 type Status = 'available' | 'unsupported' | 'error' | 'invalid';
@@ -8,11 +8,13 @@ interface Segments { status: Status; count: number | null; rects: Rect[]; trunca
 
 export interface FoldDiagnostics {
   kind: 'browser-snapshot';
-  segmentsSource: 'window.viewport.segments' | 'visualViewport.segments' | 'size-only' | 'unreadable';
+  segmentsSource: 'window.viewport.segments' | 'visualViewport.segments' | 'native-hinge' | 'size-only' | 'unreadable';
   windowSegments: Segments;
   legacySegments: Segments;
   devicePosture: { status: Status; value: 'continuous' | 'folded' | 'unrecognized' | null };
   nativeAndroid: AndroidFoldSnapshot | null;
+  /** What the iOS app reported from UIKit's hinge (FoldPosture.m), if anything. */
+  nativeHinge: { status: Status; hinge: string | null; angle: number | null; division: Rect | null; divisionActive: boolean | null };
   applied: {
     confirmed: boolean;
     foldableClass: boolean;
@@ -77,17 +79,26 @@ export function collectFoldDiagnostics(): FoldDiagnostics | null {
     return { width: number(v.width), height: number(v.height), offsetLeft: number(v.offsetLeft), offsetTop: number(v.offsetTop), scale: number(v.scale) };
   }) : visual;
   const pointer = probe(() => window.matchMedia?.('(pointer: coarse)').matches);
+  // Copy only the fixed fields, as for the segments: never the object itself.
+  const native = readNativeFold();
+  const nativeHinge: FoldDiagnostics['nativeHinge'] = native
+    ? { status: 'available', hinge: native.hinge, angle: number(native.angle),
+      division: native.division ? { left: number(native.division.x), top: number(native.division.y), width: number(native.division.width), height: number(native.division.height) } : null,
+      divisionActive: typeof native.division?.active === 'boolean' ? native.division.active : null }
+    : { status: 'unsupported', hinge: null, angle: null, division: null, divisionActive: null };
   return {
     kind: 'browser-snapshot',
     nativeAndroid: readAndroidFoldSnapshot(),
     // Match the detector's nullish precedence, including an empty current list.
     segmentsSource: current.status === 'error' ? 'unreadable'
       : current.status === 'available' ? 'window.viewport.segments'
-        : legacy.status === 'error' ? 'unreadable' : legacy.status === 'available' ? 'visualViewport.segments' : 'size-only',
+        : legacy.status === 'error' ? 'unreadable' : legacy.status === 'available' ? 'visualViewport.segments'
+          : native && native.hinge !== 'none' && native.hinge !== 'unknown' ? 'native-hinge' : 'size-only',
     windowSegments: segments(current),
     legacySegments: segments(legacy),
     devicePosture: { status: posture.status, value: posture.status !== 'available' ? null
       : posture.value === 'folded' || posture.value === 'continuous' ? posture.value : 'unrecognized' },
+    nativeHinge,
     applied: {
       confirmed: isFoldableDevice(),
       foldableClass: root.classList.contains('foldable'),
