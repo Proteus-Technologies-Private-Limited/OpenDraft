@@ -10,6 +10,8 @@ on:
       - 'frontend/package-lock.json'
       - 'test-script/accessibility/**'
       - 'test-script/menu-keyboard/**'
+      - 'test-script/long-script/**'
+      - 'test-script/typing-lag.mjs'
       - '.github/workflows/test-accessibility.yml'
 
 permissions:
@@ -17,9 +19,15 @@ permissions:
 
 jobs:
   browser:
-    name: Chromium keyboard and axe checks
+    name: ${{ matrix.browser }} keyboard, axe and long-script checks
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, webkit]
+    env:
+      OPENDRAFT_BROWSER: ${{ matrix.browser }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -34,7 +42,7 @@ jobs:
         run: |
           npm ci --prefix frontend
           python -m pip install playwright==1.62.0
-          python -m playwright install --with-deps chromium
+          python -m playwright install --with-deps ${{ matrix.browser }}
       - name: Start Vite
         working-directory: frontend
         run: |
@@ -49,17 +57,24 @@ jobs:
         env:
           OPENDRAFT_TEST_URL: http://127.0.0.1:5173/
           OPENDRAFT_A11Y_OUTPUT: ${{ runner.temp }}/accessibility-reports
+          OPENDRAFT_LONG_SCRIPT_OUTPUT: ${{ runner.temp }}/long-script-reports
         run: |
-          export OPENDRAFT_CHROMIUM="$(python -c 'from playwright.sync_api import sync_playwright; p=sync_playwright().start(); print(p.chromium.executable_path); p.stop()')"
+          if [ "$OPENDRAFT_BROWSER" = chromium ]; then
+            export OPENDRAFT_CHROMIUM="$(python -c 'from playwright.sync_api import sync_playwright; p=sync_playwright().start(); print(p.chromium.executable_path); p.stop()')"
+          fi
           python test-script/accessibility/regressions.py
-          OPENDRAFT_MENU_FOLDABLE=1 python test-script/accessibility/regressions.py Accessibility.test_plugin_tabs_selection_resize_and_removed_focus Accessibility.test_plugin_removal_from_content_and_editor_never_opens_neighbor
+          if [ "$OPENDRAFT_BROWSER" = chromium ]; then
+            OPENDRAFT_MENU_FOLDABLE=1 python test-script/accessibility/regressions.py Accessibility.test_plugin_tabs_selection_resize_and_removed_focus Accessibility.test_plugin_removal_from_content_and_editor_never_opens_neighbor
+          fi
           python test-script/menu-keyboard/regressions.py
+          python test-script/long-script/regressions.py
       - name: Upload accessibility evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: accessibility-browser-evidence
+          name: accessibility-browser-evidence-${{ matrix.browser }}
           path: |
             ${{ runner.temp }}/accessibility-vite.log
             ${{ runner.temp }}/accessibility-reports
+            ${{ runner.temp }}/long-script-reports
           if-no-files-found: ignore

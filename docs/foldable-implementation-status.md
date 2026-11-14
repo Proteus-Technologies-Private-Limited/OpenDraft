@@ -177,6 +177,12 @@ the baseline menu implementation and the extended #253 suite. Integration with
 Native keyboard/IME, physical touch, screen readers, Pencil and background audio
 still require the native work and device validation listed above.
 
+The display snapshot is optional even if an unexpected error escapes its
+individual API probes. Diagnostics then omits that section and still opens and
+copies its version, storage and file-save information. The exception text is not
+logged or added to the report. Unit fault injection and a Chromium check that
+throws during crease-style reading cover this fallback.
+
 ## Duo-specific layout (verified on the Xcode 27.2 iPhone Duo simulator)
 
 All of it is scoped to a confirmed foldable (`html.foldable`, `fold-book`, or

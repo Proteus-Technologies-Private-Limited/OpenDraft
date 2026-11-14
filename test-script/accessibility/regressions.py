@@ -29,11 +29,7 @@ class Accessibility(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.playwright = sync_playwright().start()
-        cls.browser = cls.playwright.chromium.launch(
-            executable_path=os.environ.get("OPENDRAFT_CHROMIUM")
-            or ("/usr/bin/chromium" if Path("/usr/bin/chromium").exists() else None),
-            args=["--no-sandbox"],
-        )
+        cls.browser = fixture.launch_browser(cls.playwright)
 
     @classmethod
     def tearDownClass(cls):
@@ -59,6 +55,7 @@ class Accessibility(unittest.TestCase):
                 nodes:v.nodes.map(n=>({target:n.target, failure:n.failureSummary}))})),
                 incomplete:result.incomplete.map(v=>v.id), passed:result.passes.map(v=>v.id)};
         }""")
+        report["browser"] = os.environ.get("OPENDRAFT_BROWSER", "chromium")
         # Keep reporting the existing viewport restriction while its change is
         # deferred for physical WebView validation. No axe rule is disabled.
         deferred = [v for v in report["violations"] if v["id"] == "meta-viewport"]
@@ -105,6 +102,208 @@ class Accessibility(unittest.TestCase):
                 "theme => document.documentElement.dataset.theme=theme", theme
             )
             self.audit()
+
+    def test_settings_labels_keyboard_language_and_theme_contrast(self):
+        self.open("Tools")
+        self.row(self.page.evaluate("testI18n.t('menu:tools.systemSettings')")).focus()
+        self.press("Enter")
+        expect(self.page.locator(".settings-page")).to_be_visible()
+        field = self.page.get_by_label("Server URL", exact=True)
+        field.focus()
+        field.fill("wss://example.invalid")
+        expect(field).to_have_value("wss://example.invalid")
+        expect(self.page.get_by_label("Cloud API URL", exact=True)).to_be_visible()
+        language = self.page.get_by_role("radio", name="English", exact=True)
+        language.focus()
+        self.press("Space")
+        expect(language).to_have_attribute("aria-checked", "true")
+        for theme in ["dark", "light"]:
+            self.page.evaluate(
+                "theme=>document.documentElement.dataset.theme=theme", theme
+            )
+            self.audit()
+        back = self.page.locator(".settings-back-btn")
+        back.focus()
+        self.press("Enter")
+        expect(
+            self.page.get_by_role("textbox", name="Screenplay editor")
+        ).to_be_visible()
+
+    def test_projects_and_new_project_dialog_keyboard_and_labels(self):
+        self.open("File")
+        self.row(self.page.evaluate("testI18n.t('menu:file.manageProjects')")).focus()
+        self.press("Enter")
+        expect(self.page.locator(".project-list-page")).to_be_visible()
+        self.audit()
+        sort = self.page.get_by_role("combobox", name="Sort", exact=True)
+        sort.focus()
+        self.press("Space")
+        expect(self.page.get_by_role("listbox")).to_be_visible()
+        self.press("Escape")
+        expect(sort).to_be_focused()
+        create = self.page.get_by_role(
+            "button",
+            name=self.page.evaluate("testI18n.t('projects:list.newProject')"),
+            exact=True,
+        )
+        create.focus()
+        self.press("Enter")
+        dialog = self.page.get_by_role("dialog")
+        field = dialog.get_by_label("Project Name:", exact=True)
+        expect(field).to_be_focused()
+        field.fill("Synthetic project")
+        for key in ["Tab"] * 5 + ["Shift+Tab"] * 5:
+            self.press(key)
+            self.assertTrue(dialog.evaluate("el=>el.contains(document.activeElement)"))
+        self.audit()
+        self.press("Escape")
+        expect(dialog).to_have_count(0)
+        expect(create).to_be_focused()
+
+    def test_pdf_export_range_selection_watermark_and_cancel(self):
+        self.page.evaluate("""() => {
+            testEditor.commands.setContent({type:'doc',content:[
+                {type:'sceneHeading',content:[{type:'text',text:'INT. SYNTHETIC ROOM - DAY'}]},
+                {type:'action',content:[{type:'text',text:'A synthetic export fixture.'}]},
+                {type:'sceneHeading',content:[{type:'text',text:'EXT. SYNTHETIC ROAD - NIGHT'}]},
+                {type:'action',content:[{type:'text',text:'No real file will be written.'}]}]});
+            window.beforeExport=testEditor.state.doc;
+        }""")
+        self.open("File")
+        self.row(self.page.evaluate("testI18n.t('menu:file.export')")).focus()
+        self.press("ArrowRight")
+        self.row("PDF…").focus()
+        self.press("Enter")
+        dialog = self.page.get_by_role("dialog")
+        expect(dialog).to_be_visible()
+        self.audit()
+        dialog.get_by_role("button", name="Pick scenes", exact=True).click()
+        search = dialog.get_by_role("textbox", name="Search scenes", exact=True)
+        search.fill("ROAD")
+        expect(dialog.locator(".pdf-export-pick-list input")).to_have_count(1)
+        self.audit()
+        dialog.get_by_role("checkbox", name="Watermark", exact=True).check()
+        watermark = dialog.get_by_role("textbox", name="Watermark text", exact=True)
+        watermark.fill("")
+        expect(
+            dialog.get_by_role("button", name="Export PDF", exact=True)
+        ).to_be_disabled()
+        watermark.fill("SYNTHETIC")
+        expect(
+            dialog.get_by_role("button", name="Export PDF", exact=True)
+        ).to_be_enabled()
+        self.audit()
+        self.press("Escape")
+        expect(dialog).to_have_count(0)
+        self.assertTrue(self.page.evaluate("testEditor.state.doc.eq(beforeExport)"))
+
+    def test_pdf_import_review_keyboard_selection_and_cancel_preserves_script(self):
+        self.page.evaluate("""async () => {
+            const {reviewPdfImport}=await import('/src/utils/pdfImportReview.ts');
+            window.beforeImport=testEditor.state.doc;
+            window.reviewResult='pending';
+            reviewPdfImport('synthetic.pdf',{title:'',warnings:[],doc:{type:'doc',content:[
+                {type:'sceneHeading',content:[{type:'text',text:'INT. SYNTHETIC ROOM - DAY'}]},
+                {type:'action',content:[{type:'text',text:'A synthetic imported paragraph.'}]},
+                {type:'dualDialogue',content:[]},
+                ...Array.from({length:60},(_,i)=>({type:'action',content:[{type:'text',text:`Synthetic line ${i}.`}]}))]}})
+                .then(()=>reviewResult='accepted',()=>reviewResult='cancelled');
+        }""")
+        dialog = self.page.locator(".pdf-review-dialog")
+        expect(dialog).to_be_visible()
+        lines = dialog.get_by_role("listbox", name="Imported lines", exact=True)
+        expect(lines).to_be_focused()
+        self.press("ArrowDown")
+        expect(lines.locator('[aria-selected="true"]')).to_have_count(1)
+        active = lines.get_attribute("aria-activedescendant")
+        self.assertTrue(active)
+        expect(self.page.locator(f'[id="{active}"]')).to_have_attribute(
+            "aria-selected", "true"
+        )
+        self.press("Control+ArrowDown")
+        expect(lines.locator('[aria-selected="true"]')).to_have_count(1)
+        active = lines.get_attribute("aria-activedescendant")
+        active_row = self.page.locator(f'[id="{active}"]')
+        expect(active_row).to_have_attribute("aria-selected", "false")
+        expect(active_row).to_be_in_viewport()
+        self.assertEqual(
+            active_row.evaluate("el=>getComputedStyle(el).outlineStyle"), "solid"
+        )
+        self.assertEqual(
+            active_row.evaluate("el=>getComputedStyle(el).outlineWidth"), "2px"
+        )
+        dialog.get_by_role("button", name="Cancel", exact=True).focus()
+        self.assertEqual(
+            active_row.evaluate("el=>getComputedStyle(el).outlineStyle"), "none"
+        )
+        lines.focus()
+        self.press("Space")
+        expect(lines.locator('[aria-selected="true"]')).to_have_count(2)
+        self.press("Control+Space")
+        expect(lines.locator('[aria-selected="true"]')).to_have_count(1)
+        # Leave the list with the pointer, so the checkbox click is what focuses it.
+        dialog.locator(".pdf-review-help").click()
+        lines.locator(".pdf-review-checkbox").nth(1).click()
+        expect(lines.locator('[aria-selected="true"]')).to_have_count(2)
+        # A click focuses the list without :focus-visible, and Ctrl/Cmd+arrow
+        # doesn't turn it on, so the outline must not depend on it alone.
+        self.assertTrue(lines.evaluate("el=>document.activeElement===el"))
+        self.assertFalse(lines.evaluate("el=>el.matches(':focus-visible')"))
+        clicked = self.page.locator(f'[id="{lines.get_attribute("aria-activedescendant")}"]')
+        self.assertEqual(
+            clicked.evaluate("el=>getComputedStyle(el).outlineStyle"), "none"
+        )
+        for key in ("Control+ArrowDown", "Meta+ArrowDown"):
+            self.press(key)
+            expect(lines.locator('[aria-selected="true"]')).to_have_count(2)
+            moved = self.page.locator(
+                f'[id="{lines.get_attribute("aria-activedescendant")}"]'
+            )
+            expect(moved).to_have_attribute("aria-selected", "false")
+            self.assertEqual(
+                moved.evaluate("el=>getComputedStyle(el).outlineStyle"), "solid"
+            )
+        self.audit()
+        screenshots = os.environ.get("OPENDRAFT_SCREENSHOTS")
+        if screenshots:
+            folder = Path(screenshots)
+            folder.mkdir(parents=True, exist_ok=True)
+            self.page.screenshot(
+                path=str(
+                    folder
+                    / (
+                        "pdf-import-"
+                        + os.environ.get("OPENDRAFT_BROWSER", "chromium")
+                        + ".png"
+                    )
+                )
+            )
+        # Home/End traverse virtualized rows and skip the locked dual dialogue.
+        self.press("Home")
+        self.press("Shift+End")
+        expect(dialog.locator(".pdf-review-count")).to_have_text("62 selected")
+        active = lines.get_attribute("aria-activedescendant")
+        expect(self.page.locator(f'[id="{active}"]')).to_be_in_viewport()
+        expect(
+            lines.locator('[aria-disabled="true"][aria-selected="true"]')
+        ).to_have_count(0)
+        self.press("End")
+        self.press("Shift+Home")
+        expect(dialog.locator(".pdf-review-count")).to_have_text("62 selected")
+        expect(
+            lines.locator('[aria-disabled="true"][aria-selected="true"]')
+        ).to_have_count(0)
+        self.press("Home")
+        self.press("ArrowDown")
+        self.press("Shift+Home")
+        expect(dialog.locator(".pdf-review-count")).to_have_text("2 selected")
+        expect(
+            lines.locator('[aria-disabled="true"][aria-selected="true"]')
+        ).to_have_count(0)
+        self.press("Escape")
+        expect(dialog).to_have_count(0)
+        self.page.wait_for_function("reviewResult==='cancelled'")
+        self.assertTrue(self.page.evaluate("testEditor.state.doc.eq(beforeImport)"))
 
     def test_save_as_escape_preserves_form_and_closes_only_dropdown(self):
         self.page.evaluate("testStore.getState().setSaveAsOpen(true)")

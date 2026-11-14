@@ -11,7 +11,7 @@
  * The list is windowed — a feature script is a few thousand rows, and only the
  * ones on screen are rendered.
  */
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useId, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ModalOverlay } from './ModalOverlay';
 import type { JSONContent } from '@tiptap/react';
 import { useTranslation } from 'react-i18next';
@@ -43,6 +43,7 @@ interface DialogProps {
 
 export const PdfImportPreviewDialog: React.FC<DialogProps> = ({ filename, parsed, onImport, onCancel }) => {
   const { t } = useTranslation(['tools', 'common']);
+  const rowPrefix = useId();
   const rows = useMemo(() => reviewRowsFrom(parsed), [parsed]);
   const [types, setTypes] = useState<string[]>(() => rows.map((r) => r.originalType));
   const history = useRef<string[][]>([]);
@@ -51,6 +52,10 @@ export const PdfImportPreviewDialog: React.FC<DialogProps> = ({ filename, parsed
   const [filter, setFilter] = useState<Filter>('all');
   /** Touch has no shift key: the next tap extends from the anchor. */
   const [rangeNext, setRangeNext] = useState(false);
+  /** Set by list navigation keys, cleared by the pointer. Browsers don't treat
+   * Ctrl/Cmd+arrow as keyboard use for :focus-visible, so after a click the
+   * active row would otherwise move invisibly. */
+  const [keyboardNav, setKeyboardNav] = useState(false);
 
   // Row height follows the layout: a phone row has to be a finger tall.
   const [rowHeight] = useState(() => (isPhone() ? 44 : 28));
@@ -157,23 +162,40 @@ export const PdfImportPreviewDialog: React.FC<DialogProps> = ({ filename, parsed
       undo();
       return;
     }
-    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    if (e.key === ' ' && !e.altKey) {
       e.preventDefault();
       e.stopPropagation();
+      setKeyboardNav(true);
+      const target = sel.anchor !== null && order.includes(sel.anchor) ? sel.anchor : order.find((i) => !isLocked(i));
+      if (target !== undefined && !isLocked(target)) click(target, { toggle: true });
+      return;
+    }
+    if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) {
+      e.preventDefault();
+      e.stopPropagation();
+      setKeyboardNav(true);
       if (order.length === 0) return;
       const pos = sel.anchor === null ? -1 : order.indexOf(sel.anchor);
-      const step = e.key === 'ArrowDown' ? 1 : -1;
-      let p = pos === -1 ? (step === 1 ? 0 : order.length - 1) : pos + step;
+      const step = e.key === 'ArrowDown' || e.key === 'Home' ? 1 : -1;
+      let p = e.key === 'Home' ? 0 : e.key === 'End' ? order.length - 1
+        : pos === -1 ? (step === 1 ? 0 : order.length - 1) : pos + step;
       while (p >= 0 && p < order.length && isLocked(order[p])) p += step;
       if (p < 0 || p >= order.length) return;
       const target = order[p];
       if (e.shiftKey && sel.anchor !== null) {
-        // Shift+arrow grows the selection a line at a time.
+        // Extend through visible, unlocked rows, including Home/End jumps.
         setSel((s) => {
           const next = new Set(s.selected);
-          next.add(target);
+          const start = pos < 0 ? p : Math.min(pos, p);
+          const end = Math.max(pos, p);
+          for (let index = start; index <= end; index++) {
+            if (!isLocked(order[index])) next.add(order[index]);
+          }
           return { selected: next, anchor: target };
         });
+      } else if (mod) {
+        // Move the active row without clearing a noncontiguous selection.
+        setSel((s) => ({ selected: s.selected, anchor: target }));
       } else {
         setSel({ selected: new Set([target]), anchor: target });
       }
@@ -268,12 +290,15 @@ export const PdfImportPreviewDialog: React.FC<DialogProps> = ({ filename, parsed
 
           <div
             ref={listRef}
-            className="pdf-review-list"
+            className={`pdf-review-list${keyboardNav ? ' keyboard-nav' : ''}`}
             role="listbox"
             aria-multiselectable="true"
+            aria-activedescendant={sel.anchor !== null && order.indexOf(sel.anchor) >= first && order.indexOf(sel.anchor) < last
+              ? `${rowPrefix}-line-${sel.anchor}` : undefined}
             aria-label={t('pdfImport.importedLines')}
             tabIndex={0}
             onKeyDown={onListKeyDown}
+            onPointerDown={() => setKeyboardNav(false)}
             onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
           >
             {total === 0 && <p className="pdf-review-empty">{t('pdfImport.noLines')}</p>}
@@ -286,20 +311,24 @@ export const PdfImportPreviewDialog: React.FC<DialogProps> = ({ filename, parsed
                 return (
                   <div
                     key={i}
-                    className={`pdf-review-row${isSelected ? ' selected' : ''}${isChanged ? ' changed' : ''}${row.locked ? ' locked' : ''}`}
+                    className={`pdf-review-row${i === sel.anchor ? ' is-active' : ''}${isSelected ? ' selected' : ''}${isChanged ? ' changed' : ''}${row.locked ? ' locked' : ''}`}
                     style={{ top: (first + k) * rowHeight, height: rowHeight }}
+                    id={`${rowPrefix}-line-${i}`}
                     role="option"
                     aria-selected={isSelected}
+                    aria-disabled={row.locked || undefined}
+                    aria-posinset={first + k + 1}
+                    aria-setsize={total}
                     onClick={(e) => click(i, { range: e.shiftKey, toggle: e.metaKey || e.ctrlKey })}
                   >
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      disabled={row.locked}
-                      aria-label={t('pdfImport.selectLine', { number: i + 1 })}
-                      onClick={(e) => e.stopPropagation()}
-                      onChange={(e) => click(i, { toggle: true, range: (e.nativeEvent as MouseEvent).shiftKey })}
-                    />
+                    <span
+                      className={`pdf-review-checkbox${isSelected ? ' is-checked' : ''}`}
+                      aria-hidden="true"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (!row.locked) click(i, { toggle: true, range: e.shiftKey });
+                      }}
+                    >{isSelected ? '✓' : ''}</span>
                     <span className="pdf-review-scene" title={t('pdfImport.scene')}>{scenes[i] > 0 ? scenes[i] : ''}</span>
                     <span className={`pdf-review-type pdf-review-type-${type}`} title={isChanged ? t('pdfImport.readAs', { type: REVIEW_TYPE_LABELS[row.originalType] ?? row.originalType }) : undefined}>
                       {REVIEW_TYPE_LABELS[type] ?? type}

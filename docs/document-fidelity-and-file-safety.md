@@ -57,3 +57,11 @@ These browser-harness captures use the real editor stylesheet and save-review co
 ![Draggable document scrollbar](screenshots/editor-scrollbar.png)
 
 ![Original-file save review](screenshots/original-save-review.png)
+
+## Save-error report privacy
+
+Symlink-resolution and hard-link write errors do not explicitly add the selected
+file path or filename to the diagnostic message. The save stage and operating
+system error remain available. This is not a general redaction guarantee:
+platform-provided errors and other Diagnostics fields can still identify local
+locations, so review a copied report before sharing it.

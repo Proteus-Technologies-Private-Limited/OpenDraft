@@ -175,13 +175,13 @@ const PdfExportDialog: React.FC<Props> = ({ scenes, onClose, onExport }) => {
                 <div className="pdf-export-range">
                   <label>
                     <span>{t('pdfExport.from')}</span>
-                    <Select value={String(fromIndex)} onChange={(e) => changeFrom(e.target.value)}>
+                    <Select aria-label={t('pdfExport.from')} value={String(fromIndex)} onChange={(e) => changeFrom(e.target.value)}>
                       {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </Select>
                   </label>
                   <label>
                     <span>{t('pdfExport.to')}</span>
-                    <Select value={String(toIndex)} onChange={(e) => changeTo(e.target.value)}>
+                    <Select aria-label={t('pdfExport.to')} value={String(toIndex)} onChange={(e) => changeTo(e.target.value)}>
                       {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </Select>
                   </label>
@@ -259,6 +259,7 @@ const PdfExportDialog: React.FC<Props> = ({ scenes, onClose, onExport }) => {
             <div className="pdf-export-field">
               <span>{t('pdfExport.watermarkText')}</span>
               <input
+                aria-label={t('pdfExport.watermarkText')}
                 type="text"
                 value={watermarkText}
                 onChange={(e) => setWatermarkText(e.target.value)}

@@ -202,8 +202,9 @@ pub fn replace_selected(
 /// link itself would leave the real file untouched and the link a copy.
 fn resolve_target(path: &Path) -> Result<PathBuf, String> {
     match fs::symlink_metadata(path) {
-        Ok(meta) if meta.file_type().is_symlink() => fs::canonicalize(path)
-            .map_err(|e| format!("Cannot follow the link {}: {e}", path.display())),
+        Ok(meta) if meta.file_type().is_symlink() => {
+            fs::canonicalize(path).map_err(|e| format!("Cannot follow the selected link: {e}"))
+        }
         _ => Ok(path.to_path_buf()),
     }
 }
@@ -279,7 +280,7 @@ fn replace_with(
                 .map_err(|e| {
                     save_error(
                         "replacement",
-                        format!("Could not open {} to save: {e}", path.display()),
+                        format!("Could not open the destination to save: {e}"),
                     )
                 })?;
             out.write_all(bytes)
@@ -287,7 +288,7 @@ fn replace_with(
                 .map_err(|e| {
                     save_error(
                         "replacement",
-                        format!("Could not save {}: {e}", path.display()),
+                        format!("Could not save the destination: {e}"),
                     )
                 })?;
             fs::remove_file(&tmp).map_err(|error| save_error("cleanup", error))?;
@@ -582,6 +583,68 @@ mod tests {
             assert!(error.contains("os error"), "{error}");
         }
         assert_eq!(fs::read(&path).unwrap(), b"original");
+        fs::remove_dir_all(dir).unwrap();
+    }
+    #[cfg(unix)]
+    #[test]
+    fn hard_link_open_error_keeps_the_os_reason_without_the_path() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = dir();
+        let path = dir.join("private-writer-script.fdx");
+        let other = dir.join("another-name.fdx");
+        fs::write(&path, b"original").unwrap();
+        fs::hard_link(&path, &other).unwrap();
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o400)).unwrap();
+        let result = replace(&path, b"replacement", false);
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o600)).unwrap();
+        let error = result.unwrap_err();
+        assert!(
+            error.starts_with("Save failed during replacement:"),
+            "{error}"
+        );
+        assert!(error.contains("os error"), "{error}");
+        assert!(!error.contains("private-"), "{error}");
+        assert!(
+            !error.contains(&dir.to_string_lossy().to_string()),
+            "{error}"
+        );
+        assert_eq!(fs::read(&path).unwrap(), b"original");
+        assert_eq!(fs::read(&other).unwrap(), b"original");
+        fs::remove_dir_all(dir).unwrap();
+    }
+    #[cfg(unix)]
+    #[test]
+    fn dangling_symlink_errors_keep_the_stage_and_os_reason_without_the_path() {
+        let dir = dir();
+        let link = dir.join("private-writer-script.fdx");
+        let target = dir.join("private-missing-target.fdx");
+        let recovery = dir.join("recovery");
+        std::os::unix::fs::symlink(&target, &link).unwrap();
+        let errors = [
+            replace(&link, b"replacement", true).unwrap_err(),
+            replace_selected(&link, b"replacement", true, &recovery, |_, _| {
+                panic!("a broken link must fail before platform writing")
+            })
+            .unwrap_err(),
+        ];
+        for error in errors {
+            assert!(
+                error.starts_with("Save failed during destination:"),
+                "{error}"
+            );
+            assert!(error.contains("os error"), "{error}");
+            assert!(!error.contains("private-"), "{error}");
+            assert!(
+                !error.contains(&dir.to_string_lossy().to_string()),
+                "{error}"
+            );
+        }
+        assert!(fs::symlink_metadata(&link)
+            .unwrap()
+            .file_type()
+            .is_symlink());
+        assert!(!target.exists());
+        assert!(!recovery.exists());
         fs::remove_dir_all(dir).unwrap();
     }
     #[cfg(unix)]
