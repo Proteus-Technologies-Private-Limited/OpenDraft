@@ -77,9 +77,14 @@ class KeyboardStateTest {
         val activity = Robolectric.buildActivity(ComponentActivity::class.java).setup().get()
         val root = android.widget.FrameLayout(activity)
         val view = WebView(activity)
-        root.addView(view)
+        root.addView(view, android.widget.FrameLayout.LayoutParams(1000, 1600).apply {
+            leftMargin = 100
+            topMargin = 200
+        })
         activity.setContentView(root)
         activity.window.decorView.layout(0, 0, 1200, 2000)
+        root.measure(android.view.View.MeasureSpec.makeMeasureSpec(1200, android.view.View.MeasureSpec.EXACTLY),
+            android.view.View.MeasureSpec.makeMeasureSpec(2000, android.view.View.MeasureSpec.EXACTLY))
         root.layout(0, 0, 1200, 2000)
         view.layout(100, 200, 1100, 1800)
         KeyboardVisibility.attach(view, activity)
@@ -89,7 +94,7 @@ class KeyboardStateTest {
                 .setVisible(WindowInsetsCompat.Type.ime(), visible).build())
         dispatch(true, 800)
         var json = org.json.JSONObject(report.snapshot())
-        assertTrue(json.getBoolean("available"))
+        assertTrue(report.snapshot(), json.getBoolean("available"))
         assertEquals(1600, json.getInt("height"))
         assertEquals(1000, json.getInt("bottom")) // 2000 - 800 - WebView top 200
         // A WebView already resized above the IME must not lose that height again.
