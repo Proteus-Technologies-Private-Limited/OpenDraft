@@ -12,7 +12,8 @@ export interface FoldDiagnostics {
   windowSegments: Segments;
   legacySegments: Segments;
   devicePosture: { status: Status; value: 'continuous' | 'folded' | 'unrecognized' | null };
-  nativeAndroid: AndroidFoldSnapshot | null;
+  /** Optional so existing report fixtures/consumers remain compatible. */
+  nativeAndroid?: AndroidFoldSnapshot | null;
   /** What the iOS app reported from UIKit's hinge (FoldPosture.m), if anything. */
   nativeHinge: { status: Status; hinge: string | null; angle: number | null; division: Rect | null; divisionActive: boolean | null };
   applied: {
