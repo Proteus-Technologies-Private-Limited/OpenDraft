@@ -1168,7 +1168,12 @@ jobs:
   build-ios:
     needs: plan
     if: needs.plan.outputs.ios == 'true'
-    runs-on: macos-26
+    # Xcode 27.2 / the iOS 27.2 SDK: FoldPosture.m (foldable iPhones, #231)
+    # only compiles its hinge code against an SDK that has iOS 27.1's
+    # UIHingeInteraction. macos-26 tops out at Xcode 26.6, which would ship the
+    # store build without it. `xcode-27` is GitHub's image with Xcode 27.x
+    # (still marked preview; its default is 27.1, so 27.2 is selected below).
+    runs-on: xcode-27
     name: Build (iOS)
 
     steps:
@@ -1178,6 +1183,19 @@ jobs:
           # A manual re-run is dispatched from a branch, so the tag has to
           # be checked out explicitly or we would build the wrong commit.
           ref: ${{ env.RELEASE_TAG }}
+
+      - name: Select Xcode 27.2
+        run: |
+          set -euo pipefail
+          XCODE=/Applications/Xcode_27.2.app
+          if [ ! -d "$XCODE" ]; then
+            echo "::error::$XCODE is not on this runner image. Installed: $(ls -d /Applications/Xcode*.app | tr '\n' ' ')"
+            exit 1
+          fi
+          sudo xcode-select -s "$XCODE/Contents/Developer"
+          xcodebuild -version
+          # Fail now rather than ship a store build without the fold bridge.
+          xcodebuild -showsdks | grep -q 'iphoneos27\.2' || { echo "::error::iOS 27.2 SDK missing from $XCODE"; exit 1; }
 
       - name: Setup Node.js
         uses: actions/setup-node@v5

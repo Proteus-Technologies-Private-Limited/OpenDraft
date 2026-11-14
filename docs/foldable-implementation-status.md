@@ -4,17 +4,18 @@ Tracks implementation against [the design](foldable-support-design.md) and
 [#231](https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/issues/231).
 The proposal remains the acceptance checklist; this document does not mark
 untested native behavior as complete. Browser foundations (#235, #236, #237)
-and writing-pad placement/review fixes (#247) are merged. Native bridges,
+and writing-pad placement/review fixes (#247) are merged. The iOS hinge bridge (WP4) is in;
+the Android native bridge,
 background execution and the split-screen/custom-toolbar dependencies remain open.
 
 | Package | Implemented here | Remaining work |
 | --- | --- | --- |
 | WP1–WP2 | Responsive menu, Location overlay and live swipe checks were merged in PR #235. | Merged browser fixes; keep their responsive regressions covered. |
 | WP3 | Browser posture, current `window.viewport.segments`, legacy fallback, size fallback, segment media queries, 150 ms debounce, HTML classes and crease variables. Capability is remembered only for the current document after observing two valid segments. | Verify System WebView on Android; add WindowManager integration if those browser APIs are absent. A first launch on a cover screen cannot establish capability from size alone. |
-| WP4 | No native bridge is included. | Implement and compile the iOS 27.1 bridge against the actual SDK, then exercise the Duo simulator. UIKit calls the region `division`, not `fold`; Objective-C uses `reservedRegionsOfKind:options:`. Read it in `updateConstraints`, where UIKit tracks changes; include inactive regions to establish capability while flat. |
-| WP5 | The original screen-based phone rule and its explanation are retained for all ordinary devices. Confirmed browser foldables use the separate window-based posture state. | Defer any iPhone-specific sizing change until there is native/device evidence to test. |
+| WP4 | Native bridge in `src-tauri/gen/apple/Sources/opendraft/FoldPosture.m`, started by the `fold_watch_start` command (`src-tauri/src/fold.rs`) for the web view that calls it. A transparent tracker view pinned over the WKWebView attaches `UIHingeInteraction` (closed / partiallyOpen / fullyOpen, or no hinge) and reads `reservedRegionsOfKind:divisionRegionKind options:IncludeInactive` in `updateConstraints`. It pushes `{hinge, angle, division, viewport}` to the page as `window.__opendraftNativeFold` plus `opendraft:nativefold`; `foldPosture.ts` uses it whenever the browser APIs report no crease. Built only against an SDK with the API and run only on iOS 27.1+, so older Xcode builds and older iOS keep browser detection. Verified on the Xcode 27.2 iPhone Duo simulator: cold start on the cover confirms a foldable; book (`partiallyOpen`, 40 px crease at x 455.5 of 951, CSS px = UIKit points), laptop (rotated) and `fullyOpen` (crease kept, region inactive) all apply the browser-built layouts; Diagnostics shows the native report. | Physical Duo. Split View on the open screen (the crease outside a pane is ignored, untested). The release job (`build-ios`, `macos-26`) does not pin Xcode: if the image's default SDK predates iOS 27.1, the bridge compiles out and the store build keeps browser detection only. Check the Xcode version in the next release log, and pin 27.1+ if needed. |
+| WP5 | The original screen-based phone rule and its explanation are retained for all ordinary devices. Confirmed foldables, now including the native hinge on iOS, use the separate window-based posture state, which fixes the Duo's open screen: WebKit keeps reporting the cover's `window.screen` (466×678) there, so the screen rule called a 951×669 screen a phone. | Device validation. |
 | WP6 | Independent folded/open preferences; one-time migration of explicit legacy choices into both postures; selecting an already-active layout still records a choice. Automatic geometry changes do not overwrite choices or reset zoom in the same layout. | Native posture-event validation after WP4. |
-| WP7 | On confirmed folded foldables, Hidden keeps the phone-sized toolbar; the existing draggable menu button starts below it at the right. Focus Mode and ordinary-device Hidden retain their behavior. | Native safe-area validation. |
+| WP7 | On confirmed folded foldables, Hidden keeps the phone-sized toolbar; the existing draggable menu button starts below it at the right. Focus Mode and ordinary-device Hidden retain their behavior. The button and its floating menu are clamped inside the side safe-area insets: the Duo's cover keeps its clock and status in a column down the right edge, which had covered the default position. | Physical-device check. |
 | WP8 | Fit-width page with 70% minimum, Navigator docking at 80%, one 300 px panel column with tabs, Table Read in that column, plugin panels, and Story Timeline as a bottom band. Stable portal hosts preserve mounted panel subtrees. | Long-script reading position, selection, typing/undo, panel focus (including the appendChild fallback), plugin activation and browser keyboard/ARIA regressions are covered. Physical touch targets, screen readers and native keyboard behavior still need device validation. |
 | WP9 | No split-screen implementation duplicated. | Merge #214, then connect its companion panes and crease default. |
 | WP10 | No replacement toolbar or element selector added. | Merge #217, then arrange the writer's items in two rows and implement the accessible horizontal choice line. Measure the native keyboard before deciding which side of the crease holds the rows. |
@@ -175,3 +176,33 @@ the baseline menu implementation and the extended #253 suite. Integration with
 #253 is validated in a temporary checkout; its commits are not bundled here.
 Native keyboard/IME, physical touch, screen readers, Pencil and background audio
 still require the native work and device validation listed above.
+
+## Duo-specific layout (verified on the Xcode 27.2 iPhone Duo simulator)
+
+All of it is scoped to a confirmed foldable (`html.foldable`, `fold-book`, or
+`html.ios.foldable.wide`), so ordinary phones, tablets and desktops render as
+before; an iPhone 17 simulator running the same build showed the same layout.
+
+- **Top touch band.** The open screen reports no top safe-area inset (its
+  status sits in a column on the trailing edge) but iOS keeps the top 24 pt:
+  menu-bar taps there never reached the page. On the iOS app's wide foldable
+  screens the chrome now starts at `max(env(safe-area-inset-top), 24px)`
+  (`--fold-chrome-top`), as do full-screen sheets and the overlay navigator.
+- **Fully open toolbar.** The toolbar re-measures its overflow after every fold
+  change and again once the posture settles; it had been left measured for the
+  previous posture, with its last items under the 84 px status column.
+- **Book posture: controls side.** The menu bar stays over the script on the
+  left. The toolbar moves to the top of the right half in two 44 px rows
+  (overflow measured from the wrapped layout, separators dropped), and its
+  pulldowns (element, size) open as a horizontal choice line over the second
+  row (`Select`, `aria-orientation="horizontal"`, Left/Right keys). Panels fill
+  the right half below it; the system keyboard takes the bottom while typing.
+  The font picker still opens its own list. Menu-bar menus stay on the script
+  side of the crease.
+- **Menu button in the status column.** On a folded foldable with a side inset
+  at least 44 px wide (the Duo cover, either orientation), the ☰ button
+  defaults to the middle of that column instead of over the toolbar; taps there
+  reach the app. A dragged position is still remembered and clamped as before.
+
+Still open: WP10's full choice-line spec (leading crumb button, trailing ✕) and
+the laptop posture's toolbar at the keyboard side, both waiting on #217.

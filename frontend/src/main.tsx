@@ -112,6 +112,16 @@ async function init() {
     }
   });
 
+  // The iOS app's WKWebView has none of the browser fold APIs, so ask the
+  // native side to report the hinge (iOS 27.1+, foldable iPhones). Its reports
+  // arrive as NATIVE_FOLD_EVENT, which the watcher above already listens for;
+  // elsewhere the command answers false and nothing changes.
+  if (platformOS === 'ios' && isTauri()) {
+    void import('@tauri-apps/api/core')
+      .then(({ invoke }) => invoke<boolean>('fold_watch_start'))
+      .catch((error) => console.error('[fold] Could not start native posture reports:', error));
+  }
+
   // Only the native app has iPadOS window controls drawn over it — a Split
   // View Safari tab showing the web build has the browser's chrome instead,
   // and would get an indented menu bar for a control that is not there.

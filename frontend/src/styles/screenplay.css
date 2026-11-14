@@ -3090,7 +3090,11 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: var(--p
      the overlay shrinks accurately when the Android soft keyboard appears.
      Falls back to 100dvh when JS hasn't initialized yet. */
   height: var(--vv-height, 100dvh);
-  padding: 5vh 16px 16px;
+  /* The overlay is fixed to the whole viewport, outside .app-container's
+     safe-area padding, so it adds the side insets itself: otherwise a dialog
+     runs under a landscape notch or the iPhone Duo cover screen's status
+     column on the right. */
+  padding: 5vh calc(16px + env(safe-area-inset-right, 0px)) 16px calc(16px + env(safe-area-inset-left, 0px));
   overflow-y: auto;
 }
 .dialog-box {
@@ -3555,6 +3559,11 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: var(--p
     border-radius: 0; border: none;
     padding-top: env(safe-area-inset-top, 0px);
     padding-bottom: env(safe-area-inset-bottom, 0px);
+    /* Left and right too: a notched phone in landscape, and the iPhone Duo's
+       cover screen, which keeps its clock and status in a column down the
+       right edge, put system UI over a full-bleed sheet's trailing side. */
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
     /* Scrolling belongs to the body, so the header and the buttons stay put. */
     overflow: hidden;
   }
@@ -3785,6 +3794,9 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: var(--p
     border-radius: 0; border: none;
     padding-top: env(safe-area-inset-top, 0px);
     padding-bottom: env(safe-area-inset-bottom, 0px);
+    /* Clear of side system UI as well, as with .about-dialog above. */
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
     /* The ≤480px sheet rules scroll the whole box; put scrolling back inside
        the page so the header and footer stay put. */
     overflow: hidden;
@@ -11289,12 +11301,15 @@ body.selection-bands-active .page .ProseMirror::selection { background: transpar
   .menu-bar--floating .menu-item { flex-shrink: 0; }
   .menu-bar--floating .menu-spacer { flex: 0 0 4px; }
 
-  /* Menu dropdown: full-width on mobile */
+  /* Menu dropdown: full-width on mobile, between the side safe-area insets.
+     It is portalled to the body, outside .app-container's padding, so without
+     them it ran under a landscape notch and the iPhone Duo cover screen's
+     status column, while the menu bar it drops from stayed clear of both. */
   .menu-dropdown {
-    left: 0 !important;
-    right: 0;
-    width: 100vw;
-    max-width: 100vw;
+    left: env(safe-area-inset-left, 0px) !important;
+    right: env(safe-area-inset-right, 0px);
+    width: calc(100vw - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
+    max-width: calc(100vw - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
     min-width: 0;
     max-height: 70vh;
     overflow-y: auto;
@@ -11601,12 +11616,14 @@ body.selection-bands-active .page .ProseMirror::selection { background: transpar
      bottom-anchored sheet ends up hidden behind the IME. Top-anchored keeps
      the inputs in the upper half of the screen, well clear of the keyboard. */
   .dialog-overlay {
-    padding: env(safe-area-inset-top, 0) 0 0;
+    padding: env(safe-area-inset-top, 0) env(safe-area-inset-right, 0) 0 env(safe-area-inset-left, 0);
     align-items: flex-start;
   }
+  /* Edge to edge between the side insets (the iPhone Duo cover screen has a
+     status column down its right edge), not across them. */
   .dialog-box {
-    width: 100vw !important;
-    max-width: 100vw !important;
+    width: calc(100vw - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)) !important;
+    max-width: calc(100vw - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)) !important;
     border-radius: 0 0 12px 12px;
     max-height: 60vh;
     overflow-y: auto;
@@ -15028,17 +15045,20 @@ button.beat-scene-chip:hover { border-color: var(--fd-accent); color: var(--fd-a
 .editor-main::-webkit-scrollbar-thumb { background: var(--fd-text-muted); border: 3px solid var(--fd-bg); border-radius: 7px; }
 .editor-main::-webkit-scrollbar-thumb:hover { background: var(--fd-text); }
 
-.external-save-review { box-sizing: border-box; max-width: min(36rem, calc(100vw - 2rem)); max-height: calc(100dvh - 2rem); overflow: auto; background: var(--fd-dialog-bg); color: var(--fd-text); border: 1px solid var(--fd-border); border-radius: 8px; padding: 24px; font: inherit; }
+.external-save-review { box-sizing: border-box; max-width: min(36rem, calc(100vw - 2rem - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px))); max-height: calc(100dvh - 2rem); overflow: auto; background: var(--fd-dialog-bg); color: var(--fd-text); border: 1px solid var(--fd-border); border-radius: 8px; padding: 24px; font: inherit; }
 .external-save-review::backdrop { background: rgba(0,0,0,.6); }
 .external-save-review button, .external-save-review label { min-height: 44px; }
 .external-save-review .dialog-actions { flex-wrap: wrap; gap: 8px; }
-.external-save-review { position: fixed; inset: 0; margin: auto; height: fit-content; }
+/* Native modal dialogs are centred in the safe area rather than the whole
+   viewport, so they stay clear of a landscape notch and the iPhone Duo cover
+   screen's status column down its right edge. */
+.external-save-review { position: fixed; inset: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px); margin: auto; height: fit-content; }
 .external-save-review h2 { margin-bottom: .75rem; font-size: 1.25rem; }
 .external-save-review p { margin: .75rem 0; line-height: 1.5; }
 .external-save-review ul { padding-inline-start: 1.25rem; margin: .75rem 0; }
 .external-save-review label { display: flex; align-items: flex-start; gap: 8px; padding: 8px 0; }
 .external-save-review button:disabled { opacity: .5; cursor: not-allowed; }
-.script-health-dialog { width: 52rem; max-width: calc(100vw - 2rem); min-width: 0; }
+.script-health-dialog { width: 52rem; max-width: calc(100vw - 2rem - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)); min-width: 0; }
 .script-health-findings { padding-inline-start: 1.5rem; }
 .script-health-findings li { padding: 12px 0; border-bottom: 1px solid var(--fd-border); overflow-wrap: anywhere; }
 .script-health-context { display: block; color: var(--fd-text-muted); margin-top: 4px; }
@@ -15053,8 +15073,9 @@ button.beat-scene-chip:hover { border-color: var(--fd-accent); color: var(--fd-a
 @media (pointer: coarse) { .suggestions-navigation button, .suggestions-bulk button, .suggestion-card-actions button { min-height: 44px; } }
 
 .element-number-dialog {
-  position: fixed; inset: 0; margin: auto; height: fit-content;
-  width: min(32rem, calc(100vw - 2rem)); max-height: calc(100vh - 2rem);
+  /* Centred in the safe area, as .external-save-review is. */
+  position: fixed; inset: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px); margin: auto; height: fit-content;
+  width: min(32rem, calc(100vw - 2rem - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px))); max-height: calc(100vh - 2rem);
   overflow: auto; padding: 24px; border: 1px solid var(--fd-border);
   border-radius: 8px; background: var(--fd-bg); color: var(--fd-text);
 }
@@ -15474,6 +15495,86 @@ html.fold-laptop .fold-panel-dock {
 }
 
 html.fold-book :is(.menu-bar, .toolbar) { width: var(--fold-left); max-width: var(--fold-left); box-sizing: border-box; }
+
+/* ── iPhone Duo open screen: the top touch band ──────────────────────────
+   The open screen reports no top safe-area inset (its status sits in a column
+   on the trailing edge) but iOS still keeps the top 24 pt for itself: taps on
+   a menu bar drawn there never reached the page, while the same bar 24 px
+   lower worked. Only the iOS app on a confirmed foldable, on its wide screens;
+   where a real top inset is larger (the laptop posture puts the status bar on
+   top) that inset wins. The cover screen has no such band. */
+/* The floating menu bar opened from ☰ is sized to the viewport; on a folded
+   foldable that button lives in the side status column, so the bar starts
+   beside the column and has to stop at the other edge's inset too. */
+html.foldable .menu-bar--floating {
+  max-width: calc(100vw - 28px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
+}
+html.foldable { --fold-chrome-top: env(safe-area-inset-top, 0px); }
+html.ios.foldable.wide { --fold-chrome-top: max(env(safe-area-inset-top, 0px), 24px); }
+@supports (padding: env(safe-area-inset-top)) {
+  html.ios.foldable.wide .app-container { padding-top: var(--fold-chrome-top); }
+  html.ios.foldable.wide :is(.dialog-box.about-dialog, .dialog-box.manual-dialog) { padding-top: var(--fold-chrome-top); }
+  html.ios.foldable.wide .fold-layout.fold-nav-overlay .scene-navigator { padding-top: var(--fold-chrome-top); }
+}
+
+/* ── Book posture: the right half is the controls side (#231) ────────────
+   The menu bar stays over the script on the left. The toolbar moves to the
+   top of the right half in two finger-sized rows, and its pulldowns open in
+   the second row (Select's choice line). Below it is the keyboard while
+   typing, or the open companion panel. Selectors carry .foldable and the
+   toolbar's own classes so they outrank the open screen's one-row rules
+   (html.foldable.wide .toolbar, .toolbar-comfortable). */
+html.foldable.fold-book .toolbar,
+html.foldable.fold-book .toolbar.toolbar-comfortable {
+  position: fixed;
+  top: var(--fold-chrome-top);
+  left: calc(var(--fold-left) + var(--fold-width));
+  right: env(safe-area-inset-right, 0px);
+  width: auto; max-width: none;
+  height: var(--fold-book-toolbar-height, 106px); min-height: var(--fold-book-toolbar-height, 106px);
+  flex-wrap: wrap; align-content: flex-start; align-items: center;
+  row-gap: 4px; column-gap: 4px;
+  padding: 8px 8px 6px;
+  border-left: 1px solid var(--fd-border);
+}
+html.foldable.fold-book .toolbar .toolbar-group { height: 44px; align-items: center; }
+html.foldable.fold-book .toolbar .toolbar-btn { min-width: 40px; height: 44px; }
+html.foldable.fold-book .toolbar .od-select { height: 44px; }
+/* Rows of finger-sized controls read as groups by their spacing; the thin
+   dividers only cost width the second row needs. */
+html.foldable.fold-book .toolbar .toolbar-separator { display: none; }
+html.foldable.fold-book .fold-panel-dock {
+  position: fixed;
+  top: calc(var(--fold-chrome-top) + var(--fold-book-toolbar-height, 106px));
+  left: calc(var(--fold-left) + var(--fold-width));
+  right: env(safe-area-inset-right, 0px);
+  bottom: env(safe-area-inset-bottom, 0px);
+  margin-left: 0;
+  width: auto;
+  z-index: 100;
+}
+
+/* A pulldown's choices as one horizontal line over the toolbar's second row,
+   in place of a list dropping over the script (see Select.tsx). */
+.od-select-popup.od-select-popup--line {
+  display: flex; flex-direction: row; align-items: center; gap: 6px;
+  overflow-x: auto; overflow-y: hidden; overscroll-behavior: contain;
+  padding: 4px 6px; max-height: none; border-radius: 8px;
+  scrollbar-width: none;
+}
+.od-select-popup--line::-webkit-scrollbar { display: none; }
+.od-select-popup--line .od-select-group,
+.od-select-popup--line .od-select-check,
+.od-select-popup--line .od-select-shortcut { display: none; }
+.od-select-popup--line .od-select-option {
+  flex: 0 0 auto; display: flex; align-items: center;
+  height: 36px; padding: 0 14px; border-radius: 18px;
+  border: 1px solid var(--fd-border); white-space: nowrap;
+}
+.od-select-popup--line .od-select-option.is-selected {
+  border-color: var(--fd-accent);
+  background: color-mix(in srgb, var(--fd-accent) 22%, transparent);
+}
 .fold-layout.fold-nav-overlay .scene-navigator::before {
   content: ''; position: absolute; top: 0; left: 100%;
   width: 100vw; height: 100vh; background: rgba(0,0,0,.45);

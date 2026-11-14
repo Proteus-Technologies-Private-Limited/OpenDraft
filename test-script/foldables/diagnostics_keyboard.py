@@ -287,7 +287,7 @@ class FoldDiagnosticsKeyboard(unittest.TestCase):
                 ),
                 {"from": 1, "to": 10},
             )
-            self.page.keyboard.press("Control+z")
+            self.page.keyboard.press("ControlOrMeta+z")
             self.assertEqual(self.page.locator(".ProseMirror strong").count(), 0)
             self.page.keyboard.press("F10")
             self.page.keyboard.press("F10")

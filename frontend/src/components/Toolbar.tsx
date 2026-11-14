@@ -52,6 +52,7 @@ import { avCellElementRules, scriptBodyElementRules } from '../utils/avCellEleme
 import Select from './Select';
 import { useFoldState } from '../hooks/useFoldState';
 import { PHONE_DEVICE_CHANGE_EVENT } from '../utils/phoneDevice';
+import { FOLD_CHANGE_EVENT } from '../utils/foldPosture';
 import { formatShortcut } from '../utils/shortcuts';
 import { elementShortcutSpec } from '../utils/elementShortcuts';
 import { elementLabel, elementDescription } from '../editor/elementLabels';
@@ -452,7 +453,34 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
         totalWidth += w + 2;
       }
 
-      if (totalWidth > containerWidth) {
+      // A foldable held as a book wraps the toolbar onto two rows on the
+      // right half (screenplay.css, #231). Width sums cannot say how groups
+      // pack into rows, so measure the wrapped layout itself, hiding groups in
+      // the usual order until both rows hold what is left, with room for the
+      // "…" button that then appears.
+      const twoRows = document.documentElement.classList.contains('fold-book');
+      if (twoRows) {
+        const visible = () => Array.from(toolbar.children).filter((c): c is HTMLElement => (c as HTMLElement).offsetWidth > 0);
+        const roomForOverflow = () => {
+          if (toolbar.querySelector('.toolbar-overflow-wrap')) return true;
+          const kids = visible();
+          if (kids.length === 0) return true;
+          const firstTop = Math.min(...kids.map(k => k.offsetTop));
+          const lastTop = Math.max(...kids.map(k => k.offsetTop));
+          if (lastTop - firstTop < 10) return true; // one row used: the second is free
+          const lastRight = Math.max(...kids.filter(k => k.offsetTop >= lastTop - 2).map(k => k.offsetLeft + k.offsetWidth));
+          const padRight = parseFloat(getComputedStyle(toolbar).paddingRight) || 0;
+          return toolbar.clientWidth - padRight - lastRight >= OVERFLOW_BTN_WIDTH + 4;
+        };
+        const fits = () => toolbar.scrollHeight <= toolbar.clientHeight + 1 && roomForOverflow();
+        for (const prefix of HIDE_ORDER) {
+          if (fits()) break;
+          for (const { el, key } of allItems.filter(p => p.key.startsWith(prefix))) {
+            newHidden.add(key);
+            el.style.display = 'none';
+          }
+        }
+      } else if (totalWidth > containerWidth) {
         let currentTotal = totalWidth + OVERFLOW_BTN_WIDTH;
 
         for (const prefix of HIDE_ORDER) {
@@ -506,6 +534,18 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
     ro.observe(toolbar);
     // Phone chrome switched on or off (main.tsx): every button changed size.
     window.addEventListener(PHONE_DEVICE_CHANGE_EVENT, remeasure);
+    // A fold changes the chrome (Compact on the open screen, two rows held as
+    // a book) after the width the observer saw, and on the iPhone Duo the
+    // settled layout came a beat later still: the toolbar was left measured
+    // for the previous posture, its last items under the status column. So
+    // measure again after a fold, and once more when it has settled.
+    let settleTimer: ReturnType<typeof setTimeout> | undefined;
+    const remeasureAfterFold = () => {
+      remeasure();
+      clearTimeout(settleTimer);
+      settleTimer = setTimeout(remeasure, 300);
+    };
+    window.addEventListener(FOLD_CHANGE_EVENT, remeasureAfterFold);
 
     // Crossing the mobile breakpoint changes which groups the stylesheet hides,
     // and on iPad that can happen without the toolbar's own width changing —
@@ -529,6 +569,8 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
     return () => {
       ro.disconnect();
       window.removeEventListener(PHONE_DEVICE_CHANGE_EVENT, remeasure);
+      window.removeEventListener(FOLD_CHANGE_EVENT, remeasureAfterFold);
+      clearTimeout(settleTimer);
       if (breakpoint) {
         if (typeof breakpoint.removeEventListener === 'function') {
           breakpoint.removeEventListener('change', remeasure);
@@ -538,7 +580,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
       }
       cancelAnimationFrame(rafId);
     };
-  }, [toolbarMode, foldState.foldable, foldState.size]);
+  }, [toolbarMode, foldState.foldable, foldState.size, foldState.fold]);
 
   // ── Notes handler (shared between inline and overflow) ──
   const handleNotesClick = useCallback((e: React.PointerEvent | React.MouseEvent) => {

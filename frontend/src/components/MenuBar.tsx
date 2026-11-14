@@ -3844,7 +3844,15 @@ const MenuBar: React.FC<MenuBarProps> = ({
       // the dropdown pushes `left` negative and the menu hangs off the leading
       // edge. Not reachable at the 320pt minimum this app supports, but the
       // expression should not be the thing standing between here and there.
-      const left = Math.max(8, Math.min(rect.left, window.innerWidth - dropdownWidth - 8));
+      // A foldable held as a book keeps the menu bar over the script on the
+      // left half; its menus stay on that side of the crease rather than
+      // hanging over it onto the controls side (#231).
+      let rightEdge = window.innerWidth;
+      if (document.documentElement.classList.contains('fold-book')) {
+        const crease = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--fold-left'));
+        if (Number.isFinite(crease) && crease > dropdownWidth + 16 && rect.left < crease) rightEdge = crease;
+      }
+      const left = Math.max(8, Math.min(rect.left, rightEdge - dropdownWidth - 8));
 
       // In floating mode, position relative to the panel edges (not individual items)
       // so the dropdown clears the rounded, padded floating menu panel.
@@ -3910,9 +3918,20 @@ const MenuBar: React.FC<MenuBarProps> = ({
   // --ios-window-gutter is 0 unless the app is in a window, and the clamp only
   // applies in the band the pill occupies — lower down, the leading edge is
   // the user's to park on.
-  const fabLeftStyle = fabY < FAB_PILL_BAND_PX
-    ? `max(${fabX}px, calc(env(safe-area-inset-left, 0px) + var(--ios-window-gutter, 0px)))`
-    : `max(${fabX}px, env(safe-area-inset-left, 0px))`;
+  const fabLeftFloor = fabY < FAB_PILL_BAND_PX
+    ? 'calc(env(safe-area-inset-left, 0px) + var(--ios-window-gutter, 0px))'
+    : 'env(safe-area-inset-left, 0px)';
+  // ...and never under system UI on the trailing side either. The iPhone Duo's
+  // cover screen keeps its clock and status in a column down the right edge,
+  // which is exactly where a folded foldable parks this button by default
+  // (useFoldedMenuPosition), so it sat behind the camera and the clock.
+  // Except where it was put in that status column on purpose (a folded
+  // foldable's default, useFoldedMenuPosition): that is the one place it covers
+  // nothing. A position the writer dragged is clamped as usual.
+  const fabInStatusBar = !fabPos && defaultFab.inStatusBar;
+  const fabLeftStyle = fabInStatusBar
+    ? `${fabX}px`
+    : `clamp(${fabLeftFloor}, ${fabX}px, calc(100vw - ${FAB_SIZE}px - env(safe-area-inset-right, 0px)))`;
 
   // Desktop: pointer events with capture for mouse drag
   const handleFabPointerDown = useCallback((e: React.PointerEvent) => {
@@ -4168,10 +4187,11 @@ const MenuBar: React.FC<MenuBarProps> = ({
             } else {
               mStyle.top = fabY + FAB_SIZE + 8;
             }
+            // Kept inside the side safe-area insets, as the button is.
             if (fabInRight) {
-              mStyle.right = window.innerWidth - fabX - FAB_SIZE;
+              mStyle.right = `max(${window.innerWidth - fabX - FAB_SIZE}px, env(safe-area-inset-right, 0px))`;
             } else {
-              mStyle.left = fabX;
+              mStyle.left = `max(${fabX}px, env(safe-area-inset-left, 0px))`;
             }
             return (
               <div className="menu-bar chrome-comfortable menu-bar--floating" style={mStyle} ref={menuRef}>

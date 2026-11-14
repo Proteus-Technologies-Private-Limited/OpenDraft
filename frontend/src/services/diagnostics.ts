@@ -29,18 +29,31 @@ export interface DiagnosticsReport {
   display: FoldDiagnostics | null;
 }
 
-/** Best-effort OS string from the user-agent. */
-function detectOs(): string {
-  const ua = (typeof navigator !== 'undefined' && navigator.userAgent) || '';
+/**
+ * Best-effort OS string from the user-agent.
+ *
+ * iOS is checked before macOS: every iPhone and iPad user agent says
+ * "like Mac OS X", so testing for macOS first reported every iOS device as
+ * a Mac. iPadOS 13+ goes further and sends a desktop "Macintosh" user agent;
+ * a real Mac has no touch points, which is how the two are told apart (the
+ * same rule as getOS() in platform.ts). No version is given for iOS: WebKit
+ * freezes the one in the user agent, so it would name the wrong release.
+ */
+export function detectOs(
+  ua: string = (typeof navigator !== 'undefined' && navigator.userAgent) || '',
+  maxTouchPoints: number = (typeof navigator !== 'undefined' && navigator.maxTouchPoints) || 0,
+): string {
   if (/Windows NT 10\.0; Win64; x64/.test(ua)) return 'Windows 10/11 (x64)';
   if (/Windows NT 10\.0/.test(ua)) return 'Windows 10/11';
   if (/Windows NT/.test(ua)) return 'Windows';
+  if (/Android/.test(ua)) return 'Android';
+  if (/iPad/.test(ua)) return 'iPadOS';
+  if (/iPhone|iPod/.test(ua)) return 'iOS';
+  if (/Macintosh/.test(ua) && maxTouchPoints > 1) return 'iPadOS';
   if (/Mac OS X/.test(ua)) {
     const m = ua.match(/Mac OS X ([0-9_]+)/);
     return m ? `macOS ${m[1].replace(/_/g, '.')}` : 'macOS';
   }
-  if (/Android/.test(ua)) return 'Android';
-  if (/iPhone|iPad|iOS/.test(ua)) return 'iOS';
   if (/Linux/.test(ua)) return 'Linux';
   return ua.slice(0, 200) || 'unknown';
 }
