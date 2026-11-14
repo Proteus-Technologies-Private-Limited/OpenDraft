@@ -106,6 +106,8 @@ interface Anchor {
   top?: number;
   bottom?: number;
   maxHeight: number;
+  /** Set for the choice line: the popup is laid out as one row of this size. */
+  line?: { width: number; height: number };
 }
 
 const EDGE_GAP = 8;
@@ -116,6 +118,8 @@ const MIN_ROOM_BELOW = 180;
  * keyboard covers the window without changing innerHeight.
  */
 function anchorTo(trigger: HTMLElement): Anchor {
+  const line = choiceLineFor(trigger);
+  if (line) return line;
   const rect = trigger.getBoundingClientRect();
   const vw = window.visualViewport?.width ?? window.innerWidth;
   const vh = window.visualViewport?.height ?? window.innerHeight;
@@ -128,6 +132,40 @@ function anchorTo(trigger: HTMLElement): Anchor {
     return { left, minWidth, maxWidth: vw - left - EDGE_GAP, top: rect.bottom + 2, maxHeight: Math.max(120, roomBelow) };
   }
   return { left, minWidth, maxWidth: vw - left - EDGE_GAP, bottom: vh - rect.top + 2, maxHeight: Math.max(120, roomAbove) };
+}
+
+/**
+ * A foldable held as a book keeps its toolbar in two rows on the right half
+ * (screenplay.css, #231). A pulldown there opens its choices across the second
+ * row instead of dropping a list over the script or across the crease. Only
+ * then: everywhere else this answers null and the list opens as it always has.
+ */
+export function choiceLineFor(trigger: HTMLElement): Anchor | null {
+  if (typeof document === 'undefined' || !document.documentElement.classList.contains('fold-book')) return null;
+  const toolbar = trigger.closest<HTMLElement>('.toolbar');
+  if (!toolbar) return null;
+  try {
+    const box = toolbar.getBoundingClientRect();
+    const style = getComputedStyle(toolbar);
+    const padTop = parseFloat(style.paddingTop) || 0;
+    const padLeft = parseFloat(style.paddingLeft) || 0;
+    const padRight = parseFloat(style.paddingRight) || 0;
+    const rowGap = parseFloat(style.rowGap) || 0;
+    const rowHeight = 44;
+    const width = box.width - padLeft - padRight;
+    if (!(width > 0)) return null;
+    return {
+      left: box.left + padLeft,
+      top: box.top + padTop + rowHeight + rowGap,
+      minWidth: width,
+      maxWidth: width,
+      maxHeight: rowHeight,
+      line: { width, height: rowHeight },
+    };
+  } catch (error) {
+    console.warn('[Select] could not place the choice line; opening a list instead', error);
+    return null;
+  }
 }
 
 const TYPEAHEAD_RESET_MS = 700;
@@ -208,7 +246,7 @@ const Select: React.FC<SelectProps> = ({
   useEffect(() => {
     if (!open) return;
     listRef.current?.querySelector<HTMLElement>('.od-select-option.is-active')
-      ?.scrollIntoView({ block: 'nearest' });
+      ?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }, [open, activeIndex]);
 
   useEffect(() => {
@@ -297,8 +335,11 @@ const Select: React.FC<SelectProps> = ({
       }
       return;
     }
-    if (e.key === 'ArrowDown') { e.preventDefault(); setActiveIndex((i) => step(i, 1)); }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); setActiveIndex((i) => step(i, -1)); }
+    // The choice line runs across: Left and Right move along it, in reading order.
+    const forward = anchor?.line && getComputedStyle(buttonRef.current ?? document.body).direction === 'rtl' ? 'ArrowLeft' : 'ArrowRight';
+    const backward = forward === 'ArrowRight' ? 'ArrowLeft' : 'ArrowRight';
+    if (e.key === 'ArrowDown' || (anchor?.line && e.key === forward)) { e.preventDefault(); setActiveIndex((i) => step(i, 1)); }
+    else if (e.key === 'ArrowUp' || (anchor?.line && e.key === backward)) { e.preventDefault(); setActiveIndex((i) => step(i, -1)); }
     else if (e.key === 'Home') { e.preventDefault(); setActiveIndex(options.find(choosable) ?? -1); }
     else if (e.key === 'End') { e.preventDefault(); setActiveIndex([...options].reverse().find(choosable) ?? -1); }
     else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); commit(activeIndex); }
@@ -347,10 +388,16 @@ const Select: React.FC<SelectProps> = ({
         <div
           ref={listRef}
           id={listId}
-          className="od-select-popup"
+          className={anchor.line ? 'od-select-popup od-select-popup--line' : 'od-select-popup'}
           role="listbox"
+          aria-orientation={anchor.line ? 'horizontal' : undefined}
           aria-label={rest['aria-label'] ?? title ?? selected?.text}
-          style={{
+          style={anchor.line ? {
+            left: anchor.left,
+            top: anchor.top,
+            width: anchor.line.width,
+            height: anchor.line.height,
+          } : {
             left: anchor.left,
             top: anchor.top,
             bottom: anchor.bottom,

@@ -1,0 +1,32 @@
+OpenDraft is a free, open-source screenwriting app for Mac, iPhone and iPad. Write, outline and hear your screenplay, with no subscription and no account.
+
+PROFESSIONAL FORMATTING, AUTOMATICALLY
+Scene headings, action, characters, dialogue, parentheticals and transitions format themselves as you type. SmartType completes the character names, locations and times of day you have already used. Templates cover film, one-hour drama, sitcom, stage play, radio, podcast, comics and AV scripts.
+
+TABLE READ
+Hear your script read aloud, with a different voice for each character. The line and the word being spoken are highlighted, so you can follow along or catch a clumsy line by ear.
+
+PLAN THE STORY
+Index cards show every scene with its synopsis, colour, page count and running time. The Outline lays out acts, sequences and scenes: drag a scene to move it. A beat board and a story timeline give you the big picture, and the Navigator jumps to any scene.
+
+KNOW YOUR SCRIPT
+Script Health finds empty scene headings, unfinished dialogue and notes you haven't dealt with. Reports cover scenes, characters, cast and locations, with CSV and PDF export. Character profiles, tags and a location list keep the details in one place.
+
+REVISE WITH CONFIDENCE
+Version history keeps your saved drafts. Compare two of them to see rewritten lines and moved scenes, and restore any version. Revision colours, locked pages and scene numbers are there when you go into production.
+
+WRITE TOGETHER
+Co-write in real time with live cursors, or turn on Suggest Changes and review each edit before it lands.
+
+IMPORT AND EXPORT
+Open Final Draft (.fdx), Fountain, Word and PDF scripts. Export to PDF, Final Draft, Fountain, Fade In and Word, with watermarks, scene ranges and sides when you need them.
+
+IN YOUR LANGUAGE
+Menus and dialogs come in 19 languages, right-to-left ones included, and spellcheck can check several languages in one script.
+
+YOURS TO KEEP
+- Free and open source (MIT licence)
+- No subscription and no ads
+- Privacy-first: no tracking, no analytics
+- Works fully offline: your scripts stay on your device unless you choose to share them
+- Optional add-ons such as Dictation stay off until you turn them on

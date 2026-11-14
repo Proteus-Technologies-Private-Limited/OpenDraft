@@ -29,7 +29,7 @@ import { addScriptNoteAtSelection } from '../utils/addScriptNote';
 import { FOCUS_MODE_SHORTCUT } from '../editor/extensions/FocusMode';
 import { showToast } from './Toast';
 import { useFoldState } from '../hooks/useFoldState';
-import { useFoldedMenuPosition } from '../hooks/useFoldedMenuPosition';
+import { statusColumnX, useFoldedMenuPosition } from '../hooks/useFoldedMenuPosition';
 import { formatFileFailure } from '../services/fileDiagnostics';
 import { useTranslation, Trans } from 'react-i18next';
 import { BUILTIN } from '../editor/languageCatalog';
@@ -3844,7 +3844,15 @@ const MenuBar: React.FC<MenuBarProps> = ({
       // the dropdown pushes `left` negative and the menu hangs off the leading
       // edge. Not reachable at the 320pt minimum this app supports, but the
       // expression should not be the thing standing between here and there.
-      const left = Math.max(8, Math.min(rect.left, window.innerWidth - dropdownWidth - 8));
+      // A foldable held as a book keeps the menu bar over the script on the
+      // left half; its menus stay on that side of the crease rather than
+      // hanging over it onto the controls side (#231).
+      let rightEdge = window.innerWidth;
+      if (document.documentElement.classList.contains('fold-book')) {
+        const crease = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--fold-left'));
+        if (Number.isFinite(crease) && crease > dropdownWidth + 16 && rect.left < crease) rightEdge = crease;
+      }
+      const left = Math.max(8, Math.min(rect.left, rightEdge - dropdownWidth - 8));
 
       // In floating mode, position relative to the panel edges (not individual items)
       // so the dropdown clears the rounded, padded floating menu panel.
@@ -3892,6 +3900,14 @@ const MenuBar: React.FC<MenuBarProps> = ({
   const fabWasDragRef = useRef(false);
   const foldState = useFoldState();
   const defaultFab = useFoldedMenuPosition(foldState.foldable && foldState.size === 'phone', navPanelWidth);
+  const defaultFabRef = useRef(defaultFab);
+  defaultFabRef.current = defaultFab;
+  // A drag that ends over the folded cover's status column drops the button
+  // back into it, centred, so it can be put back after being moved out.
+  const settleFabPos = useCallback((pos: { x: number; y: number }) => {
+    const x = statusColumnX(pos.x, defaultFabRef.current.statusColumn);
+    return x === null ? pos : { ...pos, x };
+  }, []);
   const fabX = Math.max(0, Math.min(fabPos?.x ?? defaultFab.x, window.innerWidth - FAB_SIZE));
   const fabY = Math.max(0, Math.min(fabPos?.y ?? defaultFab.y, window.innerHeight - FAB_SIZE));
   // On Android the WebView extends behind the (transparent) status bar, so a
@@ -3910,9 +3926,24 @@ const MenuBar: React.FC<MenuBarProps> = ({
   // --ios-window-gutter is 0 unless the app is in a window, and the clamp only
   // applies in the band the pill occupies — lower down, the leading edge is
   // the user's to park on.
-  const fabLeftStyle = fabY < FAB_PILL_BAND_PX
-    ? `max(${fabX}px, calc(env(safe-area-inset-left, 0px) + var(--ios-window-gutter, 0px)))`
-    : `max(${fabX}px, env(safe-area-inset-left, 0px))`;
+  const fabLeftFloor = fabY < FAB_PILL_BAND_PX
+    ? 'calc(env(safe-area-inset-left, 0px) + var(--ios-window-gutter, 0px))'
+    : 'env(safe-area-inset-left, 0px)';
+  // ...and never under system UI on the trailing side either. The iPhone Duo's
+  // cover screen keeps its clock and status in a column down the right edge,
+  // which is exactly where a folded foldable parks this button by default
+  // (useFoldedMenuPosition), so it sat behind the camera and the clock.
+  // Except where it is in that status column on purpose — a folded foldable's
+  // default (useFoldedMenuPosition), or the writer dragging it back there:
+  // that is the one place it covers nothing. Anywhere else a dragged position
+  // is clamped as usual.
+  // A saved position over the column is drawn centred in it, so one dragged
+  // there before drops landed centred still lines up with the clock.
+  const fabColumnX = fabPos ? statusColumnX(fabX, defaultFab.statusColumn) : null;
+  const fabInStatusBar = fabPos ? fabColumnX !== null : defaultFab.inStatusBar;
+  const fabLeftStyle = fabInStatusBar
+    ? `${fabColumnX ?? fabX}px`
+    : `clamp(${fabLeftFloor}, ${fabX}px, calc(100vw - ${FAB_SIZE}px - env(safe-area-inset-right, 0px)))`;
 
   // Desktop: pointer events with capture for mouse drag
   const handleFabPointerDown = useCallback((e: React.PointerEvent) => {
@@ -3953,10 +3984,10 @@ const MenuBar: React.FC<MenuBarProps> = ({
     if (!d) return;
     fabWasDragRef.current = true;
     if (d.isDrag) {
-      const pos = {
+      const pos = settleFabPos({
         x: Math.max(0, Math.min(window.innerWidth - FAB_SIZE, d.originX + (e.clientX - d.startX))),
         y: Math.max(0, Math.min(window.innerHeight - FAB_SIZE, d.originY + (e.clientY - d.startY))),
-      };
+      });
       setFabPos(pos);
       localStorage.setItem(FAB_POS_KEY, JSON.stringify(pos));
     } else {
@@ -3964,14 +3995,12 @@ const MenuBar: React.FC<MenuBarProps> = ({
       setActiveMenu(null);
       setOpenSubmenu(null);
     }
-  }, [FAB_POS_KEY, FAB_SIZE]);
+  }, [FAB_POS_KEY, FAB_SIZE, settleFabPos]);
 
   // Touch: native listeners on the FAB element via ref (WKWebView + Android WebView)
   const fabElRef = useRef<HTMLDivElement>(null);
   const fabPosRef = useRef(fabPos);
   fabPosRef.current = fabPos;
-  const defaultFabRef = useRef(defaultFab);
-  defaultFabRef.current = defaultFab;
 
   useEffect(() => {
     const el = fabElRef.current;
@@ -4019,10 +4048,10 @@ const MenuBar: React.FC<MenuBarProps> = ({
         // (onClick may not fire on mobile after a drag to reset it)
         setTimeout(() => { fabWasDragRef.current = false; }, 400);
         const t = e.changedTouches[0];
-        const pos = {
+        const pos = settleFabPos({
           x: Math.max(0, Math.min(window.innerWidth - FAB_SIZE, d.originX + (t.clientX - d.startX))),
           y: Math.max(0, Math.min(window.innerHeight - FAB_SIZE, d.originY + (t.clientY - d.startY))),
-        };
+        });
         setFabPos(pos);
         localStorage.setItem(FAB_POS_KEY, JSON.stringify(pos));
       }
@@ -4036,7 +4065,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
       document.removeEventListener('touchmove', onTouchMove);
       document.removeEventListener('touchend', onTouchEnd);
     };
-  }, [FAB_POS_KEY, FAB_SIZE, toolbarMode]);
+  }, [FAB_POS_KEY, FAB_SIZE, toolbarMode, settleFabPos]);
 
   // Click: fallback for tap (works everywhere)
   const handleFabClick = useCallback(() => {
@@ -4168,10 +4197,11 @@ const MenuBar: React.FC<MenuBarProps> = ({
             } else {
               mStyle.top = fabY + FAB_SIZE + 8;
             }
+            // Kept inside the side safe-area insets, as the button is.
             if (fabInRight) {
-              mStyle.right = window.innerWidth - fabX - FAB_SIZE;
+              mStyle.right = `max(${window.innerWidth - fabX - FAB_SIZE}px, env(safe-area-inset-right, 0px))`;
             } else {
-              mStyle.left = fabX;
+              mStyle.left = `max(${fabX}px, env(safe-area-inset-left, 0px))`;
             }
             return (
               <div className="menu-bar chrome-comfortable menu-bar--floating" style={mStyle} ref={menuRef}>
@@ -4337,14 +4367,23 @@ const MenuBar: React.FC<MenuBarProps> = ({
           <div className="dialog-body about-body">
             <div className="about-title">Open Draft</div>{/* i18n-ignore: product name */}
             {/* i18n-ignore: release.sh rewrites these two literals each release */}
-            <div className="about-version">Version 2.12.0</div>
+            <div className="about-version">Version 2.13.0</div>
             <div className="about-tagline">{t('menu:about.tagline')}</div>
 
             <div className="about-whats-new">
               {/* i18n-ignore: release.sh rewrites this literal each release */}
-              <div className="about-section-title">What's New in 2.12.0</div>
+              <div className="about-section-title">What's New in 2.13.0</div>
               <div className="about-changelog">
               {/* i18n-ignore-start: release notes stay English in phase 1 */}
+              <div className="about-subsection-title">v2.13.0</div>
+              <ul className="about-list">
+                <li><strong>Foldable Phones</strong> &mdash; When OpenDraft can see a phone&rsquo;s fold, it lays itself out for each way you hold it. Folded, the script fills the cover screen under a compact toolbar; where the cover keeps its clock in a column down one edge, the menu button sits at the foot of that column, covering nothing, and can be dragged out and back. Opened like a book, the page fits the width with the Navigator and your panels beside it in one column of tabs, and the writing pad shares those tabs without losing its draft. Half-open like a laptop, panels move below the script. Layout choices made folded and open are remembered separately, and <em>Help &rarr; Diagnostics</em> reports what OpenDraft sees of the fold (#231).</li>
+                <li><strong>Script Health</strong> &mdash; <em>Tools &rarr; Analytics &rarr; Script Health</em> finds repeated production references, empty scene headings, incomplete dialogue blocks and unresolved notes. The checks run on your device, with no account, connection or API key. It is also one of the <em>Reports</em>, with the same CSV and PDF export (#243).</li>
+                <li><strong>Spellcheck in Several Languages</strong> &mdash; <em>Edit &rarr; Spelling &amp; Grammar &rarr; Spellcheck Languages</em> lists every dictionary, including Polish and any you installed from a link. Tick several for a script written in more than one language; one not yet installed downloads when you pick it. The choice is saved with the script and kept when you switch between scripts.</li>
+                <li><strong>Better Keyboard and Screen Reader Support</strong> &mdash; Dialogs keep the keyboard inside them and hand it back to where you were when they close. Menus and their submenus, panels and tabs can all be worked from the keyboard, formatting buttons say whether they are on, and notifications are read out: routine ones close after four seconds, errors stay until dismissed. Focus outlines are easy to see, and high-contrast and reduced-motion settings are followed. In keyboard lists, the row under the mouse is a quieter grey, so two rows never look selected.</li>
+                <li><strong>Faster Typing in Long Scripts</strong> &mdash; The Navigator and the status bar&rsquo;s word count and running time catch up when you pause, and at least every three seconds while you keep typing, instead of on every key. In a 150-page script each keystroke does a fraction of the work it did (#229).</li>
+                <li><strong>Also Fixed</strong> &mdash; Printing without the title page leaves it out again (#98). Resizing the window keeps your place in the script and the zoom you chose. On the Mac, <em>File &rarr; Recover Original File</em> keeps the copies of files with the same name in different folders apart, and saves that cannot replace a file safely back it up first. Typing to jump in a menu works with Indian-language scripts, and opening <em>Help &rarr; Diagnostics</em> from the menu button closes the menu.</li>
+              </ul>
               <div className="about-subsection-title">v2.12.0</div>
               <ul className="about-list">
                 <li><strong>Exports Work Again in the Mac App Store Version</strong> &mdash; Every export, <em>Save As</em> and save of a linked file could fail with &ldquo;Operation not permitted&rdquo; in the Mac App Store version, because OpenDraft first wrote a temporary file beside the one you picked and macOS only lets it use the file itself. Saves now go through macOS&rsquo;s own file replacement, which keeps them safe without needing the rest of the folder. On the Mac, the copy kept before replacing another app&rsquo;s file now lives inside OpenDraft: get it back with <em>File &rarr; Recover Original File&hellip;</em> (#241).</li>

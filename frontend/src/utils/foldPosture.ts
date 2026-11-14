@@ -17,6 +17,38 @@ type SegmentViewport = { segments?: readonly Segment[] };
 type PostureNavigator = Navigator & { devicePosture?: EventTarget & { type?: string } };
 let confirmed = false;
 
+/**
+ * The hinge as the native app reports it (FoldPosture.m, iOS 27.1+).
+ *
+ * WKWebView has none of the browser fold APIs, so the iOS app pushes UIKit's
+ * hinge state and crease into the page instead: `window.__opendraftNativeFold`,
+ * plus NATIVE_FOLD_EVENT whenever it changes. `division` is the crease in the
+ * page's CSS pixels, reported while fully open too (the region is then only
+ * inactive); `hinge: 'none'` means the device has no hinge.
+ */
+export interface NativeFold {
+  hinge: 'none' | 'unknown' | 'closed' | 'partiallyOpen' | 'fullyOpen';
+  angle?: number;
+  division: { x: number; y: number; width: number; height: number; active?: boolean } | null;
+  viewport?: { width: number; height: number };
+}
+export const NATIVE_FOLD_EVENT = 'opendraft:nativefold';
+type NativeFoldWindow = Window & { __opendraftNativeFold?: NativeFold };
+
+/** The native report, if the app has sent a well-formed one. */
+export function readNativeFold(): NativeFold | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const value = (window as NativeFoldWindow).__opendraftNativeFold;
+    if (!value || typeof value !== 'object') return null;
+    const hinges: readonly NativeFold['hinge'][] = ['none', 'unknown', 'closed', 'partiallyOpen', 'fullyOpen'];
+    if (!hinges.includes(value.hinge)) return null;
+    return value;
+  } catch {
+    return null;
+  }
+}
+
 export function isFoldableDevice(): boolean {
   return confirmed;
 }
@@ -41,6 +73,26 @@ export function foldFromSegments(segments: readonly Segment[], folded: boolean):
   return { fold: folded ? orientation : 'flat', foldRect: rect };
 }
 
+/**
+ * The same answer from the native hinge, for the app on a foldable iPhone.
+ *
+ * Closed means the cover screen: no crease on this display. Open, the crease
+ * is the division region; it runs down a book-held device (taller than wide)
+ * and across a laptop-held one. Fully open is flat, as the browser's
+ * 'continuous' posture is, but keeps the crease for docking. A crease outside
+ * the reported viewport (a Split View pane on one half) is no crease here.
+ */
+export function foldFromNative(native: NativeFold, viewport: { width: number; height: number }): Pick<FoldState, 'fold' | 'foldRect'> {
+  if (native.hinge === 'none' || native.hinge === 'closed' || !native.division) return { fold: 'flat', foldRect: null };
+  const { x, y, width, height } = native.division;
+  const finite = [x, y, width, height].every(Number.isFinite);
+  if (!finite || width < 0 || height < 0 || (width === 0 && height === 0)) return { fold: 'flat', foldRect: null };
+  const inside = x < viewport.width && y < viewport.height && x + width > 0 && y + height > 0;
+  if (!inside) return { fold: 'flat', foldRect: null };
+  const orientation: FoldState['fold'] = height > width ? 'book' : 'laptop';
+  return { fold: native.hinge === 'partiallyOpen' ? orientation : 'flat', foldRect: new DOMRect(x, y, width, height) };
+}
+
 export function getFoldState(): FoldState {
   if (typeof window === 'undefined') return { size: 'wide', fold: 'flat', foldRect: null };
   let coarse = false;
@@ -50,8 +102,16 @@ export function getFoldState(): FoldState {
   // visualViewport.segments; keep that fallback without requiring either API.
   const viewport = (window as Window & { viewport?: SegmentViewport }).viewport;
   const segments = viewport?.segments ?? (window.visualViewport as (VisualViewport & SegmentViewport) | null)?.segments ?? [];
-  const geometry = foldFromSegments(segments, (navigator as PostureNavigator).devicePosture?.type === 'folded');
+  let geometry = foldFromSegments(segments, (navigator as PostureNavigator).devicePosture?.type === 'folded');
   if (geometry.foldRect) rememberFoldable();
+  // The browser APIs win when they report; the native hinge fills in for the
+  // iOS app's WKWebView, which has none of them. A hinge confirms a foldable
+  // even on the cover screen, which shows no crease at all.
+  const native = geometry.foldRect ? null : readNativeFold();
+  if (native && native.hinge !== 'none' && native.hinge !== 'unknown') {
+    rememberFoldable();
+    geometry = foldFromNative(native, { width: window.innerWidth, height: window.innerHeight });
+  }
   return { size, ...geometry };
 }
 
@@ -93,6 +153,7 @@ export function watchFoldPosture(onChange: (state: FoldState) => void): () => vo
   window.addEventListener('orientationchange', schedule);
   window.visualViewport?.addEventListener('resize', schedule);
   posture?.addEventListener('change', schedule);
+  window.addEventListener(NATIVE_FOLD_EVENT, schedule);
   const queries = ['(pointer: coarse)', '(horizontal-viewport-segments: 2)', '(vertical-viewport-segments: 2)'].map(query => window.matchMedia?.(query));
   queries.forEach(query => {
     if (query?.addEventListener) query.addEventListener('change', schedule);
@@ -105,6 +166,7 @@ export function watchFoldPosture(onChange: (state: FoldState) => void): () => vo
     window.removeEventListener('orientationchange', schedule);
     window.visualViewport?.removeEventListener('resize', schedule);
     posture?.removeEventListener('change', schedule);
+    window.removeEventListener(NATIVE_FOLD_EVENT, schedule);
     queries.forEach(query => {
       if (query?.removeEventListener) query.removeEventListener('change', schedule);
       else query?.removeListener?.(schedule);
