@@ -135,6 +135,34 @@ class WritingPad(unittest.TestCase):
         self.page.keyboard.press("Escape")
         expect(self.page.locator(".scribble-panel")).to_have_count(0)
 
+    def test_short_landscape_screen_keeps_the_field_off_the_buttons(self) -> None:
+        # A phone held sideways, or a foldable's cover screen turned: the
+        # field kept a 190px minimum inside a panel capped at the screen, so
+        # it ran out of its box over the tool row, the buttons and Insert.
+        self.page.evaluate("document.dispatchEvent(new CustomEvent('plugin-panel:close'))")
+        self.page.locator(".ProseMirror").click()
+        for n in range(6):
+            self.page.keyboard.insert_text(f"Line {n}: the storm keeps rising outside the window.")
+            self.page.keyboard.press("Enter")
+        self.request()
+        for width, height in ((797, 412), (844, 390), (740, 360)):
+            self.posture(width, height, None)
+            layout = self.page.evaluate("""() => {
+                const box = s => document.querySelector(s).getBoundingClientRect();
+                const panel = document.querySelector('.scribble-panel');
+                panel.scrollTop = panel.scrollHeight;
+                const field = box('.scribble-area'), wrap = box('.scribble-area-wrap'),
+                      tools = box('.scribble-tools'), insert = box('.scribble-btn-primary'), shown = box('.scribble-panel');
+                return { fieldOutOfBox: field.bottom - wrap.bottom, fieldOverTools: field.bottom - tools.top,
+                         fieldHeight: field.height, insertBelowPanel: insert.bottom - shown.bottom };
+            }""")
+            with self.subTest(size=f"{width}x{height}"):
+                self.assertLessEqual(layout["fieldOutOfBox"], 0.5)
+                self.assertLessEqual(layout["fieldOverTools"], 0.5)
+                self.assertGreaterEqual(layout["fieldHeight"], 95)
+                # Insert is on screen, scrolling the panel if it has to.
+                self.assertLessEqual(layout["insertBelowPanel"], 0.5)
+
     def test_geometry_short_pane_rtl_and_floating_preferences(self) -> None:
         self.page.evaluate(
             """localStorage.setItem('opendraft:handwritingSize',JSON.stringify({width:620,height:520}));

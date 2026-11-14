@@ -14320,6 +14320,23 @@ del.suggestion-delete {
 .scribble-panel.is-compact .scribble-tool { padding-left: 10px; padding-right: 10px; }
 .scribble-panel.is-compact .scribble-header { padding: 8px 10px 6px; }
 
+/* Short screens: a phone held sideways is 360–412px tall, a foldable's cover
+   screen too. The panel is capped at the screen and clips, but the field kept
+   its 190px minimum, so it ran out of its box and over the tool row, the
+   buttons and Insert (worse with the preview open). Here the preview gives
+   way first, the field takes the room left (never under two lines), and the
+   panel scrolls when even that does not fit, so Insert is always reachable.
+   The docked pad has its own rules. */
+@media (max-height: 520px) {
+  .scribble-panel:not(.is-docked) { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+  .scribble-panel:not(.is-docked) > * { flex-shrink: 0; }
+  .scribble-panel:not(.is-docked) .scribble-preview { max-height: min(150px, 18vh); }
+  .scribble-panel:not(.is-docked) .scribble-area-wrap { flex: 1 0 auto; }
+  .scribble-panel:not(.is-docked) .scribble-area {
+    min-height: clamp(96px, calc(var(--vv-height, 100dvh) - 300px), 190px);
+  }
+}
+
 .scribble-settings {
   display: flex;
   flex-wrap: wrap;
