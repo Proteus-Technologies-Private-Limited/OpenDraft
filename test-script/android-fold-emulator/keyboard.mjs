@@ -23,10 +23,10 @@ export async function keyboardPlacementChecks({ client, shell, capture, pkg }) {
   // The header toggle must remain tappable even when the native keyboard covers
   // the unresized viewport. A pointer event, not script click(), must change it.
   record('toggle-tap', await tap('toggle'));
-  await waitFor('Keyboard toggle disables input', () => client.evaluate(() => document.querySelector('.scribble-area')?.readOnly === true));
+  await waitFor('Keyboard toggle disables input', () => client.evaluate(() => document.querySelector('.scribble-area')?.getAttribute('inputmode') === 'none'));
   // Restore editing with another actual tap, then the actual field if required.
   await tap('toggle');
-  await waitFor('Keyboard toggle enables input', () => client.evaluate(() => document.querySelector('.scribble-area')?.readOnly === false));
+  await waitFor('Keyboard toggle enables input', () => client.evaluate(() => document.querySelector('.scribble-area')?.getAttribute('inputmode') === 'text'));
   if (!imeShown(shell('dumpsys', 'input_method'))) await tap('field');
   await waitFor('IME shown again', () => imeShown(shell('dumpsys', 'input_method')));
   await waitFor('restored placement', () => client.evaluate(probes.keyboardPlacement));
