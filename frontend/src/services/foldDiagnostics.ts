@@ -1,4 +1,5 @@
 import { isFoldableDevice, readNativeFold } from '../utils/foldPosture';
+import { readAndroidFoldSnapshot, type AndroidFoldSnapshot } from '../utils/androidFoldPosture';
 
 type Status = 'available' | 'unsupported' | 'error' | 'invalid';
 interface Probe { status: Status; value?: unknown }
@@ -11,6 +12,8 @@ export interface FoldDiagnostics {
   windowSegments: Segments;
   legacySegments: Segments;
   devicePosture: { status: Status; value: 'continuous' | 'folded' | 'unrecognized' | null };
+  /** Optional so existing report fixtures/consumers remain compatible. */
+  nativeAndroid?: AndroidFoldSnapshot | null;
   /** What the iOS app reported from UIKit's hinge (FoldPosture.m), if anything. */
   nativeHinge: { status: Status; hinge: string | null; angle: number | null; division: Rect | null; divisionActive: boolean | null };
   applied: {
@@ -86,6 +89,7 @@ export function collectFoldDiagnostics(): FoldDiagnostics | null {
     : { status: 'unsupported', hinge: null, angle: null, division: null, divisionActive: null };
   return {
     kind: 'browser-snapshot',
+    nativeAndroid: readAndroidFoldSnapshot(),
     // Match the detector's nullish precedence, including an empty current list.
     segmentsSource: current.status === 'error' ? 'unreadable'
       : current.status === 'available' ? 'window.viewport.segments'

@@ -28,6 +28,15 @@ beforeEach(async () => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('foldable diagnostic snapshot', () => {
+  it('copies only fixed native geometry without confirming capability or changing the detector', () => {
+    win.OpenDraftAndroidFold = { snapshot: () => JSON.stringify({ version: 1, status: 'available', active: true, confirmed: true,
+      webView: { left: 0, top: 0, width: 1600, height: 1600 }, feature: null, script: 'private draft' }) };
+    const report = collect()!;
+    expect(report.nativeAndroid).toMatchObject({ confirmed: true, feature: null, status: 'available' });
+    expect(JSON.stringify(report)).not.toContain('private draft');
+    expect(report.applied.confirmed).toBe(false);
+    expect(detector.isFoldableDevice()).toBe(false);
+  });
   it('handles ordinary devices and missing browser APIs without claiming foldable support', () => {
     const report = collect()!;
     expect(report.segmentsSource).toBe('size-only');

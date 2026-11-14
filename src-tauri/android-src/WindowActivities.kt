@@ -21,6 +21,11 @@ import androidx.activity.enableEdgeToEdge
  * not one per window.
  */
 open class WindowActivity : TauriActivity() {
+    override fun onWebViewCreate(webView: android.webkit.WebView) {
+        super.onWebViewCreate(webView)
+        FoldPostureBridge.attach(this, webView)
+    }
+
     /**
      * Same reason as MainActivity: without this, WryActivity never registers a
      * back callback and the system Back gesture closes the window outright

@@ -5,13 +5,13 @@ Tracks implementation against [the design](foldable-support-design.md) and
 The proposal remains the acceptance checklist; this document does not mark
 untested native behavior as complete. Browser foundations (#235, #236, #237)
 and writing-pad placement/review fixes (#247) are merged. The iOS hinge bridge (WP4) is in;
-the Android native bridge,
-background execution and the split-screen/custom-toolbar dependencies remain open.
+background execution and the split-screen/custom-toolbar dependencies remain open. Android WindowManager
+fallback is implemented in #260; physical OEM validation remains outstanding.
 
 | Package | Implemented here | Remaining work |
 | --- | --- | --- |
 | WP1–WP2 | Responsive menu, Location overlay and live swipe checks were merged in PR #235. | Merged browser fixes; keep their responsive regressions covered. |
-| WP3 | Browser posture, current `window.viewport.segments`, legacy fallback, size fallback, segment media queries, 150 ms debounce, HTML classes and crease variables. Capability is remembered only for the current document after observing two valid segments. | Verify System WebView on Android; add WindowManager integration if those browser APIs are absent. A first launch on a cover screen cannot establish capability from size alone. |
+| WP3 | Browser posture, current `window.viewport.segments`, legacy fallback, size fallback, segment media queries, 150 ms debounce, HTML classes and crease variables. Android WindowManager fallback supplies per-WebView geometry when browser segments are missing, and half-open state when only segments are exposed. Native capability requires an observed FoldingFeature and lasts for that Activity. Inactive/pending snapshots keep the applied posture until a fresh layout arrives. | Verify OEM System WebView/WindowManager behavior on a foldable. A cold cover launch with no reported FoldingFeature cannot establish capability from size alone. |
 | WP4 | Native bridge in `src-tauri/gen/apple/Sources/opendraft/FoldPosture.m`, started by the `fold_watch_start` command (`src-tauri/src/fold.rs`) for the web view that calls it. A transparent tracker view pinned over the WKWebView attaches `UIHingeInteraction` (closed / partiallyOpen / fullyOpen, or no hinge) and reads `reservedRegionsOfKind:divisionRegionKind options:IncludeInactive` in `updateConstraints`. It pushes `{hinge, angle, division, viewport}` to the page as `window.__opendraftNativeFold` plus `opendraft:nativefold`; `foldPosture.ts` uses it whenever the browser APIs report no crease. Built only against an SDK with the API and run only on iOS 27.1+, so older Xcode builds and older iOS keep browser detection. Verified on the Xcode 27.2 iPhone Duo simulator: cold start on the cover confirms a foldable; book (`partiallyOpen`, 40 px crease at x 455.5 of 951, CSS px = UIKit points), laptop (rotated) and `fullyOpen` (crease kept, region inactive) all apply the browser-built layouts; Diagnostics shows the native report. | Physical Duo. Split View on the open screen (the crease outside a pane is ignored, untested). The release job (`build-ios`, `macos-26`) does not pin Xcode: if the image's default SDK predates iOS 27.1, the bridge compiles out and the store build keeps browser detection only. Check the Xcode version in the next release log, and pin 27.1+ if needed. |
 | WP5 | The original screen-based phone rule and its explanation are retained for all ordinary devices. Confirmed foldables, now including the native hinge on iOS, use the separate window-based posture state, which fixes the Duo's open screen: WebKit keeps reporting the cover's `window.screen` (466×678) there, so the screen rule called a 951×669 screen a phone. | Device validation. |
 | WP6 | Independent folded/open preferences; one-time migration of explicit legacy choices into both postures; selecting an already-active layout still records a choice. Automatic geometry changes do not overwrite choices or reset zoom in the same layout. | Native posture-event validation after WP4. |
@@ -209,3 +209,77 @@ before; an iPhone 17 simulator running the same build showed the same layout.
 
 Still open: WP10's full choice-line spec (leading crumb button, trailing ✕) and
 the laptop posture's toolbar at the keyboard side, both waiting on #217.
+
+## Android WindowManager fallback
+
+`FoldPostureBridge.kt` observes Jetpack WindowManager 1.3.0 for each Activity's
+WebView. Both MainActivity and the extra WindowActivities attach it through
+Wry's `onWebViewCreate` hook. The adapter registers at Activity STARTED, removes
+its callback at STOPPED, rejects callbacks from previous registrations even
+after a new STARTED session, and removes the read-only
+JavaScript interface and view listeners at destruction. It does not replace
+Tauri's WebViewClient, add a permission, poll, or retain Activity references in
+static state. A missing/failing OEM extension leaves the browser/size fallback.
+
+The interface returns immutable JSON snapshots. A payload-free event requests
+a fresh read; startup also reads the current value, so an event before the web
+app mounts is harmless. WebView global-layout changes update its window offset
+and physical dimensions. The detector translates feature bounds from window
+pixels into WebView layout-viewport CSS pixels, using width/height ratios rather
+than assuming a density. Only a full cross-axis feature strictly inside this
+WebView splits it; a crease outside a single-half window does not.
+
+Valid browser geometry keeps priority. Recognized browser posture values keep
+priority too; native half-open state fills in when Device Posture is absent.
+Native snapshots feed the existing 150 ms debounce, before-reflow anchor capture,
+posture preferences and layout classes. FLAT reports do not imply half-open;
+zero-width/height creases are supported. Empty reports clear geometry while
+retaining positive capability within that Activity. A new Activity starts
+unconfirmed. An OEM reporting nothing on a cold cover launch remains an ordinary
+phone: neither model names nor screen dimensions prove capability.
+
+After `tauri android init`, `test-script/patch-android-local.py` installs the
+source/dependency for local builds. Release CI copies the bridge beside the
+Activity sources and patches the dependency with the other generated Gradle settings. The tracked R8 rules and `@Keep` preserve the
+read-only `snapshot` method. No generated Android project is checked in.
+
+With JDK 17, Android SDK 35 and Gradle 8.13 installed:
+
+```sh
+python3 -m unittest discover -s test-script -p test_android_fold_build.py
+gradle -p test-script/android-fold testDebugUnitTest --no-daemon
+```
+
+The focused Android library compiles the real tracked Kotlin sources against
+Android/AndroidX using Tauri's Kotlin 1.9.25 compiler and JVM 1.8 target.
+Its TauriActivity stand-in supplies Wry's Activity inheritance
+and public hook without starting Rust; it is not packaged into the app.
+Robolectric tests exercise API 28 and 35 lifecycle, geometry snapshots, retained
+capability, window isolation, invalid features and OEM failure. The separate
+browser check supplies synthetic native JSON to the real UI and verifies
+book/laptop/cover transitions, editor/selection retention, toolbar visibility,
+ordinary-phone fallback and diagnostics. These checks do not constitute an APK
+run or establish which APIs a real OEM WebView exposes. No Mac, iPhone or physical
+foldable was available; physical posture/keyboard/IME and release-APK testing
+remain outstanding.
+
+Android references: [WindowInfoTracker](https://developer.android.com/reference/kotlin/androidx/window/layout/WindowInfoTracker),
+[FoldingFeature](https://developer.android.com/reference/kotlin/androidx/window/layout/FoldingFeature),
+[Java callback adapter](https://developer.android.com/reference/kotlin/androidx/window/java/layout/WindowInfoTrackerCallbackAdapter).
+
+### Android review hardening
+
+Stopping or restarting the Activity publishes a pending native snapshot, which
+means no new geometry. The frontend retains its applied posture and size during
+that gap, without before-change events, class changes or posture-preference
+transitions. Fresh available geometry, including an empty cover-screen layout,
+then applies normally. Subscribers share the watcher's applied state, avoiding
+repeated synchronous Java bridge reads during one event.
+
+Only the global-layout listener republishes WebView geometry; an unchanged
+snapshot emits no event. Optional WindowManager calls contain both ordinary
+exceptions and vendor linkage errors during attach/start/stop. Unit tests cover
+startup and cleanup failures, stale callbacks, and book/laptop lifecycle gaps.
+The release workflow copies the bridge beside the existing Activity sources and
+patches its Gradle dependency alongside signing; production builds do not invoke
+the test helper. Physical OEM and native keyboard validation remain outstanding.
