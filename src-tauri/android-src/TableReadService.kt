@@ -82,6 +82,7 @@ class TableReadService : Service() {
             override fun onPlay() = control("play")
             override fun onPause() = control("pause")
             override fun onStop() = control("stop")
+            override fun onCustomAction(action: String, extras: Bundle?) { if (action == "stop") control("stop") }
             override fun onSkipToNext() = control("next")
             override fun onSkipToPrevious() = control("previous")
         }, handler)
@@ -163,6 +164,8 @@ class TableReadService : Service() {
         }
         media.setPlaybackState(PlaybackState.Builder().setActions(PlaybackState.ACTION_PLAY or PlaybackState.ACTION_PAUSE
             or PlaybackState.ACTION_STOP or PlaybackState.ACTION_SKIP_TO_NEXT or PlaybackState.ACTION_SKIP_TO_PREVIOUS)
+            // Newer system media cards derive extra buttons from custom actions.
+            .addCustomAction(PlaybackState.CustomAction.Builder("stop", label("stop"), android.R.drawable.ic_menu_close_clear_cancel).build())
             .setState(status, PlaybackState.PLAYBACK_POSITION_UNKNOWN, if (status == PlaybackState.STATE_PLAYING) 1f else 0f).build())
         media.setMetadata(MediaMetadata.Builder().putString(MediaMetadata.METADATA_KEY_TITLE, label("title"))
             .putString(MediaMetadata.METADATA_KEY_ARTIST, "${playback.index + 1} / ${playback.total}")

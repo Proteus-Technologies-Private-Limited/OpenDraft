@@ -73,6 +73,13 @@ export async function tableReadChecks({ client, shell, startMain, capture }) {
     await waitFor('native playback service released', () => !shell('dumpsys', 'activity', 'services', 'com.proteus.opendraft').includes('TableReadService'));
     assert(!activeWakeLocks(shell('dumpsys', 'power')).includes('OpenDraft:TableRead'), 'Playback wake lock survived Stop');
     record('stopped', native());
+    // A second read also checks restart cleanup and the standard media Stop key.
+    await client.evaluate(() => document.querySelector('.table-read-panel .table-read-play')?.click());
+    await waitFor('restarted native read', () => native().state === 3);
+    shell('cmd', 'media_session', 'dispatch', 'stop');
+    await waitFor('media Stop releases the service', () => !shell('dumpsys', 'activity', 'services', 'com.proteus.opendraft').includes('TableReadService'));
+    assert(!activeWakeLocks(shell('dumpsys', 'power')).includes('OpenDraft:TableRead'), 'Media Stop leaked a wake lock');
+    record('media-stop', native());
     evidence.status = 'passed';
     return evidence;
   } catch (error) {

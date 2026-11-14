@@ -101,7 +101,7 @@ class TableReadServiceTest {
         val notification = shadowOf(app.getSystemService(NotificationManager::class.java)).allNotifications.single()
         assertEquals("Translated title", notification.extras.getString("android.title"))
         assertFalse(notification.extras.toString().contains("Synthetic"))
-        controls.onStop(); looper.idle()
+        controls.onCustomAction("stop", null); looper.idle()
         assertEquals("idle", snapshot().getString("status"))
         controller.destroy()
         assertTrue(shadowOf(engine).isShutdown)

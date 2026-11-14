@@ -71,7 +71,9 @@ The scenario starts Table Read through the actual panel, backgrounds the app
 and freezes its WebView using CDP. Native media metadata must advance by two
 lines while JavaScript is frozen. Native media-key pause must hold its place,
 then next/previous/resume must work. On return the panel must match the native
-line without changing the document. Stop must remove the service and wake lock.
+line without changing the document. Panel Stop and, after a new read, the native
+media Stop key must each remove the service and wake lock. The custom Stop action
+also supports system media cards that derive extra buttons from MediaSession.
 Phase evidence and a synthetic screenshot are retained with the existing
 foldable emulator artifacts. The original 12 foldable phases still run first.
 
