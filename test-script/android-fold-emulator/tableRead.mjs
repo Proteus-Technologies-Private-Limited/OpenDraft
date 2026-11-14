@@ -52,6 +52,9 @@ export async function tableReadChecks({ client, shell, startMain, capture }) {
     await delay(5500);
     assert.deepEqual(native(), paused, 'Paused read advanced while the WebView was frozen');
     record('remote-pause', paused);
+    shell('cmd', 'statusbar', 'expand-notifications');
+    evidence.notificationScreenshots = capture('table-read-notification');
+    shell('cmd', 'statusbar', 'collapse');
     shell('cmd', 'media_session', 'dispatch', 'next');
     const next = await waitFor('paused next line', () => { const s = native(); return s.state === 2 && s.line === paused.line + 1 && s; });
     shell('cmd', 'media_session', 'dispatch', 'previous');
