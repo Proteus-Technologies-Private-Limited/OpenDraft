@@ -926,7 +926,9 @@ const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose, docked =
           autoCapitalize="sentences"
           autoCorrect="on"
           spellCheck
-          placeholder={t('scribble.placeholder')}
+          // Android names no Apple product (store review, guideline 2.3.10's
+          // counterpart): a stylus there, the Apple Pencil everywhere else.
+          placeholder={t(getOS() === 'android' ? 'scribble.placeholderStylus' : 'scribble.placeholder')}
         />
         {/* iPadOS paints no caret while the keyboard is down, which is how this
             panel is meant to be used, so the app draws one. */}

@@ -98,6 +98,7 @@
     "previewArea": "Where the text will go",
     "previewEmpty": "The script is empty — this starts it.",
     "placeholder": "Write here with your Apple Pencil",
+    "placeholderStylus": "Write here with your stylus",
     "enter": "Enter",
     "backspace": "Backspace",
     "resize": "Resize handwriting panel",
