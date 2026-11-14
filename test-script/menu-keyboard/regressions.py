@@ -108,6 +108,11 @@ class MenuKeyboard(unittest.TestCase):
         if blank.count():
             blank.click()
         self.page.locator(".ProseMirror").wait_for()
+        # Blank Document leaves the pointer where keyboard flyouts later open.
+        # WebKit sends pointerenter as they move under that stationary pointer;
+        # keep keyboard-only checks separate from the explicit hover tests.
+        viewport = self.page.viewport_size
+        self.page.mouse.move(viewport["width"] - 2, viewport["height"] - 2)
         if os.environ.get("OPENDRAFT_MENU_FOLDABLE") == "1":
             self.page.wait_for_function(
                 "document.documentElement.classList.contains('foldable')"
