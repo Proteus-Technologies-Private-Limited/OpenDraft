@@ -30,6 +30,7 @@ if (variant === 'minified') {
   const maps = walk(join(outputs, 'mapping')).filter(p => p.endsWith('/mapping.txt'));
   assert.equal(maps.length, 1, 'Expected a single R8 mapping');
   assert(bridgeKept(readFileSync(maps[0], 'utf8')), 'R8 did not retain the native snapshot class/method name');
+  assert(bridgeKept(readFileSync(maps[0], 'utf8'), 'KeyboardVisibility'), 'R8 did not retain keyboard snapshot');
   cpSync(maps[0], join(out, 'mapping.txt'));
 }
 cpSync(apk, join(out, 'test-only.apk'));

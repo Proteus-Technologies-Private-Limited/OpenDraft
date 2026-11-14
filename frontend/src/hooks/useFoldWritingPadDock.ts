@@ -1,26 +1,18 @@
 import { useCallback, useSyncExternalStore } from 'react';
 
-function subscribe(notify: () => void) {
-  window.addEventListener('resize', notify);
-  window.visualViewport?.addEventListener('resize', notify);
-  window.visualViewport?.addEventListener('scroll', notify);
-  return () => {
-    window.removeEventListener('resize', notify);
-    window.visualViewport?.removeEventListener('resize', notify);
-    window.visualViewport?.removeEventListener('scroll', notify);
-  };
-}
+import { subscribeWritingViewport, writingViewport } from '../utils/writingViewport';
 
 /** Float the existing pad when the visible viewport shrinks substantially or
- * the lower slot cannot hold it. This guards browser geometry; it does not
- * infer a native keyboard or replace WP10's keyboard-aware toolbar layout. */
+ * the lower slot cannot hold it. Native insets also cover edge-to-edge WebViews whose viewport does not resize. */
 export function useFoldWritingPadDock(enabled: boolean, lowerTop: number | null): boolean {
   const snapshot = useCallback(() => {
     if (!enabled || typeof window === 'undefined') return true;
+    const view = writingViewport();
+    if (view.keyboard) return false;
     const viewport = window.visualViewport;
     if (viewport && window.innerHeight - viewport.height > 120) return false;
-    const bottom = viewport ? viewport.offsetTop + viewport.height : window.innerHeight;
+    const bottom = view.top + view.height;
     return lowerTop === null || bottom - lowerTop >= 240;
   }, [enabled, lowerTop]);
-  return useSyncExternalStore(subscribe, snapshot, () => true);
+  return useSyncExternalStore(subscribeWritingViewport, snapshot, () => true);
 }

@@ -42,7 +42,7 @@ class KeyboardStateTest {
     @Test fun saysNothingBeforeAndroid11WhereTheInsetsCannotTell() {
         val activity = Robolectric.buildActivity(ComponentActivity::class.java).setup().get()
         val view = WebView(activity)
-        KeyboardVisibility.attach(view)
+        KeyboardVisibility.attach(view, activity)
         assertNull(shadowOf(view).getJavascriptInterface(KeyboardVisibility.INTERFACE))
     }
 
@@ -56,7 +56,7 @@ class KeyboardStateTest {
                 return super.onApplyWindowInsets(insets)
             }
         }
-        KeyboardVisibility.attach(view)
+        KeyboardVisibility.attach(view, activity)
         val report = shadowOf(view).getJavascriptInterface(KeyboardVisibility.INTERFACE) as KeyboardVisibility
         assertFalse(report.isVisible())
         fun dispatch(imeVisible: Boolean) = ViewCompat.dispatchApplyWindowInsets(view,
@@ -70,6 +70,50 @@ class KeyboardStateTest {
         assertFalse(report.isVisible())
         // The WebView's own inset handling (safe areas) still runs.
         assertEquals(2, reachedWebView)
+    }
+
+    @Config(sdk = [35])
+    @Test fun geometryIsRelativeToEachWebViewAndRecoversAfterHideAndResize() {
+        val activity = Robolectric.buildActivity(ComponentActivity::class.java).setup().get()
+        val root = android.widget.FrameLayout(activity)
+        val view = WebView(activity)
+        root.addView(view)
+        activity.setContentView(root)
+        activity.window.decorView.layout(0, 0, 1200, 2000)
+        root.layout(0, 0, 1200, 2000)
+        view.layout(100, 200, 1100, 1800)
+        KeyboardVisibility.attach(view, activity)
+        val report = shadowOf(view).getJavascriptInterface(KeyboardVisibility.INTERFACE) as KeyboardVisibility
+        fun dispatch(visible: Boolean, bottom: Int) = ViewCompat.dispatchApplyWindowInsets(view,
+            WindowInsetsCompat.Builder().setInsets(WindowInsetsCompat.Type.ime(), Insets.of(0, 0, 0, bottom))
+                .setVisible(WindowInsetsCompat.Type.ime(), visible).build())
+        dispatch(true, 800)
+        var json = org.json.JSONObject(report.snapshot())
+        assertTrue(json.getBoolean("available"))
+        assertEquals(1600, json.getInt("height"))
+        assertEquals(1000, json.getInt("bottom")) // 2000 - 800 - WebView top 200
+        // A WebView already resized above the IME must not lose that height again.
+        view.layout(100, 200, 1100, 1200)
+        view.viewTreeObserver.dispatchOnGlobalLayout()
+        json = org.json.JSONObject(report.snapshot())
+        assertEquals(1000, json.getInt("height"))
+        assertEquals(1000, json.getInt("bottom"))
+        dispatch(false, 800) // stale hidden inset cannot occlude the page
+        assertEquals(1000, org.json.JSONObject(report.snapshot()).getInt("bottom"))
+        val other = WebView(activity)
+        root.addView(other)
+        other.layout(0, 0, 500, 600)
+        KeyboardVisibility.attach(other, activity)
+        val second = shadowOf(other).getJavascriptInterface(KeyboardVisibility.INTERFACE) as KeyboardVisibility
+        assertFalse(second.isVisible())
+        assertFalse(org.json.JSONObject(second.snapshot()).getBoolean("available"))
+        activity.finish()
+        // Explicit lifecycle destruction removes the read-only interfaces.
+        report.onDestroy(activity)
+        assertNull(shadowOf(view).getJavascriptInterface(KeyboardVisibility.INTERFACE))
+        val before = report.snapshot()
+        view.viewTreeObserver.dispatchOnGlobalLayout()
+        assertEquals(before, report.snapshot())
     }
 
     @Test fun aDeclaredAdjustModeIsLeftAlone() {

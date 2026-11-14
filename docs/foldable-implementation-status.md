@@ -276,7 +276,7 @@ These inspection-enabled APKs are disposable test builds, not signed production
 releases. Physical OEM hinges, other IMEs/composition, assistive technology and
 physical Apple-device checks remain outstanding. The emulator keyboard can
 occlude the lower writing-pad pane without shrinking the reported viewport;
-keyboard-aware placement and control reachability remain WP10 work.
+native keyboard-aware writing-pad placement and real control-tap coverage are described in [the keyboard follow-up](android-writing-pad-keyboard.md); the custom-toolbar arrangement remains WP10 work.
 
 Android references: [WindowInfoTracker](https://developer.android.com/reference/kotlin/androidx/window/layout/WindowInfoTracker),
 [FoldingFeature](https://developer.android.com/reference/kotlin/androidx/window/layout/FoldingFeature),

@@ -127,3 +127,32 @@ export function openExtraWindow() {
   window.__TAURI_INTERNALS__.invoke('open_new_window').catch(error => { window.__foldTest.openError = String(error); });
   return true;
 }
+
+/** Native geometry must constrain the pad even with an unchanged viewport. */
+export function keyboardPlacement() {
+  const report = window.OpenDraftKeyboard?.snapshot && JSON.parse(window.OpenDraftKeyboard.snapshot());
+  const pad = document.querySelector('.scribble-panel');
+  if (!report?.available || !report.visible || report.bottom >= report.height || !pad) return false;
+  const r = pad.getBoundingClientRect();
+  const bottom = report.bottom * innerHeight / report.height;
+  if (r.height <= 0 || r.top < 0 || r.bottom > bottom + 1 || pad.classList.contains('is-docked')) return false;
+  return { report, pad: { top: r.top, bottom: r.bottom, height: r.height }, viewportHeight: innerHeight, usableBottom: bottom };
+}
+
+/** Scroll within the pad if necessary, then verify full control bounds and hit
+ * target before translating CSS pixels to the Activity's window pixels. */
+export function keyboardControlPoint(control) {
+  const selectors = { field: '.scribble-area', toggle: '.scribble-toggle', insert: '.scribble-btn-primary' };
+  const el = document.querySelector(selectors[control]);
+  if (!el || el.disabled) return false;
+  el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  const r = el.getBoundingClientRect();
+  const report = JSON.parse(window.OpenDraftKeyboard.snapshot());
+  const fold = JSON.parse(window.OpenDraftAndroidFold.snapshot()).webView;
+  const bottom = report.visible ? report.bottom * innerHeight / report.height : innerHeight;
+  const x = r.left + r.width / 2, y = r.top + r.height / 2;
+  if (r.width <= 0 || r.height <= 0 || r.top < 0 || r.bottom > bottom + 1 || r.left < 0 || r.right > innerWidth
+    || !el.contains(document.elementFromPoint(x, y))) return false;
+  return { x: Math.round(fold.left + x * fold.width / innerWidth),
+    y: Math.round(fold.top + y * fold.height / innerHeight), control, bottom, rectBottom: r.bottom };
+}

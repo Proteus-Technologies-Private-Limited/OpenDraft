@@ -5,6 +5,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { Cdp, displayInputPoint, flatFeature, imeShown, physicalDisplays, pngImage, rotationLock, supportedStates, waitFor, windowInputFrame } from './protocol.mjs';
 import * as probes from './probes.mjs';
+import { keyboardPlacementChecks } from './keyboard.mjs';
 
 const [variant, serial] = process.argv.slice(2);
 assert(['debug', 'minified'].includes(variant), 'Choose debug or minified');
@@ -151,6 +152,8 @@ try {
       return main.client.evaluate(probes.acceptTypedPad, expected);
     });
   }
+  const placement = await waitFor('pad above native keyboard', () => main.client.evaluate(probes.keyboardPlacement));
+  evidence.keyboardVisiblePlacement = placement;
   await phase('keyboard-visible', main.client);
   writeFileSync(join(output, 'input-method-visible.txt'), shell('dumpsys', 'input_method'));
   shell('input', '-d', String(frame.displayId), 'keyevent', 'KEYCODE_BACK');
@@ -184,6 +187,7 @@ try {
   overrideState(evidence.states.closed.id);
   await phase('folded-back', main.client, s => s.native.confirmed && s.classes.includes('phone')
     && !s.classes.includes('fold-book') && !s.classes.includes('fold-laptop'));
+  evidence.keyboardPlacement = await keyboardPlacementChecks({ client: main.client, shell, capture, pkg });
   evidence.status = 'passed';
 } catch (error) {
   evidence.status = 'failed'; evidence.error = error.stack ?? String(error);

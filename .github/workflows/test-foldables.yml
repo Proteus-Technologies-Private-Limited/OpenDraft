@@ -12,6 +12,7 @@ on:
       - 'frontend/src/utils/posturePreferences*.ts'
       - 'frontend/src/utils/phoneDevice*.ts'
       - 'frontend/src/utils/zoomAnchor*.ts'
+      - 'frontend/src/utils/writingViewport*.ts'
       - 'frontend/src/hooks/useFold*.ts'
       - 'frontend/src/hooks/useMenuKeyboard.ts'
       - 'frontend/src/services/foldDiagnostics*.ts'

@@ -21,8 +21,8 @@ export function supportedStates(text) {
   return roles;
 }
 
-export function bridgeKept(mapping) {
-  const section = mapping.match(/^com\.proteus\.opendraft\.FoldPostureBridge -> com\.proteus\.opendraft\.FoldPostureBridge:\r?\n((?:[ \t].*\r?\n|#.*\r?\n)*)/m)?.[1] ?? '';
+export function bridgeKept(mapping, name = 'FoldPostureBridge') {
+  const section = mapping.match(new RegExp(`^com\\.proteus\\.opendraft\\.${name} -> com\\.proteus\\.opendraft\\.${name}:\\r?\\n((?:[ \\t].*\\r?\\n|#.*\\r?\\n)*)`, 'm'))?.[1] ?? '';
   return /^\s*(?:\d+:\d+:)?java\.lang\.String snapshot\(\)(?::\d+(?::\d+)?)? -> snapshot\s*$/m.test(section);
 }
 
