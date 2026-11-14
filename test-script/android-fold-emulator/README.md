@@ -15,7 +15,8 @@ Missing folding features, a missing bridge or unavailable soft keyboard fail
 the test, rather than silently skipping checks.
 
 The checks cover cold cover startup, unfold, half-open, rotation, Android IME
-show/hide and Android key-injected text while it is visible, a posture change
+show/hide and Android key-injected text while it is visible (each character must
+reach the controlled pad before the next is sent), a posture change
 while backgrounded, foreground refresh, a real
 extra Activity and returning to the main window, then folding back. At each
 stage the original editor/document/selection and writing-pad node/draft/selection
@@ -41,7 +42,9 @@ snapshots, synthetic screenshots, WebView provider, supported device states,
 IME/Activity dumps and app/crash logs. Physical display IDs are explicit in
 screenshots, whose PNG bytes/dimensions are validated. Failures retain the last
 observed native/UI snapshot and WindowManager/display dumps. Only disposable
-emulator data is used. IME composition is not covered by key injection.
+emulator data is used. This checks input and state retention, not keyboard-aware
+pad placement: the emulator IME can occlude the lower pane without shrinking
+the reported viewport (remaining WP10 work). IME composition is not covered by key injection.
 
 ## Run
 

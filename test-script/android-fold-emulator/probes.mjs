@@ -53,6 +53,8 @@ export function snapshot() {
     classes: [...document.documentElement.classList].filter(c => /^(fold|phone|wide)/.test(c)),
     browserSignals: { segments: window.viewport?.segments?.length ?? null,
       legacySegments: window.visualViewport?.segments?.length ?? null, devicePosture: navigator.devicePosture?.type ?? null },
+    input: { focused: document.activeElement === area, readOnly: area?.readOnly ?? null,
+      value: area?.value ?? null, selectionStart: area?.selectionStart ?? null, selectionEnd: area?.selectionEnd ?? null },
     invariants: {
       sameEditor: !!test && test.element === document.querySelector('.ProseMirror'),
       documentIntact: !!test && test.editor.state.doc.eq(test.doc),
@@ -64,26 +66,20 @@ export function snapshot() {
   };
 }
 
-export function keyboardPoint() {
+export function prepareKeyboard() {
   const area = document.querySelector('.scribble-area');
   const toggle = [...document.querySelectorAll('.scribble-toggle')].find(b => b.textContent.trim() === 'Keyboard');
-  if (!area || !toggle) return null;
-  if (toggle.getAttribute('aria-pressed') !== 'true') { toggle.click(); return null; }
+  if (!area || !toggle) return false;
+  if (toggle.getAttribute('aria-pressed') !== 'true') { toggle.click(); return false; }
   const test = window.__foldTest;
   area.focus(); area.setSelectionRange(area.value.length, area.value.length);
   test.padFrom = area.selectionStart; test.padTo = area.selectionEnd;
-  area.scrollIntoView({ block: 'center' });
-  const r = area.getBoundingClientRect();
-  const native = JSON.parse(window.OpenDraftAndroidFold.snapshot());
-  const v = native.webView;
-  if (r.width <= 0 || r.height <= 0 || v.width <= 0 || v.height <= 0) return null;
-  return { x: Math.round(v.left + (r.left + r.width / 2) * v.width / innerWidth),
-    y: Math.round(v.top + (r.top + r.height / 2) * v.height / innerHeight) };
+  return document.activeElement === area && !area.readOnly;
 }
 
-export function acceptTypedPad() {
+export function acceptTypedPad(expected) {
   const area = document.querySelector('.scribble-area');
-  if (!area?.value.includes('NativeKeys')) return false;
+  if (document.activeElement !== area || area?.value !== expected) return false;
   const test = window.__foldTest;
   test.expectedPad = area.value; test.padFrom = area.selectionStart; test.padTo = area.selectionEnd;
   return true;

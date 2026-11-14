@@ -26,6 +26,7 @@ const evidence = { build, serial, phases: [], status: 'running' };
 const clients = [];
 const forwards = [];
 let lastPid;
+let mainClient;
 let previousRotation;
 const previous = {};
 const settings = [ ['system', 'accelerometer_rotation'], ['system', 'user_rotation'], ['secure', 'show_ime_with_hard_keyboard'] ];
@@ -99,6 +100,7 @@ try {
   startMain();
   await waitFor('native process', async () => { try { lastPid = shell('pidof', pkg).split(/\s+/)[0]; return lastPid; } catch { return false; } });
   const main = await waitFor('app WebView socket', async () => connect());
+  mainClient = main.client;
   await waitFor('real editor and native bridge', () => main.client.evaluate(probes.initialize, 'main'));
   await waitFor('writing-pad draft', () => main.client.evaluate(probes.seedPad));
   const cold = await phase('cold-cover', main.client);
@@ -120,11 +122,20 @@ try {
   await phase('rotated', main.client, s => s.native.feature?.folded && s.native.feature.orientation !== half.native.feature.orientation
     && s.classes.includes(s.native.feature.orientation === 'vertical' ? 'fold-book' : 'fold-laptop'));
 
-  const point = await waitFor('keyboard-enabled writing field', () => main.client.evaluate(probes.keyboardPoint));
-  shell('input', 'tap', String(point.x), String(point.y));
+  await waitFor('keyboard-enabled writing field', () => main.client.evaluate(probes.prepareKeyboard));
   await waitFor('actual Android soft keyboard', async () => imeShown(shell('dumpsys', 'input_method')));
-  shell('input', 'text', 'NativeKeys');
-  await waitFor('IME text committed into the pad', () => main.client.evaluate(probes.acceptTypedPad));
+  // Focus already opened the IME. A screen tap now could hit the overlay keyboard.
+  // Android's bulk `input text` can outrun WebView key dispatch; acknowledge each
+  // character in the real controlled field before sending the next key.
+  let expected = (await main.client.evaluate(probes.snapshot)).input.value;
+  for (const character of 'nativekeys') {
+    shell('input', 'text', character);
+    expected += character;
+    await waitFor(`Android key committed into the pad (${expected.length})`, async () => {
+      evidence.lastObserved = { label: 'native-key-input', ...await main.client.evaluate(probes.snapshot) };
+      return main.client.evaluate(probes.acceptTypedPad, expected);
+    });
+  }
   await phase('keyboard-visible', main.client);
   writeFileSync(join(output, 'input-method-visible.txt'), shell('dumpsys', 'input_method'));
   shell('input', 'keyevent', 'KEYCODE_BACK');
@@ -156,6 +167,7 @@ try {
   evidence.status = 'passed';
 } catch (error) {
   evidence.status = 'failed'; evidence.error = error.stack ?? String(error);
+  if (mainClient) try { evidence.failureSnapshot = await mainClient.evaluate(probes.snapshot); } catch { /* WebView may have exited. */ }
   try { capture('failure'); } catch { /* Process/emulator may have exited. */ }
   for (const [name, command] of [['window-manager', ['dumpsys', 'window']], ['display', ['dumpsys', 'display']], ['rotation-lock', ['wm', 'user-rotation']]]) {
     try { writeFileSync(join(output, `${name}.txt`), shell(...command)); } catch { /* retain other evidence */ }
