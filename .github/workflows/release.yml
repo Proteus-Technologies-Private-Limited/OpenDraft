@@ -455,6 +455,8 @@ jobs:
           JAVA_DIR="src-tauri/gen/android/app/src/main/java/com/proteus/opendraft"
           cp src-tauri/android-src/WindowActivities.kt "$JAVA_DIR/WindowActivities.kt"
           echo "WindowActivities.kt copied"
+          cp src-tauri/android-src/FoldPostureBridge.kt "$JAVA_DIR/FoldPostureBridge.kt"
+          echo "FoldPostureBridge.kt copied"
 
           # Create file_paths.xml for FileProvider (needed for export share intent)
           XML_DIR="src-tauri/gen/android/app/src/main/res/xml"
@@ -686,6 +688,10 @@ jobs:
           path = 'src-tauri/gen/android/app/build.gradle.kts'
           with open(path) as f:
               content = f.read()
+
+          dependency = 'implementation("androidx.window:window-java:1.3.0")'
+          if dependency not in content:
+              content += '\n// Native fold posture (#231).\ndependencies {\n    ' + dependency + '\n}\n'
 
           signing = '''    signingConfigs {
               create("release") {

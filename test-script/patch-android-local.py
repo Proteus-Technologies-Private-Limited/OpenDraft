@@ -28,6 +28,7 @@ import re
 import shutil
 import sys
 from pathlib import Path
+from android_fold_build import patch_window_dependency
 
 ROOT = Path(__file__).resolve().parent.parent
 GEN = ROOT / "src-tauri/gen/android"
@@ -42,7 +43,7 @@ EXTRA_WINDOWS = 3
 
 def copy_sources() -> None:
     JAVA.mkdir(parents=True, exist_ok=True)
-    for name in ("MainActivity.kt", "WindowActivities.kt"):
+    for name in ("MainActivity.kt", "WindowActivities.kt", "FoldPostureBridge.kt"):
         shutil.copy(SRC / name, JAVA / name)
         print(f"copied {name}")
 
@@ -142,6 +143,7 @@ if __name__ == "__main__":
     if not GEN.exists():
         sys.exit("src-tauri/gen/android does not exist — run `tauri android init` first")
     copy_sources()
+    patch_window_dependency(GEN)
     patch_manifest()
     patch_tts_query()
     patch_locale_config()

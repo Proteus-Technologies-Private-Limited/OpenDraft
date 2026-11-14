@@ -204,7 +204,9 @@ class Accessibility(unittest.TestCase):
             window.reviewResult='pending';
             reviewPdfImport('synthetic.pdf',{title:'',warnings:[],doc:{type:'doc',content:[
                 {type:'sceneHeading',content:[{type:'text',text:'INT. SYNTHETIC ROOM - DAY'}]},
-                {type:'action',content:[{type:'text',text:'A synthetic imported paragraph.'}]}]}})
+                {type:'action',content:[{type:'text',text:'A synthetic imported paragraph.'}]},
+                {type:'dualDialogue',content:[]},
+                ...Array.from({length:60},(_,i)=>({type:'action',content:[{type:'text',text:`Synthetic line ${i}.`}]}))]}})
                 .then(()=>reviewResult='accepted',()=>reviewResult='cancelled');
         }""")
         dialog = self.page.locator(".pdf-review-dialog")
@@ -220,11 +222,29 @@ class Accessibility(unittest.TestCase):
         )
         self.press("Control+ArrowDown")
         expect(lines.locator('[aria-selected="true"]')).to_have_count(1)
+        active = lines.get_attribute("aria-activedescendant")
+        active_row = self.page.locator(f'[id="{active}"]')
+        expect(active_row).to_have_attribute("aria-selected", "false")
+        expect(active_row).to_be_in_viewport()
+        self.assertEqual(
+            active_row.evaluate("el=>getComputedStyle(el).outlineStyle"), "solid"
+        )
+        self.assertEqual(
+            active_row.evaluate("el=>getComputedStyle(el).outlineWidth"), "2px"
+        )
+        dialog.get_by_role("button", name="Cancel", exact=True).focus()
+        self.assertEqual(
+            active_row.evaluate("el=>getComputedStyle(el).outlineStyle"), "none"
+        )
+        lines.focus()
         self.press("Space")
         expect(lines.locator('[aria-selected="true"]')).to_have_count(2)
         self.press("Control+Space")
         expect(lines.locator('[aria-selected="true"]')).to_have_count(1)
         lines.locator(".pdf-review-checkbox").nth(1).click()
+        expect(lines.locator('[aria-selected="true"]')).to_have_count(2)
+        lines.focus()
+        self.press("Meta+ArrowDown")
         expect(lines.locator('[aria-selected="true"]')).to_have_count(2)
         self.audit()
         screenshots = os.environ.get("OPENDRAFT_SCREENSHOTS")
@@ -241,6 +261,28 @@ class Accessibility(unittest.TestCase):
                     )
                 )
             )
+        # Home/End traverse virtualized rows and skip the locked dual dialogue.
+        self.press("Home")
+        self.press("Shift+End")
+        expect(dialog.locator(".pdf-review-count")).to_have_text("62 selected")
+        active = lines.get_attribute("aria-activedescendant")
+        expect(self.page.locator(f'[id="{active}"]')).to_be_in_viewport()
+        expect(
+            lines.locator('[aria-disabled="true"][aria-selected="true"]')
+        ).to_have_count(0)
+        self.press("End")
+        self.press("Shift+Home")
+        expect(dialog.locator(".pdf-review-count")).to_have_text("62 selected")
+        expect(
+            lines.locator('[aria-disabled="true"][aria-selected="true"]')
+        ).to_have_count(0)
+        self.press("Home")
+        self.press("ArrowDown")
+        self.press("Shift+Home")
+        expect(dialog.locator(".pdf-review-count")).to_have_text("2 selected")
+        expect(
+            lines.locator('[aria-disabled="true"][aria-selected="true"]')
+        ).to_have_count(0)
         self.press("Escape")
         expect(dialog).to_have_count(0)
         self.page.wait_for_function("reviewResult==='cancelled'")

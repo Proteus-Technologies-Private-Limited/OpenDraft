@@ -1,6 +1,11 @@
 # Keep classes and methods called from Rust via JNI reflection.
 # R8 cannot trace JNI calls, so these would be stripped without explicit rules.
 
+# Read-only WebView posture interface; JavaScript calls snapshot by name.
+-keep class com.proteus.opendraft.FoldPostureBridge {
+    @android.webkit.JavascriptInterface <methods>;
+}
+
 # FileProvider — used by android_share_file() for export share intent
 -keep class androidx.core.content.FileProvider {
     public static android.net.Uri getUriForFile(android.content.Context, java.lang.String, java.io.File);

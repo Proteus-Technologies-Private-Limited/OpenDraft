@@ -177,10 +177,14 @@ export const PdfImportPreviewDialog: React.FC<DialogProps> = ({ filename, parsed
       if (p < 0 || p >= order.length) return;
       const target = order[p];
       if (e.shiftKey && sel.anchor !== null) {
-        // Shift+arrow grows the selection a line at a time.
+        // Extend through visible, unlocked rows, including Home/End jumps.
         setSel((s) => {
           const next = new Set(s.selected);
-          next.add(target);
+          const start = pos < 0 ? p : Math.min(pos, p);
+          const end = Math.max(pos, p);
+          for (let index = start; index <= end; index++) {
+            if (!isLocked(order[index])) next.add(order[index]);
+          }
           return { selected: next, anchor: target };
         });
       } else if (mod) {
@@ -300,7 +304,7 @@ export const PdfImportPreviewDialog: React.FC<DialogProps> = ({ filename, parsed
                 return (
                   <div
                     key={i}
-                    className={`pdf-review-row${isSelected ? ' selected' : ''}${isChanged ? ' changed' : ''}${row.locked ? ' locked' : ''}`}
+                    className={`pdf-review-row${i === sel.anchor ? ' is-active' : ''}${isSelected ? ' selected' : ''}${isChanged ? ' changed' : ''}${row.locked ? ' locked' : ''}`}
                     style={{ top: (first + k) * rowHeight, height: rowHeight }}
                     id={`${rowPrefix}-line-${i}`}
                     role="option"

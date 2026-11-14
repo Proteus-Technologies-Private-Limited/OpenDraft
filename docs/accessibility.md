@@ -104,8 +104,12 @@ fields use their existing translated labels. Primary Settings/project buttons
 use the contrast-tested action color. The import-preview listbox exposes active
 rows and selection itself, without nested focusable checkbox controls. Its
 visual marks retain pointer toggling. Arrows select, Home/End go to the ends,
-Ctrl/Meta+arrows move the active row without clearing a multiple selection, and
-Space (also Ctrl/Meta+Space) toggles that row. Shift+arrows and Ctrl/Meta+A retain their range/all behavior.
+Ctrl/Meta+arrows move the active row without clearing a multiple selection.
+A visible outline marks that row while the list has keyboard focus. Space
+(also Ctrl/Meta+Space) toggles that row. Shift+arrows extend the selection;
+Shift+Home/End includes every unlocked visible row through the respective end,
+including rows outside the virtualized viewport. Ctrl/Meta+A selects all unlocked
+rows in the current filter.
 
 The accessibility workflow runs without device credentials. An axe pass does
 not establish speech output, braille behavior, native WebView compatibility,

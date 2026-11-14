@@ -14835,6 +14835,10 @@ html.phone .menu-bar.chrome-comfortable .menu-item { min-height: 46px; }
 }
 .pdf-review-row:hover { background: var(--fd-overlay-light); }
 .pdf-review-row.selected { background: var(--fd-accent-bg, rgba(59,130,246,0.2)); }
+.pdf-review-list:focus-visible .pdf-review-row.is-active {
+  outline: 2px solid var(--fd-accent);
+  outline-offset: -2px;
+}
 .pdf-review-row.locked { color: var(--fd-text-muted); }
 .pdf-review-checkbox {
   display: inline-flex; align-items: center; justify-content: center;

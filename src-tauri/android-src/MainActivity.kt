@@ -22,6 +22,11 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 class MainActivity : TauriActivity() {
+    override fun onWebViewCreate(webView: android.webkit.WebView) {
+        super.onWebViewCreate(webView)
+        FoldPostureBridge.attach(this, webView)
+    }
+
     /**
      * Route the system Back button through the WebView's history.
      *
