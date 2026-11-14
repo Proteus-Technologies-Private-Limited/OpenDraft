@@ -74,7 +74,13 @@ export function prepareKeyboard() {
   const test = window.__foldTest;
   area.focus(); area.setSelectionRange(area.value.length, area.value.length);
   test.padFrom = area.selectionStart; test.padTo = area.selectionEnd;
-  return document.activeElement === area && !area.readOnly;
+  if (document.activeElement !== area || area.readOnly) return false;
+  area.scrollIntoView({ block: 'center' });
+  const r = area.getBoundingClientRect();
+  const v = JSON.parse(window.OpenDraftAndroidFold.snapshot()).webView;
+  if (r.width <= 0 || r.height <= 0 || v.width <= 0 || v.height <= 0) return false;
+  return { x: Math.round(v.left + (r.left + r.width / 2) * v.width / innerWidth),
+    y: Math.round(v.top + (r.top + r.height / 2) * v.height / innerHeight) };
 }
 
 export function acceptTypedPad(expected) {

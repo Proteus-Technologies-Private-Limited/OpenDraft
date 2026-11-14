@@ -122,9 +122,11 @@ try {
   await phase('rotated', main.client, s => s.native.feature?.folded && s.native.feature.orientation !== half.native.feature.orientation
     && s.classes.includes(s.native.feature.orientation === 'vertical' ? 'fold-book' : 'fold-laptop'));
 
-  await waitFor('keyboard-enabled writing field', () => main.client.evaluate(probes.prepareKeyboard));
+  const point = await waitFor('keyboard-enabled writing field', () => main.client.evaluate(probes.prepareKeyboard));
+  // WebView script focus alone does not reliably request Android's IME. Only
+  // tap while it is hidden, so the tap cannot land on the overlay keyboard.
+  if (!imeShown(shell('dumpsys', 'input_method'))) shell('input', 'tap', String(point.x), String(point.y));
   await waitFor('actual Android soft keyboard', async () => imeShown(shell('dumpsys', 'input_method')));
-  // Focus already opened the IME. A screen tap now could hit the overlay keyboard.
   // Android's bulk `input text` can outrun WebView key dispatch; acknowledge each
   // character in the real controlled field before sending the next key.
   let expected = (await main.client.evaluate(probes.snapshot)).input.value;
