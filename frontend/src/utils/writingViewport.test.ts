@@ -14,7 +14,7 @@ describe('writing viewport', () => {
   it('intersects native and visual limits without subtracting twice', () => {
     expect(writingViewport(win(shown, { width: 550, height: 400, offsetLeft: 12, offsetTop: 50 })))
       .toEqual({ left: 12, top: 50, width: 550, height: 400, keyboard: true });
-    expect(writingViewport(win(shown, { width: 600, height: 700, offsetLeft: 0, offsetTop: 50 })).height).toBe(430);
+    expect(writingViewport(win(shown, { width: 600, height: 700, offsetLeft: 0, offsetTop: 50 })).height).toBe(480);
   });
   it('does not shrink an already resized WebView or a floating IME with no bottom inset', () => {
     expect(writingViewport(win({ ...shown, bottom: 2000 })).keyboard).toBe(false);
@@ -30,7 +30,8 @@ describe('writing viewport', () => {
     Object.defineProperty(w, 'OpenDraftKeyboard', { get: () => { throw new Error('gone'); } });
     expect(writingViewport(w).height).toBe(800);
   });
-  it('never creates a negative viewport if visual panning moves beyond the usable bottom', () => {
-    expect(writingViewport(win(shown, { width: 600, height: 400, offsetLeft: 0, offsetTop: 500 })).height).toBe(0);
+  it('maps the native edge through pinch scale and visual panning', () => {
+    expect(writingViewport(win(shown, { width: 300, height: 400, offsetLeft: 20, offsetTop: 100 })))
+      .toEqual({ left: 20, top: 100, width: 300, height: 240, keyboard: true });
   });
 });

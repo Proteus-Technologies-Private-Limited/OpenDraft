@@ -15,9 +15,12 @@ export function writingViewport(win: Window = window) {
       if (r.version === 1 && r.available === true && r.visible === true
         && [r.width, r.height, r.bottom].every(n => typeof n === 'number' && Number.isFinite(n))
         && r.width > 0 && r.height > 0 && r.bottom >= 0 && r.bottom <= r.height) {
-        const nativeBottom = r.bottom * win.innerHeight / r.height;
-        keyboard = nativeBottom < win.innerHeight;
-        bottom = Math.min(bottom, nativeBottom);
+        // Visual width / physical width also accounts for pinch scale. The
+        // visible origin follows visual panning; the native edge is local to
+        // the WebView, not to the scrolled layout viewport.
+        const nativeBottom = top + r.bottom * width / r.width;
+        keyboard = r.bottom < r.height;
+        if (keyboard) bottom = Math.min(bottom, nativeBottom);
       }
     }
   } catch { /* Optional native geometry; retain browser behavior. */ }

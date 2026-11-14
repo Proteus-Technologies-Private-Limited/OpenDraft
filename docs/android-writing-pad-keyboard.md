@@ -12,8 +12,8 @@ also reads it, so an early event is harmless. Identical reports emit no event.
 Each Activity owns its report, listener and lifecycle cleanup. R8 keeps both
 JavaScript methods. No permissions, polling or keyboard-height guesses are added.
 
-The writing pad converts the bottom edge using the current layout viewport /
-WebView height ratio, then intersects it with VisualViewport. It therefore
+The writing pad converts the bottom edge using the current visual-viewport /
+WebView width ratio (including pinch scale and visual panning), then intersects it with VisualViewport. It therefore
 handles an edge-to-edge keyboard overlay and a WebView already resized above
 the keyboard without subtracting twice. Hidden IME geometry is ignored. A
 floating keyboard with no bottom inset does not establish a usable rectangle;
