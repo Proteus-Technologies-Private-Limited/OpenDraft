@@ -189,6 +189,46 @@ class FoldableRegressions(unittest.TestCase):
             self.assertIn(expected, classes)
             self.assertNotIn('fold-nav-overlay' if expected=='fold-nav-docked' else 'fold-nav-docked', classes)
 
+    def test_book_posture_menu_and_status_bars_stay_left_of_the_hinge(self):
+        # Pixel Fold's open screen: about 421px each side of the hinge. The
+        # labelled menus overran that, so Help and the sign-in badge went under
+        # the toolbar on the right half, and the status bar's centre sat on
+        # the hinge with its counts under the docked panel.
+        self.page.evaluate("document.dispatchEvent(new CustomEvent('plugin-panel:close'))")
+        self.posture(width=842, height=701, axis='vertical', fold='folded')
+        self.page.wait_for_function("document.documentElement.classList.contains('fold-book')")
+        bars = self.page.evaluate("""() => {
+            const left = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--fold-left'));
+            const bar = document.querySelector('.menu-bar:not(.menu-bar--floating)');
+            const edge = el => { const r = el.getBoundingClientRect(); return [r.left, r.right]; };
+            const visible = el => el && getComputedStyle(el).display !== 'none';
+            return {
+                left, iconsOnly: bar.classList.contains('menu-bar--icons'),
+                triggers: [...bar.querySelectorAll('[role=menuitem]')].map(edge),
+                auth: edge(bar.querySelector('.auth-indicator')),
+                page: edge(document.querySelector('.status-page')),
+                statusRow: edge(document.querySelector('.status-bar-row')),
+                centreShown: visible(document.querySelector('.status-center')),
+            };
+        }""")
+        self.assertGreater(bars['left'], 300)
+        self.assertTrue(bars['iconsOnly'])
+        for start, end in bars['triggers'] + [bars['auth'], bars['page'], bars['statusRow']]:
+            self.assertGreaterEqual(start, -1)
+            self.assertLessEqual(end, bars['left'] + 1)
+        self.assertFalse(bars['centreShown'])
+        # Icons only still names every menu, and Help still opens.
+        for name in ('File', 'Edit', 'Format', 'View', 'Tools', 'Help'):
+            self.assertTrue(self.page.get_by_role('menuitem', name=name, exact=True).is_visible())
+        self.page.get_by_role('menuitem', name='Help', exact=True).click()
+        self.page.get_by_role('menuitem', name='Diagnostics', exact=True).wait_for()
+        self.page.keyboard.press('Escape')
+        # Laid flat, the same width has room for the labels again.
+        self.posture(width=842, height=701, axis='vertical', fold='continuous')
+        self.page.wait_for_function("!document.documentElement.classList.contains('fold-book')")
+        self.page.wait_for_function("!document.querySelector('.menu-bar').classList.contains('menu-bar--icons')")
+        self.assertTrue(self.page.locator('.status-center').is_visible())
+
     def test_long_script_keeps_selection_and_reading_anchor(self):
         # The probe supplies the editor reference; close it for the reading
         # check. Focused/open panel preservation is exercised separately.

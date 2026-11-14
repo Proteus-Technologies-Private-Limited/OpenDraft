@@ -5,7 +5,7 @@ import SourceBackupRecovery from './SourceBackupRecovery';
 import NotOnApple from './NotOnApple';
 import { isTauri as isNativeApp, getOS as nativeOS } from '../services/platform';
 import { ExternalSaveCancelled, externalScreenplay } from '../services/externalSave';
-import React, { useState, useRef, useEffect, useCallback, useMemo, useId } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo, useId } from 'react';
 import { ModalOverlay } from './ModalOverlay';
 import { useMenuKeyboard } from '../hooks/useMenuKeyboard';
 import { menuKeyShortcuts } from '../utils/menuKeyboard';
@@ -377,7 +377,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
 }) => {
   // Re-renders the bar when the language changes; the strings come from the module-level t,
   // which also serves the handlers below at the moment they run.
-  useTranslation('menu');
+  const { i18n: menuI18n } = useTranslation('menu');
   const spellcheckLanguages = useSpellcheckLanguages(editor);
   const navigate = useNavigate();
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
@@ -4107,7 +4107,48 @@ const MenuBar: React.FC<MenuBarProps> = ({
     return () => document.removeEventListener('mousedown', handler);
   }, [floatingMenuOpen]);
 
-  const menuBarClass = toolbarMode === 'comfortable' ? 'menu-bar chrome-comfortable' : 'menu-bar';
+  // The docked bar drops its menu labels, keeping the icons, when they do not
+  // fit — the left half of a foldable held like a book is about 420px, which
+  // the labelled menus overrun, so Help and the sign-in badge ended up under
+  // the controls on the other half. Measured rather than set at a breakpoint:
+  // the room depends on the device, and the labels' width on the language.
+  // The width the labels needed is kept, so they come back once it is there.
+  const [menuIconsOnly, setMenuIconsOnly] = useState(false);
+  const labelledMenuWidth = useRef(0);
+  useLayoutEffect(() => {
+    if (toolbarMode === 'hidden') { setMenuIconsOnly(false); return; }
+    const bar = menuRef.current;
+    if (!bar) return;
+    // The class is set here as well as through state: React leaves the DOM
+    // alone when the state does not change, and the first measurement below
+    // takes the class off to see the labels' width.
+    const apply = (iconsOnly: boolean) => {
+      bar.classList.toggle('menu-bar--icons', iconsOnly);
+      setMenuIconsOnly(iconsOnly);
+    };
+    const fit = () => {
+      try {
+        if (!bar.classList.contains('menu-bar--icons')) {
+          labelledMenuWidth.current = bar.scrollWidth;
+          apply(bar.scrollWidth > bar.clientWidth + 1);
+        } else {
+          apply(labelledMenuWidth.current > bar.clientWidth + 1);
+        }
+      } catch (error) {
+        console.error('[menu] could not fit the menu bar to its width:', error);
+      }
+    };
+    // Measure with the labels back in, so a language or mode change is judged
+    // on the new labels rather than on the old width.
+    bar.classList.remove('menu-bar--icons');
+    fit();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(fit);
+    observer.observe(bar);
+    return () => observer.disconnect();
+  }, [toolbarMode, menuI18n.language, menus.length]);
+
+  const menuBarClass = `${toolbarMode === 'comfortable' ? 'menu-bar chrome-comfortable' : 'menu-bar'}${menuIconsOnly ? ' menu-bar--icons' : ''}`;
 
   const menuId = useId();
   const keyboard = useMenuKeyboard({ activeMenu, hidden: toolbarMode === 'hidden', menuRef, dropdownRef,
@@ -4134,6 +4175,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
             {...triggerProps(menu.id)}
             ref={(el) => { menuItemRefs.current[menu.id] = el; }}
             className={`menu-item ${activeMenu === menu.id ? 'active' : ''}`}
+            title={menuIconsOnly ? menu.label : undefined}
             onMouseDown={keepEditorSelection}
             onClick={() => handleMenuClick(menu.id)}
             onMouseEnter={() => {

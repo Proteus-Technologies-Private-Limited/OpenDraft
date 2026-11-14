@@ -86,7 +86,7 @@ const AuthIndicator: React.FC = () => {
           title={t('auth.localOnlyTitle')}
         >
           <FaCloud style={{ opacity: 0.6 }} />
-          <span>{t('auth.localOnly')}</span>
+          <span className="auth-indicator__label">{t('auth.localOnly')}</span>
         </button>
         {loginOpen && (
           <CollabLoginDialog
