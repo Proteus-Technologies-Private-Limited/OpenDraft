@@ -1,13 +1,16 @@
-Exporting works again, and highlights behave in Word.
+Script Health, spellcheck in several languages, and a quicker editor.
 
-EXPORTING AND SAVING FIXED
-Exporting your script, Save As and saving to a file you opened work again. If OpenDraft ever replaces a file another app made, the old copy is kept for you under File > Recover Original File.
+SCRIPT HEALTH
+A quick check finds empty scene headings, unfinished dialogue and notes you haven't dealt with. It runs on your Mac and needs no account.
 
-HIGHLIGHTS YOU CAN REMOVE IN WORD
-Highlights in a Word export are now real Word highlights, so you can change or clear them in Word like any other. Prefer your exact colours? Turn that on in Settings.
+SPELLCHECK IN SEVERAL LANGUAGES
+Writing in more than one language? Tick every dictionary you need and they all check at once.
 
-SMOOTHER TYPING
-Long scripts stay quick while you type and delete.
+EASIER WITH A KEYBOARD OR SCREEN READER
+Menus, panels and dialogs can all be worked from the keyboard, and notifications are read aloud.
+
+FASTER IN LONG SCRIPTS
+Typing stays quick however long the script gets.
 
 ALSO FIXED
-Scene numbers of two or more digits no longer stack up in the margin, and signing in for the first time now points you to Create Account.
+Printing without the title page leaves it out again, and resizing the window keeps your place and your zoom.

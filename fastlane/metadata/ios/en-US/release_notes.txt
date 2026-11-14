@@ -1,10 +1,16 @@
-Highlights behave in Word, and typing is smoother.
+Made for iPhone Duo, plus Script Health and spellcheck in several languages.
 
-HIGHLIGHTS YOU CAN REMOVE IN WORD
-Highlights in a Word export are now real Word highlights, so you can change or clear them in Word like any other. Prefer your exact colours? Turn that on in Settings.
+MADE FOR IPHONE DUO
+OpenDraft now arranges itself for each way you hold your iPhone Duo. Folded, your script fills the cover screen. Open it like a book and the script takes one page, with your panels on the other. Prop it half open like a laptop and your panels sit below the script. The layouts you pick folded and open are remembered separately.
 
-SMOOTHER TYPING
-Long scripts stay quick while you type and delete.
+SCRIPT HEALTH
+A quick check finds empty scene headings, unfinished dialogue and notes you haven't dealt with. It runs on your device and needs no account.
 
-ALSO FIXED
-Scene numbers of two or more digits no longer stack up in the margin, menus and the Locations panel fit better on small screens, and signing in for the first time now points you to Create Account.
+SPELLCHECK IN SEVERAL LANGUAGES
+Writing in more than one language? Tick every dictionary you need and they all check at once.
+
+EASIER WITH A KEYBOARD OR SCREEN READER
+Menus, panels and dialogs can all be worked from the keyboard, and notifications are read aloud.
+
+ALSO IMPROVED
+Long scripts stay quick while you type, and printing without the title page leaves it out again.
