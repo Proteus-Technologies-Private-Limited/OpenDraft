@@ -22,6 +22,9 @@ const debuggable = execFileSync(analyzer, ['manifest', 'debuggable', apk], { enc
 assert.equal(debuggable, String(variant === 'debug'), 'Minified test APK must retain the release manifest flag');
 const manifest = execFileSync(analyzer, ['manifest', 'print', apk], { encoding: 'utf8', timeout: 120_000 });
 for (const activity of ['MainActivity', 'WindowActivity1', 'WindowActivity2', 'WindowActivity3']) assert(manifest.includes(activity), `${activity} missing from APK manifest`);
+for (const value of ['TableReadService', 'mediaPlayback', 'FOREGROUND_SERVICE_MEDIA_PLAYBACK', 'WAKE_LOCK', 'TableReadTestSpeech']) {
+  assert(manifest.includes(value), `${value} missing from disposable Table Read APK`);
+}
 const entries = execFileSync('unzip', ['-Z1', apk], { encoding: 'utf8', timeout: 30_000 });
 assert(entries.includes('lib/x86_64/libopendraft_lib.so'), 'Expected real OpenDraft x86_64 Rust library');
 const out = resolve('test-script/output/android-fold-apk', variant);
@@ -31,6 +34,7 @@ if (variant === 'minified') {
   assert.equal(maps.length, 1, 'Expected a single R8 mapping');
   assert(bridgeKept(readFileSync(maps[0], 'utf8')), 'R8 did not retain the native snapshot class/method name');
   assert(bridgeKept(readFileSync(maps[0], 'utf8'), 'KeyboardVisibility'), 'R8 did not retain keyboard snapshot');
+  assert(/ttsTableReadRequest\(android\.content\.Context,java\.lang\.String\).*-> ttsTableReadRequest/m.test(readFileSync(maps[0], 'utf8')), 'R8 renamed the speech JNI entrypoint');
   cpSync(maps[0], join(out, 'mapping.txt'));
 }
 cpSync(apk, join(out, 'test-only.apk'));

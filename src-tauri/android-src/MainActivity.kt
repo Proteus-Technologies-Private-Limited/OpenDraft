@@ -290,6 +290,14 @@ class MainActivity : TauriActivity() {
         }
 
         // ── Table Read (issue #131) ──────────────────────────────────────
+        @JvmStatic
+        fun ttsTableReadRequest(context: Context, request: String): String? = try {
+            TableReadService.request(context, request)
+        } catch (_: Exception) {
+            // Never log a request or parser error: it can contain the script.
+            "{\"status\":\"error\"}"
+        }
+
         // Android's WebView has no speechSynthesis, so Table Read speaks
         // through the platform's TextToSpeech. Rust starts a line with
         // ttsSpeak and polls ttsPoll for what happened since — start, each

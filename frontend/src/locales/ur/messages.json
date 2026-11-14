@@ -453,6 +453,7 @@
     "audioNoDecode": "{{provider}} کی آڈیو ڈیکوڈ نہیں ہو سکی: {{message}}",
     "kokoroStopped": "Kokoro وائس انجن رک گیا: {{message}}",
     "kokoroUnknown": "نامعلوم خرابی",
+    "backgroundStopped": "پڑھنا جاری نہیں رہ سکا۔ سسٹم کی آواز چیک کریں اور دوبارہ کوشش کریں۔",
     "systemStopped": "سسٹم کا اسپیچ انجن جواب دینا بند ہو گیا: {{message}}"
   }
 }

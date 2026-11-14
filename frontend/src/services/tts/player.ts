@@ -17,6 +17,7 @@ import { buildReadLines, lineIndexAt, spokenRangeToDoc, spokenRangeToText, type 
 import { castVoices, inferGenders, type Casting } from './voiceAssign';
 import { activeEngineKind, engineFor, NeedsProviderError } from './engines';
 import type { TtsEngine, VoiceInfo } from './types';
+import { AndroidBackgroundRead, backgroundReadError, hasAndroidBackgroundRead, releaseAndroidBackgroundRead, type BackgroundState } from './androidBackground';
 
 /** Silence after a line, by what kind of line it was. */
 const PAUSE_AFTER: Partial<Record<ReadLine['kind'], number>> = {
@@ -42,6 +43,8 @@ let reached = 0;
 let anchor: number | null = null;
 let stale = false;
 let detachEditor: (() => void) | null = null;
+let nativeRead: AndroidBackgroundRead | null = null;
+let nativePreparation: Promise<unknown> = Promise.resolve();
 
 const store = () => useTableReadStore.getState();
 
@@ -160,6 +163,13 @@ function attach(editor: Editor) {
     if (!transaction.docChanged) return;
     stale = true;
     if (anchor !== null) anchor = transaction.mapping.map(anchor);
+    // A native queue is an immutable reading snapshot. Pause on edits rather
+    // than highlighting obsolete positions or reading silently changed text.
+    if (nativeRead) {
+      void nativeRead.command('pause').catch(() => {});
+      store().patch({ status: 'paused', word: null });
+      highlight({ block: null, word: null });
+    }
   };
   editor.on('transaction', onTransaction);
   detachEditor = () => {
@@ -182,6 +192,30 @@ function abortCurrent() {
   runId++;
   controller?.abort();
   controller = null;
+  nativeRead?.dispose();
+  nativeRead = null;
+}
+
+function syncNativeRead(state: BackgroundState) {
+  const previous = store();
+  const status = state.status;
+  const index = Number.isInteger(state.index) ? state.index! : store().current;
+  const line = store().lines[index];
+  if (!line || index < 0 || index >= store().lines.length) return;
+  const start = Math.max(0, Math.min(line.spoken.length, state.offset ?? 0));
+  const end = Math.max(start, Math.min(line.spoken.length, state.end ?? start));
+  reached = start;
+  // An edited document has mapped this anchor already; resume rebuilds it.
+  if (!stale) anchor = line.from;
+  const word = end > start && !stale ? spokenRangeToText(line, start, end) : null;
+  store().patch({ status, current: index, word, error: status === 'error' ? backgroundReadError() : null });
+  if (status === 'idle' || status === 'error') {
+    highlight({ block: null, word: null });
+    nativeRead?.dispose(); nativeRead = null; controller = null;
+  } else if (!stale) {
+    highlight({ block: { from: line.from, to: line.to }, word: end > start ? spokenRangeToDoc(line, start, end) : null });
+    if (status === 'playing' && (previous.current !== index || previous.status === 'loading')) follow(line);
+  }
 }
 
 async function ensureEngine(): Promise<TtsEngine> {
@@ -217,6 +251,23 @@ async function run(startIndex: number, startOffset: number) {
   try {
     const eng = await ensureEngine();
     if (!alive()) return;
+    if (hasAndroidBackgroundRead() && eng.id === 'native') {
+      await nativePreparation;
+      if (!alive()) return;
+      if (stale && anchor !== null) {
+        const at = anchor; lines = refreshLines(); i = lineIndexAt(lines, at); offset = 0;
+      }
+      if (!lines.length) { store().patch({ status: 'idle' }); return; }
+      const casting = cast(lines);
+      const rate = useVoiceSettingsStore.getState().options.rate;
+      const background = new AndroidBackgroundRead((state) => { if (alive()) syncNativeRead(state); });
+      nativeRead = background;
+      try {
+        await background.start(lines.map(line => ({ text: line.spoken, voice: voiceFor(line, casting), rate, pitch: 1,
+          gap: PAUSE_AFTER[line.kind] ?? DEFAULT_PAUSE })), i, offset);
+      } catch { throw new Error(backgroundReadError()); }
+      return;
+    }
     store().patch({ status: 'playing' });
     while (alive()) {
       if (stale && anchor !== null) {
@@ -275,6 +326,7 @@ async function run(startIndex: number, startOffset: number) {
     }
   } catch (err) {
     if (!alive()) return;
+    nativeRead?.dispose(); nativeRead = null;
     controller = null;
     if (err instanceof NeedsProviderError) {
       store().patch({ status: 'idle', needsProvider: true, error: null });
@@ -302,6 +354,9 @@ export function prepare(editor: Editor) {
   attach(editor);
   const lines = refreshLines();
   store().patch({ current: startLine(lines, editor), word: null });
+  if (hasAndroidBackgroundRead() && !nativeRead) {
+    nativePreparation = releaseAndroidBackgroundRead().catch(() => {});
+  }
   // Find the voices now, so the cast list and the pickers can show who reads
   // whom before the first Play. A missing provider is not an error yet — the
   // writer has not asked to hear anything.
@@ -325,6 +380,11 @@ export function play(editor: Editor, index?: number) {
 }
 
 export function pause() {
+  if (nativeRead) {
+    void nativeRead.command('pause').catch(() => store().patch({ status: 'error', error: backgroundReadError() }));
+    store().patch({ status: 'paused' });
+    return;
+  }
   if (store().status !== 'playing') return;
   abortCurrent();
   store().patch({ status: 'paused' });
@@ -333,6 +393,7 @@ export function pause() {
 export function resume() {
   const s = store();
   if (s.status !== 'paused' || !editorRef) return;
+  if (nativeRead && !stale) { void nativeRead.command('play').catch(() => store().patch({ status: 'error', error: backgroundReadError() })); return; }
   if (stale) {
     // Edited while paused: start the current line again rather than mid-word.
     void run(s.current, 0);
@@ -404,6 +465,7 @@ export function rebuild() {
   if (s.status === 'playing') {
     void run(idx, 0);
   } else {
+    if (nativeRead) { abortCurrent(); reached = 0; }
     store().patch({ current: idx, word: null });
   }
 }

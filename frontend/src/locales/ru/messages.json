@@ -489,6 +489,7 @@
     "audioNoDecode": "Не удалось декодировать звук от {{provider}}: {{message}}",
     "kokoroStopped": "Движок голоса Kokoro остановился: {{message}}",
     "kokoroUnknown": "неизвестная ошибка",
+    "backgroundStopped": "Не удалось продолжить чтение. Проверьте системный голос и повторите попытку.",
     "systemStopped": "Системный движок речи перестал отвечать: {{message}}"
   }
 }

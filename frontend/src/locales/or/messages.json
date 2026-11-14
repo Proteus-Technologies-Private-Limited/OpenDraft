@@ -453,6 +453,7 @@
     "audioNoDecode": "{{provider}} ର ଅଡିଓ ଡିକୋଡ୍ କରିହେଲା ନାହିଁ: {{message}}",
     "kokoroStopped": "Kokoro ସ୍ୱର ଇଞ୍ଜିନ୍ ବନ୍ଦ ହେଲା: {{message}}",
     "kokoroUnknown": "ଅଜଣା ତ୍ରୁଟି",
+    "backgroundStopped": "ପଢ଼ିବା ଜାରି ରଖିହେଲା ନାହିଁ। ସିଷ୍ଟମ୍ ସ୍ୱର ଯାଞ୍ଚ କରି ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।",
     "systemStopped": "ସିଷ୍ଟମ୍ ସ୍ପିଚ୍ ଇଞ୍ଜିନ୍ ଉତ୍ତର ଦେବା ବନ୍ଦ କଲା: {{message}}"
   }
 }

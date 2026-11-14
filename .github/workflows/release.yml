@@ -457,6 +457,8 @@ jobs:
           echo "WindowActivities.kt copied"
           cp src-tauri/android-src/FoldPostureBridge.kt "$JAVA_DIR/FoldPostureBridge.kt"
           echo "FoldPostureBridge.kt copied"
+          cp src-tauri/android-src/TableReadService.kt "$JAVA_DIR/TableReadService.kt"
+          cp src-tauri/android-src/TableReadPlayback.kt "$JAVA_DIR/TableReadPlayback.kt"
 
           # Create file_paths.xml for FileProvider (needed for export share intent)
           XML_DIR="src-tauri/gen/android/app/src/main/res/xml"
@@ -605,6 +607,17 @@ jobs:
                       "update this patch."
                   )
               print("Android manifest patched with the TTS_SERVICE query")
+
+          # BEGIN TABLE READ MANIFEST
+          if "<application" not in content or "</application>" not in content:
+              raise ValueError("Application missing: cannot declare background Table Read")
+          for permission in ("FOREGROUND_SERVICE", "FOREGROUND_SERVICE_MEDIA_PLAYBACK", "WAKE_LOCK"):
+              name = "android.permission." + permission
+              if 'android:name="' + name + '"' not in content:
+                  content = content.replace("<application", '<uses-permission android:name="' + name + '" />\n    <application', 1)
+          if 'android:name=".TableReadService"' not in content:
+              content = content.replace("</application>", '<service android:name=".TableReadService" android:exported="false" android:foregroundServiceType="mediaPlayback" android:stopWithTask="true" />\n    </application>', 1)
+          # END TABLE READ MANIFEST
 
           # ── Per-app language (Android 13+) ───────────────────────────────
           # Points the app at res/xml/locales_config.xml, so the system lists

@@ -453,6 +453,7 @@
     "audioNoDecode": "The audio from {{provider}} could not be decoded: {{message}}",
     "kokoroStopped": "The Kokoro voice engine stopped: {{message}}",
     "kokoroUnknown": "unknown error",
+    "backgroundStopped": "The read could not continue. Check the system voice and try again.",
     "systemStopped": "The system speech engine stopped responding: {{message}}"
   }
 }

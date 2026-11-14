@@ -3094,6 +3094,7 @@ pub fn run() {
             tts::tts_native_speak,
             tts::tts_native_poll,
             tts::tts_native_stop,
+            tts::tts_table_read,
             tts::tts_speech_server_request,
         ]);
 
@@ -3233,6 +3234,14 @@ pub fn run() {
             if let Some(menu) = app.menu() {
                 rebuild_window_menu(app, &menu);
             }
+        }
+    });
+
+    #[cfg(target_os = "android")]
+    let builder = builder.on_window_event(|window, event| {
+        if let tauri::WindowEvent::Destroyed = event {
+            let request = serde_json::json!({ "action": "release", "owner": window.label() });
+            let _ = android_static_call("ttsTableReadRequest", &[&request.to_string()]);
         }
     });
 

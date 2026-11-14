@@ -80,7 +80,7 @@ function noVoicesMessage(): string {
 export function systemVoices(): Promise<{ engine: TtsEngine; voices: VoiceInfo[] }> {
   if (!systemEngine) {
     systemEngine = (async () => {
-      if (hasWebSpeech()) {
+      if (hasWebSpeech() && !(isTauri() && getOS() === 'android')) {
         const web = new WebSpeechEngine();
         try {
           const voices = await web.listVoices();

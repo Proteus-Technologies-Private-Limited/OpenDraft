@@ -453,6 +453,7 @@
     "audioNoDecode": "{{provider}}-ൽ നിന്നുള്ള ഓഡിയോ ഡീകോഡ് ചെയ്യാനായില്ല: {{message}}",
     "kokoroStopped": "Kokoro വോയ്സ് എൻജിൻ നിലച്ചു: {{message}}",
     "kokoroUnknown": "അജ്ഞാത പിശക്",
+    "backgroundStopped": "വായന തുടരാനായില്ല. സിസ്റ്റം ശബ്ദം പരിശോധിച്ച് വീണ്ടും ശ്രമിക്കുക.",
     "systemStopped": "സിസ്റ്റം സ്പീച്ച് എൻജിൻ പ്രതികരിക്കുന്നത് നിർത്തി: {{message}}"
   }
 }

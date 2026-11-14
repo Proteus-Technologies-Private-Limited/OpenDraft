@@ -6,7 +6,7 @@ from contextlib import redirect_stderr
 from pathlib import Path
 from unittest.mock import patch
 
-from prepare import HOOK, INSPECTION, MARKER, ROOT, configure, main
+from prepare import HOOK, INSPECTION, MARKER, ROOT, configure, configure_test_speech, main
 
 
 class Prepare(unittest.TestCase):
@@ -49,12 +49,36 @@ class Prepare(unittest.TestCase):
                         ROOT / "src-tauri/tauri.conf.json",
                         ROOT / "src-tauri/android-src",
                     )
+    def test_speech_fixture_is_confined_to_generated_test_sources(self):
+        with tempfile.TemporaryDirectory() as temp:
+            gen, _, source = self.fixture(temp)
+            manifest = gen / "app/src/main/AndroidManifest.xml"
+            manifest.write_text(
+                '<manifest xmlns:android="http://schemas.android.com/apk/res/android"><application /></manifest>'.replace(
+                    "<application />", "<application></application>"
+                )
+            )
+            configure_test_speech(gen)
+            once = manifest.read_text()
+            configure_test_speech(gen)
+            self.assertEqual(manifest.read_text(), once)
+            self.assertEqual(once.count(".TableReadTestSpeech"), 1)
+            self.assertTrue(
+                (
+                    gen
+                    / "app/src/main/java/com/proteus/opendraft/TableReadTestSpeech.kt"
+                ).exists()
+            )
+            self.assertEqual(list(source.glob("*Speech*")), [])
 
     def fixture(self, temp):
         root = Path(temp)
         gen = root / "generated"
         java = gen / "app/src/main/java/com/proteus/opendraft"
         java.mkdir(parents=True)
+        (gen / "app/src/main/AndroidManifest.xml").write_text(
+            '<manifest xmlns:android="http://schemas.android.com/apk/res/android"><application></application></manifest>'
+        )
         for name in ("MainActivity.kt", "WindowActivities.kt"):
             (java / name).write_text("fun onWebViewCreate() {\n" + HOOK + "\n}\n")
         (gen / "app/build.gradle.kts").write_text(
@@ -80,7 +104,8 @@ class Prepare(unittest.TestCase):
             gen, cfg, source = self.fixture(temp)
             configure(gen, cfg, source)
             configure(gen, cfg, source)
-            for path in (gen / "app/src/main/java/com/proteus/opendraft").glob("*.kt"):
+            for name in ("MainActivity.kt", "WindowActivities.kt"):
+                path = gen / "app/src/main/java/com/proteus/opendraft" / name
                 self.assertEqual(path.read_text().count(INSPECTION), 1)
                 self.assertEqual(path.read_text().count(HOOK), 1)
             self.assertEqual(

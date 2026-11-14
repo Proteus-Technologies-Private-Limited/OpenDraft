@@ -453,6 +453,7 @@
     "audioNoDecode": "{{provider}}-এর অডিও ডিকোড করা যায়নি: {{message}}",
     "kokoroStopped": "Kokoro ভয়েস ইঞ্জিন থেমে গেছে: {{message}}",
     "kokoroUnknown": "অজানা ত্রুটি",
+    "backgroundStopped": "পড়া চালিয়ে যাওয়া যায়নি। সিস্টেমের কণ্ঠ পরীক্ষা করে আবার চেষ্টা করুন।",
     "systemStopped": "সিস্টেম স্পিচ ইঞ্জিন সাড়া দেওয়া বন্ধ করেছে: {{message}}"
   }
 }
