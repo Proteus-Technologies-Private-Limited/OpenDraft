@@ -1,0 +1,136 @@
+name: Android foldable APK integration
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'src-tauri/android-src/**'
+      - 'src-tauri/src/**'
+      - 'src-tauri/Cargo.*'
+      - 'src-tauri/tauri.conf.json'
+      - 'frontend/src/utils/*FoldPosture*.ts'
+      - 'frontend/src/utils/foldPosture*.ts'
+      - 'test-script/android-fold-emulator/**'
+      - 'test-script/android_fold_build.py'
+      - 'test-script/patch-android-local.py'
+      - '.github/workflows/test-android-fold-emulator.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-fold-apk-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build ${{ matrix.variant }} test APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [debug, minified]
+    env:
+      CARGO_INCREMENTAL: '0'
+      CARGO_PROFILE_DEV_DEBUG: '0'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-linux-android
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+          key: fold-apk-${{ matrix.variant }}
+          cache-on-failure: true
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - name: Install release-matched Android toolchain
+        run: |
+          sdkmanager 'ndk;27.0.12077973' 'platforms;android-36' 'build-tools;36.0.0'
+          echo "NDK_HOME=$ANDROID_HOME/ndk/27.0.12077973" >> "$GITHUB_ENV"
+      - name: Check test tooling
+        run: |
+          python3 -m unittest discover -s test-script/android-fold-emulator -p 'test_*.py'
+          node --test test-script/android-fold-emulator/*.test.mjs
+      - name: Build production frontend
+        run: npm ci --prefix frontend && npm run build --prefix frontend
+      - name: Generate disposable Android test project
+        run: |
+          printf '%s\n' '{"private":true,"scripts":{"tauri":"tauri"}}' > package.json
+          ln -s frontend/node_modules node_modules
+          npx --prefix frontend tauri android init --ci
+          python3 test-script/android-fold-emulator/prepare.py
+      - name: Build APK
+        env:
+          TEST_VARIANT: ${{ matrix.variant }}
+        run: |
+          if [ "$TEST_VARIANT" = debug ]; then
+            npx --prefix frontend tauri android build --target x86_64 --apk --debug --ci
+          else
+            npx --prefix frontend tauri android build --target x86_64 --apk --ci
+          fi
+          node test-script/android-fold-emulator/stage.mjs "$TEST_VARIANT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fold-test-apk-${{ matrix.variant }}
+          path: test-script/output/android-fold-apk/${{ matrix.variant }}/
+          retention-days: 1
+          if-no-files-found: error
+
+  emulator:
+    name: Exercise ${{ matrix.variant }} APK
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [debug, minified]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          name: fold-test-apk-${{ matrix.variant }}
+          path: test-script/output/android-fold-apk/${{ matrix.variant }}/
+      - name: Enable runner KVM access
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_fold
+          avd-name: opendraft-fold
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          disable-animations: true
+          enable-hw-keyboard: false
+          script: node test-script/android-fold-emulator/run.mjs ${{ matrix.variant }} emulator-5554
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fold-emulator-evidence-${{ matrix.variant }}
+          path: test-script/output/android-fold-evidence/${{ matrix.variant }}/
+          retention-days: 7
+          if-no-files-found: error
