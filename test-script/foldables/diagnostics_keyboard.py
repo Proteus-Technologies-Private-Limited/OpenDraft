@@ -116,7 +116,7 @@ class FoldDiagnosticsKeyboard(unittest.TestCase):
             )
             self.page.wait_for_timeout(250)
 
-    def open_diagnostics(self):
+    def open_diagnostics(self, *, display=True):
         self.page.evaluate("diagEditor.view.focus()")
         self.page.keyboard.press("F10")
         self.page.locator("[data-menu-top=Help]").focus()
@@ -125,6 +125,12 @@ class FoldDiagnosticsKeyboard(unittest.TestCase):
         self.page.get_by_role("menuitem", name=label, exact=True).focus()
         self.page.keyboard.press("Enter")
         details = self.page.locator(".diagnostics-display")
+        if not display:
+            expect(
+                self.page.get_by_role("button", name="Copy Report", exact=True)
+            ).to_be_visible()
+            expect(details).to_have_count(0)
+            return None
         expect(details).to_be_visible()
         self.assertEqual(self.page.locator(".menu-bar--floating:visible").count(), 0)
         fab = self.page.locator(".menu-fab")
@@ -192,6 +198,26 @@ class FoldDiagnosticsKeyboard(unittest.TestCase):
                 ).scroll_into_view_if_needed()
                 self.screenshot("fold-diagnostics-book.png")
             self.close_diagnostics()
+
+    def test_unexpected_display_failure_keeps_diagnostics_copyable(self):
+        self.page.evaluate("""() => {
+            const style=document.documentElement.style;
+            const read=style.getPropertyValue.bind(style);
+            style.getPropertyValue=name=>{
+                if(name.startsWith('--fold-')) throw new Error('DO_NOT_COPY_EXCEPTION');
+                return read(name);
+            };
+        }""")
+        self.open_diagnostics(display=False)
+        self.page.get_by_role("button", name="Copy Report", exact=True).click()
+        self.page.wait_for_function("typeof window.copiedDiagnostics === 'string'")
+        report = self.page.evaluate("copiedDiagnostics")
+        self.assertIn("OpenDraft Diagnostics", report)
+        self.assertIn("Storage backend:", report)
+        self.assertNotIn("Display and posture", report)
+        self.assertNotIn("DO_NOT_COPY", report)
+        self.page.locator(".dialog-box .dialog-actions button").last.click()
+        expect(self.page.locator('[aria-modal="true"]')).to_have_count(0)
 
     def test_report_is_a_snapshot_and_reopening_refreshes_it(self):
         self.posture(fold="folded")

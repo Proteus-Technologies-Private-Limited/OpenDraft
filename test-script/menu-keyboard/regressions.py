@@ -12,14 +12,27 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright, expect
 
 
+def launch_browser(playwright):
+    """Share browser selection without collecting another suite's test methods."""
+    engine = os.environ.get("OPENDRAFT_BROWSER", "chromium")
+    if engine == "webkit":
+        if os.environ.get("OPENDRAFT_MENU_FOLDABLE") == "1":
+            raise ValueError("Foldable CDP emulation requires Chromium")
+        return playwright.webkit.launch()
+    if engine != "chromium":
+        raise ValueError(f"Unsupported OPENDRAFT_BROWSER: {engine}")
+    return playwright.chromium.launch(
+        executable_path=os.environ.get("OPENDRAFT_CHROMIUM")
+        or ("/usr/bin/chromium" if Path("/usr/bin/chromium").exists() else None),
+        args=["--no-sandbox", "--enable-experimental-web-platform-features"],
+    )
+
+
 class MenuKeyboard(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.playwright = sync_playwright().start()
-        cls.browser = cls.playwright.chromium.launch(
-            executable_path=os.environ.get("OPENDRAFT_CHROMIUM") or "/usr/bin/chromium",
-            args=["--no-sandbox", "--enable-experimental-web-platform-features"],
-        )
+        cls.browser = launch_browser(cls.playwright)
 
     @classmethod
     def tearDownClass(cls):
@@ -33,6 +46,26 @@ class MenuKeyboard(unittest.TestCase):
         self.page = self.browser.new_page(viewport={"width": 1440, "height": 1000})
         self.errors = []
         self.page.on("pageerror", lambda error: self.errors.append(str(error)))
+        # These signed-out startup reads need no backend for browser UI tests.
+        # Fulfil them rather than hiding WebKit's network page errors in CI.
+        self.page.route(
+            "http://127.0.0.1:8008/api/demo-info",
+            lambda route: route.fulfill(json={"demo": False, "message": None}),
+        )
+        self.page.route(
+            "http://127.0.0.1:8008/api/formatting-templates/",
+            lambda route: route.fulfill(json=[]),
+        )
+        self.page.route(
+            "http://127.0.0.1:8008/api/auth/config",
+            lambda route: route.fulfill(
+                json={
+                    "googleEnabled": False,
+                    "emailVerificationRequired": False,
+                    "smtpConfigured": False,
+                }
+            ),
+        )
         if missing_segmenter:
             self.page.add_init_script("delete Intl.Segmenter")
         if platform:
@@ -42,6 +75,7 @@ class MenuKeyboard(unittest.TestCase):
                 + "})"
             )
         self.page.add_init_script("""
+            performance.setResourceTimingBufferSize(5000);
             localStorage.setItem('opendraft:viewState', JSON.stringify({navigatorOpen:false,toolbarMode:'compact'}));
             localStorage.setItem('opendraft:hiddenModeIntroShown','1');
         """)
@@ -129,7 +163,8 @@ class MenuKeyboard(unittest.TestCase):
             ]}]});
             testEditor.commands.setContent({type:'doc',content:[{type:'action',content:[{type:'text',text:'Synthetic keyboard selection'}]}]});
             testEditor.commands.setTextSelection({from:1,to:10});
-            testEditor.commands.focus();
+            // Finish setup focus synchronously; no queued focus may steal a popup.
+            testEditor.view.focus();
         }""")
 
     def tearDown(self):
@@ -153,6 +188,7 @@ class MenuKeyboard(unittest.TestCase):
         self.press("k")
         expect(self.row("Keyboard fixture")).to_be_focused()
         self.press("ArrowRight")
+        expect(self.row("Disabled action")).to_be_focused()
 
     def test_entry_roving_wrap_home_end_and_f10_return(self):
         self.press("F10")
@@ -204,8 +240,12 @@ class MenuKeyboard(unittest.TestCase):
         expect(self.row("Further menu")).to_have_attribute("aria-expanded", "false")
         self.press("ArrowLeft")
         expect(self.row("Deeper menu")).to_be_focused()
+        # Focus returns synchronously; WebKit can still be committing the
+        # submenu close. Require that state before testing Escape one level up.
+        expect(self.row("Deeper menu")).to_have_attribute("aria-expanded", "false")
         self.press("Escape")
         expect(self.row("Keyboard fixture")).to_be_focused()
+        expect(self.row("Keyboard fixture")).to_have_attribute("aria-expanded", "false")
         self.press("Escape")
         expect(self.row("Tools")).to_be_focused()
         self.assertEqual(self.page.locator(".menu-dropdown").count(), 0)
@@ -236,8 +276,11 @@ class MenuKeyboard(unittest.TestCase):
         self.press("Escape")
         self.fixture()
         self.press("End")
+        expect(self.row("Deeper menu")).to_be_focused()
         self.press("ArrowRight")
+        expect(self.row("Further menu")).to_be_focused()
         self.press("ArrowRight")
+        expect(self.row("Final action")).to_be_focused()
         expect(self.row("Checked fixture", "menuitemcheckbox")).to_have_attribute(
             "aria-checked", "true"
         )
@@ -302,22 +345,25 @@ class MenuKeyboard(unittest.TestCase):
         expect(self.row("Save Script As…")).to_have_attribute(
             "aria-keyshortcuts", f"Shift+{modifier}+S"
         )
-        ax = self.page.context.new_cdp_session(self.page).send(
-            "Accessibility.getFullAXTree"
-        )["nodes"]
-        save = next(
-            node
-            for node in ax
-            if node.get("role", {}).get("value") == "menuitem"
-            and node.get("name", {}).get("value") == "Save Script"
-        )
-        self.assertIn(
-            {
-                "name": "keyshortcuts",
-                "value": {"type": "string", "value": f"{modifier}+S"},
-            },
-            save["properties"],
-        )
+        # Chromium exposes its native AX shortcut property through CDP. WebKit
+        # has no CDP endpoint; the role/name/ARIA checks above still run there.
+        if self.browser.browser_type.name == "chromium":
+            ax = self.page.context.new_cdp_session(self.page).send(
+                "Accessibility.getFullAXTree"
+            )["nodes"]
+            save = next(
+                node
+                for node in ax
+                if node.get("role", {}).get("value") == "menuitem"
+                and node.get("name", {}).get("value") == "Save Script"
+            )
+            self.assertIn(
+                {
+                    "name": "keyshortcuts",
+                    "value": {"type": "string", "value": f"{modifier}+S"},
+                },
+                save["properties"],
+            )
         self.press("Escape")
         self.open("View")
         self.press("z")
@@ -514,10 +560,12 @@ class MenuKeyboard(unittest.TestCase):
     def test_locale_change_and_removed_plugin_recover_focus(self):
         self.fixture()
         self.page.evaluate("testRegistry.unregister('keyboard-fixture')")
-        self.assertTrue(self.page.locator(":focus").is_visible())
-        self.assertTrue(
-            self.page.locator(":focus").evaluate("el=>!!el.closest('[role=menu]')")
-        )
+        # Registry notifications schedule a React commit. Escape sent before
+        # removal closes the old child menu, rather than the remaining root.
+        expect(self.row("Keyboard fixture")).to_have_count(0)
+        expect(
+            self.page.locator('[role="menu"]:visible [role="menuitem"]:focus')
+        ).to_have_count(1)
         self.press("Escape")
         expect(self.row("Tools")).to_be_focused()
         self.open("View")

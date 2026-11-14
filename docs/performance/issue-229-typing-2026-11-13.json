@@ -1,0 +1,615 @@
+{
+  "date": "2026-11-13",
+  "environment": "Linux x86_64 VM, AMD EPYC 9V74, 3 visible CPUs; headless Chromium; no other test/build workload during comparison",
+  "build": "Vite production, --minify false",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "navigatorOpen": true,
+  "roundOrder": [
+    "release then main",
+    "main then release"
+  ],
+  "runs": {
+    "main-16-1": {
+      "requestedSize": 16,
+      "profiling": false,
+      "sourceRevision": "84ffb16f9ea199535b2cb106cc18a49d15e53902",
+      "browser": "154.0.8037.57",
+      "blocks": 271,
+      "size": 14660,
+      "where": {
+        "target": 7490,
+        "renderedPages": 15
+      },
+      "results": [
+        {
+          "name": "type 40 chars @60ms",
+          "wallMs": 4233,
+          "keys": 40,
+          "documentDelta": 40,
+          "latencyMs": {
+            "median": 8.6,
+            "p90": 15.3,
+            "max": 25.1
+          },
+          "mainThreadSec": {
+            "task": 0.424,
+            "script": 0.17,
+            "layout": 0.026,
+            "style": 0.001
+          },
+          "layoutCount": 43,
+          "styleCount": 2
+        },
+        {
+          "name": "Backspace x40 @33ms",
+          "wallMs": 3183,
+          "keys": 40,
+          "documentDelta": -40,
+          "latencyMs": {
+            "median": 13.2,
+            "p90": 20.1,
+            "max": 24.8
+          },
+          "mainThreadSec": {
+            "task": 0.344,
+            "script": 0.146,
+            "layout": 0.019,
+            "style": 0
+          },
+          "layoutCount": 42,
+          "styleCount": 2
+        }
+      ],
+      "errors": []
+    },
+    "main-16-2": {
+      "requestedSize": 16,
+      "profiling": false,
+      "sourceRevision": "84ffb16f9ea199535b2cb106cc18a49d15e53902",
+      "browser": "154.0.8037.57",
+      "blocks": 271,
+      "size": 14660,
+      "where": {
+        "target": 7490,
+        "renderedPages": 15
+      },
+      "results": [
+        {
+          "name": "type 40 chars @60ms",
+          "wallMs": 4191,
+          "keys": 40,
+          "documentDelta": 40,
+          "latencyMs": {
+            "median": 7.4,
+            "p90": 12.9,
+            "max": 24.5
+          },
+          "mainThreadSec": {
+            "task": 0.394,
+            "script": 0.167,
+            "layout": 0.023,
+            "style": 0
+          },
+          "layoutCount": 43,
+          "styleCount": 2
+        },
+        {
+          "name": "Backspace x40 @33ms",
+          "wallMs": 3171,
+          "keys": 40,
+          "documentDelta": -40,
+          "latencyMs": {
+            "median": 11.7,
+            "p90": 17.9,
+            "max": 21.2
+          },
+          "mainThreadSec": {
+            "task": 0.339,
+            "script": 0.153,
+            "layout": 0.021,
+            "style": 0
+          },
+          "layoutCount": 42,
+          "styleCount": 2
+        }
+      ],
+      "errors": []
+    },
+    "main-182-1": {
+      "requestedSize": 182,
+      "profiling": false,
+      "sourceRevision": "84ffb16f9ea199535b2cb106cc18a49d15e53902",
+      "browser": "154.0.8037.57",
+      "blocks": 3097,
+      "size": 167275,
+      "where": {
+        "target": 83824,
+        "renderedPages": 150
+      },
+      "results": [
+        {
+          "name": "type 40 chars @60ms",
+          "wallMs": 4834,
+          "keys": 40,
+          "documentDelta": 40,
+          "latencyMs": {
+            "median": 30,
+            "p90": 41.7,
+            "max": 82.6
+          },
+          "mainThreadSec": {
+            "task": 1.566,
+            "script": 0.68,
+            "layout": 0.167,
+            "style": 0
+          },
+          "layoutCount": 43,
+          "styleCount": 2
+        },
+        {
+          "name": "Backspace x40 @33ms",
+          "wallMs": 3957,
+          "keys": 40,
+          "documentDelta": -40,
+          "latencyMs": {
+            "median": 28.7,
+            "p90": 35,
+            "max": 58.4
+          },
+          "mainThreadSec": {
+            "task": 1.227,
+            "script": 0.51,
+            "layout": 0.174,
+            "style": 0
+          },
+          "layoutCount": 42,
+          "styleCount": 2
+        }
+      ],
+      "errors": []
+    },
+    "main-182-2": {
+      "requestedSize": 182,
+      "profiling": false,
+      "sourceRevision": "84ffb16f9ea199535b2cb106cc18a49d15e53902",
+      "browser": "154.0.8037.57",
+      "blocks": 3097,
+      "size": 167275,
+      "where": {
+        "target": 83824,
+        "renderedPages": 150
+      },
+      "results": [
+        {
+          "name": "type 40 chars @60ms",
+          "wallMs": 4849,
+          "keys": 40,
+          "documentDelta": 40,
+          "latencyMs": {
+            "median": 28.9,
+            "p90": 43.8,
+            "max": 86
+          },
+          "mainThreadSec": {
+            "task": 1.541,
+            "script": 0.657,
+            "layout": 0.172,
+            "style": 0
+          },
+          "layoutCount": 43,
+          "styleCount": 2
+        },
+        {
+          "name": "Backspace x40 @33ms",
+          "wallMs": 4030,
+          "keys": 40,
+          "documentDelta": -40,
+          "latencyMs": {
+            "median": 30.6,
+            "p90": 37.5,
+            "max": 41.5
+          },
+          "mainThreadSec": {
+            "task": 1.318,
+            "script": 0.556,
+            "layout": 0.166,
+            "style": 0
+          },
+          "layoutCount": 42,
+          "styleCount": 2
+        }
+      ],
+      "errors": []
+    },
+    "release-16-1": {
+      "requestedSize": 16,
+      "profiling": false,
+      "sourceRevision": "941a88902114ad667f4781804b2d4f298e90940c",
+      "browser": "154.0.8037.57",
+      "blocks": 271,
+      "size": 14660,
+      "where": {
+        "target": 7490,
+        "renderedPages": 15
+      },
+      "results": [
+        {
+          "name": "type 40 chars @60ms",
+          "wallMs": 4333,
+          "keys": 40,
+          "documentDelta": 40,
+          "latencyMs": {
+            "median": 9.8,
+            "p90": 14.2,
+            "max": 35.9
+          },
+          "mainThreadSec": {
+            "task": 0.555,
+            "script": 0.307,
+            "layout": 0.022,
+            "style": 0
+          },
+          "layoutCount": 51,
+          "styleCount": 2
+        },
+        {
+          "name": "Backspace x40 @33ms",
+          "wallMs": 3239,
+          "keys": 40,
+          "documentDelta": -40,
+          "latencyMs": {
+            "median": 15,
+            "p90": 20,
+            "max": 24
+          },
+          "mainThreadSec": {
+            "task": 0.488,
+            "script": 0.248,
+            "layout": 0.022,
+            "style": 0
+          },
+          "layoutCount": 50,
+          "styleCount": 2
+        }
+      ],
+      "errors": []
+    },
+    "release-16-2": {
+      "requestedSize": 16,
+      "profiling": false,
+      "sourceRevision": "941a88902114ad667f4781804b2d4f298e90940c",
+      "browser": "154.0.8037.57",
+      "blocks": 271,
+      "size": 14660,
+      "where": {
+        "target": 7490,
+        "renderedPages": 15
+      },
+      "results": [
+        {
+          "name": "type 40 chars @60ms",
+          "wallMs": 4268,
+          "keys": 40,
+          "documentDelta": 40,
+          "latencyMs": {
+            "median": 9.3,
+            "p90": 13.1,
+            "max": 31.1
+          },
+          "mainThreadSec": {
+            "task": 0.509,
+            "script": 0.287,
+            "layout": 0.022,
+            "style": 0.001
+          },
+          "layoutCount": 51,
+          "styleCount": 2
+        },
+        {
+          "name": "Backspace x40 @33ms",
+          "wallMs": 3248,
+          "keys": 40,
+          "documentDelta": -40,
+          "latencyMs": {
+            "median": 14.9,
+            "p90": 23.7,
+            "max": 39.9
+          },
+          "mainThreadSec": {
+            "task": 0.486,
+            "script": 0.253,
+            "layout": 0.034,
+            "style": 0
+          },
+          "layoutCount": 50,
+          "styleCount": 2
+        }
+      ],
+      "errors": []
+    },
+    "release-182-1": {
+      "requestedSize": 182,
+      "profiling": false,
+      "sourceRevision": "941a88902114ad667f4781804b2d4f298e90940c",
+      "browser": "154.0.8037.57",
+      "blocks": 3097,
+      "size": 167275,
+      "where": {
+        "target": 83824,
+        "renderedPages": 150
+      },
+      "results": [
+        {
+          "name": "type 40 chars @60ms",
+          "wallMs": 5291,
+          "keys": 40,
+          "documentDelta": 40,
+          "latencyMs": {
+            "median": 45.2,
+            "p90": 69.9,
+            "max": 109
+          },
+          "mainThreadSec": {
+            "task": 2.267,
+            "script": 1.352,
+            "layout": 0.178,
+            "style": 0
+          },
+          "layoutCount": 51,
+          "styleCount": 2
+        },
+        {
+          "name": "Backspace x40 @33ms",
+          "wallMs": 4639,
+          "keys": 40,
+          "documentDelta": -40,
+          "latencyMs": {
+            "median": 48.5,
+            "p90": 58.1,
+            "max": 63.9
+          },
+          "mainThreadSec": {
+            "task": 2.187,
+            "script": 1.287,
+            "layout": 0.19,
+            "style": 0
+          },
+          "layoutCount": 50,
+          "styleCount": 2
+        }
+      ],
+      "errors": []
+    },
+    "release-182-2": {
+      "requestedSize": 182,
+      "profiling": false,
+      "sourceRevision": "941a88902114ad667f4781804b2d4f298e90940c",
+      "browser": "154.0.8037.57",
+      "blocks": 3097,
+      "size": 167275,
+      "where": {
+        "target": 83824,
+        "renderedPages": 150
+      },
+      "results": [
+        {
+          "name": "type 40 chars @60ms",
+          "wallMs": 5561,
+          "keys": 40,
+          "documentDelta": 40,
+          "latencyMs": {
+            "median": 49.6,
+            "p90": 79,
+            "max": 130.9
+          },
+          "mainThreadSec": {
+            "task": 2.661,
+            "script": 1.553,
+            "layout": 0.185,
+            "style": 0
+          },
+          "layoutCount": 51,
+          "styleCount": 2
+        },
+        {
+          "name": "Backspace x40 @33ms",
+          "wallMs": 4534,
+          "keys": 40,
+          "documentDelta": -40,
+          "latencyMs": {
+            "median": 47.6,
+            "p90": 55.7,
+            "max": 58.5
+          },
+          "mainThreadSec": {
+            "task": 2.053,
+            "script": 1.222,
+            "layout": 0.177,
+            "style": 0
+          },
+          "layoutCount": 50,
+          "styleCount": 2
+        }
+      ],
+      "errors": []
+    }
+  },
+  "profiledMainRun": {
+    "requestedSize": 182,
+    "profiling": true,
+    "sourceRevision": "84ffb16f9ea199535b2cb106cc18a49d15e53902",
+    "browser": "154.0.8037.57",
+    "blocks": 3097,
+    "size": 167275,
+    "where": {
+      "target": 83824,
+      "renderedPages": 150
+    },
+    "results": [
+      {
+        "name": "type 40 chars @60ms",
+        "wallMs": 4944,
+        "keys": 40,
+        "documentDelta": 40,
+        "latencyMs": {
+          "median": 31.2,
+          "p90": 41.3,
+          "max": 77.5
+        },
+        "mainThreadSec": {
+          "task": 1.69,
+          "script": 0.777,
+          "layout": 0.172,
+          "style": 0.008
+        },
+        "layoutCount": 43,
+        "styleCount": 2
+      },
+      {
+        "name": "Backspace x40 @33ms",
+        "wallMs": 4052,
+        "keys": 40,
+        "documentDelta": -40,
+        "latencyMs": {
+          "median": 31.7,
+          "p90": 35.3,
+          "max": 41.1
+        },
+        "mainThreadSec": {
+          "task": 1.346,
+          "script": 0.587,
+          "layout": 0.161,
+          "style": 0
+        },
+        "layoutCount": 42,
+        "styleCount": 2
+      }
+    ],
+    "errors": []
+  },
+  "profileTopLeafSamples": [
+    {
+      "function": "(idle)",
+      "asset": "",
+      "line": 0,
+      "selfMs": 5970.5
+    },
+    {
+      "function": "(program)",
+      "asset": "",
+      "line": 0,
+      "selfMs": 1825.8
+    },
+    {
+      "function": "nodesBetween",
+      "asset": "dist-CsvgF7ZU.js",
+      "line": 161,
+      "selfMs": 158.7
+    },
+    {
+      "function": "(garbage collector)",
+      "asset": "",
+      "line": 0,
+      "selfMs": 75.9
+    },
+    {
+      "function": "(anonymous)",
+      "asset": "titlePageBlocks-CRaKFOKE.js",
+      "line": 326,
+      "selfMs": 75.0
+    },
+    {
+      "function": "forChild",
+      "asset": "formattingTemplateStore-CCIi5vxo.js",
+      "line": 3235,
+      "selfMs": 73.5
+    },
+    {
+      "function": "takeSpansForNode",
+      "asset": "formattingTemplateStore-CCIi5vxo.js",
+      "line": 3430,
+      "selfMs": 63.1
+    },
+    {
+      "function": "(anonymous)",
+      "asset": "index-BN1lPFlP.js",
+      "line": 173339,
+      "selfMs": 52.8
+    },
+    {
+      "function": "child",
+      "asset": "dist-CsvgF7ZU.js",
+      "line": 290,
+      "selfMs": 42.7
+    },
+    {
+      "function": "setItem",
+      "asset": "",
+      "line": 0,
+      "selfMs": 41.5
+    },
+    {
+      "function": "forEach",
+      "asset": "dist-CsvgF7ZU.js",
+      "line": 305,
+      "selfMs": 40.3
+    },
+    {
+      "function": "get nodeSize",
+      "asset": "dist-CsvgF7ZU.js",
+      "line": 1087,
+      "selfMs": 39.8
+    },
+    {
+      "function": "getBoundingClientRect",
+      "asset": "",
+      "line": 0,
+      "selfMs": 32.2
+    },
+    {
+      "function": "get isLeaf",
+      "asset": "dist-CsvgF7ZU.js",
+      "line": 1976,
+      "selfMs": 20.4
+    },
+    {
+      "function": "writeRecoverySnapshot",
+      "asset": "index-BN1lPFlP.js",
+      "line": 32541,
+      "selfMs": 17.7
+    },
+    {
+      "function": "findNodeMatch",
+      "asset": "formattingTemplateStore-CCIi5vxo.js",
+      "line": 1454,
+      "selfMs": 15.1
+    },
+    {
+      "function": "capture",
+      "asset": "index-BN1lPFlP.js",
+      "line": 165429,
+      "selfMs": 15.0
+    },
+    {
+      "function": "measuredParagraphLines",
+      "asset": "titlePageBlocks-CRaKFOKE.js",
+      "line": 309,
+      "selfMs": 14.8
+    },
+    {
+      "function": "isNodeEmpty",
+      "asset": "dist-BiSOWHR5.js",
+      "line": 2949,
+      "selfMs": 14.0
+    },
+    {
+      "function": "querySelector",
+      "asset": "",
+      "line": 0,
+      "selfMs": 12.2
+    }
+  ]
+}

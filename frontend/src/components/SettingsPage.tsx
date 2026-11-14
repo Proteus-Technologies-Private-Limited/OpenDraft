@@ -617,9 +617,10 @@ const SettingsPage: React.FC = () => {
           </p>
 
           <div className="settings-row">
-            <label>{t('collabServer.serverUrl')}</label>
+            <label htmlFor="settings-collab-url">{t('collabServer.serverUrl')}</label>
             <div className="settings-url-row">
               <input
+                id="settings-collab-url"
                 className="dialog-input settings-url-input"
                 value={urlInput}
                 onChange={(e) => setUrlInput(e.target.value)}
@@ -662,9 +663,10 @@ const SettingsPage: React.FC = () => {
           </p>
 
           <div className="settings-row">
-            <label>{t('cloud.apiUrl')}</label>
+            <label htmlFor="settings-cloud-url">{t('cloud.apiUrl')}</label>
             <div className="settings-url-row">
               <input
+                id="settings-cloud-url"
                 className="dialog-input settings-url-input"
                 value={cloudApiInput}
                 onChange={(e) => setCloudApiInput(e.target.value)}
@@ -1320,8 +1322,9 @@ const SettingsPage: React.FC = () => {
           </p>
 
           <div className="settings-row">
-            <label>{t('invite.expiry')}</label>
+            <label htmlFor="settings-invite-expiry">{t('invite.expiry')}</label>
             <Select
+              id="settings-invite-expiry"
               className="dialog-input settings-select"
               value={defaultInviteExpiry}
               onChange={(e) => setDefaultInviteExpiry(Number(e.target.value))}
