@@ -29,7 +29,7 @@ import { addScriptNoteAtSelection } from '../utils/addScriptNote';
 import { FOCUS_MODE_SHORTCUT } from '../editor/extensions/FocusMode';
 import { showToast } from './Toast';
 import { useFoldState } from '../hooks/useFoldState';
-import { useFoldedMenuPosition } from '../hooks/useFoldedMenuPosition';
+import { statusColumnX, useFoldedMenuPosition } from '../hooks/useFoldedMenuPosition';
 import { formatFileFailure } from '../services/fileDiagnostics';
 import { useTranslation, Trans } from 'react-i18next';
 import { BUILTIN } from '../editor/languageCatalog';
@@ -3900,6 +3900,14 @@ const MenuBar: React.FC<MenuBarProps> = ({
   const fabWasDragRef = useRef(false);
   const foldState = useFoldState();
   const defaultFab = useFoldedMenuPosition(foldState.foldable && foldState.size === 'phone', navPanelWidth);
+  const defaultFabRef = useRef(defaultFab);
+  defaultFabRef.current = defaultFab;
+  // A drag that ends over the folded cover's status column drops the button
+  // back into it, centred, so it can be put back after being moved out.
+  const settleFabPos = useCallback((pos: { x: number; y: number }) => {
+    const x = statusColumnX(pos.x, defaultFabRef.current.statusColumn);
+    return x === null ? pos : { ...pos, x };
+  }, []);
   const fabX = Math.max(0, Math.min(fabPos?.x ?? defaultFab.x, window.innerWidth - FAB_SIZE));
   const fabY = Math.max(0, Math.min(fabPos?.y ?? defaultFab.y, window.innerHeight - FAB_SIZE));
   // On Android the WebView extends behind the (transparent) status bar, so a
@@ -3925,12 +3933,16 @@ const MenuBar: React.FC<MenuBarProps> = ({
   // cover screen keeps its clock and status in a column down the right edge,
   // which is exactly where a folded foldable parks this button by default
   // (useFoldedMenuPosition), so it sat behind the camera and the clock.
-  // Except where it was put in that status column on purpose (a folded
-  // foldable's default, useFoldedMenuPosition): that is the one place it covers
-  // nothing. A position the writer dragged is clamped as usual.
-  const fabInStatusBar = !fabPos && defaultFab.inStatusBar;
+  // Except where it is in that status column on purpose — a folded foldable's
+  // default (useFoldedMenuPosition), or the writer dragging it back there:
+  // that is the one place it covers nothing. Anywhere else a dragged position
+  // is clamped as usual.
+  // A saved position over the column is drawn centred in it, so one dragged
+  // there before drops landed centred still lines up with the clock.
+  const fabColumnX = fabPos ? statusColumnX(fabX, defaultFab.statusColumn) : null;
+  const fabInStatusBar = fabPos ? fabColumnX !== null : defaultFab.inStatusBar;
   const fabLeftStyle = fabInStatusBar
-    ? `${fabX}px`
+    ? `${fabColumnX ?? fabX}px`
     : `clamp(${fabLeftFloor}, ${fabX}px, calc(100vw - ${FAB_SIZE}px - env(safe-area-inset-right, 0px)))`;
 
   // Desktop: pointer events with capture for mouse drag
@@ -3972,10 +3984,10 @@ const MenuBar: React.FC<MenuBarProps> = ({
     if (!d) return;
     fabWasDragRef.current = true;
     if (d.isDrag) {
-      const pos = {
+      const pos = settleFabPos({
         x: Math.max(0, Math.min(window.innerWidth - FAB_SIZE, d.originX + (e.clientX - d.startX))),
         y: Math.max(0, Math.min(window.innerHeight - FAB_SIZE, d.originY + (e.clientY - d.startY))),
-      };
+      });
       setFabPos(pos);
       localStorage.setItem(FAB_POS_KEY, JSON.stringify(pos));
     } else {
@@ -3983,14 +3995,12 @@ const MenuBar: React.FC<MenuBarProps> = ({
       setActiveMenu(null);
       setOpenSubmenu(null);
     }
-  }, [FAB_POS_KEY, FAB_SIZE]);
+  }, [FAB_POS_KEY, FAB_SIZE, settleFabPos]);
 
   // Touch: native listeners on the FAB element via ref (WKWebView + Android WebView)
   const fabElRef = useRef<HTMLDivElement>(null);
   const fabPosRef = useRef(fabPos);
   fabPosRef.current = fabPos;
-  const defaultFabRef = useRef(defaultFab);
-  defaultFabRef.current = defaultFab;
 
   useEffect(() => {
     const el = fabElRef.current;
@@ -4038,10 +4048,10 @@ const MenuBar: React.FC<MenuBarProps> = ({
         // (onClick may not fire on mobile after a drag to reset it)
         setTimeout(() => { fabWasDragRef.current = false; }, 400);
         const t = e.changedTouches[0];
-        const pos = {
+        const pos = settleFabPos({
           x: Math.max(0, Math.min(window.innerWidth - FAB_SIZE, d.originX + (t.clientX - d.startX))),
           y: Math.max(0, Math.min(window.innerHeight - FAB_SIZE, d.originY + (t.clientY - d.startY))),
-        };
+        });
         setFabPos(pos);
         localStorage.setItem(FAB_POS_KEY, JSON.stringify(pos));
       }
@@ -4055,7 +4065,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
       document.removeEventListener('touchmove', onTouchMove);
       document.removeEventListener('touchend', onTouchEnd);
     };
-  }, [FAB_POS_KEY, FAB_SIZE, toolbarMode]);
+  }, [FAB_POS_KEY, FAB_SIZE, toolbarMode, settleFabPos]);
 
   // Click: fallback for tap (works everywhere)
   const handleFabClick = useCallback(() => {

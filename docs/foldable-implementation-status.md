@@ -201,8 +201,11 @@ before; an iPhone 17 simulator running the same build showed the same layout.
   side of the crease.
 - **Menu button in the status column.** On a folded foldable with a side inset
   at least 44 px wide (the Duo cover, either orientation), the ☰ button
-  defaults to the middle of that column instead of over the toolbar; taps there
-  reach the app. A dragged position is still remembered and clamped as before.
+  defaults to the foot of that column (above the home indicator, centred
+  across it) instead of over the toolbar; taps there reach the app. A dragged
+  position is remembered. Dropped with its centre over the column it snaps back
+  in, centred, so the button can be returned there after being moved onto the
+  script; anywhere else it is clamped inside the safe area as before.
 
 Still open: WP10's full choice-line spec (leading crumb button, trailing ✕) and
 the laptop posture's toolbar at the keyboard side, both waiting on #217.
