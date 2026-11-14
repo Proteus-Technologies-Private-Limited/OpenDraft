@@ -258,10 +258,19 @@ Robolectric tests exercise API 28 and 35 lifecycle, geometry snapshots, retained
 capability, window isolation, invalid features and OEM failure. The separate
 browser check supplies synthetic native JSON to the real UI and verifies
 book/laptop/cover transitions, editor/selection retention, toolbar visibility,
-ordinary-phone fallback and diagnostics. These checks do not constitute an APK
-run or establish which APIs a real OEM WebView exposes. No Mac, iPhone or physical
-foldable was available; physical posture/keyboard/IME and release-APK testing
-remain outstanding.
+ordinary-phone fallback and diagnostics. Those unit/synthetic checks alone do
+not establish APK or OEM behavior. The separate [APK emulator suite](android-fold-emulator.md)
+builds the real frontend, Rust and tracked Kotlin into debug and release-R8
+x86_64 test APKs and exercises native posture, IME key input, stopped/resumed
+Activities and an extra window on API 35 Pixel Fold emulators. Its open/resume
+checks require an actual FLAT FoldingFeature, and it checks that pending native
+information holds the applied layout until fresh geometry arrives.
+
+These inspection-enabled APKs are disposable test builds, not signed production
+releases. Physical OEM hinges, other IMEs/composition, assistive technology and
+physical Apple-device checks remain outstanding. The emulator keyboard can
+occlude the lower writing-pad pane without shrinking the reported viewport;
+keyboard-aware placement and control reachability remain WP10 work.
 
 Android references: [WindowInfoTracker](https://developer.android.com/reference/kotlin/androidx/window/layout/WindowInfoTracker),
 [FoldingFeature](https://developer.android.com/reference/kotlin/androidx/window/layout/FoldingFeature),
@@ -282,4 +291,5 @@ exceptions and vendor linkage errors during attach/start/stop. Unit tests cover
 startup and cleanup failures, stale callbacks, and book/laptop lifecycle gaps.
 The release workflow copies the bridge beside the existing Activity sources and
 patches its Gradle dependency alongside signing; production builds do not invoke
-the test helper. Physical OEM and native keyboard validation remain outstanding.
+the test helper. Emulator key-input/lifecycle coverage is described above;
+physical OEM and broader native keyboard validation remain outstanding.
