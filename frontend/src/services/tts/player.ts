@@ -254,10 +254,14 @@ async function run(startIndex: number, startOffset: number) {
     if (hasAndroidBackgroundRead() && eng.id === 'native') {
       await nativePreparation;
       if (!alive()) return;
-      if (stale && anchor !== null) {
-        const at = anchor; lines = refreshLines(); i = lineIndexAt(lines, at); offset = 0;
+      if (stale) {
+        const at = anchor; lines = refreshLines(); if (at !== null) i = lineIndexAt(lines, at); offset = 0;
       }
       if (!lines.length) { store().patch({ status: 'idle' }); return; }
+      i = Math.max(0, Math.min(i, lines.length - 1));
+      offset = Math.max(0, Math.min(offset, lines[i].spoken.length));
+      anchor = lines[i].from; reached = offset;
+      store().patch({ current: i, word: null });
       const casting = cast(lines);
       const rate = useVoiceSettingsStore.getState().options.rate;
       const background = new AndroidBackgroundRead((state) => { if (alive()) syncNativeRead(state); });

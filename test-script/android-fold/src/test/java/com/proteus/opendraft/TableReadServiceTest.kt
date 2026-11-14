@@ -2,7 +2,8 @@ package com.proteus.opendraft
 
 import android.app.Application
 import android.app.NotificationManager
-import android.media.session.MediaController
+import android.media.AudioFocusRequest
+import android.media.AudioManager
 import android.media.session.MediaSession
 import android.os.Bundle
 import android.os.Looper
@@ -63,11 +64,26 @@ class TableReadServiceTest {
         assertEquals("playing", snapshot().getString("status"))
         assertEquals("Synthetic first line", ControlledReadSpeech.spoken.last().first)
         val media = ReflectionHelpers.getField<MediaSession>(service, "media")
-        val controls = MediaController(app, media.sessionToken).transportControls
-        controls.pause(); looper.idle()
+        // Robolectric's MediaController transport does not deliver Binder
+        // commands. Drive the callback actually registered with MediaSession;
+        // the real APK scenario separately requires native media-key delivery.
+        val callbackHandler = ReflectionHelpers.getField<Any>(media, "mCallback")
+        val controls = ReflectionHelpers.getField<MediaSession.Callback>(callbackHandler, "mCallback")
+        controls.onPause(); looper.idle()
         assertEquals("paused", snapshot().getString("status"))
         assertTrue(shadowOf(engine).isStopped)
-        controls.play(); looper.idle()
+        controls.onPlay(); looper.idle()
+        val focus = ReflectionHelpers.getField<AudioFocusRequest>(service, "focus")
+        val listener = ReflectionHelpers.getField<AudioManager.OnAudioFocusChangeListener>(focus, "mFocusListener")
+        listener.onAudioFocusChange(AudioManager.AUDIOFOCUS_LOSS_TRANSIENT)
+        assertEquals("paused", snapshot().getString("status"))
+        listener.onAudioFocusChange(AudioManager.AUDIOFOCUS_GAIN)
+        assertEquals("playing", snapshot().getString("status"))
+        listener.onAudioFocusChange(AudioManager.AUDIOFOCUS_LOSS_TRANSIENT)
+        controls.onPause()
+        listener.onAudioFocusChange(AudioManager.AUDIOFOCUS_GAIN)
+        assertEquals("paused", snapshot().getString("status"))
+        controls.onPlay(); looper.idle()
         val current = ControlledReadSpeech.spoken.last().second
         shadowOf(engine).utteranceProgressListener.onDone(current)
         looper.idleFor(Duration.ofMillis(250))
@@ -76,7 +92,7 @@ class TableReadServiceTest {
         val notification = shadowOf(app.getSystemService(NotificationManager::class.java)).allNotifications.single()
         assertEquals("Translated title", notification.extras.getString("android.title"))
         assertFalse(notification.extras.toString().contains("Synthetic"))
-        controls.stop(); looper.idle()
+        controls.onStop(); looper.idle()
         assertEquals("idle", snapshot().getString("status"))
         controller.destroy()
         assertTrue(shadowOf(engine).isShutdown)

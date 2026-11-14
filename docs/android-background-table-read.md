@@ -56,7 +56,7 @@ edit/pause/resume behavior, stale sessions, disposal during startup, transport
 failure and the unchanged AI path. Native tests exercise the queue without
 frontend polling, word offsets, long Unicode lines, cancelled callbacks,
 interruption policy, readiness errors and deadlines. Robolectric service tests
-on API 28 and 35 exercise MediaSession transport, notification privacy, window
+on API 28 and 35 exercise the registered MediaSession callbacks, notification privacy, window
 ownership, pending pause and task cleanup. Python checks execute both manifest
 patches, check idempotence and verify production source/JNI wiring.
 
