@@ -1,12 +1,55 @@
+import io
 import json
 import tempfile
 import unittest
+from contextlib import redirect_stderr
 from pathlib import Path
+from unittest.mock import patch
 
-from prepare import HOOK, INSPECTION, MARKER, configure
+from prepare import HOOK, INSPECTION, MARKER, ROOT, configure, main
 
 
 class Prepare(unittest.TestCase):
+    def test_local_run_requires_opt_in_before_any_patching(self):
+        for environment in ({}, {"GITHUB_ACTIONS": "false"}, {"GITHUB_ACTIONS": "1"}):
+            with self.subTest(environment=environment):
+                with (
+                    patch.dict("os.environ", environment, clear=True),
+                    patch("prepare.subprocess.run") as run,
+                    patch("prepare.configure") as configure_project,
+                    redirect_stderr(io.StringIO()) as error,
+                ):
+                    with self.assertRaises(SystemExit) as result:
+                        main([])
+                    self.assertEqual(result.exception.code, 2)
+                    self.assertIn("--allow-disposable-checkout", error.getvalue())
+                    self.assertIn("src-tauri/tauri.conf.json", error.getvalue())
+                    run.assert_not_called()
+                    configure_project.assert_not_called()
+
+    def test_ci_and_explicit_local_opt_in_allow_preparation(self):
+        for environment, args in (
+            ({"GITHUB_ACTIONS": "true"}, []),
+            ({}, ["--allow-disposable-checkout"]),
+            ({"GITHUB_ACTIONS": "false"}, ["--allow-disposable-checkout"]),
+        ):
+            with self.subTest(environment=environment, args=args):
+                with (
+                    patch.dict("os.environ", environment, clear=True),
+                    patch("prepare.subprocess.run") as run,
+                    patch("prepare.configure") as configure_project,
+                ):
+                    main(args)
+                    self.assertEqual(
+                        run.call_args.args[0][1],
+                        str(ROOT / "test-script/patch-android-local.py"),
+                    )
+                    configure_project.assert_called_once_with(
+                        ROOT / "src-tauri/gen/android",
+                        ROOT / "src-tauri/tauri.conf.json",
+                        ROOT / "src-tauri/android-src",
+                    )
+
     def fixture(self, temp):
         root = Path(temp)
         gen = root / "generated"

@@ -288,7 +288,14 @@ Stopping or restarting the Activity publishes a pending native snapshot, which
 means no new geometry. The frontend retains its applied posture and size during
 that gap, without before-change events, class changes or posture-preference
 transitions. Fresh available geometry, including an empty cover-screen layout,
-then applies normally. Subscribers share the watcher's applied state, avoiding
+then applies normally. An active registration gets one second for its first
+layout callback. If the tracker stays silent, the bridge publishes `unavailable`
+and releases the pending hold to the browser/size fallback. It retains previously
+observed capability and keeps listening, so a late valid callback restores native
+geometry. Resizes do not extend that deadline. Stop/destroy cancels it; stopped
+Activities keep their layout without a timeout, and each restart gets a new grace
+period. Unit tests cover silent trackers, cancellation and late recovery on API
+28/35, plus frontend fallback/resize recovery. Subscribers share the watcher's applied state, avoiding
 repeated synchronous Java bridge reads during one event.
 
 Only the global-layout listener republishes WebView geometry; an unchanged

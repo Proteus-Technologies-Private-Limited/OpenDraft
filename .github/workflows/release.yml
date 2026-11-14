@@ -669,7 +669,7 @@ jobs:
           fi
           echo "KEYSTORE_PATH=$RUNNER_TEMP/release.keystore" >> $GITHUB_ENV
 
-      - name: Configure release signing
+      - name: Configure Android dependencies and release signing
         env:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
@@ -689,6 +689,7 @@ jobs:
           with open(path) as f:
               content = f.read()
 
+          # WindowManager is required regardless of which signing key is used.
           dependency = 'implementation("androidx.window:window-java:1.3.0")'
           if dependency not in content:
               content += '\n// Native fold posture (#231).\ndependencies {\n    ' + dependency + '\n}\n'
@@ -711,7 +712,7 @@ jobs:
 
           with open(path, 'w') as f:
               f.write(content)
-          print("Gradle signing config applied")
+          print("Gradle WindowManager dependency and release signing config applied")
           PYEOF
 
       - name: Build Android APK

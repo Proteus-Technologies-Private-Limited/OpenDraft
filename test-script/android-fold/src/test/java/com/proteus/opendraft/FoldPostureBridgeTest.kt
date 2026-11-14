@@ -1,6 +1,7 @@
 package com.proteus.opendraft
 
 import android.graphics.Rect
+import android.os.Looper
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import androidx.activity.ComponentActivity
@@ -16,6 +17,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.util.ReflectionHelpers
+import java.time.Duration
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [28, 35], manifest = Config.NONE)
@@ -35,6 +37,7 @@ class FoldPostureBridgeTest {
         var starts = 0
         var stops = 0
         var fail = false
+        var emitOnStart = true
         var startFailure: LinkageError? = null
         var stopFailure: LinkageError? = null
         override fun start(consumer: Consumer<WindowLayoutInfo>) {
@@ -42,7 +45,7 @@ class FoldPostureBridgeTest {
             callback = consumer
             startFailure?.let { throw it }
             if (fail) throw IllegalStateException("synthetic OEM failure")
-            emit()
+            if (emitOnStart) emit()
         }
         override fun stop(consumer: Consumer<WindowLayoutInfo>) {
             stops++
@@ -60,6 +63,83 @@ class FoldPostureBridgeTest {
         override val bounds get() = Rect(rect)
         override val isSeparating = true
         override val occlusionType = FoldingFeature.OcclusionType.FULL
+    }
+
+    @Test fun silentTrackerFallsBackOnceAndAcceptsALateLayout() {
+        val controller = Robolectric.buildActivity(ComponentActivity::class.java).setup()
+        val source = Source().apply { emitOnStart = false }
+        val view = WebView(controller.get())
+        val bridge = FoldPostureBridge(controller.get(), view, source)
+        val looper = shadowOf(Looper.getMainLooper())
+        assertEquals("pending", JSONObject(bridge.snapshot()).getString("status"))
+        looper.idleFor(Duration.ofMillis(500))
+        // Resizes must neither release the pending hold early nor postpone it.
+        ReflectionHelpers.setField(view, "mRight", 400)
+        view.viewTreeObserver.dispatchOnGlobalLayout()
+        looper.idleFor(Duration.ofMillis(499))
+        assertEquals("pending", JSONObject(bridge.snapshot()).getString("status"))
+        looper.idleFor(Duration.ofMillis(1))
+        val fallback = JSONObject(bridge.snapshot())
+        assertEquals("unavailable", fallback.getString("status"))
+        assertTrue(fallback.getBoolean("active"))
+        assertFalse(fallback.getBoolean("confirmed"))
+        assertTrue(fallback.isNull("feature"))
+        assertEquals(400, fallback.getJSONObject("webView").getInt("width"))
+        assertEquals(0, source.stops)
+        val expired = bridge.snapshot()
+        looper.idleFor(Duration.ofSeconds(5))
+        assertEquals(expired, bridge.snapshot())
+        source.emit(Fold())
+        val recovered = JSONObject(bridge.snapshot())
+        assertEquals("available", recovered.getString("status"))
+        assertTrue(recovered.getBoolean("confirmed"))
+        assertFalse(recovered.isNull("feature"))
+        controller.pause().stop().destroy()
+    }
+
+    @Test fun stoppedActivitiesCancelTheTimeoutAndEachRestartGetsAFullGracePeriod() {
+        val controller = Robolectric.buildActivity(ComponentActivity::class.java).setup()
+        val source = Source()
+        val bridge = FoldPostureBridge(controller.get(), WebView(controller.get()), source)
+        val looper = shadowOf(Looper.getMainLooper())
+        source.emit(Fold())
+        source.emitOnStart = false
+        controller.pause().stop()
+        val stopped = bridge.snapshot()
+        looper.idleFor(Duration.ofSeconds(5))
+        assertEquals(stopped, bridge.snapshot())
+        controller.restart().start().resume()
+        looper.idleFor(Duration.ofMillis(500))
+        controller.pause().stop()
+        val stoppedAgain = bridge.snapshot()
+        looper.idleFor(Duration.ofSeconds(2))
+        assertEquals(stoppedAgain, bridge.snapshot())
+        controller.restart().start().resume()
+        looper.idleFor(Duration.ofMillis(999))
+        assertEquals("pending", JSONObject(bridge.snapshot()).getString("status"))
+        looper.idleFor(Duration.ofMillis(1))
+        val fallback = JSONObject(bridge.snapshot())
+        assertEquals("unavailable", fallback.getString("status"))
+        assertTrue(fallback.getBoolean("confirmed"))
+        controller.pause().stop().destroy()
+        val destroyed = bridge.snapshot()
+        looper.idleFor(Duration.ofSeconds(5))
+        source.emit(Fold())
+        assertEquals(destroyed, bridge.snapshot())
+    }
+
+    @Test fun firstLayoutCancelsTheTimeoutEvenWhenItReportsNoFold() {
+        val controller = Robolectric.buildActivity(ComponentActivity::class.java).setup()
+        val source = Source().apply { emitOnStart = false }
+        val bridge = FoldPostureBridge(controller.get(), WebView(controller.get()), source)
+        val looper = shadowOf(Looper.getMainLooper())
+        looper.idleFor(Duration.ofMillis(999))
+        source.emit()
+        val available = bridge.snapshot()
+        assertEquals("available", JSONObject(available).getString("status"))
+        looper.idleFor(Duration.ofSeconds(5))
+        assertEquals(available, bridge.snapshot())
+        controller.pause().stop().destroy()
     }
 
     @Test fun observesOnlyWhileStartedAndIgnoresLateCallbacks() {
