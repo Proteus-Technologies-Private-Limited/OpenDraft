@@ -202,7 +202,7 @@ class FoldPostureBridgeTest {
     @Test fun linkageFailureWhileAttachingLeavesBrowserFallbackAvailable() {
         val controller = Robolectric.buildActivity(ComponentActivity::class.java).setup()
         val view = object : WebView(controller.get()) {
-            override fun addJavascriptInterface(instance: Any?, name: String?) {
+            override fun addJavascriptInterface(instance: Any, name: String) {
                 throw NoClassDefFoundError("synthetic attachment mismatch")
             }
         }
