@@ -101,8 +101,14 @@ and does not affect box dimensions or pagination. The experiment changes only
 CSS in the disposable released app window; it is not a rebuilt native binary.
 The production change applies that same outline in the frontend stylesheet,
 with the existing light-theme edge color and no edge in Phone/print layouts.
+It is scoped to the **Linux desktop app only**: `main.tsx` sets
+`linux-desktop` on the root element when the desktop Tauri app runs on Linux,
+and the outline rules require that class. macOS, Windows, the mobile apps and
+every browser (Linux browsers included) keep the original blurred shadow, so
+their appearance is unchanged.
 The production frontend build (`npm run build`) passed. A Chromium check of
-that production build verified 150 pages, the light/dark page edges, unchanged
+that production build, with the outline applied to every platform at the time,
+verified 150 pages, the light/dark page edges, unchanged
 816×164,360 px page dimensions between themes, no edge in Phone/print layouts,
 and no page errors. Results are in
 [frontend-checks.json](issue-229-native-scroll-2026-11-15/frontend-checks.json).

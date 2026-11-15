@@ -196,9 +196,9 @@
 [data-theme="light"] .editor-main {
   background: #d5d5d5;
 }
-/* Light theme: page edge */
+/* Light theme: page shadow */
 [data-theme="light"] .page {
-  outline-color: #b8b8b8;
+  box-shadow: 0 1px 6px #b8b8b8;
 }
 /* Light theme: menus, dialogs, toasts */
 [data-theme="light"] .menu-dropdown {
@@ -2239,11 +2239,24 @@ body {
   background: var(--page-paper);
   min-height: var(--page-min-height);
   padding: var(--page-margin-top) var(--page-margin-right) var(--page-margin-bottom) var(--page-margin-left);
-  /* One continuous sheet can be hundreds of pages tall. A blurred shadow on
-     that box is costly to repaint while scrolling in WebKitGTK. An outline
-     keeps the paper edge without changing layout or rasterizing the blur. */
-  outline: 1px solid rgba(0,0,0,.12);
+  box-shadow: 0 1px 4px rgba(0,0,0,.3), 0 0 0 1px rgba(0,0,0,.06);
   position: relative;
+}
+
+/* Linux desktop app only (WebKitGTK, issue #229). One continuous sheet can be
+   hundreds of pages tall, and WebKitGTK repaints the blurred shadow on that
+   box while scrolling — about a fifth of the WebProcess CPU in the measured
+   150-page script (docs/performance/issue-229-native-scroll.md). An outline
+   keeps the paper edge without changing layout or rasterizing the blur.
+   `linux-desktop` is set in main.tsx; every other platform, and Linux
+   browsers, keep the shadow above. Screen only: print draws no edge. */
+@media screen {
+  :root.linux-desktop .page {
+    box-shadow: none;
+    outline: 1px solid rgba(0,0,0,.12);
+  }
+  :root.linux-desktop[data-theme="light"] .page { outline-color: #b8b8b8; }
+  :root.linux-desktop .page.phone-view { outline: none; }
 }
 
 /* ============ TIPTAP EDITOR CONTENT ============ */
@@ -11989,7 +12002,7 @@ body.selection-bands-active .page .ProseMirror::selection { background: transpar
 
   /* Page rendering */
   .page-container { transform: none !important; width: auto !important; min-width: 0 !important; max-width: none !important; }
-  .page { outline: none !important; margin: 0 !important; width: 100% !important; }
+  .page { box-shadow: none !important; margin: 0 !important; width: 100% !important; }
   .page-sep { display: none !important; }
 
   /* Break where the editor breaks.
@@ -14392,7 +14405,7 @@ del.suggestion-delete {
     min-height: 100%;
     /* Bottom room so the last line can scroll clear of the keyboard bar. */
     padding: 20px 18px 120px;
-    outline: none;
+    box-shadow: none;
     /* Element indents at 40%: dialogue keeps ~30 characters a line on a
        411px phone instead of the dozen it would keep at full scale, and the
        elements still read apart by their indents. */

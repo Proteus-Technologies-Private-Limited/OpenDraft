@@ -6,7 +6,7 @@ import { initStorage } from './services/api';
 import { initScratchAssets } from './services/scratchAssets';
 import { scheduleScratchSweep } from './services/scratchSweep';
 import { initDemoInfo } from './services/demoInfo';
-import { getOS, isTauri } from './services/platform';
+import { getOS, isDesktopTauri, isTauri } from './services/platform';
 import { isPhoneDevice, watchPhoneDevice, PHONE_DEVICE_CHANGE_EVENT } from './utils/phoneDevice';
 import { useEditorStore } from './stores/editorStore';
 import { initCustomFonts } from './services/customFonts';
@@ -89,6 +89,9 @@ async function init() {
   const platformOS = getOS();
   if (platformOS === 'android') document.documentElement.classList.add('android');
   if (platformOS === 'ios') document.documentElement.classList.add('ios');
+  // WebKitGTK paint savings in screenplay.css (issue #229). The desktop app
+  // only: Linux browsers do not have the repaint cost and keep the shadow.
+  if (platformOS === 'linux' && isDesktopTauri()) document.documentElement.classList.add('linux-desktop');
   // Phone-sized touch chrome (screenplay.css), independent of the view layout
   // the writer picks: a phone is fingers on a small screen either way.
   if (isPhoneDevice()) document.documentElement.classList.add('phone');
