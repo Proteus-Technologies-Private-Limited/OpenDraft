@@ -46,8 +46,9 @@ let anchor: number | null = null;
 let stale = false;
 let detachEditor: (() => void) | null = null;
 let nativeRead: AndroidBackgroundRead | null = null;
-/** Maps the immutable native queue's positions through collaboration edits. */
-let nativeMapping = new Mapping();
+/** Maps the displayed line snapshot through edits until it is rebuilt. Keep
+ * it across pause/disposal so an explicit jump can resolve its own target. */
+let lineMapping = new Mapping();
 let nativePreparation: Promise<unknown> = Promise.resolve();
 
 const store = () => useTableReadStore.getState();
@@ -167,7 +168,7 @@ function attach(editor: Editor) {
     if (!transaction.docChanged) return;
     stale = true;
     if (anchor !== null) anchor = transaction.mapping.map(anchor);
-    if (nativeRead) nativeMapping.appendMapping(transaction.mapping);
+    lineMapping.appendMapping(transaction.mapping);
     // Sync and its appended housekeeping keep the native snapshot playing.
     // Still map the anchor and suppress obsolete highlights until a rebuild.
     const origin = transaction.getMeta('appendedTransaction') as Transaction | undefined;
@@ -204,6 +205,7 @@ function refreshLines(): ReadLine[] {
   const ed = editorRef;
   if (!ed || ed.isDestroyed) return store().lines;
   const lines = buildReadLines(ed.state.doc, readOptions());
+  lineMapping = new Mapping();
   stale = false;
   store().patch({ lines });
   return lines;
@@ -215,7 +217,6 @@ function abortCurrent() {
   controller = null;
   nativeRead?.dispose();
   nativeRead = null;
-  nativeMapping = new Mapping();
 }
 
 function syncNativeRead(state: BackgroundState) {
@@ -229,7 +230,7 @@ function syncNativeRead(state: BackgroundState) {
   reached = start;
   // Native playback can advance while collaborators edit. Resume must rebuild
   // at that newly reached line, mapped into the current document.
-  anchor = nativeMapping.map(line.from);
+  anchor = lineMapping.map(line.from);
   const word = end > start && !stale ? spokenRangeToText(line, start, end) : null;
   store().patch({ status, current: index, word, error: status === 'error' ? backgroundReadError() : null });
   if (status === 'idle' || status === 'error') {
@@ -259,8 +260,11 @@ export function resetEngine() {
   store().patch({ engineKind: null, engineLabel: '', voices: [] });
 }
 
-async function run(startIndex: number, startOffset: number) {
+async function run(startIndex: number, startOffset: number, targetPosition?: number) {
   abortCurrent();
+  // An explicit jump chooses a different anchor from ordinary Resume. Set it
+  // before awaiting voices so any intervening edits map that target too.
+  if (targetPosition !== undefined) anchor = targetPosition;
   const myRun = runId;
   const ac = new AbortController();
   controller = ac;
@@ -447,14 +451,25 @@ export function jumpTo(index: number) {
     void nativeRead.command('jump', i).catch(() => store().patch({ status: 'error', error: backgroundReadError() }));
     return;
   }
+  const targetPosition = lineMapping.map(s.lines[i].from);
   if (s.status === 'playing' || s.status === 'loading') {
-    void run(i, 0);
+    void run(i, 0, targetPosition);
     return;
   }
   abortCurrent();
   reached = 0;
-  const line = s.lines[i];
-  store().patch({ current: i, word: null, status: s.status === 'error' ? 'idle' : s.status });
+  const refresh = stale;
+  const lines = refresh ? refreshLines() : s.lines;
+  if (!lines.length) {
+    anchor = null;
+    store().patch({ current: 0, word: null, status: 'idle' });
+    highlight({ block: null, word: null });
+    return;
+  }
+  const current = refresh ? lineIndexAt(lines, targetPosition) : i;
+  const line = lines[current];
+  anchor = line.from;
+  store().patch({ current, word: null, status: s.status === 'error' ? 'idle' : s.status });
   highlight({ block: { from: line.from, to: line.to }, word: null });
   follow(line);
 }
