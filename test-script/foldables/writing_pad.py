@@ -139,10 +139,14 @@ class WritingPad(unittest.TestCase):
         # A phone held sideways, or a foldable's cover screen turned: the
         # field kept a 190px minimum inside a panel capped at the screen, so
         # it ran out of its box over the tool row, the buttons and Insert.
-        self.page.evaluate("document.dispatchEvent(new CustomEvent('plugin-panel:close'))")
+        self.page.evaluate(
+            "document.dispatchEvent(new CustomEvent('plugin-panel:close'))"
+        )
         self.page.locator(".ProseMirror").click()
         for n in range(6):
-            self.page.keyboard.insert_text(f"Line {n}: the storm keeps rising outside the window.")
+            self.page.keyboard.insert_text(
+                f"Line {n}: the storm keeps rising outside the window."
+            )
             self.page.keyboard.press("Enter")
         self.request()
         for width, height in ((797, 412), (844, 390), (740, 360)):
@@ -349,6 +353,58 @@ class WritingPad(unittest.TestCase):
         expect(self.page.locator(".scribble-panel.is-docked")).to_be_visible()
         self.assertTrue(field.evaluate("el=>el===padField"))
         expect(field).to_have_value("Keep this draft above the keyboard")
+
+    def test_native_keyboard_geometry_without_viewport_resize(self) -> None:
+        self.posture(1000, 1000, "horizontal", "folded")
+        self.request()
+        field = self.field()
+        field.fill("Keep this native-geometry draft")
+        field.evaluate("el=>{window.padField=el;el.focus();el.setSelectionRange(5,9)}")
+        prefs = self.page.evaluate(
+            "[localStorage.getItem('opendraft:handwritingPos'),localStorage.getItem('opendraft:handwritingSize')]"
+        )
+        self.page.evaluate("""() => {
+            window.keyboardReport={version:1,available:true,visible:true,width:2500,height:2500,bottom:1000,top:100};
+            window.OpenDraftKeyboard={isVisible:()=>keyboardReport.visible,snapshot:()=>JSON.stringify(keyboardReport)};
+            window.dispatchEvent(new Event('opendraft:keyboardchange'));
+        }""")
+        pad = self.page.locator(".scribble-panel")
+        expect(pad).not_to_have_class(re.compile(r"is-docked"))
+        self.page.wait_for_function(
+            "document.querySelector('.scribble-panel').getBoundingClientRect().bottom<=401 && document.querySelector('.scribble-panel').getBoundingClientRect().top>=48"
+        )
+        expect(field).to_have_value("Keep this native-geometry draft")
+        self.assertTrue(
+            field.evaluate("el=>el===padField && el===document.activeElement")
+        )
+        self.assertEqual(
+            field.evaluate("el=>[el.selectionStart,el.selectionEnd]"), [5, 9]
+        )
+        for selector in [".scribble-toggle", ".scribble-btn-primary"]:
+            control = self.page.locator(selector).first
+            control.scroll_into_view_if_needed()
+            self.assertTrue(
+                control.evaluate(
+                    "el=>{const r=el.getBoundingClientRect();return r.top>=40 && r.bottom<=401}"
+                )
+            )
+        shots = os.environ.get("OPENDRAFT_SCREENSHOTS")
+        if shots:
+            os.makedirs(shots, exist_ok=True)
+            self.page.screenshot(
+                path=os.path.join(shots, "native-keyboard-geometry.png")
+            )
+        self.page.evaluate(
+            "keyboardReport.visible=false;window.dispatchEvent(new Event('opendraft:keyboardchange'))"
+        )
+        expect(self.page.locator(".scribble-panel.is-docked")).to_be_visible()
+        expect(field).to_have_value("Keep this native-geometry draft")
+        self.assertEqual(
+            self.page.evaluate(
+                "[localStorage.getItem('opendraft:handwritingPos'),localStorage.getItem('opendraft:handwritingSize')]"
+            ),
+            prefs,
+        )
 
     def test_very_short_tabletop_slot_uses_floating_pad(self) -> None:
         self.posture(390, 450, "horizontal", "folded")

@@ -90,3 +90,9 @@ test('CDP bounds waits and rejects pending work on disconnect', async () => {
 test('readiness failure is a test failure, never a silent skip', async () => {
   await assert.rejects(waitFor('native feature', async () => false, { timeout: 5, interval: 1 }), /native feature/);
 });
+
+test('R8 keyboard geometry method keeps its public bridge name', () => {
+  const map = 'com.proteus.opendraft.KeyboardVisibility -> com.proteus.opendraft.KeyboardVisibility:\n    java.lang.String snapshot() -> snapshot\n';
+  assert(bridgeKept(map, 'KeyboardVisibility'));
+  assert(!bridgeKept(map.replace('-> snapshot', '-> a'), 'KeyboardVisibility'));
+});

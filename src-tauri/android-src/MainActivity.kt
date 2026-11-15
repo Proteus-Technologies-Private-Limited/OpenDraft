@@ -25,7 +25,7 @@ class MainActivity : TauriActivity() {
     override fun onWebViewCreate(webView: android.webkit.WebView) {
         super.onWebViewCreate(webView)
         FoldPostureBridge.attach(this, webView)
-        KeyboardVisibility.attach(webView)
+        KeyboardVisibility.attach(webView, this)
     }
 
     /**

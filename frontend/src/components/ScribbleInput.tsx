@@ -30,7 +30,7 @@
  * the writer's eye is in the panel; this says what is about to happen without
  * asking them to look away and find their place again.
  */
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Editor } from '@tiptap/react';
 import {
@@ -38,6 +38,7 @@ import {
   FaLevelDownAlt, FaPaste, FaTextWidth, FaTimes,
 } from 'react-icons/fa';
 import { elementLabel as labelOfElement } from '../editor/elementLabels';
+import { subscribeWritingViewport, writingViewport } from '../utils/writingViewport';
 import { readClipboardText, writeClipboard } from '../utils/clipboardCommands';
 import {
   clampPanelPosition, defaultPanelPosition, joinHandwriting, splitHandwriting,
@@ -172,15 +173,7 @@ function savePosition(pos: PanelPos): void {
 }
 
 /** The visible area, which the software keyboard shrinks from the bottom. */
-function viewportSize() {
-  const vv = window.visualViewport;
-  return {
-    width: Math.round(vv?.width ?? window.innerWidth),
-    height: Math.round(vv?.height ?? window.innerHeight),
-    left: Math.round(vv?.offsetLeft ?? 0),
-    top: Math.round(vv?.offsetTop ?? 0),
-  };
-}
+const viewportSize = writingViewport;
 
 /** How many blocks of script to show either side of the insertion point. */
 const CONTEXT_BLOCKS = 3;
@@ -362,6 +355,9 @@ const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose, docked =
   // Free-floating and dragged by its header, because what it must not cover is
   // the part of the script the writer is working on, and only they know which
   // part that is.
+  const viewKey = useSyncExternalStore(subscribeWritingViewport, () => JSON.stringify(viewportSize()), () => '{}');
+  const view = viewportSize();
+  const constrained = viewportConstrained || view.keyboard || view.top > (window.visualViewport?.offsetTop ?? 0);
   const [pos, setPos] = useState<PanelPos | null>(null);
   const dragRef = useRef<{ dx: number; dy: number } | null>(null);
   const wasDockedRef = useRef(docked);
@@ -472,15 +468,9 @@ const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose, docked =
     const reclamp = () => {
       setPos((prev) => (prev ? clampPanelPosition(prev, panelSize(), viewportSize()) : prev));
     };
-    window.addEventListener('resize', reclamp);
-    window.visualViewport?.addEventListener('resize', reclamp);
-    window.visualViewport?.addEventListener('scroll', reclamp);
-    return () => {
-      window.removeEventListener('resize', reclamp);
-      window.visualViewport?.removeEventListener('resize', reclamp);
-      window.visualViewport?.removeEventListener('scroll', reclamp);
-    };
-  }, [docked, panelSize]);
+    reclamp();
+    return subscribeWritingViewport(reclamp);
+  }, [docked, panelSize, viewKey]);
 
   const onDragStart = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     // The header carries buttons; a tap on one of those is not a drag.
@@ -755,13 +745,14 @@ const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose, docked =
     // stray Pencil tip landing outside used to throw away everything written
     // in it.)
     <div
-      className={`scribble-panel${compact ? ' is-compact' : ''}${docked ? ' is-docked' : ''}${viewportConstrained ? ' is-viewport-constrained' : ''}`}
+      className={`scribble-panel${compact ? ' is-compact' : ''}${docked ? ' is-docked' : ''}${constrained ? ' is-viewport-constrained' : ''}`}
       ref={panelRef}
       role={docked ? 'region' : 'dialog'}
       aria-label={t('scribble.panel')}
       style={{
         ...(!docked ? { left: pos?.left ?? (window.visualViewport?.offsetLeft ?? 0) + 8, top: pos?.top ?? (window.visualViewport?.offsetTop ?? 0) + 8, right: 'auto' } : {}),
         ...(!docked && size ? clampSize(size) : {}),
+        ...(!docked ? { maxHeight: Math.max(0, view.height - 16), maxWidth: Math.max(0, view.width - 16) } : {}),
         '--scribble-panel-alpha': String(panelAlpha),
         '--scribble-area-alpha': String(areaAlpha),
         ...(ink ? { '--scribble-ink': ink } : {}),

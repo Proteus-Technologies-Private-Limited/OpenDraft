@@ -42,7 +42,7 @@ class KeyboardStateTest {
     @Test fun saysNothingBeforeAndroid11WhereTheInsetsCannotTell() {
         val activity = Robolectric.buildActivity(ComponentActivity::class.java).setup().get()
         val view = WebView(activity)
-        KeyboardVisibility.attach(view)
+        KeyboardVisibility.attach(view, activity)
         assertNull(shadowOf(view).getJavascriptInterface(KeyboardVisibility.INTERFACE))
     }
 
@@ -56,7 +56,7 @@ class KeyboardStateTest {
                 return super.onApplyWindowInsets(insets)
             }
         }
-        KeyboardVisibility.attach(view)
+        KeyboardVisibility.attach(view, activity)
         val report = shadowOf(view).getJavascriptInterface(KeyboardVisibility.INTERFACE) as KeyboardVisibility
         assertFalse(report.isVisible())
         fun dispatch(imeVisible: Boolean) = ViewCompat.dispatchApplyWindowInsets(view,
@@ -70,6 +70,76 @@ class KeyboardStateTest {
         assertFalse(report.isVisible())
         // The WebView's own inset handling (safe areas) still runs.
         assertEquals(2, reachedWebView)
+    }
+
+    @Config(sdk = [35])
+    @Test fun geometryIsRelativeToEachWebViewAndRecoversAfterHideAndResize() {
+        val controller = Robolectric.buildActivity(ComponentActivity::class.java)
+        val activity = controller.get()
+        // Match the app's edge-to-edge, no-native-action-bar window. The
+        // default test Activity theme otherwise adds a 56 px content offset.
+        activity.setTheme(android.R.style.Theme_Material_Light_NoActionBar)
+        controller.setup()
+        val root = android.widget.FrameLayout(activity)
+        val view = WebView(activity)
+        root.addView(view, android.widget.FrameLayout.LayoutParams(1000, 1600).apply {
+            leftMargin = 100
+            topMargin = 200
+        })
+        activity.setContentView(root)
+        activity.window.decorView.layout(0, 0, 1200, 2000)
+        root.measure(android.view.View.MeasureSpec.makeMeasureSpec(1200, android.view.View.MeasureSpec.EXACTLY),
+            android.view.View.MeasureSpec.makeMeasureSpec(2000, android.view.View.MeasureSpec.EXACTLY))
+        root.layout(0, 0, 1200, 2000)
+        // WebView.setFrame delegates to its provider; Robolectric's provider
+        // is a stub. Set the View frame explicitly, then exercise real inset
+        // dispatch/global-layout handling. APK tests cover actual WebView layout.
+        fun frame(left: Int, top: Int, right: Int, bottom: Int) {
+            org.robolectric.util.ReflectionHelpers.setField(view, "mLeft", left)
+            org.robolectric.util.ReflectionHelpers.setField(view, "mTop", top)
+            org.robolectric.util.ReflectionHelpers.setField(view, "mRight", right)
+            org.robolectric.util.ReflectionHelpers.setField(view, "mBottom", bottom)
+        }
+        frame(100, 200, 1100, 1800)
+        KeyboardVisibility.attach(view, activity)
+        val report = shadowOf(view).getJavascriptInterface(KeyboardVisibility.INTERFACE) as KeyboardVisibility
+        fun dispatch(visible: Boolean, bottom: Int) = ViewCompat.dispatchApplyWindowInsets(view,
+            WindowInsetsCompat.Builder()
+                .setInsets(WindowInsetsCompat.Type.systemBars(), Insets.of(0, 56, 0, 0))
+                .setVisible(WindowInsetsCompat.Type.systemBars(), true)
+                .setInsets(WindowInsetsCompat.Type.ime(), Insets.of(0, 0, 0, bottom))
+                .setVisible(WindowInsetsCompat.Type.ime(), visible).build())
+        dispatch(true, 800)
+        var json = org.json.JSONObject(report.snapshot())
+        assertTrue(report.snapshot(), json.getBoolean("available"))
+        assertEquals(1600, json.getInt("height"))
+        assertEquals(1000, json.getInt("bottom")) // 2000 - 800 - WebView top 200
+        assertEquals(0, json.getInt("top")) // this WebView starts below the status bar
+        frame(0, 0, 1000, 1600)
+        view.viewTreeObserver.dispatchOnGlobalLayout()
+        assertEquals(56, org.json.JSONObject(report.snapshot()).getInt("top"))
+        // A WebView already resized above the IME must not lose that height again.
+        frame(100, 200, 1100, 1200)
+        view.viewTreeObserver.dispatchOnGlobalLayout()
+        json = org.json.JSONObject(report.snapshot())
+        assertEquals(1000, json.getInt("height"))
+        assertEquals(1000, json.getInt("bottom"))
+        dispatch(false, 800) // stale hidden inset cannot occlude the page
+        assertEquals(1000, org.json.JSONObject(report.snapshot()).getInt("bottom"))
+        val other = WebView(activity)
+        root.addView(other)
+        other.layout(0, 0, 500, 600)
+        KeyboardVisibility.attach(other, activity)
+        val second = shadowOf(other).getJavascriptInterface(KeyboardVisibility.INTERFACE) as KeyboardVisibility
+        assertFalse(second.isVisible())
+        assertFalse(org.json.JSONObject(second.snapshot()).getBoolean("available"))
+        activity.finish()
+        // Explicit lifecycle destruction removes the read-only interfaces.
+        report.onDestroy(activity)
+        assertNull(shadowOf(view).getJavascriptInterface(KeyboardVisibility.INTERFACE))
+        val before = report.snapshot()
+        view.viewTreeObserver.dispatchOnGlobalLayout()
+        assertEquals(before, report.snapshot())
     }
 
     @Test fun aDeclaredAdjustModeIsLeftAlone() {

@@ -3,6 +3,7 @@
 import importlib.util
 import json
 import os
+import re
 import tempfile
 from pathlib import Path
 import unittest
@@ -222,6 +223,9 @@ class Accessibility(unittest.TestCase):
         )
         self.press("Control+ArrowDown")
         expect(lines.locator('[aria-selected="true"]')).to_have_count(1)
+        expect(lines).to_have_attribute(
+            "aria-activedescendant", re.compile(r".+-line-1$")
+        )
         active = lines.get_attribute("aria-activedescendant")
         active_row = self.page.locator(f'[id="{active}"]')
         expect(active_row).to_have_attribute("aria-selected", "false")
@@ -249,13 +253,18 @@ class Accessibility(unittest.TestCase):
         # doesn't turn it on, so the outline must not depend on it alone.
         self.assertTrue(lines.evaluate("el=>document.activeElement===el"))
         self.assertFalse(lines.evaluate("el=>el.matches(':focus-visible')"))
-        clicked = self.page.locator(f'[id="{lines.get_attribute("aria-activedescendant")}"]')
+        clicked = self.page.locator(
+            f'[id="{lines.get_attribute("aria-activedescendant")}"]'
+        )
         self.assertEqual(
             clicked.evaluate("el=>getComputedStyle(el).outlineStyle"), "none"
         )
-        for key in ("Control+ArrowDown", "Meta+ArrowDown"):
+        for key, target in (("Control+ArrowDown", 3), ("Meta+ArrowDown", 4)):
             self.press(key)
             expect(lines.locator('[aria-selected="true"]')).to_have_count(2)
+            expect(lines).to_have_attribute(
+                "aria-activedescendant", re.compile(rf".+-line-{target}$")
+            )
             moved = self.page.locator(
                 f'[id="{lines.get_attribute("aria-activedescendant")}"]'
             )
@@ -282,6 +291,11 @@ class Accessibility(unittest.TestCase):
         self.press("Home")
         self.press("Shift+End")
         expect(dialog.locator(".pdf-review-count")).to_have_text("62 selected")
+        # Selection commits before WebKit's scroll event mounts the end rows.
+        # Wait for the real ARIA target instead of capturing a transient None.
+        expect(lines).to_have_attribute(
+            "aria-activedescendant", re.compile(r".+-line-62$")
+        )
         active = lines.get_attribute("aria-activedescendant")
         expect(self.page.locator(f'[id="{active}"]')).to_be_in_viewport()
         expect(

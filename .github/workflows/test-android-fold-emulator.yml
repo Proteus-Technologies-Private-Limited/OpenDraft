@@ -23,6 +23,7 @@ on:
       - 'frontend/src/components/FoldablePanelDock.tsx'
       - 'frontend/src/stores/editorStore.ts'
       - 'frontend/src/utils/handwriting.ts'
+      - 'frontend/src/utils/writingViewport*.ts'
       - 'frontend/src/utils/foldLayout*.ts'
       - 'frontend/src/utils/posturePreferences*.ts'
       - 'frontend/src/hooks/useFold*.ts'

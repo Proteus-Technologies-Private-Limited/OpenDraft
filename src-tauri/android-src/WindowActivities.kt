@@ -12,7 +12,9 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 
 /**
- * Whether the soft keyboard is up, for the page: `OpenDraftKeyboard.isVisible()`.
+ * Per-WebView keyboard visibility and usable bottom edge, in window pixels.
+ * `OpenDraftKeyboard.isVisible()` keeps its existing focus-restoration contract;
+ * `snapshot()` supplies immutable geometry and a payload-free change event.
  *
  * The page cannot see it. These windows are edge to edge, so on Android 15
  * the keyboard covers the WebView without resizing it, and nothing in the
@@ -31,24 +33,67 @@ import androidx.core.view.WindowInsetsCompat
  * is showing; before it the answer would be a guess. There the interface is
  * not added at all, and the page keeps its previous behaviour.
  */
-internal class KeyboardVisibility private constructor() {
+internal class KeyboardVisibility private constructor(private val webView: WebView) : androidx.lifecycle.DefaultLifecycleObserver {
     @Volatile private var visible = false
+    @Volatile private var cached = "{\"version\":1,\"available\":false}"
+    private var lastInsets: WindowInsetsCompat? = null
+    private var destroyed = false
+    private val layoutListener = android.view.ViewTreeObserver.OnGlobalLayoutListener { publish() }
 
     @JavascriptInterface
     fun isVisible(): Boolean = visible
 
+    /** Immutable window-pixel geometry. No view access on the JavaScript thread. */
+    @JavascriptInterface
+    fun snapshot(): String = cached
+
+    private fun publish() {
+        if (destroyed) return
+        val insets = lastInsets ?: return
+        val location = IntArray(2)
+        val rootLocation = IntArray(2)
+        webView.getLocationInWindow(location)
+        webView.rootView.getLocationInWindow(rootLocation)
+        val height = webView.height
+        val width = webView.width
+        val safeTop = (rootLocation[1] + insets.getInsets(
+            WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
+        ).top - location[1]).coerceIn(0, height)
+        val bottom = if (visible) {
+            (rootLocation[1] + webView.rootView.height - insets.getInsets(WindowInsetsCompat.Type.ime()).bottom - location[1]).coerceIn(0, height)
+        } else height
+        val next = org.json.JSONObject().put("version", 1).put("available", width > 0 && height > 0)
+            .put("visible", visible).put("top", safeTop).put("width", width).put("height", height).put("bottom", bottom).toString()
+        if (next == cached) return
+        cached = next
+        webView.evaluateJavascript("window.dispatchEvent(new Event('opendraft:keyboardchange'))", null)
+    }
+
+    override fun onDestroy(owner: androidx.lifecycle.LifecycleOwner) {
+        destroyed = true
+        if (webView.viewTreeObserver.isAlive) webView.viewTreeObserver.removeOnGlobalLayoutListener(layoutListener)
+        ViewCompat.setOnApplyWindowInsetsListener(webView, null)
+        webView.removeJavascriptInterface(INTERFACE)
+        owner.lifecycle.removeObserver(this)
+    }
+
     companion object {
         const val INTERFACE = "OpenDraftKeyboard"
 
-        fun attach(webView: WebView) {
+        fun attach(webView: WebView, owner: androidx.lifecycle.LifecycleOwner) {
             if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.R) return
             try {
-                val tracker = KeyboardVisibility()
+                val tracker = KeyboardVisibility(webView)
                 ViewCompat.setOnApplyWindowInsetsListener(webView) { view, insets ->
                     tracker.visible = insets.isVisible(WindowInsetsCompat.Type.ime())
+                    tracker.lastInsets = insets
+                    tracker.publish()
                     ViewCompat.onApplyWindowInsets(view, insets)
                 }
                 webView.addJavascriptInterface(tracker, INTERFACE)
+                webView.viewTreeObserver.addOnGlobalLayoutListener(tracker.layoutListener)
+                owner.lifecycle.addObserver(tracker)
+                ViewCompat.requestApplyInsets(webView)
             } catch (e: RuntimeException) {
                 // The page treats a missing interface as "unknown" and keeps its
                 // old behaviour; a window without it must still open.
@@ -110,7 +155,7 @@ open class WindowActivity : TauriActivity() {
     override fun onWebViewCreate(webView: android.webkit.WebView) {
         super.onWebViewCreate(webView)
         FoldPostureBridge.attach(this, webView)
-        KeyboardVisibility.attach(webView)
+        KeyboardVisibility.attach(webView, this)
     }
 
     /**
