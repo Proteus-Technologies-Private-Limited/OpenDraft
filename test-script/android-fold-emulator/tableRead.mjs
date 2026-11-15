@@ -87,6 +87,7 @@ export async function tableReadChecks({ client, shell, startMain, capture }) {
     throw error;
   } finally {
     if (frozen) await client.call('Page.setWebLifecycleState', { state: 'active' }).catch(() => {});
-    shell('am', 'force-stop', 'com.proteus.opendraft');
+    // The outer runner captures the live failure snapshot and logcat before
+    // stopping the app. Killing it here hides the panel's startup error.
   }
 }

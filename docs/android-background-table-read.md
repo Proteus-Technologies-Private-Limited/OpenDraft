@@ -37,6 +37,10 @@ reject stale controls, and a different window cannot control another read.
 A new read replaces the application's previous native queue.
 The command runs on Tauri's worker pool, keeping queue validation, serialization
 and JNI/JSON processing off the main thread.
+The shared JNI helper resolves `MainActivity` through the Activity's application
+class loader. Native worker threads have no Java caller frame, so JNI's default
+class lookup cannot find the app class there. The real APK scenarios exercise
+this path in both debug and R8 builds.
 
 Transient audio-focus loss pauses speech and may resume on focus gain; a
 manual pause cancels automatic resume. Permanent loss pauses until the writer

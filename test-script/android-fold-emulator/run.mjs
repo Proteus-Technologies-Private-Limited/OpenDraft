@@ -215,4 +215,5 @@ try {
   }
   if (previousRotation) try { shell('wm', 'user-rotation', ...previousRotation); } catch { /* emulator teardown */ }
   try { shell('cmd', 'device_state', 'state', 'reset'); } catch { /* emulator teardown */ }
+  try { shell('am', 'force-stop', pkg); } catch { /* emulator teardown */ }
 }

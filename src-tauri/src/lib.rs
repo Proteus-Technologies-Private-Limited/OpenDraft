@@ -1486,7 +1486,7 @@ fn ios_backup_probe(bookmark: String) -> Result<FolderProbe, String> {
 /// success — so each caller reads it in its own terms.
 #[cfg(target_os = "android")]
 fn android_static_call(method: &str, args: &[&str]) -> Result<Option<String>, String> {
-    use jni::objects::{JObject, JString, JValue};
+    use jni::objects::{JClass, JObject, JString, JValue};
     use jni::JavaVM;
 
     let ctx = android_context().ok_or(NO_ANDROID_CONTEXT)?;
@@ -1497,6 +1497,28 @@ fn android_static_call(method: &str, args: &[&str]) -> Result<Option<String>, St
         .map_err(|e| format!("Failed to attach JNI thread: {}", e))?;
     let _exc = ExceptionGuard::new(&env);
     let activity = unsafe { JObject::from_raw(ctx.context().cast()) };
+
+    // An attached Rust worker has no Java caller frame, so FindClass uses the
+    // boot class loader and cannot see application classes. Resolve the shared
+    // helper through the Activity's loader instead; do not move queue work back
+    // onto the UI thread just to make class lookup succeed.
+    let loader = env
+        .call_method(&activity, "getClassLoader", "()Ljava/lang/ClassLoader;", &[])
+        .and_then(|value| value.l())
+        .map_err(|e| format!("JNI activity class loader: {}", e))?;
+    let name = env
+        .new_string("com.proteus.opendraft.MainActivity")
+        .map_err(|e| format!("JNI helper class name: {}", e))?;
+    let helper = env
+        .call_method(
+            &loader,
+            "loadClass",
+            "(Ljava/lang/String;)Ljava/lang/Class;",
+            &[JValue::Object(&name)],
+        )
+        .and_then(|value| value.l())
+        .map_err(|e| format!("JNI helper class: {}", e))?;
+    let helper = JClass::from(helper);
 
     // Built up front: JValue borrows each string, so they have to outlive the
     // argument list.
@@ -1518,7 +1540,7 @@ fn android_static_call(method: &str, args: &[&str]) -> Result<Option<String>, St
         "Ljava/lang/String;".repeat(args.len())
     );
     let call = env.call_static_method(
-        "com/proteus/opendraft/MainActivity",
+        &helper,
         method,
         &signature,
         &values,
