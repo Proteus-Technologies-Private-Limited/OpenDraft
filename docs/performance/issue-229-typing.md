@@ -24,10 +24,14 @@ not close #229 or claim a fix for Fedora/Wayland/WebKitGTK.
   Main-thread totals include the 1.5-second trailing observation window.
   Comparison runs have CPU sampling off; a separate main run records a profile.
 
-The old `pagesGuess` selector reported zero. The corrected harness counts the
-rendered page separators: size parameters 16 and 182 produce **15 and 150 pages**
-on both builds. Passing 150 as the old argument produces only 124 rendered
-pages here; the parameter must not be presented as a measured page count.
+The old `pagesGuess` selector reported zero. The replacement counter used for
+these historical runs also counted the terminal footer as a page break. The
+native scrolling investigation caught that on 15 November: counting only
+`.page-sep-gap` gives **14 and 149 pages** for size parameters 16 and 182, rather
+than the 15 and 150 reported below in the unchanged raw JSON. Size 150 similarly
+gives 123 rather than 124 pages. The harness now counts gaps; the timing samples
+and fixture sizes from the original comparison are retained, not rerun or relabelled
+in the raw evidence. A fixture's size parameter is not a measured page count.
 
 ## Results
 
@@ -37,17 +41,17 @@ not pooled percentiles. Raw phase timings and counters are in
 
 | Build | Rendered pages | Typing median | Typing p90 | Backspace median | Backspace p90 |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| v2.12.0 | 15 | 9.3–9.8 | 13.1–14.2 | 14.9–15.0 | 20.0–23.7 |
-| main | 15 | 7.4–8.6 | 12.9–15.3 | 11.7–13.2 | 17.9–20.1 |
-| v2.12.0 | 150 | 45.2–49.6 | 69.9–79.0 | 47.6–48.5 | 55.7–58.1 |
-| main | 150 | 28.9–30.0 | 41.7–43.8 | 28.7–30.6 | 35.0–37.5 |
+| v2.12.0 | 14 | 9.3–9.8 | 13.1–14.2 | 14.9–15.0 | 20.0–23.7 |
+| main | 14 | 7.4–8.6 | 12.9–15.3 | 11.7–13.2 | 17.9–20.1 |
+| v2.12.0 | 149 | 45.2–49.6 | 69.9–79.0 | 47.6–48.5 | 55.7–58.1 |
+| main | 149 | 28.9–30.0 | 41.7–43.8 | 28.7–30.6 | 35.0–37.5 |
 
-On the 150-page workload, the average of the two run medians drops from
+On the 149-page workload, the average of the two run medians drops from
 47.40 to 29.45 ms for typing and from 48.05 to 29.65 ms for Backspace: about 38%.
 This is evidence that the already-merged work improves this Chromium workload,
 not a statistically established speedup across devices. Main also contains changes beyond #249, so this comparison does not isolate
-any individual commit. The 150-page document still costs more than the
-15-page one.
+any individual commit. The 149-page document still costs more than the
+14-page one.
 
 ## What the current-main profile shows
 

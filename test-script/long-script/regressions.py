@@ -35,7 +35,7 @@ class LongScript(unittest.TestCase):
         self.page.evaluate(
             """async config => {
             const {screenplay}=await import('/src/test/fixtures/longScreenplay.mjs');
-            testEditor.commands.setContent(screenplay(182));
+            testEditor.commands.setContent(screenplay(182), true);
             const state=testStore.getState();
             if(state.navigatorOpen!==config.navigator) state.toggleNavigator();
             state.setSpellCheckEnabled(config.spellcheck);
@@ -47,6 +47,7 @@ class LongScript(unittest.TestCase):
         expect(self.page.locator(".page-sep")).not_to_have_count(0)
         if navigator:
             expect(self.page.locator(".scene-navigator")).to_be_visible()
+            expect(self.page.locator(".scene-count")).to_have_text("114")
         if spellcheck:
             expect(self.page.locator(".spell-error").first).to_be_visible()
         else:

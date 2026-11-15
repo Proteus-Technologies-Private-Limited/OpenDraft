@@ -1,0 +1,727 @@
+[
+  {
+    "run": "verified-default",
+    "groups": [
+      {
+        "navigator": false,
+        "spellcheck": false,
+        "shadow": "default",
+        "direction": "down",
+        "phases": 3,
+        "p95FrameMsRange": [
+          24,
+          40
+        ],
+        "webCpuMsMedian": 3870
+      },
+      {
+        "navigator": false,
+        "spellcheck": false,
+        "shadow": "default",
+        "direction": "up",
+        "phases": 3,
+        "p95FrameMsRange": [
+          24,
+          36
+        ],
+        "webCpuMsMedian": 4020
+      },
+      {
+        "navigator": true,
+        "spellcheck": false,
+        "shadow": "default",
+        "direction": "down",
+        "phases": 3,
+        "p95FrameMsRange": [
+          29,
+          35
+        ],
+        "webCpuMsMedian": 4130
+      },
+      {
+        "navigator": true,
+        "spellcheck": false,
+        "shadow": "default",
+        "direction": "up",
+        "phases": 3,
+        "p95FrameMsRange": [
+          31,
+          39
+        ],
+        "webCpuMsMedian": 4100
+      },
+      {
+        "navigator": false,
+        "spellcheck": true,
+        "shadow": "default",
+        "direction": "down",
+        "phases": 3,
+        "p95FrameMsRange": [
+          23,
+          35
+        ],
+        "webCpuMsMedian": 3820
+      },
+      {
+        "navigator": false,
+        "spellcheck": true,
+        "shadow": "default",
+        "direction": "up",
+        "phases": 3,
+        "p95FrameMsRange": [
+          29,
+          37
+        ],
+        "webCpuMsMedian": 4010
+      },
+      {
+        "navigator": true,
+        "spellcheck": true,
+        "shadow": "default",
+        "direction": "down",
+        "phases": 3,
+        "p95FrameMsRange": [
+          33,
+          37
+        ],
+        "webCpuMsMedian": 4230
+      },
+      {
+        "navigator": true,
+        "spellcheck": true,
+        "shadow": "default",
+        "direction": "up",
+        "phases": 3,
+        "p95FrameMsRange": [
+          28,
+          39
+        ],
+        "webCpuMsMedian": 4170
+      }
+    ],
+    "traces": [
+      {
+        "file": "trace-24-down.json",
+        "sha256": "65ba6bd2f1b4cca80cec675be47c544369421a4d61781eb8567a5be46a4f0c76",
+        "byType": {
+          "RenderingFrame": {
+            "count": 372,
+            "inclusiveMs": 3924.62,
+            "maxMs": 57.11
+          },
+          "FireAnimationFrame": {
+            "count": 243,
+            "inclusiveMs": 13.07,
+            "maxMs": 0.38
+          },
+          "FunctionCall": {
+            "count": 2060,
+            "inclusiveMs": 361.31,
+            "maxMs": 31.35
+          },
+          "EventDispatch": {
+            "count": 2149,
+            "inclusiveMs": 349.81,
+            "maxMs": 33.06
+          },
+          "Paint": {
+            "count": 203,
+            "inclusiveMs": 3251.04,
+            "maxMs": 54.8
+          },
+          "RecalculateStyles": {
+            "count": 10,
+            "inclusiveMs": 0.53,
+            "maxMs": 0.08
+          },
+          "Layout": {
+            "count": 10,
+            "inclusiveMs": 10.77,
+            "maxMs": 1.27
+          },
+          "TimerFire": {
+            "count": 1,
+            "inclusiveMs": 15.11,
+            "maxMs": 15.11
+          }
+        },
+        "scriptSamples": 254
+      },
+      {
+        "file": "trace-25-up.json",
+        "sha256": "c4cfdc5cf999ba799718444849b9db7c4dc1300a2fe353becec38618f21b71cd",
+        "byType": {
+          "RenderingFrame": {
+            "count": 388,
+            "inclusiveMs": 3847.03,
+            "maxMs": 44.97
+          },
+          "FireAnimationFrame": {
+            "count": 254,
+            "inclusiveMs": 12.93,
+            "maxMs": 0.61
+          },
+          "FunctionCall": {
+            "count": 2150,
+            "inclusiveMs": 340.47,
+            "maxMs": 27.51
+          },
+          "EventDispatch": {
+            "count": 2245,
+            "inclusiveMs": 346.29,
+            "maxMs": 29.39
+          },
+          "Paint": {
+            "count": 219,
+            "inclusiveMs": 3188.5,
+            "maxMs": 39.51
+          },
+          "RecalculateStyles": {
+            "count": 10,
+            "inclusiveMs": 0.63,
+            "maxMs": 0.11
+          },
+          "Layout": {
+            "count": 10,
+            "inclusiveMs": 10.78,
+            "maxMs": 1.37
+          }
+        },
+        "scriptSamples": 230
+      }
+    ]
+  },
+  {
+    "run": "verified-default-shadow",
+    "groups": [
+      {
+        "navigator": true,
+        "spellcheck": true,
+        "shadow": "default",
+        "direction": "down",
+        "phases": 3,
+        "p95FrameMsRange": [
+          25,
+          32
+        ],
+        "webCpuMsMedian": 4170
+      },
+      {
+        "navigator": true,
+        "spellcheck": true,
+        "shadow": "default",
+        "direction": "up",
+        "phases": 3,
+        "p95FrameMsRange": [
+          34,
+          40
+        ],
+        "webCpuMsMedian": 4190
+      },
+      {
+        "navigator": true,
+        "spellcheck": true,
+        "shadow": "outline",
+        "direction": "down",
+        "phases": 3,
+        "p95FrameMsRange": [
+          18,
+          31
+        ],
+        "webCpuMsMedian": 3350
+      },
+      {
+        "navigator": true,
+        "spellcheck": true,
+        "shadow": "outline",
+        "direction": "up",
+        "phases": 3,
+        "p95FrameMsRange": [
+          20,
+          26
+        ],
+        "webCpuMsMedian": 3450
+      },
+      {
+        "navigator": true,
+        "spellcheck": true,
+        "shadow": "off",
+        "direction": "down",
+        "phases": 3,
+        "p95FrameMsRange": [
+          22,
+          27
+        ],
+        "webCpuMsMedian": 3390
+      },
+      {
+        "navigator": true,
+        "spellcheck": true,
+        "shadow": "off",
+        "direction": "up",
+        "phases": 3,
+        "p95FrameMsRange": [
+          22,
+          30
+        ],
+        "webCpuMsMedian": 3400
+      }
+    ],
+    "traces": [
+      {
+        "file": "trace-18-down.json",
+        "sha256": "276b0b51ac3e4b866a764c91b2f76bf636a1c1f72804e01487bc67e4802556fb",
+        "byType": {
+          "RenderingFrame": {
+            "count": 368,
+            "inclusiveMs": 3859.31,
+            "maxMs": 62.62
+          },
+          "FireAnimationFrame": {
+            "count": 242,
+            "inclusiveMs": 12.95,
+            "maxMs": 0.74
+          },
+          "FunctionCall": {
+            "count": 2038,
+            "inclusiveMs": 361.49,
+            "maxMs": 35.24
+          },
+          "EventDispatch": {
+            "count": 2132,
+            "inclusiveMs": 367.73,
+            "maxMs": 36.96
+          },
+          "Paint": {
+            "count": 206,
+            "inclusiveMs": 3172.98,
+            "maxMs": 61.5
+          },
+          "RecalculateStyles": {
+            "count": 10,
+            "inclusiveMs": 0.59,
+            "maxMs": 0.08
+          },
+          "Layout": {
+            "count": 10,
+            "inclusiveMs": 13.41,
+            "maxMs": 1.85
+          }
+        },
+        "scriptSamples": 247
+      },
+      {
+        "file": "trace-19-up.json",
+        "sha256": "9bff46f2fe227c42b0f0f3c4f3d7e230e765d0c56b2d77a4fad9d973efbebf7e",
+        "byType": {
+          "RenderingFrame": {
+            "count": 378,
+            "inclusiveMs": 3904.06,
+            "maxMs": 60.89
+          },
+          "FireAnimationFrame": {
+            "count": 245,
+            "inclusiveMs": 12.22,
+            "maxMs": 0.26
+          },
+          "FunctionCall": {
+            "count": 2149,
+            "inclusiveMs": 348.62,
+            "maxMs": 30.35
+          },
+          "EventDispatch": {
+            "count": 2251,
+            "inclusiveMs": 356.29,
+            "maxMs": 32.55
+          },
+          "Paint": {
+            "count": 217,
+            "inclusiveMs": 3204.71,
+            "maxMs": 28.68
+          },
+          "RecalculateStyles": {
+            "count": 10,
+            "inclusiveMs": 0.68,
+            "maxMs": 0.13
+          },
+          "Layout": {
+            "count": 10,
+            "inclusiveMs": 12.12,
+            "maxMs": 1.37
+          }
+        },
+        "scriptSamples": 236
+      },
+      {
+        "file": "trace-20-down.json",
+        "sha256": "b5db1daa4888ebde5b06c628971e3a8dcfe3c81b2263d26b69bdc1edf07e4677",
+        "byType": {
+          "RenderingFrame": {
+            "count": 400,
+            "inclusiveMs": 3302.19,
+            "maxMs": 85.65
+          },
+          "FireAnimationFrame": {
+            "count": 268,
+            "inclusiveMs": 14.08,
+            "maxMs": 0.85
+          },
+          "FunctionCall": {
+            "count": 2216,
+            "inclusiveMs": 350.56,
+            "maxMs": 32.78
+          },
+          "Paint": {
+            "count": 237,
+            "inclusiveMs": 2594.26,
+            "maxMs": 82.47
+          },
+          "EventDispatch": {
+            "count": 2314,
+            "inclusiveMs": 355.03,
+            "maxMs": 34.68
+          },
+          "RecalculateStyles": {
+            "count": 10,
+            "inclusiveMs": 0.48,
+            "maxMs": 0.06
+          },
+          "Layout": {
+            "count": 10,
+            "inclusiveMs": 12.21,
+            "maxMs": 1.47
+          }
+        },
+        "scriptSamples": 238
+      },
+      {
+        "file": "trace-21-up.json",
+        "sha256": "e248d7187a00623700e29784dedacf207877a4c1f06da42edf8e4d4e21890c25",
+        "byType": {
+          "RenderingFrame": {
+            "count": 402,
+            "inclusiveMs": 3216.63,
+            "maxMs": 75.04
+          },
+          "FireAnimationFrame": {
+            "count": 269,
+            "inclusiveMs": 15.9,
+            "maxMs": 1.72
+          },
+          "FunctionCall": {
+            "count": 2206,
+            "inclusiveMs": 349.08,
+            "maxMs": 32.71
+          },
+          "EventDispatch": {
+            "count": 2299,
+            "inclusiveMs": 342.89,
+            "maxMs": 34.64
+          },
+          "Paint": {
+            "count": 233,
+            "inclusiveMs": 2505.39,
+            "maxMs": 69.52
+          },
+          "RecalculateStyles": {
+            "count": 10,
+            "inclusiveMs": 0.51,
+            "maxMs": 0.06
+          },
+          "Layout": {
+            "count": 10,
+            "inclusiveMs": 11.37,
+            "maxMs": 1.26
+          },
+          "TimerFire": {
+            "count": 1,
+            "inclusiveMs": 7.64,
+            "maxMs": 7.64
+          }
+        },
+        "scriptSamples": 242
+      },
+      {
+        "file": "trace-22-down.json",
+        "sha256": "a363a6873aef4ef534fd3bf8209a80a5355bafc991f97970409f2e71ba7d12f0",
+        "byType": {
+          "RenderingFrame": {
+            "count": 371,
+            "inclusiveMs": 3597.34,
+            "maxMs": 117.72
+          },
+          "FireAnimationFrame": {
+            "count": 242,
+            "inclusiveMs": 14.9,
+            "maxMs": 1.32
+          },
+          "FunctionCall": {
+            "count": 2070,
+            "inclusiveMs": 402.87,
+            "maxMs": 52.73
+          },
+          "Paint": {
+            "count": 211,
+            "inclusiveMs": 2870.43,
+            "maxMs": 116.4
+          },
+          "EventDispatch": {
+            "count": 2168,
+            "inclusiveMs": 405.09,
+            "maxMs": 55.51
+          },
+          "RecalculateStyles": {
+            "count": 10,
+            "inclusiveMs": 0.6,
+            "maxMs": 0.1
+          },
+          "Layout": {
+            "count": 10,
+            "inclusiveMs": 12.29,
+            "maxMs": 1.66
+          }
+        },
+        "scriptSamples": 275
+      },
+      {
+        "file": "trace-23-up.json",
+        "sha256": "aa2fd478a941cba94428dc14969477b103c5069410f12bee498e24755ec04a2a",
+        "byType": {
+          "RenderingFrame": {
+            "count": 401,
+            "inclusiveMs": 3279.95,
+            "maxMs": 135.69
+          },
+          "FireAnimationFrame": {
+            "count": 266,
+            "inclusiveMs": 18.02,
+            "maxMs": 3.91
+          },
+          "FunctionCall": {
+            "count": 2235,
+            "inclusiveMs": 443.64,
+            "maxMs": 119.18
+          },
+          "EventDispatch": {
+            "count": 2331,
+            "inclusiveMs": 438.73,
+            "maxMs": 122.9
+          },
+          "Paint": {
+            "count": 233,
+            "inclusiveMs": 2482.31,
+            "maxMs": 97.81
+          },
+          "RecalculateStyles": {
+            "count": 10,
+            "inclusiveMs": 0.89,
+            "maxMs": 0.31
+          },
+          "Layout": {
+            "count": 10,
+            "inclusiveMs": 13.47,
+            "maxMs": 2.54
+          },
+          "TimerFire": {
+            "count": 1,
+            "inclusiveMs": 6.46,
+            "maxMs": 6.46
+          }
+        },
+        "scriptSamples": 296
+      }
+    ]
+  },
+  {
+    "run": "verified-no-compositing",
+    "groups": [
+      {
+        "navigator": false,
+        "spellcheck": false,
+        "shadow": "default",
+        "direction": "down",
+        "phases": 3,
+        "p95FrameMsRange": [
+          26,
+          37
+        ],
+        "webCpuMsMedian": 4090
+      },
+      {
+        "navigator": false,
+        "spellcheck": false,
+        "shadow": "default",
+        "direction": "up",
+        "phases": 3,
+        "p95FrameMsRange": [
+          26,
+          30
+        ],
+        "webCpuMsMedian": 3920
+      },
+      {
+        "navigator": true,
+        "spellcheck": false,
+        "shadow": "default",
+        "direction": "down",
+        "phases": 3,
+        "p95FrameMsRange": [
+          28,
+          38
+        ],
+        "webCpuMsMedian": 4120
+      },
+      {
+        "navigator": true,
+        "spellcheck": false,
+        "shadow": "default",
+        "direction": "up",
+        "phases": 3,
+        "p95FrameMsRange": [
+          26,
+          39
+        ],
+        "webCpuMsMedian": 4130
+      },
+      {
+        "navigator": false,
+        "spellcheck": true,
+        "shadow": "default",
+        "direction": "down",
+        "phases": 3,
+        "p95FrameMsRange": [
+          27,
+          37
+        ],
+        "webCpuMsMedian": 3960
+      },
+      {
+        "navigator": false,
+        "spellcheck": true,
+        "shadow": "default",
+        "direction": "up",
+        "phases": 3,
+        "p95FrameMsRange": [
+          23,
+          36
+        ],
+        "webCpuMsMedian": 3930
+      },
+      {
+        "navigator": true,
+        "spellcheck": true,
+        "shadow": "default",
+        "direction": "down",
+        "phases": 3,
+        "p95FrameMsRange": [
+          25,
+          27
+        ],
+        "webCpuMsMedian": 4110
+      },
+      {
+        "navigator": true,
+        "spellcheck": true,
+        "shadow": "default",
+        "direction": "up",
+        "phases": 3,
+        "p95FrameMsRange": [
+          25,
+          41
+        ],
+        "webCpuMsMedian": 4190
+      }
+    ],
+    "traces": [
+      {
+        "file": "trace-24-down.json",
+        "sha256": "2694f5bd96546fe4b027169ba7ba39a30ea24a56b4f4133330019e811d69bde6",
+        "byType": {
+          "RenderingFrame": {
+            "count": 368,
+            "inclusiveMs": 3913.91,
+            "maxMs": 55.87
+          },
+          "FireAnimationFrame": {
+            "count": 237,
+            "inclusiveMs": 14.56,
+            "maxMs": 0.84
+          },
+          "FunctionCall": {
+            "count": 2046,
+            "inclusiveMs": 396.71,
+            "maxMs": 38.32
+          },
+          "EventDispatch": {
+            "count": 2139,
+            "inclusiveMs": 395.25,
+            "maxMs": 40.65
+          },
+          "Paint": {
+            "count": 201,
+            "inclusiveMs": 3173.89,
+            "maxMs": 30.24
+          },
+          "RecalculateStyles": {
+            "count": 10,
+            "inclusiveMs": 0.52,
+            "maxMs": 0.06
+          },
+          "Layout": {
+            "count": 10,
+            "inclusiveMs": 12.18,
+            "maxMs": 1.29
+          },
+          "TimerFire": {
+            "count": 1,
+            "inclusiveMs": 9.24,
+            "maxMs": 9.24
+          }
+        },
+        "scriptSamples": 263
+      },
+      {
+        "file": "trace-25-up.json",
+        "sha256": "e43005b9d83f4eb83c41c1890700943510f3c0f7e226899f431543317e6d7c41",
+        "byType": {
+          "RenderingFrame": {
+            "count": 379,
+            "inclusiveMs": 3922.78,
+            "maxMs": 81.29
+          },
+          "FireAnimationFrame": {
+            "count": 250,
+            "inclusiveMs": 13.48,
+            "maxMs": 0.25
+          },
+          "FunctionCall": {
+            "count": 2094,
+            "inclusiveMs": 352.69,
+            "maxMs": 31.01
+          },
+          "EventDispatch": {
+            "count": 2188,
+            "inclusiveMs": 356.13,
+            "maxMs": 32.94
+          },
+          "Paint": {
+            "count": 214,
+            "inclusiveMs": 3255.45,
+            "maxMs": 80.11
+          },
+          "RecalculateStyles": {
+            "count": 10,
+            "inclusiveMs": 0.55,
+            "maxMs": 0.08
+          },
+          "Layout": {
+            "count": 10,
+            "inclusiveMs": 11.21,
+            "maxMs": 1.45
+          }
+        },
+        "scriptSamples": 241
+      }
+    ]
+  }
+]

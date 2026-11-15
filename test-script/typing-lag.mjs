@@ -75,7 +75,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
       let target = null, idx = 0; const mid = Math.floor(d.childCount / 2);
       d.forEach((node, offset) => { if (!target && idx >= mid && node.type.name === 'dialogue') target = offset + node.nodeSize - 1; idx++; });
       editor.chain().focus().setTextSelection(target).scrollIntoView().run();
-      const renderedPages = document.querySelectorAll('.page-sep').length + 1;
+      const renderedPages = document.querySelectorAll('.page-sep-gap').length + 1;
       return { target, renderedPages };
     });
     await sleep(1500);

@@ -1,0 +1,23 @@
+name: Native scroll harness checks
+
+on:
+  pull_request:
+    paths:
+      - 'test-script/native-scroll/**'
+      - '.github/workflows/test-native-scroll.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  harness:
+    name: Inspector transport and frame sampler
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test test-script/native-scroll/*.test.mjs
+      - run: bash -n test-script/native-scroll/launch.sh
