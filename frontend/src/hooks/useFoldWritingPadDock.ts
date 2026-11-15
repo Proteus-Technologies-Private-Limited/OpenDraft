@@ -14,5 +14,7 @@ export function useFoldWritingPadDock(enabled: boolean, lowerTop: number | null)
     const bottom = view.top + view.height;
     return lowerTop === null || bottom - lowerTop >= 240;
   }, [enabled, lowerTop]);
-  return useSyncExternalStore(subscribeWritingViewport, snapshot, () => true);
+  const subscribe = useCallback((notify: () => void) => enabled
+    ? subscribeWritingViewport(notify) : () => {}, [enabled]);
+  return useSyncExternalStore(subscribe, snapshot, () => true);
 }

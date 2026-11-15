@@ -149,4 +149,36 @@ class KeyboardStateTest {
         assertEquals(LayoutParams.SOFT_INPUT_ADJUST_PAN, mode(activity) and LayoutParams.SOFT_INPUT_MASK_ADJUST)
         assertEquals(LayoutParams.SOFT_INPUT_STATE_UNCHANGED, mode(activity) and LayoutParams.SOFT_INPUT_MASK_STATE)
     }
+
+    @Config(sdk = [35])
+    @Test fun aTearingDownWebViewCannotBreakInsetDispatchOrTheCachedReport() {
+        val controller = Robolectric.buildActivity(ComponentActivity::class.java).setup()
+        val activity = controller.get()
+        var attempts = 0
+        val view = object : WebView(activity) {
+            override fun evaluateJavascript(script: String, resultCallback: android.webkit.ValueCallback<String>?) {
+                attempts++
+                throw IllegalStateException("WebView is being destroyed")
+            }
+        }
+        KeyboardVisibility.attach(view, activity)
+        val report = shadowOf(view).getJavascriptInterface(KeyboardVisibility.INTERFACE) as KeyboardVisibility
+        fun dispatch(visible: Boolean) = ViewCompat.dispatchApplyWindowInsets(view,
+            WindowInsetsCompat.Builder()
+                .setInsets(WindowInsetsCompat.Type.ime(), Insets.of(0, 0, 0, 800))
+                .setVisible(WindowInsetsCompat.Type.ime(), visible).build())
+        dispatch(true)
+        assertTrue(report.isVisible())
+        assertTrue(org.json.JSONObject(report.snapshot()).getBoolean("visible"))
+        dispatch(false)
+        assertFalse(report.isVisible())
+        assertTrue(attempts >= 2)
+        report.onDestroy(activity)
+        val cached = report.snapshot()
+        val before = attempts
+        view.viewTreeObserver.dispatchOnGlobalLayout()
+        assertEquals(cached, report.snapshot())
+        assertEquals(before, attempts)
+        controller.pause().stop().destroy()
+    }
 }

@@ -406,6 +406,69 @@ class WritingPad(unittest.TestCase):
             prefs,
         )
 
+    def test_safe_top_without_keyboard_uses_normal_styles_and_drag_reads_the_cache(
+        self,
+    ) -> None:
+        self.posture(1000, 1000, None)
+        self.page.evaluate("""() => {
+            localStorage.setItem('opendraft:handwritingPos', JSON.stringify({left:40,top:0}));
+            window.keyboardReads=0;
+            window.keyboardReport={version:1,available:true,visible:false,width:1000,height:1000,bottom:1000,top:70};
+            window.OpenDraftKeyboard={isVisible:()=>keyboardReport.visible,snapshot:()=>{
+                keyboardReads++;return JSON.stringify(keyboardReport);
+            }};
+            window.dispatchEvent(new Event('opendraft:keyboardchange'));
+        }""")
+        self.request()
+        pad = self.page.locator(".scribble-panel")
+        expect(pad).not_to_have_class(re.compile(r"is-viewport-constrained"))
+        self.page.wait_for_function(
+            "document.querySelector('.scribble-panel').getBoundingClientRect().top>=78"
+        )
+        field = self.field()
+        field.fill("A draft kept while dragging above the safe edge")
+        field.evaluate("el=>{el.focus();el.setSelectionRange(2,8)}")
+        self.page.wait_for_timeout(300)
+        reads = self.page.evaluate("keyboardReads")
+        header = self.page.locator(".scribble-header").bounding_box()
+        self.page.mouse.move(header["x"] + 15, header["y"] + 10)
+        self.page.mouse.down()
+        self.page.mouse.move(header["x"] + 115, header["y"] + 110, steps=20)
+        self.page.mouse.up()
+        self.page.wait_for_function(
+            "document.querySelector('.scribble-panel').getBoundingClientRect().left>120 && document.querySelector('.scribble-panel').getBoundingClientRect().top>150"
+        )
+        self.assertEqual(self.page.evaluate("keyboardReads"), reads)
+        self.assertEqual(
+            field.evaluate("el=>[el.selectionStart,el.selectionEnd]"), [2, 8]
+        )
+        prefs = self.page.evaluate(
+            "[localStorage.getItem('opendraft:handwritingPos'),localStorage.getItem('opendraft:handwritingSize')]"
+        )
+        self.page.evaluate(
+            "keyboardReport.visible=true;keyboardReport.bottom=450;window.dispatchEvent(new Event('opendraft:keyboardchange'))"
+        )
+        expect(pad).to_have_class(re.compile(r"is-viewport-constrained"))
+        self.assertEqual(self.page.evaluate("keyboardReads"), reads + 1)
+        self.page.evaluate(
+            "keyboardReport.visible=false;window.dispatchEvent(new Event('opendraft:keyboardchange'))"
+        )
+        expect(pad).not_to_have_class(re.compile(r"is-viewport-constrained"))
+        self.assertEqual(self.page.evaluate("keyboardReads"), reads + 2)
+        expect(field).to_have_value("A draft kept while dragging above the safe edge")
+        self.assertEqual(
+            self.page.evaluate(
+                "[localStorage.getItem('opendraft:handwritingPos'),localStorage.getItem('opendraft:handwritingSize')]"
+            ),
+            prefs,
+        )
+        shots = os.environ.get("OPENDRAFT_SCREENSHOTS")
+        if shots:
+            os.makedirs(shots, exist_ok=True)
+            self.page.screenshot(
+                path=os.path.join(shots, "safe-top-keyboard-hidden.png")
+            )
+
     def test_very_short_tabletop_slot_uses_floating_pad(self) -> None:
         self.posture(390, 450, "horizontal", "folded")
         self.request()
