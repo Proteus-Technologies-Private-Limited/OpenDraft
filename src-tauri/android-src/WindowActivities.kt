@@ -66,7 +66,9 @@ internal class KeyboardVisibility private constructor(private val webView: WebVi
             .put("visible", visible).put("top", safeTop).put("width", width).put("height", height).put("bottom", bottom).toString()
         if (next == cached) return
         cached = next
-        webView.evaluateJavascript("window.dispatchEvent(new Event('opendraft:keyboardchange'))", null)
+        try {
+            webView.evaluateJavascript("window.dispatchEvent(new Event('opendraft:keyboardchange'))", null)
+        } catch (_: IllegalStateException) { /* WebView teardown; a later page reads the cached report. */ }
     }
 
     override fun onDestroy(owner: androidx.lifecycle.LifecycleOwner) {

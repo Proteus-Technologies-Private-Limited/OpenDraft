@@ -174,6 +174,7 @@ function savePosition(pos: PanelPos): void {
 
 /** The visible area, which the software keyboard shrinks from the bottom. */
 const viewportSize = writingViewport;
+const serverViewport = { left: 0, top: 0, width: 0, height: 0, keyboard: false };
 
 /** How many blocks of script to show either side of the insertion point. */
 const CONTEXT_BLOCKS = 3;
@@ -355,9 +356,8 @@ const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose, docked =
   // Free-floating and dragged by its header, because what it must not cover is
   // the part of the script the writer is working on, and only they know which
   // part that is.
-  const viewKey = useSyncExternalStore(subscribeWritingViewport, () => JSON.stringify(viewportSize()), () => '{}');
-  const view = viewportSize();
-  const constrained = viewportConstrained || view.keyboard || view.top > (window.visualViewport?.offsetTop ?? 0);
+  const view = useSyncExternalStore(subscribeWritingViewport, viewportSize, () => serverViewport);
+  const constrained = viewportConstrained || view.keyboard;
   const [pos, setPos] = useState<PanelPos | null>(null);
   const dragRef = useRef<{ dx: number; dy: number } | null>(null);
   const wasDockedRef = useRef(docked);
@@ -469,8 +469,7 @@ const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose, docked =
       setPos((prev) => (prev ? clampPanelPosition(prev, panelSize(), viewportSize()) : prev));
     };
     reclamp();
-    return subscribeWritingViewport(reclamp);
-  }, [docked, panelSize, viewKey]);
+  }, [docked, panelSize, view]);
 
   const onDragStart = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     // The header carries buttons; a tap on one of those is not a drag.
