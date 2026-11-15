@@ -357,7 +357,7 @@ const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose, docked =
   // part that is.
   const viewKey = useSyncExternalStore(subscribeWritingViewport, () => JSON.stringify(viewportSize()), () => '{}');
   const view = viewportSize();
-  const constrained = viewportConstrained || view.keyboard;
+  const constrained = viewportConstrained || view.keyboard || view.top > (window.visualViewport?.offsetTop ?? 0);
   const [pos, setPos] = useState<PanelPos | null>(null);
   const dragRef = useRef<{ dx: number; dy: number } | null>(null);
   const wasDockedRef = useRef(docked);
@@ -752,7 +752,7 @@ const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose, docked =
       style={{
         ...(!docked ? { left: pos?.left ?? (window.visualViewport?.offsetLeft ?? 0) + 8, top: pos?.top ?? (window.visualViewport?.offsetTop ?? 0) + 8, right: 'auto' } : {}),
         ...(!docked && size ? clampSize(size) : {}),
-        ...(!docked && view.keyboard ? { maxHeight: Math.max(0, view.height - 16), maxWidth: Math.max(0, view.width - 16) } : {}),
+        ...(!docked ? { maxHeight: Math.max(0, view.height - 16), maxWidth: Math.max(0, view.width - 16) } : {}),
         '--scribble-panel-alpha': String(panelAlpha),
         '--scribble-area-alpha': String(areaAlpha),
         ...(ink ? { '--scribble-ink': ink } : {}),

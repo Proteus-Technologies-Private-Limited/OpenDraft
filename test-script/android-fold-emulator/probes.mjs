@@ -143,7 +143,8 @@ export function keyboardPlacement() {
   if (!report?.available || !report.visible || report.bottom >= report.height || !pad) return false;
   const r = pad.getBoundingClientRect();
   const bottom = report.bottom * innerHeight / report.height;
-  if (r.height <= 0 || r.top < 0 || r.bottom > bottom + 1 || pad.classList.contains('is-docked')) return false;
+  const safeTop = (report.top ?? 0) * innerHeight / report.height;
+  if (r.height <= 0 || r.top < safeTop - 1 || r.bottom > bottom + 1 || pad.classList.contains('is-docked')) return false;
   return { report, pad: { top: r.top, bottom: r.bottom, height: r.height }, viewportHeight: innerHeight, usableBottom: bottom };
 }
 
@@ -159,9 +160,10 @@ export function keyboardControlPoint(control) {
   const fold = JSON.parse(window.OpenDraftAndroidFold.snapshot()).webView;
   const bottom = report.visible ? report.bottom * innerHeight / report.height : innerHeight;
   const x = r.left + r.width / 2, y = r.top + r.height / 2;
-  if (r.width <= 0 || r.height <= 0 || r.top < 0 || r.bottom > bottom + 1 || r.left < 0 || r.right > innerWidth
+  const safeTop = (report.top ?? 0) * innerHeight / report.height;
+  if (r.width <= 0 || r.height <= 0 || r.top < safeTop - 1 || r.bottom > bottom + 1 || r.left < 0 || r.right > innerWidth
     || !el.contains(document.elementFromPoint(x, y))) return false;
   return { x: Math.round(fold.left + x * fold.width / innerWidth),
-    y: Math.round(fold.top + y * fold.height / innerHeight), control, bottom, rectBottom: r.bottom, scrollY: window.scrollY, visualTop: visualViewport?.offsetTop ?? 0,
+    y: Math.round(fold.top + y * fold.height / innerHeight), control, bottom, safeTop, rectBottom: r.bottom, scrollY: window.scrollY, visualTop: visualViewport?.offsetTop ?? 0,
     imeVisible: report.visible, padScroll: el.closest('.scribble-panel').scrollTop };
 }

@@ -56,11 +56,14 @@ internal class KeyboardVisibility private constructor(private val webView: WebVi
         webView.rootView.getLocationInWindow(rootLocation)
         val height = webView.height
         val width = webView.width
+        val safeTop = (rootLocation[1] + insets.getInsets(
+            WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
+        ).top - location[1]).coerceIn(0, height)
         val bottom = if (visible) {
             (rootLocation[1] + webView.rootView.height - insets.getInsets(WindowInsetsCompat.Type.ime()).bottom - location[1]).coerceIn(0, height)
         } else height
         val next = org.json.JSONObject().put("version", 1).put("available", width > 0 && height > 0)
-            .put("visible", visible).put("width", width).put("height", height).put("bottom", bottom).toString()
+            .put("visible", visible).put("top", safeTop).put("width", width).put("height", height).put("bottom", bottom).toString()
         if (next == cached) return
         cached = next
         webView.evaluateJavascript("window.dispatchEvent(new Event('opendraft:keyboardchange'))", null)

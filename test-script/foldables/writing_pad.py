@@ -364,14 +364,14 @@ class WritingPad(unittest.TestCase):
             "[localStorage.getItem('opendraft:handwritingPos'),localStorage.getItem('opendraft:handwritingSize')]"
         )
         self.page.evaluate("""() => {
-            window.keyboardReport={version:1,available:true,visible:true,width:2500,height:2500,bottom:1000};
+            window.keyboardReport={version:1,available:true,visible:true,width:2500,height:2500,bottom:1000,top:100};
             window.OpenDraftKeyboard={isVisible:()=>keyboardReport.visible,snapshot:()=>JSON.stringify(keyboardReport)};
             window.dispatchEvent(new Event('opendraft:keyboardchange'));
         }""")
         pad = self.page.locator(".scribble-panel")
         expect(pad).not_to_have_class(re.compile(r"is-docked"))
         self.page.wait_for_function(
-            "document.querySelector('.scribble-panel').getBoundingClientRect().bottom<=401"
+            "document.querySelector('.scribble-panel').getBoundingClientRect().bottom<=401 && document.querySelector('.scribble-panel').getBoundingClientRect().top>=48"
         )
         expect(field).to_have_value("Keep this native-geometry draft")
         self.assertTrue(
@@ -385,7 +385,7 @@ class WritingPad(unittest.TestCase):
             control.scroll_into_view_if_needed()
             self.assertTrue(
                 control.evaluate(
-                    "el=>{const r=el.getBoundingClientRect();return r.top>=0 && r.bottom<=401}"
+                    "el=>{const r=el.getBoundingClientRect();return r.top>=40 && r.bottom<=401}"
                 )
             )
         shots = os.environ.get("OPENDRAFT_SCREENSHOTS")

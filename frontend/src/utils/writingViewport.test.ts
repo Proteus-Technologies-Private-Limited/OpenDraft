@@ -35,3 +35,10 @@ describe('writing viewport', () => {
       .toEqual({ left: 20, top: 100, width: 300, height: 240, keyboard: true });
   });
 });
+
+it('keeps header controls below the native status/cutout edge, even after IME dismissal', () => {
+  expect(writingViewport(win({ ...shown, top: 70 })))
+    .toEqual({ left: 0, top: 28, width: 600, height: 452, keyboard: true });
+  expect(writingViewport(win({ ...shown, top: 70, visible: false })))
+    .toEqual({ left: 0, top: 28, width: 600, height: 772, keyboard: false });
+});

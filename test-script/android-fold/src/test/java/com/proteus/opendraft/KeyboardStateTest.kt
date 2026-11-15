@@ -104,13 +104,20 @@ class KeyboardStateTest {
         KeyboardVisibility.attach(view, activity)
         val report = shadowOf(view).getJavascriptInterface(KeyboardVisibility.INTERFACE) as KeyboardVisibility
         fun dispatch(visible: Boolean, bottom: Int) = ViewCompat.dispatchApplyWindowInsets(view,
-            WindowInsetsCompat.Builder().setInsets(WindowInsetsCompat.Type.ime(), Insets.of(0, 0, 0, bottom))
+            WindowInsetsCompat.Builder()
+                .setInsets(WindowInsetsCompat.Type.systemBars(), Insets.of(0, 56, 0, 0))
+                .setVisible(WindowInsetsCompat.Type.systemBars(), true)
+                .setInsets(WindowInsetsCompat.Type.ime(), Insets.of(0, 0, 0, bottom))
                 .setVisible(WindowInsetsCompat.Type.ime(), visible).build())
         dispatch(true, 800)
         var json = org.json.JSONObject(report.snapshot())
         assertTrue(report.snapshot(), json.getBoolean("available"))
         assertEquals(1600, json.getInt("height"))
         assertEquals(1000, json.getInt("bottom")) // 2000 - 800 - WebView top 200
+        assertEquals(0, json.getInt("top")) // this WebView starts below the status bar
+        frame(0, 0, 1000, 1600)
+        view.viewTreeObserver.dispatchOnGlobalLayout()
+        assertEquals(56, org.json.JSONObject(report.snapshot()).getInt("top"))
         // A WebView already resized above the IME must not lose that height again.
         frame(100, 200, 1100, 1200)
         view.viewTreeObserver.dispatchOnGlobalLayout()

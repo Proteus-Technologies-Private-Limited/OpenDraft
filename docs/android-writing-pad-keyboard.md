@@ -3,7 +3,7 @@
 Android 11+ windows expose their own read-only `OpenDraftKeyboard.snapshot()`
 report alongside the existing `isVisible()` focus-restoration method. The report
 contains a version, availability, visibility, WebView physical width/height and
-the usable bottom edge relative to that WebView. It contains no text or device
+the usable bottom and status/cutout top edges relative to that WebView. It contains no text or device
 identifier. Window insets pass through to WebView unchanged.
 
 Insets and global-layout changes publish an immutable copy on the UI thread.
@@ -20,7 +20,7 @@ floating keyboard with no bottom inset does not establish a usable rectangle;
 that case retains existing browser behavior. API 26–29 also retain that fallback.
 
 An occluded docked pad temporarily floats. The floating pad is clamped above the
-reported bottom, uses the existing scrollable controls/sticky Insert row, and
+reported bottom and below the native safe top edge, uses the existing scrollable controls/sticky Insert row, and
 retains its textarea, draft, selection and saved floating preferences. Dismissing
 the keyboard restores eligible fold docking. Ordinary Android windows use the
 same floating clamp; other platforms keep the existing browser geometry.
