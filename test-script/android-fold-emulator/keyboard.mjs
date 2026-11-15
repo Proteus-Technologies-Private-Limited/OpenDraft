@@ -8,8 +8,12 @@ export async function keyboardPlacementChecks({ client, shell, capture, pkg }) {
   const record = (phase, data) => { evidence.phases.push({ phase, ...data }); console.log(`keyboard-placement ${phase}: ${JSON.stringify(data)}`); };
   const frame = () => windowInputFrame(shell('dumpsys', 'window', '-a', 'windows'), `${pkg}/${pkg}.MainActivity`);
   async function tap(control) {
-    const point = await waitFor(`reachable ${control}`, () => client.evaluate(probes.keyboardControlPoint, control));
+    // scrollIntoView changes the DOM rect synchronously; Android's compositor
+    // can still display/hit-test the preceding scroll frame. Require the same
+    // reachable point on consecutive observations before sending an ADB tap.
+    const point = await stableControlPoint(control, () => client.evaluate(probes.keyboardControlPoint, control));
     const p = displayInputPoint(point, frame());
+    record(`tap-${control}`, { ...point, displayId: p.displayId });
     shell('input', '-d', String(p.displayId), 'tap', String(p.x), String(p.y));
     return point;
   }
@@ -17,7 +21,7 @@ export async function keyboardPlacementChecks({ client, shell, capture, pkg }) {
   if (!imeShown(shell('dumpsys', 'input_method'))) await tap('field');
   await waitFor('actual IME shown', () => imeShown(shell('dumpsys', 'input_method')));
   await waitFor('usable native keyboard geometry', () => client.evaluate(probes.keyboardPlacement));
-  await client.evaluate(probes.finishKeyboardPreparation);
+  await waitFor('retained append caret', () => client.evaluate(probes.finishKeyboardPreparation));
   record('visible', await client.evaluate(probes.keyboardPlacement));
   evidence.screenshots = capture('keyboard-placement-visible');
   // The header toggle must remain tappable even when the native keyboard covers
@@ -44,4 +48,15 @@ export async function keyboardPlacementChecks({ client, shell, capture, pkg }) {
   record('insert-undo', { passed: true });
   evidence.status = 'passed';
   return evidence;
+}
+
+export async function stableControlPoint(control, read) {
+  let last;
+  return waitFor(`stable reachable ${control}`, async () => {
+    const point = await read();
+    const key = point && JSON.stringify(point);
+    const stable = key && key === last;
+    last = key;
+    return stable && point;
+  });
 }

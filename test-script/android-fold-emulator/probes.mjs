@@ -53,6 +53,14 @@ export function snapshot() {
     classes: [...document.documentElement.classList].filter(c => /^(fold|phone|wide)/.test(c)),
     browserSignals: { segments: window.viewport?.segments?.length ?? null,
       legacySegments: window.visualViewport?.segments?.length ?? null, devicePosture: navigator.devicePosture?.type ?? null },
+    keyboard: window.OpenDraftKeyboard?.snapshot ? JSON.parse(window.OpenDraftKeyboard.snapshot()) : null,
+    pad: (() => {
+      const p = document.querySelector('.scribble-panel');
+      const r = p?.getBoundingClientRect();
+      return p ? { top: r.top, bottom: r.bottom, scrollTop: p.scrollTop,
+        mode: area?.getAttribute('inputmode'), toggle: p.querySelector('.scribble-toggle')?.getAttribute('aria-pressed'),
+        visualTop: visualViewport?.offsetTop, scrollY: window.scrollY } : null;
+    })(),
     input: { focused: document.activeElement === area, readOnly: area?.readOnly ?? null,
       value: area?.value ?? null, selectionStart: area?.selectionStart ?? null, selectionEnd: area?.selectionEnd ?? null },
     pendingReflows: test?.pendingReflows ?? [],
@@ -154,5 +162,6 @@ export function keyboardControlPoint(control) {
   if (r.width <= 0 || r.height <= 0 || r.top < 0 || r.bottom > bottom + 1 || r.left < 0 || r.right > innerWidth
     || !el.contains(document.elementFromPoint(x, y))) return false;
   return { x: Math.round(fold.left + x * fold.width / innerWidth),
-    y: Math.round(fold.top + y * fold.height / innerHeight), control, bottom, rectBottom: r.bottom };
+    y: Math.round(fold.top + y * fold.height / innerHeight), control, bottom, rectBottom: r.bottom, scrollY: window.scrollY, visualTop: visualViewport?.offsetTop ?? 0,
+    imeVisible: report.visible, padScroll: el.closest('.scribble-panel').scrollTop };
 }
