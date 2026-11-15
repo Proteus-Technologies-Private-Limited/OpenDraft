@@ -72,6 +72,27 @@ pub fn tts_native_stop() -> Result<(), String> {
     platform::stop()
 }
 
+/// Android owns the complete system-voice queue while its WebView is suspended.
+/// Derive ownership from the calling window, never from client-supplied JSON.
+#[tauri::command(async)]
+pub fn tts_table_read(window: tauri::WebviewWindow, mut request: serde_json::Value) -> Result<serde_json::Value, String> {
+    #[cfg(target_os = "android")]
+    {
+        let object = request.as_object_mut().ok_or("Invalid playback request")?;
+        object.insert("owner".into(), serde_json::Value::String(window.label().into()));
+        let raw = serde_json::to_string(&request).map_err(|_| "Invalid playback request")?;
+        if raw.len() > 4_000_000 { return Err("Playback request too large".into()); }
+        let response = crate::android_static_call("ttsTableReadRequest", &[&raw])?
+            .ok_or("Playback service unavailable")?;
+        serde_json::from_str(&response).map_err(|_| "Invalid playback response".into())
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        let _ = (window, &mut request);
+        Err("Background speech is provided by the Android app".into())
+    }
+}
+
 // ── A speech server of the writer's own ──────────────────────────────────────
 //
 // Table Read's "OpenAI-compatible server" — Kokoro-FastAPI, LocalAI,

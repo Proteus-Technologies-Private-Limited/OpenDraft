@@ -525,6 +525,7 @@
     "audioNoDecode": "تعذّر فك ترميز الصوت من {{provider}}: {{message}}",
     "kokoroStopped": "توقف محرك صوت Kokoro: {{message}}",
     "kokoroUnknown": "خطأ غير معروف",
+    "backgroundStopped": "تعذّرت متابعة القراءة. تحقّق من صوت النظام وحاول مجددًا.",
     "systemStopped": "توقف محرك الكلام في النظام عن الاستجابة: {{message}}"
   }
 }

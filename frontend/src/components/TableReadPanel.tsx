@@ -22,6 +22,7 @@ import { activeEngineKind, availableEngineKinds, selectedEngineKind } from '../s
 import { primeAudioPlayback } from '../services/tts/aiEngine';
 import * as player from '../services/tts/player';
 import { tableReadMediaSession } from '../services/tts/mediaSession';
+import { hasAndroidBackgroundRead } from '../services/tts/androidBackground';
 import type { ReadLine } from '../services/tts/script';
 import VoicePicker from './VoicePicker';
 
@@ -78,6 +79,7 @@ const TableReadPanel: React.FC<{ editor: Editor }> = ({ editor }) => {
   const { options, narratorVoice, setNarratorVoice, setOptions } = voiceSettings;
   const [showSettings, setShowSettings] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
+  const engineKind = activeEngineKind(voiceSettings);
 
   // Load the script when the panel opens; stop and clear the highlight when it closes.
   useEffect(() => {
@@ -86,7 +88,7 @@ const TableReadPanel: React.FC<{ editor: Editor }> = ({ editor }) => {
   }, [editor]);
 
   useEffect(() => {
-    if (!navigator.mediaSession) return;
+    if (!navigator.mediaSession || (hasAndroidBackgroundRead() && engineKind === 'system')) return;
     const media = tableReadMediaSession(navigator.mediaSession, {
       play: () => {
         // Already reading: a stray "play" must not restart the line.
@@ -115,10 +117,9 @@ const TableReadPanel: React.FC<{ editor: Editor }> = ({ editor }) => {
     });
     update();
     return () => { unsubscribe(); media.dispose(); };
-  }, [editor]);
+  }, [editor, engineKind]);
 
   // A change of voice source (Settings, the provider dialog) takes effect on the next line.
-  const engineKind = activeEngineKind(voiceSettings);
   const lastKind = useRef(engineKind);
   useEffect(() => {
     if (lastKind.current === engineKind) return;

@@ -453,6 +453,7 @@
     "audioNoDecode": "رمزگشایی صدای {{provider}} ممکن نشد: {{message}}",
     "kokoroStopped": "موتور صدای Kokoro متوقف شد: {{message}}",
     "kokoroUnknown": "خطای ناشناخته",
+    "backgroundStopped": "خواندن ادامه پیدا نکرد. صدای سیستم را بررسی کنید و دوباره تلاش کنید.",
     "systemStopped": "موتور گفتار سیستم دیگر پاسخ نمی‌دهد: {{message}}"
   }
 }

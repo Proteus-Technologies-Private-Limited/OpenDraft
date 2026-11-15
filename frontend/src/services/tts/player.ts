@@ -9,6 +9,8 @@
  * had reached, so Resume picks up there instead of from the top of the line.
  */
 import type { Editor } from '@tiptap/react';
+import type { Transaction } from '@tiptap/pm/state';
+import { Mapping } from '@tiptap/pm/transform';
 import { useEditorStore } from '../../stores/editorStore';
 import { useTableReadStore, NARRATOR_KEY } from '../../stores/tableReadStore';
 import { useVoiceSettingsStore } from '../../stores/voiceSettingsStore';
@@ -17,6 +19,7 @@ import { buildReadLines, lineIndexAt, spokenRangeToDoc, spokenRangeToText, type 
 import { castVoices, inferGenders, type Casting } from './voiceAssign';
 import { activeEngineKind, engineFor, NeedsProviderError } from './engines';
 import type { TtsEngine, VoiceInfo } from './types';
+import { AndroidBackgroundRead, backgroundReadError, hasAndroidBackgroundRead, releaseAndroidBackgroundRead, type BackgroundState } from './androidBackground';
 
 /** Silence after a line, by what kind of line it was. */
 const PAUSE_AFTER: Partial<Record<ReadLine['kind'], number>> = {
@@ -42,6 +45,10 @@ let reached = 0;
 let anchor: number | null = null;
 let stale = false;
 let detachEditor: (() => void) | null = null;
+let nativeRead: AndroidBackgroundRead | null = null;
+/** Maps the immutable native queue's positions through collaboration edits. */
+let nativeMapping = new Mapping();
+let nativePreparation: Promise<unknown> = Promise.resolve();
 
 const store = () => useTableReadStore.getState();
 
@@ -156,10 +163,34 @@ function attach(editor: Editor) {
   if (editorRef === editor) return;
   detachEditor?.();
   editorRef = editor;
-  const onTransaction = ({ transaction }: { transaction: { docChanged: boolean; mapping: { map: (p: number) => number } } }) => {
+  const onTransaction = ({ transaction }: { transaction: Transaction }) => {
     if (!transaction.docChanged) return;
     stale = true;
     if (anchor !== null) anchor = transaction.mapping.map(anchor);
+    if (nativeRead) nativeMapping.appendMapping(transaction.mapping);
+    // Sync and its appended housekeeping keep the native snapshot playing.
+    // Still map the anchor and suppress obsolete highlights until a rebuild.
+    const origin = transaction.getMeta('appendedTransaction') as Transaction | undefined;
+    const sync = (origin ?? transaction).getMeta('y-sync$') as { isChangeOrigin?: boolean; isUndoRedoOperation?: boolean } | undefined;
+    const localUndo = sync?.isUndoRedoOperation || transaction.getMeta('history$');
+    if ((sync?.isChangeOrigin && !sync.isUndoRedoOperation) || (!localUndo && transaction.getMeta('addToHistory') === false)) {
+      if (nativeRead) {
+        store().patch({ word: null });
+        highlight({ block: null, word: null });
+      }
+      return;
+    }
+    // Discard the immutable native snapshot on edits. A remote Play must not
+    // resume obsolete text; Resume in the panel rebuilds from this anchor.
+    const nativePending = controller && hasAndroidBackgroundRead() && activeEngineKind() === 'system';
+    if ((nativeRead || nativePending) && (store().status === 'playing' || store().status === 'loading')) {
+      abortCurrent();
+      store().patch({ status: 'paused', word: null });
+      highlight({ block: null, word: null });
+    } else if (nativeRead) {
+      abortCurrent();
+      highlight({ block: null, word: null });
+    }
   };
   editor.on('transaction', onTransaction);
   detachEditor = () => {
@@ -182,6 +213,32 @@ function abortCurrent() {
   runId++;
   controller?.abort();
   controller = null;
+  nativeRead?.dispose();
+  nativeRead = null;
+  nativeMapping = new Mapping();
+}
+
+function syncNativeRead(state: BackgroundState) {
+  const previous = store();
+  const status = state.status;
+  const index = Number.isInteger(state.index) ? state.index! : store().current;
+  const line = store().lines[index];
+  if (!line || index < 0 || index >= store().lines.length) return;
+  const start = Math.max(0, Math.min(line.spoken.length, state.offset ?? 0));
+  const end = Math.max(start, Math.min(line.spoken.length, state.end ?? start));
+  reached = start;
+  // Native playback can advance while collaborators edit. Resume must rebuild
+  // at that newly reached line, mapped into the current document.
+  anchor = nativeMapping.map(line.from);
+  const word = end > start && !stale ? spokenRangeToText(line, start, end) : null;
+  store().patch({ status, current: index, word, error: status === 'error' ? backgroundReadError() : null });
+  if (status === 'idle' || status === 'error') {
+    highlight({ block: null, word: null });
+    nativeRead?.dispose(); nativeRead = null; controller = null;
+  } else if (!stale) {
+    highlight({ block: { from: line.from, to: line.to }, word: end > start ? spokenRangeToDoc(line, start, end) : null });
+    if (status === 'playing' && (previous.current !== index || previous.status === 'loading')) follow(line);
+  }
 }
 
 async function ensureEngine(): Promise<TtsEngine> {
@@ -217,6 +274,27 @@ async function run(startIndex: number, startOffset: number) {
   try {
     const eng = await ensureEngine();
     if (!alive()) return;
+    if (hasAndroidBackgroundRead() && eng.id === 'native') {
+      await nativePreparation;
+      if (!alive()) return;
+      if (stale) {
+        const at = anchor; lines = refreshLines(); if (at !== null) i = lineIndexAt(lines, at); offset = 0;
+      }
+      if (!lines.length) { store().patch({ status: 'idle' }); return; }
+      i = Math.max(0, Math.min(i, lines.length - 1));
+      offset = Math.max(0, Math.min(offset, lines[i].spoken.length));
+      anchor = lines[i].from; reached = offset;
+      store().patch({ current: i, word: null });
+      const casting = cast(lines);
+      const rate = useVoiceSettingsStore.getState().options.rate;
+      const background = new AndroidBackgroundRead((state) => { if (alive()) syncNativeRead(state); });
+      nativeRead = background;
+      try {
+        await background.start(lines.map(line => ({ text: line.spoken, voice: voiceFor(line, casting), rate, pitch: 1,
+          gap: PAUSE_AFTER[line.kind] ?? DEFAULT_PAUSE })), i, offset);
+      } catch { throw new Error(backgroundReadError()); }
+      return;
+    }
     store().patch({ status: 'playing' });
     while (alive()) {
       if (stale && anchor !== null) {
@@ -275,6 +353,7 @@ async function run(startIndex: number, startOffset: number) {
     }
   } catch (err) {
     if (!alive()) return;
+    nativeRead?.dispose(); nativeRead = null;
     controller = null;
     if (err instanceof NeedsProviderError) {
       store().patch({ status: 'idle', needsProvider: true, error: null });
@@ -302,6 +381,9 @@ export function prepare(editor: Editor) {
   attach(editor);
   const lines = refreshLines();
   store().patch({ current: startLine(lines, editor), word: null });
+  if (hasAndroidBackgroundRead() && !nativeRead) {
+    nativePreparation = releaseAndroidBackgroundRead().catch(() => {});
+  }
   // Find the voices now, so the cast list and the pickers can show who reads
   // whom before the first Play. A missing provider is not an error yet — the
   // writer has not asked to hear anything.
@@ -325,6 +407,11 @@ export function play(editor: Editor, index?: number) {
 }
 
 export function pause() {
+  if (nativeRead) {
+    void nativeRead.command('pause').catch(() => store().patch({ status: 'error', error: backgroundReadError() }));
+    store().patch({ status: 'paused' });
+    return;
+  }
   if (store().status !== 'playing') return;
   abortCurrent();
   store().patch({ status: 'paused' });
@@ -333,6 +420,7 @@ export function pause() {
 export function resume() {
   const s = store();
   if (s.status !== 'paused' || !editorRef) return;
+  if (nativeRead && !stale) { void nativeRead.command('play').catch(() => store().patch({ status: 'error', error: backgroundReadError() })); return; }
   if (stale) {
     // Edited while paused: start the current line again rather than mid-word.
     void run(s.current, 0);
@@ -355,6 +443,10 @@ export function jumpTo(index: number) {
   const s = store();
   if (!s.lines.length) return;
   const i = Math.max(0, Math.min(index, s.lines.length - 1));
+  if (nativeRead && !stale && s.status === 'playing') {
+    void nativeRead.command('jump', i).catch(() => store().patch({ status: 'error', error: backgroundReadError() }));
+    return;
+  }
   if (s.status === 'playing' || s.status === 'loading') {
     void run(i, 0);
     return;
@@ -404,6 +496,7 @@ export function rebuild() {
   if (s.status === 'playing') {
     void run(idx, 0);
   } else {
+    if (nativeRead) { abortCurrent(); reached = 0; }
     store().patch({ current: idx, word: null });
   }
 }

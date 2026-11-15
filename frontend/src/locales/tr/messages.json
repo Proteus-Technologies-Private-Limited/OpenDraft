@@ -453,6 +453,7 @@
     "audioNoDecode": "{{provider}} sesi çözülemedi: {{message}}",
     "kokoroStopped": "Kokoro ses motoru durdu: {{message}}",
     "kokoroUnknown": "bilinmeyen hata",
+    "backgroundStopped": "Okumaya devam edilemedi. Sistem sesini kontrol edip tekrar deneyin.",
     "systemStopped": "Sistem konuşma motoru yanıt vermeyi durdurdu: {{message}}"
   }
 }

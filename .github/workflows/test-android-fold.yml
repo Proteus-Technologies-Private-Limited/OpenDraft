@@ -8,6 +8,7 @@ on:
       - 'test-script/android-fold/**'
       - 'test-script/android_fold_build.py'
       - 'test-script/test_android_fold_build.py'
+      - 'test-script/test_android_table_read_build.py'
       - 'test-script/patch-android-local.py'
       - '.github/workflows/release.yml'
       - '.github/workflows/test-android-fold.yml'
@@ -34,8 +35,10 @@ jobs:
         with:
           gradle-version: '8.13'
       - name: Check local and release project wiring
-        run: python3 -m unittest discover -s test-script -p test_android_fold_build.py
-      - name: Compile Android sources and test posture lifecycle
+        run: |
+          python3 -m unittest discover -s test-script -p test_android_fold_build.py
+          python3 -m unittest discover -s test-script -p test_android_table_read_build.py
+      - name: Compile Android sources and test posture and speech lifecycle
         run: gradle -p test-script/android-fold testDebugUnitTest --no-daemon
       - uses: actions/upload-artifact@v4
         if: always()

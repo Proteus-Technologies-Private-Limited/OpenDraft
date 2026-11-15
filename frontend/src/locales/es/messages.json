@@ -471,6 +471,7 @@
     "audioNoDecode": "No se pudo decodificar el audio de {{provider}}: {{message}}",
     "kokoroStopped": "El motor de voz de Kokoro se detuvo: {{message}}",
     "kokoroUnknown": "error desconocido",
+    "backgroundStopped": "No se pudo continuar la lectura. Comprueba la voz del sistema e inténtalo de nuevo.",
     "systemStopped": "El motor de voz del sistema dejó de responder: {{message}}"
   }
 }

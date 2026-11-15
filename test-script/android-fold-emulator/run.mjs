@@ -6,6 +6,7 @@ import { join, resolve } from 'node:path';
 import { Cdp, displayInputPoint, flatFeature, imeShown, physicalDisplays, pngImage, rotationLock, supportedStates, waitFor, windowInputFrame } from './protocol.mjs';
 import * as probes from './probes.mjs';
 import { keyboardPlacementChecks } from './keyboard.mjs';
+import { tableReadChecks } from './tableRead.mjs';
 
 const [variant, serial] = process.argv.slice(2);
 assert(['debug', 'minified'].includes(variant), 'Choose debug or minified');
@@ -30,7 +31,7 @@ let lastPid;
 let mainClient;
 let previousRotation;
 const previous = {};
-const settings = [ ['system', 'accelerometer_rotation'], ['system', 'user_rotation'], ['secure', 'show_ime_with_hard_keyboard'] ];
+const settings = [ ['system', 'accelerometer_rotation'], ['system', 'user_rotation'], ['secure', 'show_ime_with_hard_keyboard'], ['secure', 'tts_default_synth'] ];
 const capture = label => {
   const captures = [];
   for (const display of physicalDisplays(shell('dumpsys', 'SurfaceFlinger', '--display-id'))) {
@@ -100,6 +101,7 @@ try {
   const install = adb(['install', '-r', '-t', join(artifact, 'test-only.apk')]);
   assert(install.includes('Success'), install);
   assert.equal(shell('pm', 'clear', pkg), 'Success');
+  shell('settings', 'put', 'secure', 'tts_default_synth', pkg);
   shell('am', 'force-stop', pkg);
   startMain();
   await waitFor('native process', async () => { try { lastPid = shell('pidof', pkg).split(/\s+/)[0]; return lastPid; } catch { return false; } });
@@ -188,6 +190,9 @@ try {
   await phase('folded-back', main.client, s => s.native.confirmed && s.classes.includes('phone')
     && !s.classes.includes('fold-book') && !s.classes.includes('fold-laptop'));
   evidence.keyboardPlacement = await keyboardPlacementChecks({ client: main.client, shell, capture, pkg });
+  overrideState(evidence.states.open.id);
+  await waitFor('open viewport for Table Read', () => main.client.evaluate(() => document.documentElement.classList.contains('wide')));
+  evidence.tableRead = await tableReadChecks({ client: main.client, shell, startMain, capture });
   evidence.status = 'passed';
 } catch (error) {
   evidence.status = 'failed'; evidence.error = error.stack ?? String(error);
@@ -210,4 +215,5 @@ try {
   }
   if (previousRotation) try { shell('wm', 'user-rotation', ...previousRotation); } catch { /* emulator teardown */ }
   try { shell('cmd', 'device_state', 'state', 'reset'); } catch { /* emulator teardown */ }
+  try { shell('am', 'force-stop', pkg); } catch { /* emulator teardown */ }
 }

@@ -1,5 +1,33 @@
 import { setTimeout as delay } from 'node:timers/promises';
 
+export function tableReadServiceReady(manifest) {
+  const service = manifest.match(/<service\b[^>]*android:name=["'](?:com\.proteus\.opendraft\.|\.)TableReadService["'][^>]*>/s)?.[0] ?? '';
+  const attribute = name => new RegExp(`android:${name}=["']([^"']+)["']`).exec(service)?.[1];
+  const type = attribute('foregroundServiceType') ?? '';
+  const mask = /^(?:0x[\da-f]+|\d+)$/i.test(type) ? Number(type) : type.split('|').includes('mediaPlayback') ? 2 : 0;
+  return attribute('exported') === 'false' && Number.isSafeInteger(mask) && (mask & 2) === 2
+    && ['FOREGROUND_SERVICE', 'FOREGROUND_SERVICE_MEDIA_PLAYBACK', 'WAKE_LOCK']
+      .every(name => manifest.includes(`android:name="android.permission.${name}"`));
+}
+
+export function activeWakeLocks(dump) {
+  const start = /^\s*Wake Locks:\s*size=\d+[^\n]*\n/m.exec(dump);
+  assertFormat(start, 'No active wake-lock section');
+  const rest = dump.slice(start.index + start[0].length);
+  const end = /^\s*Suspend Blockers:/m.exec(rest);
+  assertFormat(end, 'No end to active wake-lock section');
+  return rest.slice(0, end.index);
+}
+function assertFormat(value, message) { if (!value) throw new Error(message); }
+
+export function tableReadMediaState(dump) {
+  const section = dump.slice(dump.indexOf('OpenDraft Table Read'));
+  // Android 15 includes the enum name, e.g. PLAYING(3); older releases use 3.
+  const state = /state\s*=\s*PlaybackState\s*\{\s*state\s*=\s*(?:[A-Z_]+\()?([0-9]+)\)?/.exec(section);
+  const line = /description=Table Read,\s*(\d+)\s*\/\s*(\d+)/.exec(section);
+  return { state: state ? Number(state[1]) : null, line: line ? Number(line[1]) : null, total: line ? Number(line[2]) : null };
+}
+
 export function supportedStates(text) {
   const found = [...text.matchAll(/identifier\s*=\s*(\d+)[^}]*?name\s*=\s*['"]([^'"]+)['"]/gi)]
     .map(m => ({ id: Number(m[1]), name: m[2] }));

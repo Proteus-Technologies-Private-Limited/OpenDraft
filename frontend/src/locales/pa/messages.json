@@ -453,6 +453,7 @@
     "audioNoDecode": "{{provider}} ਦਾ ਆਡੀਓ ਡੀਕੋਡ ਨਹੀਂ ਹੋ ਸਕਿਆ: {{message}}",
     "kokoroStopped": "Kokoro ਆਵਾਜ਼ ਇੰਜਣ ਰੁਕ ਗਿਆ: {{message}}",
     "kokoroUnknown": "ਅਣਜਾਣ ਗਲਤੀ",
+    "backgroundStopped": "ਪੜ੍ਹਨਾ ਜਾਰੀ ਨਹੀਂ ਰਹਿ ਸਕਿਆ। ਸਿਸਟਮ ਦੀ ਆਵਾਜ਼ ਜਾਂਚੋ ਅਤੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।",
     "systemStopped": "ਸਿਸਟਮ ਸਪੀਚ ਇੰਜਣ ਨੇ ਜਵਾਬ ਦੇਣਾ ਬੰਦ ਕਰ ਦਿੱਤਾ: {{message}}"
   }
 }

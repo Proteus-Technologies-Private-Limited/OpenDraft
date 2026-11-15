@@ -46,4 +46,5 @@
     public static java.lang.String ttsSpeak(android.content.Context, java.lang.String, java.lang.String, java.lang.String, java.lang.String, java.lang.String);
     public static java.lang.String ttsPoll(android.content.Context);
     public static java.lang.String ttsStop(android.content.Context);
+    public static java.lang.String ttsTableReadRequest(android.content.Context, java.lang.String);
 }

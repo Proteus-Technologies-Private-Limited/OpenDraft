@@ -107,6 +107,15 @@ beyond the emulator's installed input method.
 
 ## Workflow scope
 
+The APKs also exercise [Android background Table Read](android-background-table-read.md)
+after the original 12 posture/input phases. A test-only TTS engine emits synthetic
+tones through real native TTS callbacks. The app is backgrounded and its WebView
+frozen while the native queue and media-key controls continue. The test then
+checks foreground reconciliation and service/wake-lock cleanup. This verifies
+playback plumbing, not the intelligibility of an installed speech voice.
+The test engine and manifest entry are generated-only additions; production
+local/release builds never copy them.
+
 The APK workflow watches tracked native sources, the Android Rust entrypoint,
 build/configuration files and the frontend files the harness directly depends
 on: startup/Blank Document, editor props, handwriting events/toggles, docking,

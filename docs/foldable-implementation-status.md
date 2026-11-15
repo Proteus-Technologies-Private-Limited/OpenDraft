@@ -5,7 +5,7 @@ Tracks implementation against [the design](foldable-support-design.md) and
 The proposal remains the acceptance checklist; this document does not mark
 untested native behavior as complete. Browser foundations (#235, #236, #237)
 and writing-pad placement/review fixes (#247) are merged. The iOS hinge bridge (WP4) is in;
-background execution and the split-screen/custom-toolbar dependencies remain open. Android WindowManager
+native background execution beyond Android system voices and the split-screen/custom-toolbar dependencies remain open. Android WindowManager
 fallback is implemented in #260; physical OEM validation remains outstanding.
 
 | Package | Implemented here | Remaining work |
@@ -20,7 +20,7 @@ fallback is implemented in #260; physical OEM validation remains outstanding.
 | WP9 | No split-screen implementation duplicated. | Merge #214, then connect its companion panes and crease default. |
 | WP10 | No replacement toolbar or element selector added. | Merge #217, then arrange the writer's items in two rows and implement the accessible horizontal choice line. Measure the native keyboard before deciding which side of the crease holds the rows. |
 | WP11 | Browser book/laptop detection, book script reflow, right/lower panel slots, larger current Table Read line, and a writing pad sharing the book/laptop companion tabs without losing its draft or selection. | Book companion panes and empty-companion continuation; final laptop/flip layout together with WP10. The current toolbar remains at the top. This package is partial. |
-| WP12 | Browser Media Session controls were merged separately in #237. | Native iOS remote commands/audio-session/background-mode support and Android MediaSession/background service. Browser Media Session alone cannot guarantee playback after a web view is suspended. |
+| WP12 | Browser Media Session controls were merged separately in #237. Android system-voice reads now have a native foreground service, MediaSession controls and an independent queue; see [implementation and automated coverage](android-background-table-read.md). | Native iOS remote commands/audio-session/background-mode support, AI-provider background audio and physical-device validation. Browser Media Session alone cannot guarantee playback after a web view is suspended. |
 | WP13 | No hardware capability is inferred from a model name. | Native Pencil capability and native refusal of New Window on a cover screen, after WP4. |
 
 ## Resetting browser emulation

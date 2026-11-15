@@ -41,6 +41,35 @@ def configure(gen: Path, config: Path, source: Path) -> None:
     cfg["build"]["beforeDevCommand"] = ""
     cfg["bundle"].pop("externalBin", None)
     config.write_text(json.dumps(cfg, indent=2) + "\n")
+    configure_test_speech(gen)
+
+
+def configure_test_speech(gen: Path) -> None:
+    """Install a deterministic TTS engine in disposable test APKs only."""
+    java = gen / "app/src/main/java/com/proteus/opendraft"
+    shutil.copy(
+        Path(__file__).with_name("TableReadTestSpeech.kt"),
+        java / "TableReadTestSpeech.kt",
+    )
+    xml = gen / "app/src/main/res/xml"
+    xml.mkdir(parents=True, exist_ok=True)
+    (xml / "table_read_test_engine.xml").write_text(
+        '<tts-engine xmlns:android="http://schemas.android.com/apk/res/android" />\n'
+    )
+    manifest = gen / "app/src/main/AndroidManifest.xml"
+    text = manifest.read_text()
+    if ".TableReadTestSpeech" not in text:
+        if "</application>" not in text:
+            raise ValueError("Application missing from disposable manifest")
+        text = text.replace(
+            "</application>",
+            """<service android:name=".TableReadTestSpeech" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.TTS_SERVICE" /><category android:name="android.intent.category.DEFAULT" /></intent-filter>
+            <meta-data android:name="android.speech.tts" android:resource="@xml/table_read_test_engine" />
+        </service></application>""",
+            1,
+        )
+    manifest.write_text(text)
 
 
 def main(argv: list[str] | None = None) -> None:

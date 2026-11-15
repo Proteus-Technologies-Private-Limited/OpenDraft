@@ -43,7 +43,13 @@ EXTRA_WINDOWS = 3
 
 def copy_sources() -> None:
     JAVA.mkdir(parents=True, exist_ok=True)
-    for name in ("MainActivity.kt", "WindowActivities.kt", "FoldPostureBridge.kt"):
+    for name in (
+        "MainActivity.kt",
+        "WindowActivities.kt",
+        "FoldPostureBridge.kt",
+        "TableReadService.kt",
+        "TableReadPlayback.kt",
+    ):
         shutil.copy(SRC / name, JAVA / name)
         print(f"copied {name}")
 
@@ -56,9 +62,9 @@ def copy_sources() -> None:
 
 
 TTS_QUERY = (
-    '<intent>\n'
+    "<intent>\n"
     '            <action android:name="android.intent.action.TTS_SERVICE" />\n'
-    '        </intent>'
+    "        </intent>"
 )
 
 
@@ -71,7 +77,9 @@ def patch_tts_query() -> None:
         content = content.replace("<queries>", "<queries>\n        " + TTS_QUERY, 1)
     elif "<application" in content:
         content = content.replace(
-            "<application", "<queries>\n        " + TTS_QUERY + "\n    </queries>\n\n    <application", 1
+            "<application",
+            "<queries>\n        " + TTS_QUERY + "\n    </queries>\n\n    <application",
+            1,
         )
     else:
         sys.exit("<application> not found in the manifest — cannot add the TTS query")
@@ -93,6 +101,38 @@ def patch_locale_config() -> None:
     print("manifest patched with android:localeConfig")
 
 
+def patch_table_read() -> None:
+    content = MANIFEST.read_text()
+    # BEGIN TABLE READ MANIFEST
+    if "<application" not in content or "</application>" not in content:
+        raise ValueError("Application missing: cannot declare background Table Read")
+    for permission in (
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+        "WAKE_LOCK",
+    ):
+        name = "android.permission." + permission
+        if 'android:name="' + name + '"' not in content:
+            content = content.replace(
+                "<application",
+                '<uses-permission android:name="' + name + '" />\n    <application',
+                1,
+            )
+    if 'android:name=".TableReadService"' not in content:
+        content = content.replace(
+            "</application>",
+            '<service android:name=".TableReadService" android:exported="false" android:foregroundServiceType="mediaPlayback" android:stopWithTask="false" />\n    </application>',
+            1,
+        )
+    content = re.sub(
+        r'(<service\b(?=[^>]*android:name="\.TableReadService")[^>]*android:stopWithTask=)"true"',
+        r'\1"false"',
+        content,
+    )
+    # END TABLE READ MANIFEST
+    MANIFEST.write_text(content)
+
+
 def patch_manifest() -> None:
     content = MANIFEST.read_text()
 
@@ -104,15 +144,23 @@ def patch_manifest() -> None:
         r'<activity\b([^>]*?android:name="\.MainActivity"[^>]*?)>', content
     )
     if not main_activity:
-        sys.exit("MainActivity not found in the manifest — did `tauri android init` run?")
+        sys.exit(
+            "MainActivity not found in the manifest — did `tauri android init` run?"
+        )
 
     # Attributes are cloned from MainActivity rather than written out, so the
     # extra windows keep whatever configChanges and theme Tauri's template
     # declares. A configChanges mismatch would have Android recreate the
     # activity on rotation and throw the WebView away with it.
     attrs = main_activity.group(1)
-    for key in ("name", "launchMode", "exported", "documentLaunchMode",
-                "resizeableActivity", "taskAffinity"):
+    for key in (
+        "name",
+        "launchMode",
+        "exported",
+        "documentLaunchMode",
+        "resizeableActivity",
+        "taskAffinity",
+    ):
         attrs = re.sub(r'\s*android:%s="[^"]*"' % key, "", attrs)
     attrs = attrs.rstrip()
 
@@ -123,7 +171,7 @@ def patch_manifest() -> None:
         # same task and cannot be tiled beside it. taskAffinity is cleared for
         # the same reason.
         extra += (
-            '\n        <activity%s\n'
+            "\n        <activity%s\n"
             '            android:name=".WindowActivity%d"\n'
             '            android:exported="false"\n'
             '            android:taskAffinity=""\n'
@@ -141,9 +189,12 @@ def patch_manifest() -> None:
 
 if __name__ == "__main__":
     if not GEN.exists():
-        sys.exit("src-tauri/gen/android does not exist — run `tauri android init` first")
+        sys.exit(
+            "src-tauri/gen/android does not exist — run `tauri android init` first"
+        )
     copy_sources()
     patch_window_dependency(GEN)
     patch_manifest()
     patch_tts_query()
     patch_locale_config()
+    patch_table_read()
