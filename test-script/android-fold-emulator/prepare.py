@@ -3,6 +3,7 @@
 
 import argparse
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -42,9 +43,23 @@ def configure(gen: Path, config: Path, source: Path) -> None:
     config.write_text(json.dumps(cfg, indent=2) + "\n")
 
 
-if __name__ == "__main__":
+def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.parse_args()
+    parser.add_argument(
+        "--allow-disposable-checkout",
+        action="store_true",
+        help="Allow rewriting tracked Tauri configuration in a disposable checkout",
+    )
+    args = parser.parse_args(argv)
+    if (
+        os.environ.get("GITHUB_ACTIONS") != "true"
+        and not args.allow_disposable_checkout
+    ):
+        parser.error(
+            "Preparation rewrites tracked src-tauri/tauri.conf.json. "
+            "Use a disposable checkout and pass --allow-disposable-checkout "
+            "(GitHub Actions is already allowed)."
+        )
     subprocess.run(
         [sys.executable, str(ROOT / "test-script/patch-android-local.py")], check=True
     )
@@ -53,3 +68,7 @@ if __name__ == "__main__":
         ROOT / "src-tauri/tauri.conf.json",
         ROOT / "src-tauri/android-src",
     )
+
+
+if __name__ == "__main__":
+    main()

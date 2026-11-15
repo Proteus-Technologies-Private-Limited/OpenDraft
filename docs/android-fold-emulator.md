@@ -46,8 +46,10 @@ These are key-injection checks, not IME composition or handwriting recognition.
 
 ## Disposable test APKs
 
-`prepare.py` operates only on `src-tauri/gen/android` and the disposable checkout's
-Tauri build hooks. It installs the same tracked sources and R8 rules as release
+`prepare.py` patches `src-tauri/gen/android` and rewrites the disposable checkout's
+tracked `src-tauri/tauri.conf.json` build hooks and sidecar settings. Before any
+patching it requires GitHub Actions (`GITHUB_ACTIONS=true`) or the explicit local
+`--allow-disposable-checkout` flag. It installs the same tracked sources and R8 rules as release
 CI. The release build remains minified and its APK manifest stays non-debuggable;
 both variants use the generated debug signing key. **WebView inspection is
 explicitly enabled in the generated Activity hooks, including the minified
@@ -76,8 +78,14 @@ node --test test-script/android-fold-emulator/*.test.mjs
 ```
 
 For APK builds, follow the workflow's JDK 17, SDK 36 / NDK 27.0.12077973,
-Rust x86_64 target, frontend build and Tauri init steps. Run `prepare.py` only
-in a disposable checkout. `tauri android build --target x86_64 --apk --ci` builds
+Rust x86_64 target, frontend build and Tauri init steps. Prepare only a disposable
+checkout, opting in locally with:
+
+```sh
+python3 test-script/android-fold-emulator/prepare.py --allow-disposable-checkout
+```
+
+`tauri android build --target x86_64 --apk --ci` builds
 the minified variant; add `--debug` for debug. Then:
 
 ```sh

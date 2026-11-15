@@ -1,5 +1,7 @@
 package com.proteus.opendraft
 
+import android.os.Handler
+import android.os.Looper
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import androidx.activity.ComponentActivity
@@ -51,10 +53,18 @@ class FoldPostureBridge internal constructor(
     private var feature: FoldingFeature? = null
     private var generation = 0
     private var consumer: Consumer<WindowLayoutInfo>? = null
+    private val handler = Handler(Looper.getMainLooper())
+    private var layoutTimeout: Runnable? = null
+
+    private fun cancelLayoutTimeout() {
+        layoutTimeout?.let { handler.removeCallbacks(it) }
+        layoutTimeout = null
+    }
     // JavaScript interfaces run on a WebView thread. Only this immutable copy
     // crosses threads; Android views and WindowManager are read on the UI thread.
     @Volatile private var cached = "{\"version\":1,\"status\":\"pending\",\"active\":false,\"confirmed\":false}"
     private fun acceptLayout(info: WindowLayoutInfo) {
+        cancelLayoutTimeout()
         status = "available"
         feature = info.displayFeatures.filterIsInstance<FoldingFeature>().firstOrNull { fold ->
             val r = fold.bounds
@@ -90,12 +100,24 @@ class FoldPostureBridge internal constructor(
             }
         }
         consumer = listener
+        // A vendor tracker can register successfully without ever answering.
+        // Release the pending layout, but keep listening for a late callback.
+        val timeout = Runnable {
+            layoutTimeout = null
+            if (started && !destroyed && token == generation && status == "pending") {
+                status = "unavailable"
+                publish()
+            }
+        }
+        layoutTimeout = timeout
+        handler.postDelayed(timeout, LAYOUT_TIMEOUT_MS)
         if (optionalWindowCall { source.start(listener); true } != true) {
             sourceUnavailable()
         }
     }
 
     private fun sourceUnavailable() {
+        cancelLayoutTimeout()
         // Unsupported OEM extensions must not prevent the editor opening.
         generation++
         val listener = consumer
@@ -107,6 +129,7 @@ class FoldPostureBridge internal constructor(
     }
 
     override fun onStop(owner: LifecycleOwner) {
+        cancelLayoutTimeout()
         started = false
         generation++
         val listener = consumer
@@ -154,6 +177,7 @@ class FoldPostureBridge internal constructor(
     companion object {
         const val INTERFACE = "OpenDraftAndroidFold"
         const val EVENT = "opendraft:androidfoldchange"
+        private const val LAYOUT_TIMEOUT_MS = 1_000L
 
         fun attach(activity: ComponentActivity, webView: WebView): FoldPostureBridge? = optionalWindowCall {
             FoldPostureBridge(activity, webView, JetpackSource(activity))

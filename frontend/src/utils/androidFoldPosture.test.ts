@@ -177,6 +177,38 @@ describe('detector integration', () => {
     expect(detector.getFoldState()).toEqual({ size: 'phone', fold: 'flat', foldRect: null });
     stop();
   });
+  it('releases a timed-out pending hold, follows resizes and recovers on a late layout', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('document', { documentElement: { classList: { toggle: vi.fn() }, style: { setProperty: vi.fn() } } });
+    const detector = await import('./foldPosture');
+    const changed = vi.fn();
+    const stop = detector.watchFoldPosture(changed);
+    const initial = detector.getFoldState();
+    raw = JSON.stringify({ ...snapshot(), status: 'pending', feature: null });
+    Object.assign(win, { innerWidth: 400, innerHeight: 700 });
+    win.dispatchEvent(new Event(ANDROID_FOLD_CHANGE_EVENT));
+    vi.advanceTimersByTime(150);
+    expect(detector.getFoldState()).toEqual(initial);
+    expect(changed).toHaveBeenCalledTimes(1);
+    // The native watchdog publishes unavailable if the registration stays silent.
+    raw = JSON.stringify({ ...snapshot(), status: 'unavailable', feature: null });
+    win.dispatchEvent(new Event(ANDROID_FOLD_CHANGE_EVENT));
+    vi.advanceTimersByTime(150);
+    expect(detector.getFoldState()).toEqual({ size: 'phone', fold: 'flat', foldRect: null });
+    expect(detector.isFoldableDevice()).toBe(true);
+    Object.assign(win, { innerWidth: 900, innerHeight: 700 });
+    win.dispatchEvent(new Event('resize'));
+    vi.advanceTimersByTime(150);
+    expect(detector.getFoldState()).toEqual({ size: 'wide', fold: 'flat', foldRect: null });
+    raw = JSON.stringify(snapshot());
+    Object.assign(win, { innerWidth: 800, innerHeight: 800 });
+    win.dispatchEvent(new Event(ANDROID_FOLD_CHANGE_EVENT));
+    vi.advanceTimersByTime(150);
+    expect(detector.getFoldState()).toEqual(initial);
+    expect(changed).toHaveBeenCalledTimes(4);
+    stop();
+  });
+
   it('shares one native read across all subscribers in each applied event', async () => {
     vi.useFakeTimers();
     vi.stubGlobal('document', { documentElement: { classList: { toggle: vi.fn() }, style: { setProperty: vi.fn() } } });
