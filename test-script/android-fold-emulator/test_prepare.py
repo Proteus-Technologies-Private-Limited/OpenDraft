@@ -6,7 +6,15 @@ from contextlib import redirect_stderr
 from pathlib import Path
 from unittest.mock import patch
 
-from prepare import HOOK, INSPECTION, MARKER, ROOT, configure, configure_test_speech, main
+from prepare import (
+    HOOK,
+    INSPECTION,
+    MARKER,
+    ROOT,
+    configure,
+    configure_test_speech,
+    main,
+)
 
 
 class Prepare(unittest.TestCase):
@@ -49,6 +57,7 @@ class Prepare(unittest.TestCase):
                         ROOT / "src-tauri/tauri.conf.json",
                         ROOT / "src-tauri/android-src",
                     )
+
     def test_speech_fixture_is_confined_to_generated_test_sources(self):
         with tempfile.TemporaryDirectory() as temp:
             gen, _, source = self.fixture(temp)

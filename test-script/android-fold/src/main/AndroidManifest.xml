@@ -5,6 +5,6 @@
     <application>
         <service android:name="com.proteus.opendraft.TableReadService"
             android:exported="false" android:foregroundServiceType="mediaPlayback"
-            android:stopWithTask="true" />
+            android:stopWithTask="false" />
     </application>
 </manifest>

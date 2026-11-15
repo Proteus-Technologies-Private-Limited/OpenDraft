@@ -121,9 +121,14 @@ def patch_table_read() -> None:
     if 'android:name=".TableReadService"' not in content:
         content = content.replace(
             "</application>",
-            '<service android:name=".TableReadService" android:exported="false" android:foregroundServiceType="mediaPlayback" android:stopWithTask="true" />\n    </application>',
+            '<service android:name=".TableReadService" android:exported="false" android:foregroundServiceType="mediaPlayback" android:stopWithTask="false" />\n    </application>',
             1,
         )
+    content = re.sub(
+        r'(<service\b(?=[^>]*android:name="\.TableReadService")[^>]*android:stopWithTask=)"true"',
+        r'\1"false"',
+        content,
+    )
     # END TABLE READ MANIFEST
     MANIFEST.write_text(content)
 

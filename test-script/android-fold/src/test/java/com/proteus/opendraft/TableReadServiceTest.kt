@@ -44,7 +44,7 @@ class TableReadServiceTest {
     private fun request(action: String, session: String = "read", owner: String = "main"): JSONObject {
         return JSONObject().put("action", action).put("owner", owner).put("session", session)
     }
-    private fun start(session: String = "read"): JSONObject = request("start", session).put("index", 0).put("offset", 0)
+    private fun start(session: String = "read", owner: String = "main"): JSONObject = request("start", session, owner).put("index", 0).put("offset", 0)
         .put("labels", JSONObject().apply { for (key in listOf("title", "play", "pause", "stop", "next", "previous")) put(key, "Translated $key") })
         .put("lines", JSONArray().put(JSONObject().put("text", "Synthetic first line").put("voice", "reader").put("gap", 250))
             .put(JSONObject().put("text", "Synthetic next line").put("voice", "reader").put("gap", 250)))
@@ -72,6 +72,8 @@ class TableReadServiceTest {
         looper.idle()
         assertEquals("playing", snapshot().getString("status"))
         assertEquals("Synthetic first line", ControlledReadSpeech.spoken.last().first)
+        service.onTaskRemoved(Intent().setClassName(app.packageName, "${app.packageName}.WindowActivity1"))
+        assertEquals("playing", snapshot().getString("status"))
         val media = ReflectionHelpers.getField<MediaSession>(service, "media")
         // Robolectric's MediaController transport does not deliver Binder
         // commands. Drive the callback actually registered with MediaSession;
@@ -121,7 +123,43 @@ class TableReadServiceTest {
         send(request("stop", session = "obsolete")); looper.idle()
         assertEquals("paused", snapshot().getString("status"))
         controller.get().onTaskRemoved(null)
+        assertEquals("paused", snapshot().getString("status"))
+        controller.get().onTaskRemoved(Intent().setClassName(app.packageName, "${app.packageName}.MainActivity"))
         assertEquals("idle", snapshot().getString("status"))
+        controller.destroy()
+    }
+
+    @Test fun taskRemovalOnlyStopsTheOwningWindow() {
+        for (owner in listOf("main", "main-1")) {
+            send(start(owner = owner))
+            send(request("pause", owner = owner))
+            val controller = Robolectric.buildService(TableReadService::class.java, shadowOf(app).nextStartedService).create().startCommand(0, 1)
+            val engine = ShadowTextToSpeech.getLastTextToSpeechInstance()
+            shadowOf(engine).onInitListener.onInit(TextToSpeech.SUCCESS)
+            shadowOf(Looper.getMainLooper()).idle()
+            fun state() = send(request("snapshot", owner = owner)).getString("status")
+            assertEquals("paused", state())
+            val ownClass = if (owner == "main") "MainActivity" else "WindowActivity1"
+            val otherClass = if (owner == "main") "WindowActivity1" else "MainActivity"
+            controller.get().onTaskRemoved(Intent().setClassName(app.packageName, "${app.packageName}.$otherClass"))
+            assertEquals("paused", state())
+            controller.get().onTaskRemoved(Intent().setClassName("other.app", "${app.packageName}.$ownClass"))
+            assertEquals("paused", state())
+            controller.get().onTaskRemoved(Intent().setClassName(app.packageName, "${app.packageName}.$ownClass"))
+            assertEquals("idle", state())
+            controller.destroy()
+            assertTrue(shadowOf(engine).isShutdown)
+        }
+    }
+
+    @Test fun removingTheOwnerCancelsAQueueWhoseStartHasNotBeenDelivered() {
+        send(start(owner = "main-1"))
+        val intent = shadowOf(app).nextStartedService
+        val controller = Robolectric.buildService(TableReadService::class.java, intent).create()
+        controller.get().onTaskRemoved(Intent().setClassName(app.packageName, "${app.packageName}.WindowActivity1"))
+        controller.startCommand(0, 1)
+        assertTrue(shadowOf(controller.get()).isStoppedBySelf)
+        assertEquals("idle", send(request("snapshot", owner = "main-1")).getString("status"))
         controller.destroy()
     }
 }

@@ -1,10 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Editor } from '@tiptap/react';
+import { EditorState, type Transaction } from '@tiptap/pm/state';
+import { Schema } from '@tiptap/pm/model';
+
+const schema = new Schema({ nodes: { doc: { content: 'paragraph+' }, paragraph: { content: 'text*' }, text: {} } });
+function edit(meta: Record<string, unknown> = {}): Transaction {
+  const tr = EditorState.create({ schema }).tr.insertText('typed', 1);
+  for (const [key, value] of Object.entries(meta)) tr.setMeta(key, value);
+  return tr;
+}
 
 const fixture = vi.hoisted(() => ({
   kind: 'system' as 'system' | 'ai',
   speak: vi.fn(async () => {}),
   invoke: vi.fn(),
+  lineIndexAt: vi.fn((_lines: unknown, _pos: number) => 0),
   engineGate: null as Promise<void> | null,
   lines: [
     { index: 0, kind: 'action', speaker: null, from: 1, to: 12, spoken: 'First line', text: 'First line' },
@@ -26,7 +36,7 @@ vi.mock('./engines', () => ({
 }));
 vi.mock('./voiceAssign', () => ({ inferGenders: () => ({}), castVoices: () => ({ narrator: 'narrator', bySpeaker: new Map([['SARAH', 'actor']]) }) }));
 vi.mock('./script', () => ({
-  buildReadLines: () => fixture.lines, lineIndexAt: () => 0,
+  buildReadLines: () => fixture.lines, lineIndexAt: fixture.lineIndexAt,
   spokenRangeToText: (_line: unknown, start: number, end: number) => ({ start, end }),
   spokenRangeToDoc: (_line: unknown, start: number, end: number) => ({ from: start, to: end }),
 }));
@@ -35,10 +45,10 @@ describe('Table Read native queue integration', () => {
   let player: typeof import('./player');
   let store: typeof import('../../stores/tableReadStore').useTableReadStore;
   let native: Record<string, unknown>;
-  let transaction: (event: { transaction: { docChanged: boolean; mapping: { map: (pos: number) => number } } }) => void;
+  let transaction: (event: { transaction: Transaction }) => void;
   let editor: Editor;
   beforeEach(async () => {
-    vi.resetModules(); vi.useFakeTimers(); fixture.kind = 'system'; fixture.engineGate = null; fixture.speak.mockClear();
+    vi.resetModules(); vi.useFakeTimers(); fixture.kind = 'system'; fixture.engineGate = null; fixture.speak.mockClear(); fixture.lineIndexAt.mockClear();
     vi.stubGlobal('window', Object.assign(new EventTarget(), { __TAURI_INTERNALS__: { invoke: fixture.invoke } }));
     vi.stubGlobal('document', Object.assign(new EventTarget(), { visibilityState: 'visible' }));
     vi.stubGlobal('navigator', { language: 'en' });
@@ -47,6 +57,7 @@ describe('Table Read native queue integration', () => {
       if (request.action === 'start') native = { ...native, session: request.session, status: 'playing' };
       if (request.action === 'pause') native = { ...native, status: 'paused' };
       if (request.action === 'play') native = { ...native, status: 'playing' };
+      if (request.action === 'jump') native = { ...native, index: request.index, offset: 0, end: 0 };
       return native;
     });
     const tr = { setMeta: vi.fn().mockImplementation(() => tr) };
@@ -87,14 +98,56 @@ describe('Table Read native queue integration', () => {
   it('pauses on document edits and rebuilds the native snapshot on resume', async () => {
     player.play(editor, 0); await vi.advanceTimersByTimeAsync(0);
     await vi.waitFor(() => expect(fixture.invoke.mock.calls.some(([, args]) => args.request.action === 'start')).toBe(true));
-    transaction({ transaction: { docChanged: true, mapping: { map: pos => pos + 1 } } });
-    transaction({ transaction: { docChanged: true, mapping: { map: pos => pos + 1 } } });
-    transaction({ transaction: { docChanged: true, mapping: { map: pos => pos + 1 } } });
+    transaction({ transaction: edit() });
+    transaction({ transaction: edit() });
+    transaction({ transaction: edit() });
     await vi.advanceTimersByTimeAsync(0);
     expect(store.getState().status).toBe('paused');
     await vi.waitFor(() => expect(fixture.invoke.mock.calls.filter(([, args]) => args.request.action === 'stop')).toHaveLength(1));
     player.resume(); await vi.advanceTimersByTimeAsync(0);
     await vi.waitFor(() => expect(fixture.invoke.mock.calls.filter(([, args]) => args.request.action === 'start')).toHaveLength(2));
+  });
+
+  it.each([
+    ['remote sync', { 'y-sync$': { isChangeOrigin: true } }],
+    ['remote appended repair', { appendedTransaction: edit({ 'y-sync$': { isChangeOrigin: true } }) }],
+    ['automatic housekeeping', { addToHistory: false }],
+  ])('keeps reading through %s and rebuilds on an explicit resume', async (_name, meta) => {
+    player.play(editor, 0);
+    await vi.waitFor(() => expect(fixture.invoke.mock.calls.some(([, args]) => args.request.action === 'start')).toBe(true));
+    transaction({ transaction: edit(meta) });
+    native = { ...native, index: 1, offset: 2, end: 6 };
+    await vi.advanceTimersByTimeAsync(400);
+    expect(store.getState()).toMatchObject({ status: 'playing', current: 1, word: null });
+    expect(fixture.invoke.mock.calls.some(([, args]) => args.request.action === 'stop')).toBe(false);
+    expect(fixture.invoke.mock.calls.filter(([, args]) => args.request.action === 'start')).toHaveLength(1);
+    player.pause();
+    await vi.waitFor(() => expect(store.getState().status).toBe('paused'));
+    player.resume();
+    await vi.waitFor(() => expect(fixture.invoke.mock.calls.filter(([, args]) => args.request.action === 'start')).toHaveLength(2));
+    expect(fixture.lineIndexAt).toHaveBeenLastCalledWith(fixture.lines, 19);
+  });
+
+  it.each([
+    { 'y-sync$': { isChangeOrigin: false } },
+    { 'y-sync$': { isChangeOrigin: true, isUndoRedoOperation: true }, addToHistory: false },
+    { history$: {}, addToHistory: false },
+  ])('still invalidates the queue for local collaboration edits and undo: %j', async meta => {
+    player.play(editor, 0);
+    await vi.waitFor(() => expect(fixture.invoke.mock.calls.some(([, args]) => args.request.action === 'start')).toBe(true));
+    transaction({ transaction: edit(meta) });
+    expect(store.getState().status).toBe('paused');
+    await vi.waitFor(() => expect(fixture.invoke.mock.calls.some(([, args]) => args.request.action === 'stop')).toBe(true));
+  });
+
+  it('jumps within the current native session without resending its queue', async () => {
+    player.play(editor, 0);
+    await vi.waitFor(() => expect(fixture.invoke.mock.calls.some(([, args]) => args.request.action === 'start')).toBe(true));
+    player.jumpTo(1);
+    await vi.waitFor(() => expect(store.getState().current).toBe(1));
+    expect(fixture.invoke.mock.calls.some(([, args]) => args.request.action === 'jump' && args.request.index === 1)).toBe(true);
+    expect(fixture.invoke.mock.calls.filter(([, args]) => args.request.action === 'start')).toHaveLength(1);
+    expect(fixture.invoke.mock.calls.some(([, args]) => args.request.action === 'stop')).toBe(false);
   });
 
   it('keeps the existing AI foreground player', async () => {
@@ -111,7 +164,7 @@ describe('Table Read native queue integration', () => {
     fixture.engineGate = new Promise<void>(resolve => { ready = resolve; });
     player.play(editor, 0);
     expect(store.getState().status).toBe('loading');
-    transaction({ transaction: { docChanged: true, mapping: { map: pos => pos + 1 } } });
+    transaction({ transaction: edit() });
     ready(); await vi.advanceTimersByTimeAsync(0);
     expect(store.getState().status).toBe('paused');
     expect(fixture.invoke.mock.calls.some(([, args]) => args.request.action === 'start')).toBe(false);

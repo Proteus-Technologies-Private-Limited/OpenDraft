@@ -74,7 +74,7 @@ pub fn tts_native_stop() -> Result<(), String> {
 
 /// Android owns the complete system-voice queue while its WebView is suspended.
 /// Derive ownership from the calling window, never from client-supplied JSON.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn tts_table_read(window: tauri::WebviewWindow, mut request: serde_json::Value) -> Result<serde_json::Value, String> {
     #[cfg(target_os = "android")]
     {

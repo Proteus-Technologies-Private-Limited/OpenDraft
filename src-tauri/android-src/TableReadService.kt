@@ -144,9 +144,7 @@ class TableReadService : Service() {
 
     private fun update() {
         if (loadingQueue) return
-        val state = JSONObject().put("session", playback.session).put("owner", playback.owner)
-            .put("status", playback.status).put("index", playback.index)
-            .put("offset", playback.offset).put("end", playback.end)
+        val state = playbackState()
         synchronized(lock) {
             val current = JSONObject(cached)
             if (pending == null && current.optString("owner") == playback.owner && current.optString("session") == playback.session) cached = state.toString()
@@ -204,7 +202,35 @@ class TableReadService : Service() {
     }
 
     override fun onBind(intent: Intent?) = null
-    override fun onTaskRemoved(rootIntent: Intent?) { control("stop") }
+    private fun playbackState() = JSONObject().put("session", playback.session).put("owner", playback.owner)
+        .put("status", playback.status).put("index", playback.index)
+        .put("offset", playback.offset).put("end", playback.end)
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        val component = rootIntent?.component ?: return
+        if (component.packageName != packageName) return
+        // open_new_window gives each Android window a distinct Activity slot:
+        // main -> MainActivity; main-N -> WindowActivityN. The root component
+        // identifies whose task Android removed, independent of the Context
+        // used by the shared JNI entrypoint.
+        fun ownsTask(owner: String): Boolean {
+            val activity = when {
+                owner == "main" -> "MainActivity"
+                owner.matches(Regex("main-[1-3]")) -> "WindowActivity${owner.removePrefix("main-")}"
+                else -> return false
+            }
+            return component.className == "$packageName.$activity"
+        }
+        val cancelledPending = synchronized(lock) {
+            if (pending?.let { ownsTask(it.owner) } == true) {
+                pending = null
+                cached = playbackState().toString()
+                true
+            } else false
+        }
+        if (ownsTask(playback.owner)) control("stop")
+        else if (cancelledPending) update()
+    }
     override fun onDestroy() {
         instance = null
         loadingQueue = true

@@ -1,6 +1,7 @@
 """Local, release and disposable builds must wire the same speech service."""
 
 import importlib.util
+import re
 import tempfile
 import textwrap
 import unittest
@@ -34,7 +35,7 @@ class TableReadBuild(unittest.TestCase):
                 once = manifest.read_text()
                 local.patch_table_read()
                 self.assertEqual(once, manifest.read_text())
-            namespace = {"content": original}
+            namespace = {"content": original, "re": re}
             exec(release_patch, namespace)
             self.assertEqual(once, namespace["content"])
             exec(release_patch, namespace)
@@ -48,7 +49,7 @@ class TableReadBuild(unittest.TestCase):
                 service.get(ANDROID + "foregroundServiceType"), "mediaPlayback"
             )
             self.assertEqual(service.get(ANDROID + "exported"), "false")
-            self.assertEqual(service.get(ANDROID + "stopWithTask"), "true")
+            self.assertEqual(service.get(ANDROID + "stopWithTask"), "false")
             self.assertNotIn("TableReadTestSpeech", once)
 
     def test_invalid_manifest_is_refused_before_writing(self):
@@ -60,7 +61,23 @@ class TableReadBuild(unittest.TestCase):
                     local.patch_table_read()
             self.assertEqual(manifest.read_text(), "<manifest />")
             with self.assertRaises(ValueError):
-                exec(release_patch, {"content": "<manifest />"})
+                exec(release_patch, {"content": "<manifest />", "re": re})
+
+    def test_existing_service_is_upgraded_without_changing_other_services(self):
+        original = '<manifest xmlns:android="http://schemas.android.com/apk/res/android"><application><service android:name=".TableReadService" android:stopWithTask="true" /><service android:name=".Other" android:stopWithTask="true" /></application></manifest>'
+        with tempfile.TemporaryDirectory() as temp:
+            manifest = Path(temp) / "AndroidManifest.xml"
+            manifest.write_text(original)
+            with patch.object(local, "MANIFEST", manifest):
+                local.patch_table_read()
+            namespace = {"content": original, "re": re}
+            exec(release_patch, namespace)
+            self.assertEqual(manifest.read_text(), namespace["content"])
+            services = ET.fromstring(namespace["content"]).findall(
+                "application/service"
+            )
+            self.assertEqual(services[0].get(ANDROID + "stopWithTask"), "false")
+            self.assertEqual(services[1].get(ANDROID + "stopWithTask"), "true")
 
     def test_production_sources_and_jni_survive_both_build_paths(self):
         with tempfile.TemporaryDirectory() as temp:

@@ -10,9 +10,16 @@ The media notification, lock-screen controls and media keys can play, pause,
 stop and move between lines. Pausing remembers the beginning of the latest
 reported word; engines without word events restart the current utterance.
 Long lines are chunked below the platform limit without splitting surrogate
-pairs. Changing speed/cast or jumping rebuilds the queue. Editing the document
-pauses the panel and discards the native snapshot, so remote Play cannot resume
-obsolete text. Resume in the panel rebuilds it against the mapped document position.
+pairs. Changing speed/cast rebuilds the queue; jumping within an unchanged, playing read
+uses the service's existing session. Local edits and local undo pause the panel
+and discard the native snapshot, so media Play cannot resume obsolete text.
+Resume in the panel rebuilds it against the mapped document position.
+
+Collaborator updates and automatic housekeeping keep the existing native queue
+reading. Its positions are mapped through those changes as playback advances,
+and obsolete highlights are cleared. Pausing and resuming in the panel rebuilds
+from the newly reached, mapped line; the running native snapshot itself is not
+rewritten on every collaborator keystroke.
 
 This implements the Android **system-voice** part of #231 WP12. AI-provider
 audio retains its existing foreground JavaScript player. Browser Media Session
@@ -28,13 +35,20 @@ audio library or JavaScript interface is installed in production. The Tauri
 command derives queue ownership from the calling window. Opaque session IDs
 reject stale controls, and a different window cannot control another read.
 A new read replaces the application's previous native queue.
+The command runs on Tauri's worker pool, keeping queue validation, serialization
+and JNI/JSON processing off the main thread.
 
 Transient audio-focus loss pauses speech and may resume on focus gain; a
 manual pause cancels automatic resume. Permanent loss pauses until the writer
 starts again. Audio-focus denial also leaves the read paused. Pausing releases
 the wake lock; stopping releases audio focus, notification, media session, TTS
-engine, timers and queue. Closing the owning window or dismissing the app task
-stops the read. A killed process never restarts or restores a private queue.
+engine, timers and queue. Closing the owning window or dismissing its Android
+task stops the read; removing another writing window's task leaves it playing.
+`stopWithTask` is false so Android delivers the removal callback. Each Android
+window uses a distinct Activity class, matching `open_new_window`'s slots; the
+callback compares the removed task's root component with the native queue owner.
+It also cancels a pending start for that owner. A killed process never restarts
+or restores a private queue.
 An utterance that never completes has a bounded watchdog.
 
 The foreground service declares `mediaPlayback`, `FOREGROUND_SERVICE`,
@@ -53,13 +67,15 @@ without echoing their contents. The panel shows a translated generic failure.
 ## Automated checks
 
 Frontend tests cover queue/cast handoff, word reconciliation after suspension,
-edit/pause/resume behavior, stale sessions, disposal during startup, transport
+local-edit/undo pause behavior, uninterrupted collaborator updates and mapped
+resume, queue-preserving jumps, stale sessions, disposal during startup, transport
 failure and the unchanged AI path. Native tests exercise the queue without
 frontend polling, word offsets, long Unicode lines, cancelled callbacks,
 interruption policy, readiness errors and deadlines. Robolectric service tests
 on API 28 and 35 exercise the registered MediaSession callbacks, notification privacy, window
-ownership, pending pause and task cleanup. Python checks execute both manifest
-patches, check idempotence and verify production source/JNI wiring.
+ownership, pending pause, owner versus unrelated task removal, and pending-start
+cleanup. Python checks execute both manifest patches, check idempotence and
+upgrades from the old task policy, and verify production source/JNI wiring.
 
 The [APK emulator workflow](android-fold-emulator.md) additionally runs both
 debug and R8-minified APKs against a disposable test-only TTS engine. It uses
