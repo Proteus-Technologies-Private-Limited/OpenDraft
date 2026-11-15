@@ -1,0 +1,29 @@
+{
+  "results": [
+    {
+      "theme": "dark",
+      "screen": {
+        "shadow": "none",
+        "outline": "solid",
+        "width": "1px",
+        "color": "rgba(0, 0, 0, 0.12)",
+        "pageWidth": 816,
+        "pageHeight": 164360
+      }
+    },
+    {
+      "theme": "light",
+      "screen": {
+        "shadow": "none",
+        "outline": "solid",
+        "width": "1px",
+        "color": "rgb(184, 184, 184)",
+        "pageWidth": 816,
+        "pageHeight": 164360
+      }
+    }
+  ],
+  "phoneOutline": "none",
+  "printOutline": "none",
+  "errors": []
+}

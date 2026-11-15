@@ -1,0 +1,1378 @@
+{
+  "kernel": "6.18.57",
+  "cpuModel": "AMD EPYC 9V74 80-Core Processor",
+  "availableCPUs": 2,
+  "nativeVersion": "2.13.0",
+  "executableSha256": "76fa818c208382bd679f033b0bb53cb8e17059c42759e372b435afb490d9066b",
+  "disposableStorageVerified": true,
+  "renderingRequest": "default",
+  "mode": "default",
+  "executable": "/proc/125994/exe",
+  "appPid": 125994,
+  "environment": {
+    "native": true,
+    "origin": "tauri://localhost",
+    "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/60.5 Safari/605.1.15",
+    "width": 1440,
+    "height": 900,
+    "blocks": 3110,
+    "documentSize": 168013,
+    "pages": 150,
+    "status": "Page 1 of 150",
+    "font": "\"Courier Prime\", \"Courier New\", Courier, monospace",
+    "deviceScale": 1
+  },
+  "documentSha256": "b5503f4735345a3b7d5e873cc608b9af17a9451659f456a434defffebdd3fcf0",
+  "results": [
+    {
+      "config": {
+        "navigator": false,
+        "spellcheck": false,
+        "round": 0
+      },
+      "direction": "down",
+      "profiling": false,
+      "wallMs": 4613.184387,
+      "frameCount": 218,
+      "frameMs": {
+        "median": 16,
+        "p95": 40,
+        "p99": 63,
+        "max": 68,
+        "over33": 12,
+        "over50": 5
+      },
+      "wheelEvents": 120,
+      "trustedWheels": 120,
+      "wheelDelta": 11160,
+      "scrollEvents": 191,
+      "distance": 11160,
+      "documentIntact": true,
+      "selectionIntact": true,
+      "visibility": "visible",
+      "focused": true,
+      "navigatorScenes": null,
+      "spellMarks": 0,
+      "cpu": [
+        {
+          "pid": 125994,
+          "name": "opendraft",
+          "cpuMs": 750
+        },
+        {
+          "pid": 121067,
+          "name": "Xvfb",
+          "cpuMs": 330
+        },
+        {
+          "pid": 126022,
+          "name": "WebKitNetworkPr",
+          "cpuMs": 0
+        },
+        {
+          "pid": 126026,
+          "name": "WebKitWebProces",
+          "cpuMs": 4450
+        }
+      ]
+    },
+    {
+      "config": {
+        "navigator": false,
+        "spellcheck": false,
+        "round": 0
+      },
+      "direction": "up",
+      "profiling": false,
+      "wallMs": 4612.011984000001,
+      "frameCount": 265,
+      "frameMs": {
+        "median": 16,
+        "p95": 24,
+        "p99": 53,
+        "max": 91,
+        "over33": 11,
+        "over50": 3
+      },
+      "wheelEvents": 120,
+      "trustedWheels": 120,
+      "wheelDelta": -11160,
+      "scrollEvents": 234,
+      "distance": -11160,
+      "documentIntact": true,
+      "selectionIntact": true,
+      "visibility": "visible",
+      "focused": true,
+      "navigatorScenes": null,
+      "spellMarks": 0,
+      "cpu": [
+        {
+          "pid": 125994,
+          "name": "opendraft",
+          "cpuMs": 900
+        },
+        {
+          "pid": 121067,
+          "name": "Xvfb",
+          "cpuMs": 430
+        },
+        {
+          "pid": 126022,
+          "name": "WebKitNetworkPr",
+          "cpuMs": 0
+        },
+        {
+          "pid": 126026,
+          "name": "WebKitWebProces",
+          "cpuMs": 4020
+        }
+      ]
+    },
+    {
+      "config": {
+        "navigator": true,
+        "spellcheck": false,
+        "round": 0
+      },
+      "direction": "down",
+      "profiling": false,
+      "wallMs": 4598.548776,
+      "frameCount": 257,
+      "frameMs": {
+        "median": 16,
+        "p95": 32,
+        "p99": 46,
+        "max": 52,
+        "over33": 12,
+        "over50": 2
+      },
+      "wheelEvents": 120,
+      "trustedWheels": 120,
+      "wheelDelta": 11160,
+      "scrollEvents": 226,
+      "distance": 11160,
+      "documentIntact": true,
+      "selectionIntact": true,
+      "visibility": "visible",
+      "focused": true,
+      "navigatorScenes": "115",
+      "spellMarks": 0,
+      "cpu": [
+        {
+          "pid": 125994,
+          "name": "opendraft",
+          "cpuMs": 830
+        },
+        {
+          "pid": 121067,
+          "name": "Xvfb",
+          "cpuMs": 390
+        },
+        {
+          "pid": 126022,
+          "name": "WebKitNetworkPr",
+          "cpuMs": 0
+        },
+        {
+          "pid": 126026,
+          "name": "WebKitWebProces",
+          "cpuMs": 4130
+        }
+      ]
+    },
+    {
+      "config": {
+        "navigator": true,
+        "spellcheck": false,
+        "round": 0
+      },
+      "direction": "up",
+      "profiling": false,
+      "wallMs": 4610.021551000002,
+      "frameCount": 249,
+      "frameMs": {
+        "median": 17,
+        "p95": 35,
+        "p99": 53,
+        "max": 82,
+        "over33": 13,
+        "over50": 3
+      },
+      "wheelEvents": 120,
+      "trustedWheels": 120,
+      "wheelDelta": -11160,
+      "scrollEvents": 219,
+      "distance": -11160,
+      "documentIntact": true,
+      "selectionIntact": true,
+      "visibility": "visible",
+      "focused": true,
+      "navigatorScenes": "115",
+      "spellMarks": 0,
+      "cpu": [
+        {
+          "pid": 125994,
+          "name": "opendraft",
+          "cpuMs": 750
+        },
+        {
+          "pid": 121067,
+          "name": "Xvfb",
+          "cpuMs": 420
+        },
+        {
+          "pid": 126022,
+          "name": "WebKitNetworkPr",
+          "cpuMs": 0
+        },
+        {
+          "pid": 126026,
+          "name": "WebKitWebProces",
+          "cpuMs": 4240
+        }
+      ]
+    },
+    {
+      "config": {
+        "navigator": false,
+        "spellcheck": true,
+        "round": 0
+      },
+      "direction": "down",
+      "profiling": false,
+      "wallMs": 4609.637835000005,
+      "frameCount": 259,
+      "frameMs": {
+        "median": 16,
+        "p95": 35,
+        "p99": 47,
+        "max": 103,
+        "over33": 13,
+        "over50": 2
+      },
+      "wheelEvents": 120,
+      "trustedWheels": 120,
+      "wheelDelta": 11160,
+      "scrollEvents": 230,
+      "distance": 11160,
+      "documentIntact": true,
+      "selectionIntact": true,
+      "visibility": "visible",
+      "focused": true,
+      "navigatorScenes": null,
+      "spellMarks": 304,
+      "cpu": [
+        {
+          "pid": 125994,
+          "name": "opendraft",
+          "cpuMs": 810
+        },
+        {
+          "pid": 121067,
+          "name": "Xvfb",
+          "cpuMs": 410
+        },
+        {
+          "pid": 126022,
+          "name": "WebKitNetworkPr",
+          "cpuMs": 0
+        },
+        {
+          "pid": 126026,
+          "name": "WebKitWebProces",
+          "cpuMs": 4030
+        }
+      ]
+    },
+    {
+      "config": {
+        "navigator": false,
+        "spellcheck": true,
+        "round": 0
+      },
+      "direction": "up",
+      "profiling": false,
+      "wallMs": 4609.760624000002,
+      "frameCount": 242,
+      "frameMs": {
+        "median": 16,
+        "p95": 31,
+        "p99": 46,
+        "max": 94,
+        "over33": 12,
+        "over50": 2
+      },
+      "wheelEvents": 120,
+      "trustedWheels": 120,
+      "wheelDelta": -11160,
+      "scrollEvents": 209,
+      "distance": -11160,
+      "documentIntact": true,
+      "selectionIntact": true,
+      "visibility": "visible",
+      "focused": true,
+      "navigatorScenes": null,
+      "spellMarks": 304,
+      "cpu": [
+        {
+          "pid": 125994,
+          "name": "opendraft",
+          "cpuMs": 670
+        },
+        {
+          "pid": 121067,
+          "name": "Xvfb",
+          "cpuMs": 340
+        },
+        {
+          "pid": 126022,
+          "name": "WebKitNetworkPr",
+          "cpuMs": 0
+        },
+        {
+          "pid": 126026,
+          "name": "WebKitWebProces",
+          "cpuMs": 4010
+        }
+      ]
+    },
+    {
+      "config": {
+        "navigator": true,
+        "spellcheck": true,
+        "round": 0
+      },
+      "direction": "down",
+      "profiling": false,
+      "wallMs": 4604.701308999996,
+      "frameCount": 247,
+      "frameMs": {
+        "median": 17,
+        "p95": 36,
+        "p99": 50,
+        "max": 83,
+        "over33": 13,
+        "over50": 2
+      },
+      "wheelEvents": 120,
+      "trustedWheels": 120,
+      "wheelDelta": 11160,
+      "scrollEvents": 218,
+      "distance": 11160,
+      "documentIntact": true,
+      "selectionIntact": true,
+      "visibility": "visible",
+      "focused": true,
+      "navigatorScenes": "115",
+      "spellMarks": 304,
+      "cpu": [
+        {
+          "pid": 125994,
+          "name": "opendraft",
+          "cpuMs": 840
+        },
+        {
+          "pid": 121067,
+          "name": "Xvfb",
+          "cpuMs": 420
+        },
+        {
+          "pid": 126022,
+          "name": "WebKitNetworkPr",
+          "cpuMs": 0
+        },
+        {
+          "pid": 126026,
+          "name": "WebKitWebProces",
+          "cpuMs": 4230
+        }
+      ]
+    },
+    {
+      "config": {
+        "navigator": true,
+        "spellcheck": true,
+        "round": 0
+      },
+      "direction": "up",
+      "profiling": false,
+      "wallMs": 4608.228665999995,
+      "frameCount": 247,
+      "frameMs": {
+        "median": 17,
+        "p95": 39,
+        "p99": 58,
+        "max": 86,
+        "over33": 14,
+        "over50": 3
+      },
+      "wheelEvents": 120,
+      "trustedWheels": 120,
+      "wheelDelta": -11160,
+      "scrollEvents": 217,
+      "distance": -11160,
+      "documentIntact": true,
+      "selectionIntact": true,
+      "visibility": "visible",
+      "focused": true,
+      "navigatorScenes": "115",
+      "spellMarks": 304,
+      "cpu": [
+        {
+          "pid": 125994,
+          "name": "opendraft",
+          "cpuMs": 1020
+        },
+        {
+          "pid": 121067,
+          "name": "Xvfb",
+          "cpuMs": 410
+        },
+        {
+          "pid": 126022,
+          "name": "WebKitNetworkPr",
+          "cpuMs": 0
+        },
+        {
+          "pid": 126026,
+          "name": "WebKitWebProces",
+          "cpuMs": 4170
+        }
+      ]
+    },
+    {
+      "config": {
+        "navigator": true,
+        "spellcheck": true,
+        "round": 1
+      },
+      "direction": "down",
+      "profiling": false,
+      "wallMs": 4626.716520000002,
+      "frameCount": 225,
+      "frameMs": {
+        "median": 18,
+        "p95": 33,
+        "p99": 63,
+        "max": 80,
+        "over33": 11,
+        "over50": 5
+      },
+      "wheelEvents": 120,
+      "trustedWheels": 120,
+      "wheelDelta": 11160,
+      "scrollEvents": 194,
+      "distance": 11160,
+      "documentIntact": true,
+      "selectionIntact": true,
+      "visibility": "visible",
+      "focused": true,
+      "navigatorScenes": "115",
+      "spellMarks": 304,
+      "cpu": [
+        {
+          "pid": 125994,
+          "name": "opendraft",
+          "cpuMs": 700
+        },
+        {
+          "pid": 121067,
+          "name": "Xvfb",
+          "cpuMs": 360
+        },
+        {
+          "pid": 126022,
+          "name": "WebKitNetworkPr",
+          "cpuMs": 0
+        },
+        {
+          "pid": 126026,
+          "name": "WebKitWebProces",
+          "cpuMs": 4120
+        }
+      ]
+    },
+    {
+      "config": {
+        "navigator": true,
+        "spellcheck": true,
+        "round": 1
+      },
+      "direction": "up",
+      "profiling": false,
+      "wallMs": 4615.682665,
+      "frameCount": 250,
+      "frameMs": {
+        "median": 17,
+        "p95": 38,
+        "p99": 45,
+        "max": 82,
+        "over33": 14,
+        "over50": 2
+      },
+      "wheelEvents": 120,
+      "trustedWheels": 120,
+      "wheelDelta": -11160,
+      "scrollEvents": 220,
+      "distance": -11160,
+      "documentIntact": true,
+      "selectionIntact": true,
+      "visibility": "visible",
+      "focused": true,
+      "navigatorScenes": "115",
+      "spellMarks": 304,
+      "cpu": [
+        {
+          "pid": 125994,
+          "name": "opendraft",
+          "cpuMs": 790
+        },
+        {
+          "pid": 121067,
+          "name": "Xvfb",
+          "cpuMs": 400
+        },
+        {
+          "pid": 126022,
+          "name": "WebKitNetworkPr",
+          "cpuMs": 0
+        },
+        {
+          "pid": 126026,
+          "name": "WebKitWebProces",
+          "cpuMs": 4180
+        }
+      ]
+    },
+    {
+      "config": {
+        "navigator": false,
+        "spellcheck": true,
+        "round": 1
+      },
+      "direction": "down",
+      "profiling": false,
+      "wallMs": 4610.561459000004,
+      "frameCount": 265,
+      "frameMs": {
+        "median": 16,
+        "p95": 29,
+        "p99": 42,
+        "max": 47,
+        "over33": 12,
+        "over50": 0
+      },
+      "wheelEvents": 120,
+      "trustedWheels": 120,
+      "wheelDelta": 11160,
+      "scrollEvents": 236,
+      "distance": 11160,
+      "documentIntact": true,
+      "selectionIntact": true,
+      "visibility": "visible",
+      "focused": true,
+      "navigatorScenes": null,
+      "spellMarks": 304,
+      "cpu": [
+        {
+          "pid": 125994,
+          "name": "opendraft",
+          "cpuMs": 800
+        },
+        {
+          "pid": 121067,
+          "name": "Xvfb",
+          "cpuMs": 380
+        },
+        {
+          "pid": 126022,
+          "name": "WebKitNetworkPr",
+          "cpuMs": 0
+        },
+        {
+          "pid": 126026,
+          "name": "WebKitWebProces",
+          "cpuMs": 3780
+        }
+      ]
+    },
+    {
+      "config": {
+        "navigator": false,
+        "spellcheck": true,
+        "round": 1
+      },
+      "direction": "up",
+      "profiling": false,
+      "wallMs": 4610.537003999998,
+      "frameCount": 260,
+      "frameMs": {
+        "median": 16,
+        "p95": 29,
+        "p99": 45,
+        "max": 98,
+        "over33": 11,
+        "over50": 1
+      },
+      "wheelEvents": 120,
+      "trustedWheels": 120,
+      "wheelDelta": -11160,
+      "scrollEvents": 229,
+      "distance": -11160,
+      "documentIntact": true,
+      "selectionIntact": true,
+      "visibility": "visible",
+      "focused": true,
+      "navigatorScenes": null,
+      "spellMarks": 304,
+      "cpu": [
+        {
+          "pid": 125994,
+          "name": "opendraft",
+          "cpuMs": 760
+        },
+        {
+          "pid": 121067,
+          "name": "Xvfb",
+          "cpuMs": 410
+        },
+        {
+          "pid": 126022,
+          "name": "WebKitNetworkPr",
+          "cpuMs": 0
+        },
+        {
+          "pid": 126026,
+          "name": "WebKitWebProces",
+          "cpuMs": 3960
+        }
+      ]
+    },
+    {
+      "config": {
+        "navigator": true,
+        "spellcheck": false,
+        "round": 1
+      },
+      "direction": "down",
+      "profiling": false,
+      "wallMs": 4610.487061000007,
+      "frameCount": 250,
+      "frameMs": {
+        "median": 17,
+        "p95": 29,
+        "p99": 48,
+        "max": 86,
+        "over33": 12,
+        "over50": 2
+      },
+      "wheelEvents": 120,
+      "trustedWheels": 120,
+      "wheelDelta": 11160,
+      "scrollEvents": 220,
+      "distance": 11160,
+      "documentIntact": true,
+      "selectionIntact": true,
+      "visibility": "visible",
+      "focused": true,
+      "navigatorScenes": "115",
+      "spellMarks": 0,
+      "cpu": [
+        {
+          "pid": 125994,
+          "name": "opendraft",
+          "cpuMs": 880
+        },
+        {
+          "pid": 121067,
+          "name": "Xvfb",
+          "cpuMs": 440
+        },
+        {
+          "pid": 126022,
+          "name": "WebKitNetworkPr",
+          "cpuMs": 10
+        },
+        {
+          "pid": 126026,
+          "name": "WebKitWebProces",
+          "cpuMs": 4100
+        }
+      ]
+    },
+    {
+      "config": {
+        "navigator": true,
+        "spellcheck": false,
+        "round": 1
+      },
+      "direction": "up",
+      "profiling": false,
+      "wallMs": 4606.045374999987,
+      "frameCount": 258,
+      "frameMs": {
+        "median": 16,
+        "p95": 31,
+        "p99": 42,
+        "max": 63,
+        "over33": 11,
+        "over50": 1
+      },
+      "wheelEvents": 120,
+      "trustedWheels": 120,
+      "wheelDelta": -11160,
+      "scrollEvents": 228,
+      "distance": -11160,
+      "documentIntact": true,
+      "selectionIntact": true,
+      "visibility": "visible",
+      "focused": true,
+      "navigatorScenes": "115",
+      "spellMarks": 0,
+      "cpu": [
+        {
+          "pid": 125994,
+          "name": "opendraft",
+          "cpuMs": 810
+        },
+        {
+          "pid": 121067,
+          "name": "Xvfb",
+          "cpuMs": 440
+        },
+        {
+          "pid": 126022,
+          "name": "WebKitNetworkPr",
+          "cpuMs": 0
+        },
+        {
+          "pid": 126026,
+          "name": "WebKitWebProces",
+          "cpuMs": 4070
+        }
+      ]
+    },
+    {
+      "config": {
+        "navigator": false,
+        "spellcheck": false,
+        "round": 1
+      },
+      "direction": "down",
+      "profiling": false,
+      "wallMs": 4603.261995000008,
+      "frameCount": 274,
+      "frameMs": {
+        "median": 16,
+        "p95": 24,
+        "p99": 43,
+        "max": 46,
+        "over33": 10,
+        "over50": 0
+      },
+      "wheelEvents": 120,
+      "trustedWheels": 120,
+      "wheelDelta": 11160,
+      "scrollEvents": 242,
+      "distance": 11160,
+      "documentIntact": true,
+      "selectionIntact": true,
+      "visibility": "visible",
+      "focused": true,
+      "navigatorScenes": null,
+      "spellMarks": 0,
+      "cpu": [
+        {
+          "pid": 125994,
+          "name": "opendraft",
+          "cpuMs": 730
+        },
+        {
+          "pid": 121067,
+          "name": "Xvfb",
+          "cpuMs": 370
+        },
+        {
+          "pid": 126022,
+          "name": "WebKitNetworkPr",
+          "cpuMs": 0
+        },
+        {
+          "pid": 126026,
+          "name": "WebKitWebProces",
+          "cpuMs": 3780
+        }
+      ]
+    },
+    {
+      "config": {
+        "navigator": false,
+        "spellcheck": false,
+        "round": 1
+      },
+      "direction": "up",
+      "profiling": false,
+      "wallMs": 4605.583499999993,
+      "frameCount": 250,
+      "frameMs": {
+        "median": 16,
+        "p95": 36,
+        "p99": 50,
+        "max": 58,
+        "over33": 13,
+        "over50": 2
+      },
+      "wheelEvents": 120,
+      "trustedWheels": 120,
+      "wheelDelta": -11160,
+      "scrollEvents": 224,
+      "distance": -11160,
+      "documentIntact": true,
+      "selectionIntact": true,
+      "visibility": "visible",
+      "focused": true,
+      "navigatorScenes": null,
+      "spellMarks": 0,
+      "cpu": [
+        {
+          "pid": 125994,
+          "name": "opendraft",
+          "cpuMs": 720
+        },
+        {
+          "pid": 121067,
+          "name": "Xvfb",
+          "cpuMs": 390
+        },
+        {
+          "pid": 126022,
+          "name": "WebKitNetworkPr",
+          "cpuMs": 0
+        },
+        {
+          "pid": 126026,
+          "name": "WebKitWebProces",
+          "cpuMs": 4060
+        }
+      ]
+    },
+    {
+      "config": {
+        "navigator": false,
+        "spellcheck": false,
+        "round": 2
+      },
+      "direction": "down",
+      "profiling": false,
+      "wallMs": 4611.736970000013,
+      "frameCount": 272,
+      "frameMs": {
+        "median": 16,
+        "p95": 24,
+        "p99": 41,
+        "max": 79,
+        "over33": 12,
+        "over50": 1
+      },
+      "wheelEvents": 120,
+      "trustedWheels": 120,
+      "wheelDelta": 11160,
+      "scrollEvents": 241,
+      "distance": 11160,
+      "documentIntact": true,
+      "selectionIntact": true,
+      "visibility": "visible",
+      "focused": true,
+      "navigatorScenes": null,
+      "spellMarks": 0,
+      "cpu": [
+        {
+          "pid": 125994,
+          "name": "opendraft",
+          "cpuMs": 840
+        },
+        {
+          "pid": 121067,
+          "name": "Xvfb",
+          "cpuMs": 460
+        },
+        {
+          "pid": 126022,
+          "name": "WebKitNetworkPr",
+          "cpuMs": 0
+        },
+        {
+          "pid": 126026,
+          "name": "WebKitWebProces",
+          "cpuMs": 3870
+        }
+      ]
+    },
+    {
+      "config": {
+        "navigator": false,
+        "spellcheck": false,
+        "round": 2
+      },
+      "direction": "up",
+      "profiling": false,
+      "wallMs": 4602.263036999997,
+      "frameCount": 268,
+      "frameMs": {
+        "median": 16,
+        "p95": 25,
+        "p99": 44,
+        "max": 49,
+        "over33": 13,
+        "over50": 0
+      },
+      "wheelEvents": 120,
+      "trustedWheels": 120,
+      "wheelDelta": -11160,
+      "scrollEvents": 237,
+      "distance": -11160,
+      "documentIntact": true,
+      "selectionIntact": true,
+      "visibility": "visible",
+      "focused": true,
+      "navigatorScenes": null,
+      "spellMarks": 0,
+      "cpu": [
+        {
+          "pid": 125994,
+          "name": "opendraft",
+          "cpuMs": 930
+        },
+        {
+          "pid": 121067,
+          "name": "Xvfb",
+          "cpuMs": 420
+        },
+        {
+          "pid": 126022,
+          "name": "WebKitNetworkPr",
+          "cpuMs": 0
+        },
+        {
+          "pid": 126026,
+          "name": "WebKitWebProces",
+          "cpuMs": 3870
+        }
+      ]
+    },
+    {
+      "config": {
+        "navigator": true,
+        "spellcheck": false,
+        "round": 2
+      },
+      "direction": "down",
+      "profiling": false,
+      "wallMs": 4609.288754999987,
+      "frameCount": 243,
+      "frameMs": {
+        "median": 17,
+        "p95": 35,
+        "p99": 53,
+        "max": 55,
+        "over33": 13,
+        "over50": 3
+      },
+      "wheelEvents": 120,
+      "trustedWheels": 120,
+      "wheelDelta": 11160,
+      "scrollEvents": 211,
+      "distance": 11160,
+      "documentIntact": true,
+      "selectionIntact": true,
+      "visibility": "visible",
+      "focused": true,
+      "navigatorScenes": "115",
+      "spellMarks": 0,
+      "cpu": [
+        {
+          "pid": 125994,
+          "name": "opendraft",
+          "cpuMs": 710
+        },
+        {
+          "pid": 121067,
+          "name": "Xvfb",
+          "cpuMs": 360
+        },
+        {
+          "pid": 126022,
+          "name": "WebKitNetworkPr",
+          "cpuMs": 0
+        },
+        {
+          "pid": 126026,
+          "name": "WebKitWebProces",
+          "cpuMs": 4140
+        }
+      ]
+    },
+    {
+      "config": {
+        "navigator": true,
+        "spellcheck": false,
+        "round": 2
+      },
+      "direction": "up",
+      "profiling": false,
+      "wallMs": 4601.575291000001,
+      "frameCount": 251,
+      "frameMs": {
+        "median": 16,
+        "p95": 39,
+        "p99": 49,
+        "max": 85,
+        "over33": 13,
+        "over50": 1
+      },
+      "wheelEvents": 120,
+      "trustedWheels": 120,
+      "wheelDelta": -11160,
+      "scrollEvents": 224,
+      "distance": -11160,
+      "documentIntact": true,
+      "selectionIntact": true,
+      "visibility": "visible",
+      "focused": true,
+      "navigatorScenes": "115",
+      "spellMarks": 0,
+      "cpu": [
+        {
+          "pid": 125994,
+          "name": "opendraft",
+          "cpuMs": 890
+        },
+        {
+          "pid": 121067,
+          "name": "Xvfb",
+          "cpuMs": 420
+        },
+        {
+          "pid": 126022,
+          "name": "WebKitNetworkPr",
+          "cpuMs": 0
+        },
+        {
+          "pid": 126026,
+          "name": "WebKitWebProces",
+          "cpuMs": 4100
+        }
+      ]
+    },
+    {
+      "config": {
+        "navigator": false,
+        "spellcheck": true,
+        "round": 2
+      },
+      "direction": "down",
+      "profiling": false,
+      "wallMs": 4619.317958,
+      "frameCount": 260,
+      "frameMs": {
+        "median": 16,
+        "p95": 23,
+        "p99": 49,
+        "max": 176,
+        "over33": 11,
+        "over50": 2
+      },
+      "wheelEvents": 120,
+      "trustedWheels": 120,
+      "wheelDelta": 11160,
+      "scrollEvents": 229,
+      "distance": 11160,
+      "documentIntact": true,
+      "selectionIntact": true,
+      "visibility": "visible",
+      "focused": true,
+      "navigatorScenes": null,
+      "spellMarks": 304,
+      "cpu": [
+        {
+          "pid": 125994,
+          "name": "opendraft",
+          "cpuMs": 870
+        },
+        {
+          "pid": 121067,
+          "name": "Xvfb",
+          "cpuMs": 420
+        },
+        {
+          "pid": 126022,
+          "name": "WebKitNetworkPr",
+          "cpuMs": 0
+        },
+        {
+          "pid": 126026,
+          "name": "WebKitWebProces",
+          "cpuMs": 3820
+        }
+      ]
+    },
+    {
+      "config": {
+        "navigator": false,
+        "spellcheck": true,
+        "round": 2
+      },
+      "direction": "up",
+      "profiling": false,
+      "wallMs": 4606.206814000005,
+      "frameCount": 243,
+      "frameMs": {
+        "median": 16,
+        "p95": 37,
+        "p99": 50,
+        "max": 81,
+        "over33": 14,
+        "over50": 2
+      },
+      "wheelEvents": 120,
+      "trustedWheels": 120,
+      "wheelDelta": -11160,
+      "scrollEvents": 214,
+      "distance": -11160,
+      "documentIntact": true,
+      "selectionIntact": true,
+      "visibility": "visible",
+      "focused": true,
+      "navigatorScenes": null,
+      "spellMarks": 304,
+      "cpu": [
+        {
+          "pid": 125994,
+          "name": "opendraft",
+          "cpuMs": 780
+        },
+        {
+          "pid": 121067,
+          "name": "Xvfb",
+          "cpuMs": 440
+        },
+        {
+          "pid": 126022,
+          "name": "WebKitNetworkPr",
+          "cpuMs": 0
+        },
+        {
+          "pid": 126026,
+          "name": "WebKitWebProces",
+          "cpuMs": 4010
+        }
+      ]
+    },
+    {
+      "config": {
+        "navigator": true,
+        "spellcheck": true,
+        "round": 2
+      },
+      "direction": "down",
+      "profiling": false,
+      "wallMs": 4625.766697999992,
+      "frameCount": 253,
+      "frameMs": {
+        "median": 16,
+        "p95": 37,
+        "p99": 50,
+        "max": 101,
+        "over33": 13,
+        "over50": 2
+      },
+      "wheelEvents": 120,
+      "trustedWheels": 120,
+      "wheelDelta": 11160,
+      "scrollEvents": 225,
+      "distance": 11160,
+      "documentIntact": true,
+      "selectionIntact": true,
+      "visibility": "visible",
+      "focused": true,
+      "navigatorScenes": "115",
+      "spellMarks": 304,
+      "cpu": [
+        {
+          "pid": 125994,
+          "name": "opendraft",
+          "cpuMs": 870
+        },
+        {
+          "pid": 121067,
+          "name": "Xvfb",
+          "cpuMs": 420
+        },
+        {
+          "pid": 126022,
+          "name": "WebKitNetworkPr",
+          "cpuMs": 0
+        },
+        {
+          "pid": 126026,
+          "name": "WebKitWebProces",
+          "cpuMs": 4270
+        }
+      ]
+    },
+    {
+      "config": {
+        "navigator": true,
+        "spellcheck": true,
+        "round": 2
+      },
+      "direction": "up",
+      "profiling": false,
+      "wallMs": 4615.741657000006,
+      "frameCount": 253,
+      "frameMs": {
+        "median": 17,
+        "p95": 28,
+        "p99": 43,
+        "max": 98,
+        "over33": 12,
+        "over50": 1
+      },
+      "wheelEvents": 120,
+      "trustedWheels": 120,
+      "wheelDelta": -11160,
+      "scrollEvents": 219,
+      "distance": -11160,
+      "documentIntact": true,
+      "selectionIntact": true,
+      "visibility": "visible",
+      "focused": true,
+      "navigatorScenes": "115",
+      "spellMarks": 304,
+      "cpu": [
+        {
+          "pid": 125994,
+          "name": "opendraft",
+          "cpuMs": 900
+        },
+        {
+          "pid": 121067,
+          "name": "Xvfb",
+          "cpuMs": 390
+        },
+        {
+          "pid": 126022,
+          "name": "WebKitNetworkPr",
+          "cpuMs": 0
+        },
+        {
+          "pid": 126026,
+          "name": "WebKitWebProces",
+          "cpuMs": 4080
+        }
+      ]
+    },
+    {
+      "config": {
+        "navigator": true,
+        "spellcheck": true
+      },
+      "direction": "down",
+      "profiling": true,
+      "wallMs": 4594.297898999997,
+      "frameCount": 243,
+      "frameMs": {
+        "median": 17,
+        "p95": 38,
+        "p99": 60,
+        "max": 66,
+        "over33": 13,
+        "over50": 3
+      },
+      "wheelEvents": 120,
+      "trustedWheels": 120,
+      "wheelDelta": 11160,
+      "scrollEvents": 203,
+      "distance": 11160,
+      "documentIntact": true,
+      "selectionIntact": true,
+      "visibility": "visible",
+      "focused": true,
+      "navigatorScenes": "115",
+      "spellMarks": 304,
+      "cpu": [
+        {
+          "pid": 125994,
+          "name": "opendraft",
+          "cpuMs": 850
+        },
+        {
+          "pid": 121067,
+          "name": "Xvfb",
+          "cpuMs": 340
+        },
+        {
+          "pid": 126022,
+          "name": "WebKitNetworkPr",
+          "cpuMs": 0
+        },
+        {
+          "pid": 126026,
+          "name": "WebKitWebProces",
+          "cpuMs": 4160
+        }
+      ]
+    },
+    {
+      "config": {
+        "navigator": true,
+        "spellcheck": true
+      },
+      "direction": "up",
+      "profiling": true,
+      "wallMs": 4608.270794999989,
+      "frameCount": 254,
+      "frameMs": {
+        "median": 17,
+        "p95": 39,
+        "p99": 47,
+        "max": 49,
+        "over33": 14,
+        "over50": 0
+      },
+      "wheelEvents": 120,
+      "trustedWheels": 120,
+      "wheelDelta": -11160,
+      "scrollEvents": 219,
+      "distance": -11160,
+      "documentIntact": true,
+      "selectionIntact": true,
+      "visibility": "visible",
+      "focused": true,
+      "navigatorScenes": "115",
+      "spellMarks": 304,
+      "cpu": [
+        {
+          "pid": 125994,
+          "name": "opendraft",
+          "cpuMs": 920
+        },
+        {
+          "pid": 121067,
+          "name": "Xvfb",
+          "cpuMs": 410
+        },
+        {
+          "pid": 126022,
+          "name": "WebKitNetworkPr",
+          "cpuMs": 0
+        },
+        {
+          "pid": 126026,
+          "name": "WebKitWebProces",
+          "cpuMs": 4200
+        }
+      ]
+    }
+  ]
+}
