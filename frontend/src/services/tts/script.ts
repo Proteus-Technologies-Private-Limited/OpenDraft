@@ -313,10 +313,15 @@ export function buildReadLines(doc: PMNode, opts: BuildOptions): ReadLine[] {
   return lines;
 }
 
-/** Index of the first line at or after document position `pos`; 0 when there is none. */
+/**
+ * Index of the first line at or after document position `pos`. A position
+ * past every line (its line was deleted, say) gives the last line, so a read
+ * that loses its place near the end stays there instead of restarting at the
+ * top. 0 for an empty list.
+ */
 export function lineIndexAt(lines: ReadLine[], pos: number): number {
   const hit = lines.findIndex((l) => l.to >= pos);
-  return hit < 0 ? 0 : hit;
+  return hit < 0 ? Math.max(0, lines.length - 1) : hit;
 }
 
 /** Map a [start, end) range in a line's spoken text to document positions. */

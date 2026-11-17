@@ -146,7 +146,8 @@ describe('positions', () => {
     const lines = buildReadLines(script(), ALL);
     expect(lineIndexAt(lines, 0)).toBe(0);
     expect(lineIndexAt(lines, lines[4].from + 2)).toBe(4);
-    expect(lineIndexAt(lines, 1e9)).toBe(0);
+    expect(lineIndexAt(lines, 1e9)).toBe(lines.length - 1);
+    expect(lineIndexAt([], 5)).toBe(0);
   });
 });
 

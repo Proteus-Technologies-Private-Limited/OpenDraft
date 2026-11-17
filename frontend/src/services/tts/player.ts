@@ -400,13 +400,18 @@ export function prepare(editor: Editor) {
 
 /** Start reading at `index`, or at the cursor when not given. */
 export function play(editor: Editor, index?: number) {
+  // `index` points into the panel's line list, which edits since it was built
+  // may have moved. Follow that line through them, as jumpTo does — but only
+  // for this editor's snapshot; a new editor's document shares no positions.
+  const previous = store().lines[index ?? -1];
+  const target = previous && editorRef === editor && stale ? lineMapping.map(previous.from) : null;
   attach(editor);
   const lines = refreshLines();
   if (!lines.length) {
     store().patch({ status: 'error', error: 'There is nothing to read — the script has no lines Table Read can speak with the current settings.' });
     return;
   }
-  const at = index ?? startLine(lines, editor);
+  const at = target !== null ? lineIndexAt(lines, target) : index ?? startLine(lines, editor);
   void run(Math.max(0, Math.min(at, lines.length - 1)), 0);
 }
 
@@ -505,7 +510,10 @@ export function restartCurrentLine() {
 export function rebuild() {
   if (!editorRef) return;
   const s = store();
-  const at = s.lines[s.current]?.from ?? editorRef.state.selection.from;
+  // The current line comes from the old snapshot; map it through any edits
+  // since, or a collaborator's insert above would move the read backwards.
+  const line = s.lines[s.current];
+  const at = line ? lineMapping.map(line.from) : editorRef.state.selection.from;
   const lines = refreshLines();
   const idx = lines.length ? lineIndexAt(lines, at) : 0;
   if (s.status === 'playing') {

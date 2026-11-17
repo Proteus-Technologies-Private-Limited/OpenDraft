@@ -163,6 +163,41 @@ describe('Table Read navigation through document edits', () => {
     expect(starts()[2].lines[3].text).toBe(original[1]);
   });
 
+  it('starts Play from idle on the selected line after a collaborator edit', async () => {
+    player.jumpTo(2);
+    expect(store.getState()).toMatchObject({ status: 'idle', current: 2 });
+    prepend('Inserted before.');
+    player.play(editor, store.getState().current);
+    await vi.waitFor(() => expect(starts()).toHaveLength(1));
+    expect(starts()[0].index).toBe(3);
+    expect(starts()[0].lines[3].text).toBe(original[2]);
+  });
+
+  it('keeps its place when settings rebuild the lines after a collaborator edit', async () => {
+    player.play(editor, 2);
+    await vi.waitFor(() => expect(starts()).toHaveLength(1));
+    player.pause();
+    await vi.waitFor(() => expect(native.status).toBe('paused'));
+    prepend('Inserted before.');
+    player.rebuild();
+    const { lines, current } = store.getState();
+    expect(current).toBe(3);
+    expect(lines[current].spoken).toContain(original[2]);
+  });
+
+  it('stays on the last line, not the top, when the target line was deleted', async () => {
+    player.play(editor, 2);
+    await vi.waitFor(() => expect(starts()).toHaveLength(1));
+    player.pause();
+    await vi.waitFor(() => expect(native.status).toBe('paused'));
+    const last = state.doc.child(0).nodeSize + state.doc.child(1).nodeSize;
+    dispatch(state.tr.delete(last, state.doc.content.size).setMeta('y-sync$', { isChangeOrigin: true }));
+    player.jumpTo(2);
+    const { lines, current } = store.getState();
+    expect(lines).toHaveLength(2);
+    expect(current).toBe(1);
+  });
+
   it('stops cleanly when all speakable content was deleted before a jump', async () => {
     player.play(editor, 0);
     await vi.waitFor(() => expect(starts()).toHaveLength(1));
