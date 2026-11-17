@@ -19,7 +19,9 @@ Collaborator updates and automatic housekeeping keep the existing native queue
 reading. Its positions are mapped through those changes as playback advances,
 and obsolete highlights are cleared. Pausing and resuming in the panel rebuilds
 from the newly reached, mapped line; the running native snapshot itself is not
-rewritten on every collaborator keystroke.
+rewritten on every collaborator keystroke. Next, Previous and selecting a line
+map that destination through edits before rebuilding, so the first jump reaches
+the intended line. This also applies while paused or waiting for voices.
 
 This implements the Android **system-voice** part of #231 WP12. AI-provider
 audio retains its existing foreground JavaScript player. Browser Media Session
@@ -72,8 +74,9 @@ without echoing their contents. The panel shows a translated generic failure.
 
 Frontend tests cover queue/cast handoff, word reconciliation after suspension,
 local-edit/undo pause behavior, uninterrupted collaborator updates and mapped
-resume, queue-preserving jumps, stale sessions, disposal during startup, transport
-failure and the unchanged AI path. Native tests exercise the queue without
+resume, first-jump navigation through real document transactions (native and
+foreground players, paused edits and voice startup), queue-preserving jumps,
+stale sessions, disposal during startup, transport failure and the unchanged AI path. Native tests exercise the queue without
 frontend polling, word offsets, long Unicode lines, cancelled callbacks,
 interruption policy, readiness errors and deadlines. Robolectric service tests
 on API 28 and 35 exercise the registered MediaSession callbacks, notification privacy, window
