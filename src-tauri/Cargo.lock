@@ -2912,6 +2912,7 @@ name = "opendraft"
 version = "2.13.0"
 dependencies = [
  "cc",
+ "gtk",
  "jni",
  "percent-encoding",
  "reqwest 0.12.28",

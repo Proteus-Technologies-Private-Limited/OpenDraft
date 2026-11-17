@@ -1,4 +1,6 @@
 mod safe_file;
+#[cfg(target_os = "linux")]
+mod linux_titlebar;
 #[cfg(target_os = "macos")]
 mod macos_file;
 use std::sync::Mutex;
@@ -3140,6 +3142,26 @@ pub fn run() {
                 Menu::new(app_handle)
             }
         });
+
+    // Tao's Wayland title bar wraps its buttons in an input event box. Fix
+    // routing for every window, including New Window and file-open windows.
+    // Dispatch explicitly: GTK objects must only be accessed on the UI thread.
+    #[cfg(target_os = "linux")]
+    let builder = builder.on_page_load(|webview, payload| {
+        if payload.event() != tauri::webview::PageLoadEvent::Started {
+            return;
+        }
+        let window = webview.window();
+        let target = window.clone();
+        if let Err(error) = window.run_on_main_thread(move || {
+            match target.gtk_window() {
+                Ok(native) => linux_titlebar::enable_header_buttons(&native),
+                Err(error) => eprintln!("[window] Could not access Linux title bar: {error}"),
+            }
+        }) {
+            eprintln!("[window] Could not dispatch Linux title-bar setup: {error}");
+        }
+    });
 
     let builder = builder.setup(|app| {
             // Ensure user data directory exists
