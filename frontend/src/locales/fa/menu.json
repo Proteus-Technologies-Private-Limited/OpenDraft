@@ -326,7 +326,16 @@
     "hidden": "پنهان",
     "zoomIn": "بزرگ‌نمایی",
     "zoomOut": "کوچک‌نمایی",
-    "zoom": "بزرگ‌نمایی ({{level}}%)"
+    "zoom": "بزرگ‌نمایی ({{level}}%)",
+    "storyMap": "نقشه داستان",
+    "storyMapTip": "صحنه‌ها در یک نوار، بر اساس طول صفحه یا زمان روی پرده",
+    "speed": "سرعت",
+    "splitScreen": "صفحه تقسیم‌شده",
+    "sideBySide": "کنار هم",
+    "stacked": "زیر هم",
+    "onePane": "یک پنل",
+    "secondPane": "پنل دوم",
+    "pageView": "نمای صفحه"
   },
   "tools": {
     "tools": "ابزارها",

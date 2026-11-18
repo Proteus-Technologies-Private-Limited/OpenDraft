@@ -326,7 +326,16 @@
     "hidden": "پوشیدہ",
     "zoomIn": "زوم بڑھائیں",
     "zoomOut": "زوم کم کریں",
-    "zoom": "زوم ({{level}}%)"
+    "zoom": "زوم ({{level}}%)",
+    "storyMap": "اسٹوری میپ",
+    "storyMapTip": "منظر ایک پٹی میں، صفحات کی لمبائی یا اسکرین ٹائم کے مطابق",
+    "speed": "رفتار",
+    "splitScreen": "اسپلٹ اسکرین",
+    "sideBySide": "ساتھ ساتھ",
+    "stacked": "اوپر نیچے",
+    "onePane": "ایک پین",
+    "secondPane": "دوسرا پین",
+    "pageView": "صفحہ منظر"
   },
   "tools": {
     "tools": "ٹولز",

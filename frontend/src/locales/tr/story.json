@@ -165,7 +165,10 @@
     "dragToReorder": "Sırayı değiştirmek için sürükleyin",
     "goToScene": "Sahneye gitmek için tıklayın",
     "synopsisPlaceholder": "Sinopsis ekle...",
-    "expandSynopsis": "Sinopsisi genişlet"
+    "expandSynopsis": "Sinopsisi genişlet",
+    "timeline": "Zaman çizelgesi",
+    "showTimeline": "Sahne zaman çizelgesini göster",
+    "hideTimeline": "Sahne zaman çizelgesini gizle"
   },
   "outline": {
     "title": "Ana hat",
@@ -557,5 +560,24 @@
     "linked": "Bağlı",
     "removeTitle": "Karakteri kaldır",
     "removeConfirm": "“{{name}}” karakter listesinden kaldırılsın mı?"
+  },
+  "storyMap": {
+    "title": "Hikâye haritası",
+    "measureIn": "Haritayı şuna göre ölç",
+    "pages": "Sayfa",
+    "pagesTip": "Sahneleri sayfa uzunluğuna göre boyutlandır",
+    "time": "Süre",
+    "timeTip": "Sahneleri tahmini ekran süresine göre boyutlandır",
+    "pagesTotal": "{{pages}} sayfa",
+    "pagesShort": "{{pages}}s",
+    "noLength": "Henüz uzunluk yok",
+    "close": "{{title}} kapat",
+    "empty": "Henüz sahne yok. Bir sahne başlığı (INT. veya EXT.) yazın, burada görünsün."
+  },
+  "splitScreen": {
+    "pageView": "Sayfa görünümü",
+    "closePageView": "Sayfa görünümünü kapat",
+    "noPages": "Henüz sayfa yok. Yazmaya başlayın, sayfalar burada görünsün.",
+    "close": "Bölünmüş ekranı kapat"
   }
 }

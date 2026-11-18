@@ -326,7 +326,16 @@
     "hidden": "છુપાવેલ",
     "zoomIn": "ઝૂમ વધારો",
     "zoomOut": "ઝૂમ ઘટાડો",
-    "zoom": "ઝૂમ ({{level}}%)"
+    "zoom": "ઝૂમ ({{level}}%)",
+    "storyMap": "સ્ટોરી મેપ",
+    "storyMapTip": "દ્રશ્યો એક પટ્ટીમાં, પેજની લંબાઈ અથવા સ્ક્રીન સમય મુજબ",
+    "speed": "સ્પીડ",
+    "splitScreen": "સ્પ્લિટ સ્ક્રીન",
+    "sideBySide": "બાજુ બાજુમાં",
+    "stacked": "ઉપર-નીચે",
+    "onePane": "એક પેન",
+    "secondPane": "બીજું પેન",
+    "pageView": "પેજ વ્યૂ"
   },
   "tools": {
     "tools": "ટૂલ્સ",

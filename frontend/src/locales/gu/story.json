@@ -165,7 +165,10 @@
     "dragToReorder": "ક્રમ બદલવા ખેંચો",
     "goToScene": "સીન પર જવા ક્લિક કરો",
     "synopsisPlaceholder": "સારાંશ ઉમેરો...",
-    "expandSynopsis": "સારાંશ વિસ્તારો"
+    "expandSynopsis": "સારાંશ વિસ્તારો",
+    "timeline": "ટાઇમલાઇન",
+    "showTimeline": "દ્રશ્યોની ટાઇમલાઇન બતાવો",
+    "hideTimeline": "દ્રશ્યોની ટાઇમલાઇન છુપાવો"
   },
   "outline": {
     "title": "આઉટલાઇન",
@@ -557,5 +560,24 @@
     "linked": "જોડાયેલ",
     "removeTitle": "કેરેક્ટર દૂર કરો",
     "removeConfirm": "“{{name}}” ને કેરેક્ટર યાદીમાંથી દૂર કરવું છે?"
+  },
+  "storyMap": {
+    "title": "સ્ટોરી મેપ",
+    "measureIn": "મેપનું માપ",
+    "pages": "પેજ",
+    "pagesTip": "પેજની લંબાઈ મુજબ દ્રશ્યોનું કદ",
+    "time": "સમય",
+    "timeTip": "અંદાજિત સ્ક્રીન સમય મુજબ દ્રશ્યોનું કદ",
+    "pagesTotal": "{{pages}} પેજ",
+    "pagesShort": "{{pages}}પે",
+    "noLength": "હજી લંબાઈ નથી",
+    "close": "{{title}} બંધ કરો",
+    "empty": "હજી કોઈ દ્રશ્ય નથી. દ્રશ્યનું શીર્ષક (INT. અથવા EXT.) લખો અને તે અહીં દેખાશે."
+  },
+  "splitScreen": {
+    "pageView": "પેજ વ્યૂ",
+    "closePageView": "પેજ વ્યૂ બંધ કરો",
+    "noPages": "હજી કોઈ પેજ નથી. લખવાનું શરૂ કરો અને પેજ અહીં દેખાશે.",
+    "close": "સ્પ્લિટ સ્ક્રીન બંધ કરો"
   }
 }

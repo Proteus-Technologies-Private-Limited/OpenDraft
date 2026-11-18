@@ -12,6 +12,7 @@
  * engine as the Story Timeline and the status bar's estimate.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Editor } from '@tiptap/react';
 import { FaTimes } from 'react-icons/fa';
 import { useEditorStore, type StoryMapUnits } from '../stores/editorStore';
@@ -68,9 +69,11 @@ const StoryMap: React.FC<Props> = ({
   onRequestClose,
   scrollContainer,
   onSelectScene,
-  title = 'Story Map',
+  title,
   embedded = false,
 }) => {
+  const { t } = useTranslation('story');
+  const heading = title ?? t('storyMap.title');
   const scenes = useEditorStore((s) => s.scenes);
   const pageLayout = useEditorStore((s) => s.pageLayout);
   const units = useEditorStore((s) => s.storyMapUnits);
@@ -210,42 +213,42 @@ const StoryMap: React.FC<Props> = ({
   return (
     <div className={`story-map${embedded ? ' story-map-embedded' : ''}`}>
       <div className="story-map-header">
-        <span className="story-map-title">{title}</span>
-        <div className="story-map-units" role="group" aria-label="Measure the map in">
+        <span className="story-map-title">{heading}</span>
+        <div className="story-map-units" role="group" aria-label={t('storyMap.measureIn')}>
           <button
             className={!byTime ? 'active' : ''}
             onClick={() => setMode('pages')}
-            title="Size the scenes by page length"
+            title={t('storyMap.pagesTip')}
           >
-            Pages
+            {t('storyMap.pages')}
           </button>
           <button
             className={byTime ? 'active' : ''}
             onClick={() => setMode('time')}
-            title="Size the scenes by estimated screen time"
+            title={t('storyMap.timeTip')}
           >
-            Time
+            {t('storyMap.time')}
           </button>
         </div>
         <span className="story-map-count">
-          {scenes.length} scene{scenes.length === 1 ? '' : 's'} {'\u00b7'}{' '}
+          {t('timeline.sceneCount', { count: scenes.length })} {'\u00b7'}{' '}
           {byTime
             ? formatSceneDuration(totalSeconds)
-            : `${totalPages > 0 ? totalPages.toFixed(1) : '0'} pages`}
+            : t('storyMap.pagesTotal', { pages: totalPages > 0 ? totalPages.toFixed(1) : '0' })}
         </span>
         {onRequestClose && (
           <button
             className="panel-close-btn"
             onClick={onRequestClose}
-            title={`Close ${title}`}
-            aria-label={`Close ${title}`}
+            title={t('storyMap.close', { title: heading })}
+            aria-label={t('storyMap.close', { title: heading })}
           >
             <FaTimes />
           </button>
         )}
       </div>
       {scenes.length === 0 ? (
-        <p className="story-map-empty">No scenes yet. Write a scene heading (INT. or EXT.) and it appears here.</p>
+        <p className="story-map-empty">{t('storyMap.empty')}</p>
       ) : (
         <div className="story-map-scroll">
           <div className="story-map-track" ref={trackRef}>
@@ -260,14 +263,14 @@ const StoryMap: React.FC<Props> = ({
                   style={{ flexGrow: weight }}
                   title={
                     `${scene.heading}${scene.synopsis ? `\n${scene.synopsis}` : ''}\n` +
-                    `${pages > 0 ? `${pages.toFixed(2)} pages` : 'No length yet'} \u00b7 ${formatSceneDuration(seconds)}`
+                    `${pages > 0 ? t('storyMap.pagesTotal', { pages: pages.toFixed(2) }) : t('storyMap.noLength')} \u00b7 ${formatSceneDuration(seconds)}`
                   }
                   onClick={() => goToScene(index)}
                 >
                   <div className="story-map-block-top">
                     <span className="story-map-num">{scene.sceneNumber ?? index + 1}</span>
                     <span className="story-map-meta">
-                      {byTime ? formatSceneDuration(seconds) : `${pages.toFixed(1)}p`}
+                      {byTime ? formatSceneDuration(seconds) : t('storyMap.pagesShort', { pages: pages.toFixed(1) })}
                     </span>
                   </div>
                   <span className="story-map-heading">{scene.heading}</span>

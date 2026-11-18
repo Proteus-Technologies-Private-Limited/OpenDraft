@@ -486,6 +486,14 @@ const MenuBar: React.FC<MenuBarProps> = ({
     'toggleIndexCards',
     'beatBoardOpen',
     'toggleBeatBoard',
+    'storyMapOpen',
+    'toggleStoryMap',
+    'splitScreenOpen',
+    'toggleSplitScreen',
+    'splitScreenMode',
+    'setSplitScreenMode',
+    'splitScreenPane',
+    'setSplitScreenPane',
     'outlineOpen',
     'toggleOutline',
     'scriptNotesOpen',
@@ -3497,18 +3505,18 @@ const MenuBar: React.FC<MenuBarProps> = ({
             { icon: <FaListUl />, ...check(outlineOpen, t('menu:view.outline')), action: toggleOutline },
             { icon: <FaMap />, ...check(storyMapOpen, t('menu:view.storyMap')), title: t('menu:view.storyMapTip'), action: toggleStoryMap },
             {
-              icon: <FaClone />, label: splitScreenOpen ? '\u2713 Split Screen' : 'Split Screen', children: [
-                { label: splitScreenMode === 'side-by-side' && splitScreenOpen ? '\u2713 Side by Side' : 'Side by Side', action: () => setSplitScreenMode('side-by-side') },
-                { label: splitScreenMode === 'stacked' && splitScreenOpen ? '\u2713 Stacked' : 'Stacked', action: () => setSplitScreenMode('stacked') },
+              icon: <FaClone />, ...check(splitScreenOpen, t('menu:view.splitScreen')), children: [
+                { ...check(splitScreenMode === 'side-by-side' && splitScreenOpen, t('menu:view.sideBySide'), true), action: () => setSplitScreenMode('side-by-side') },
+                { ...check(splitScreenMode === 'stacked' && splitScreenOpen, t('menu:view.stacked'), true), action: () => setSplitScreenMode('stacked') },
                 { separator: true, label: '' },
-                { label: splitScreenOpen ? 'One Pane' : '\u2713 One Pane', action: () => { if (splitScreenOpen) toggleSplitScreen(); } },
+                { ...check(!splitScreenOpen, t('menu:view.onePane'), true), action: () => { if (splitScreenOpen) toggleSplitScreen(); } },
                 { separator: true, label: '' },
                 {
-                  label: 'Second Pane', children: [
-                    { icon: <FaFileAlt />, label: splitScreenPane === 'page-view' && splitScreenOpen ? '\u2713 Page View' : 'Page View', action: () => setSplitScreenPane('page-view') },
-                    { icon: <FaTh />, label: splitScreenPane === 'index-cards' && splitScreenOpen ? '\u2713 Index Cards' : 'Index Cards', action: () => setSplitScreenPane('index-cards') },
-                    { icon: <FaListUl />, label: splitScreenPane === 'outline' && splitScreenOpen ? '\u2713 Outline' : 'Outline', action: () => setSplitScreenPane('outline') },
-                    { icon: <FaStream />, label: splitScreenPane === 'beat-board' && splitScreenOpen ? '\u2713 Beat Board' : 'Beat Board', action: () => setSplitScreenPane('beat-board') },
+                  label: t('menu:view.secondPane'), children: [
+                    { icon: <FaFileAlt />, ...check(splitScreenPane === 'page-view' && splitScreenOpen, t('menu:view.pageView'), true), action: () => setSplitScreenPane('page-view') },
+                    { icon: <FaTh />, ...check(splitScreenPane === 'index-cards' && splitScreenOpen, t('menu:view.indexCards'), true), action: () => setSplitScreenPane('index-cards') },
+                    { icon: <FaListUl />, ...check(splitScreenPane === 'outline' && splitScreenOpen, t('menu:view.outline'), true), action: () => setSplitScreenPane('outline') },
+                    { icon: <FaStream />, ...check(splitScreenPane === 'beat-board' && splitScreenOpen, t('menu:view.beatBoard'), true), action: () => setSplitScreenPane('beat-board') },
                   ],
                 },
               ],

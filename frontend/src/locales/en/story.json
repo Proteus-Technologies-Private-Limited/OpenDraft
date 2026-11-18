@@ -165,7 +165,10 @@
     "dragToReorder": "Drag to reorder",
     "goToScene": "Click to navigate to scene",
     "synopsisPlaceholder": "Add synopsis...",
-    "expandSynopsis": "Expand synopsis"
+    "expandSynopsis": "Expand synopsis",
+    "timeline": "Timeline",
+    "showTimeline": "Show the scene timeline",
+    "hideTimeline": "Hide the scene timeline"
   },
   "outline": {
     "title": "Outline",
@@ -557,5 +560,24 @@
     "linked": "Linked",
     "removeTitle": "Remove Character",
     "removeConfirm": "Remove “{{name}}” from the character list?"
+  },
+  "storyMap": {
+    "title": "Story Map",
+    "measureIn": "Measure the map in",
+    "pages": "Pages",
+    "pagesTip": "Size the scenes by page length",
+    "time": "Time",
+    "timeTip": "Size the scenes by estimated screen time",
+    "pagesTotal": "{{pages}} pages",
+    "pagesShort": "{{pages}}p",
+    "noLength": "No length yet",
+    "close": "Close {{title}}",
+    "empty": "No scenes yet. Write a scene heading (INT. or EXT.) and it appears here."
+  },
+  "splitScreen": {
+    "pageView": "Page View",
+    "closePageView": "Close Page View",
+    "noPages": "No pages yet. Start writing and the pages appear here.",
+    "close": "Close split screen"
   }
 }

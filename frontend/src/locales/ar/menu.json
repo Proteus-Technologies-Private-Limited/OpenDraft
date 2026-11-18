@@ -346,7 +346,16 @@
     "hidden": "مخفي",
     "zoomIn": "تكبير",
     "zoomOut": "تصغير",
-    "zoom": "التكبير ({{level}}%)"
+    "zoom": "التكبير ({{level}}%)",
+    "storyMap": "خريطة القصة",
+    "storyMapTip": "المشاهد في شريط واحد، حسب طول الصفحات أو زمن العرض",
+    "speed": "السرعة",
+    "splitScreen": "تقسيم الشاشة",
+    "sideBySide": "جنبًا إلى جنب",
+    "stacked": "متراصة",
+    "onePane": "لوحة واحدة",
+    "secondPane": "اللوحة الثانية",
+    "pageView": "عرض الصفحة"
   },
   "tools": {
     "tools": "أدوات",

@@ -560,7 +560,7 @@ function sameOverlays(a: OverlayInfo[], b: OverlayInfo[]): boolean {
 }
 
 const ScreenplayEditor: React.FC = () => {
-  const { t: tl, i18n: i18nInstance } = useTranslation(['editor', 'common']);
+  const { t: tl, i18n: i18nInstance } = useTranslation(['editor', 'common', 'story']);
   const { projectId: urlProjectId, scriptId: urlScriptId, commitHash: urlCommitHash, collabToken: urlCollabToken } = useParams<{ projectId?: string; scriptId?: string; commitHash?: string; collabToken?: string }>();
   const navigate = useNavigate();
   const goBack = useGoBack();
@@ -6295,13 +6295,13 @@ const ScreenplayEditor: React.FC = () => {
               )}
               {splitScreenPane === 'outline' && (
                 <>
-                  <button className="split-pane-close" onClick={toggleSplitScreen} title="Close split screen" aria-label="Close split screen">&times;</button>
+                  <button className="split-pane-close" onClick={toggleSplitScreen} title={tl('story:splitScreen.close')} aria-label={tl('story:splitScreen.close')}>&times;</button>
                   <OutlineView editor={editor} />
                 </>
               )}
               {splitScreenPane === 'beat-board' && (
                 <>
-                  <button className="split-pane-close" onClick={toggleSplitScreen} title="Close split screen" aria-label="Close split screen">&times;</button>
+                  <button className="split-pane-close" onClick={toggleSplitScreen} title={tl('story:splitScreen.close')} aria-label={tl('story:splitScreen.close')}>&times;</button>
                   <BeatBoard editor={editor} embedded />
                 </>
               )}

@@ -9,6 +9,7 @@
  * it there too.
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Editor } from '@tiptap/react';
 import { FaTimes } from 'react-icons/fa';
 import { useEditorStore } from '../stores/editorStore';
@@ -48,6 +49,7 @@ const LINE_HEIGHT_PX = 12 * (96 / 72);
 const SCROLL_PADDING = 14;
 
 const PagePreviewPane: React.FC<Props> = ({ editor, onRequestClose }) => {
+  const { t } = useTranslation('story');
   const pageLayout = useEditorStore((s) => s.pageLayout);
   const fontFamily = useEditorStore((s) => s.fontFamily);
   const fontSize = useEditorStore((s) => s.fontSize);
@@ -124,19 +126,19 @@ const PagePreviewPane: React.FC<Props> = ({ editor, onRequestClose }) => {
   return (
     <div className="page-preview-pane">
       <div className="page-preview-header">
-        <span className="page-preview-title">Page View</span>
+        <span className="page-preview-title">{t('splitScreen.pageView')}</span>
         <button
           className="panel-close-btn"
           onClick={onRequestClose}
-          title="Close Page View"
-          aria-label="Close Page View"
+          title={t('splitScreen.closePageView')}
+          aria-label={t('splitScreen.closePageView')}
         >
           <FaTimes />
         </button>
       </div>
       <div className="page-preview-scroll" ref={scrollRef}>
         {pages.length === 0 ? (
-          <p className="page-preview-empty">No pages yet. Start writing and the pages appear here.</p>
+          <p className="page-preview-empty">{t('splitScreen.noPages')}</p>
         ) : pages.map((page) => (
           <div
             className="page-preview-sheet"

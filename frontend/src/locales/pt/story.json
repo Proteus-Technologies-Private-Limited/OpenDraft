@@ -169,7 +169,10 @@
     "dragToReorder": "Arraste para reordenar",
     "goToScene": "Clique para ir à cena",
     "synopsisPlaceholder": "Adicionar sinopse...",
-    "expandSynopsis": "Expandir sinopse"
+    "expandSynopsis": "Expandir sinopse",
+    "timeline": "Linha do tempo",
+    "showTimeline": "Mostrar a linha do tempo das cenas",
+    "hideTimeline": "Ocultar a linha do tempo das cenas"
   },
   "outline": {
     "title": "Escaleta",
@@ -575,5 +578,24 @@
     "linked": "Vinculada",
     "removeTitle": "Remover personagem",
     "removeConfirm": "Remover “{{name}}” da lista de personagens?"
+  },
+  "storyMap": {
+    "title": "Mapa da história",
+    "measureIn": "Medir o mapa em",
+    "pages": "Páginas",
+    "pagesTip": "Dimensionar as cenas pela extensão em páginas",
+    "time": "Tempo",
+    "timeTip": "Dimensionar as cenas pelo tempo de tela estimado",
+    "pagesTotal": "{{pages}} páginas",
+    "pagesShort": "{{pages}}p",
+    "noLength": "Sem extensão ainda",
+    "close": "Fechar {{title}}",
+    "empty": "Ainda não há cenas. Escreva um cabeçalho de cena (INT. ou EXT.) e ela aparece aqui."
+  },
+  "splitScreen": {
+    "pageView": "Vista de página",
+    "closePageView": "Fechar vista de página",
+    "noPages": "Ainda não há páginas. Comece a escrever e as páginas aparecem aqui.",
+    "close": "Fechar tela dividida"
   }
 }

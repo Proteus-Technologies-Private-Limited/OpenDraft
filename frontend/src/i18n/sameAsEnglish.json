@@ -154,6 +154,8 @@
   "story:scriptProfile.genres.western",
   "story:scriptProfile.genresGroup",
   "story:scriptProfile.pace.standard.label",
+  "story:storyMap.pages",
+  "story:storyMap.pagesTotal",
   "story:synopsis.auto",
   "story:synopsis.autoWithDuration",
   "story:synopsis.colors.indigo",

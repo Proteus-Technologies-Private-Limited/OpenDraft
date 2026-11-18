@@ -326,7 +326,16 @@
     "hidden": "Gizli",
     "zoomIn": "Yakınlaştır",
     "zoomOut": "Uzaklaştır",
-    "zoom": "Yakınlaştırma (%{{level}})"
+    "zoom": "Yakınlaştırma (%{{level}})",
+    "storyMap": "Hikâye haritası",
+    "storyMapTip": "Sahneler tek şeritte, sayfa uzunluğuna veya ekran süresine göre",
+    "speed": "Hız",
+    "splitScreen": "Bölünmüş ekran",
+    "sideBySide": "Yan yana",
+    "stacked": "Üst üste",
+    "onePane": "Tek bölme",
+    "secondPane": "İkinci bölme",
+    "pageView": "Sayfa görünümü"
   },
   "tools": {
     "tools": "Araçlar",

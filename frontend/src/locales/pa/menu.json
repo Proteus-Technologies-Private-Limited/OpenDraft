@@ -326,7 +326,16 @@
     "hidden": "ਲੁਕਿਆ",
     "zoomIn": "ਵੱਡਾ ਕਰੋ",
     "zoomOut": "ਛੋਟਾ ਕਰੋ",
-    "zoom": "ਜ਼ੂਮ ({{level}}%)"
+    "zoom": "ਜ਼ੂਮ ({{level}}%)",
+    "storyMap": "ਕਹਾਣੀ ਨਕਸ਼ਾ",
+    "storyMapTip": "ਸਾਰੇ ਦ੍ਰਿਸ਼ ਇੱਕ ਪੱਟੀ ਵਿੱਚ, ਪੰਨੇ ਦੀ ਲੰਬਾਈ ਜਾਂ ਸਕ੍ਰੀਨ ਸਮੇਂ ਅਨੁਸਾਰ",
+    "speed": "ਰਫ਼ਤਾਰ",
+    "splitScreen": "ਸਪਲਿਟ ਸਕ੍ਰੀਨ",
+    "sideBySide": "ਨਾਲ-ਨਾਲ",
+    "stacked": "ਉੱਪਰ-ਹੇਠਾਂ",
+    "onePane": "ਇੱਕ ਪੇਨ",
+    "secondPane": "ਦੂਜਾ ਪੇਨ",
+    "pageView": "ਪੰਨਾ ਝਲਕ"
   },
   "tools": {
     "tools": "ਟੂਲ",

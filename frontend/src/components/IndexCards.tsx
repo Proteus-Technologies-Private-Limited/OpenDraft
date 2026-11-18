@@ -1,7 +1,7 @@
 import React, { useCallback, useState, useRef, useEffect, useMemo } from 'react';
 import { Editor } from '@tiptap/react';
 import { useTranslation } from 'react-i18next';
-import { type SceneInfo, useEditorFields } from '../stores/editorStore';
+import { type SceneInfo, useEditorFields, useEditorStore } from '../stores/editorStore';
 import { computeSceneLengths, activeTemplateHints } from '../editor/pagination';
 import { computeSceneTiming, formatSceneDuration, getTimingColor } from '../utils/scriptTiming';
 import SynopsisModal from './SynopsisModal';
@@ -601,9 +601,9 @@ const IndexCards: React.FC<IndexCardsProps> = ({ editor, variant = 'view', onReq
             <button
               className={`ic-action-btn${timelineOpen ? ' active' : ''}`}
               onClick={() => setTimelineOpen((open) => !open)}
-              title={timelineOpen ? 'Hide the scene timeline' : 'Show the scene timeline'}
+              title={timelineOpen ? t('indexCards.hideTimeline') : t('indexCards.showTimeline')}
             >
-              Timeline
+              {t('indexCards.timeline')}
             </button>
           )}
           {dragMode ? (
@@ -793,7 +793,7 @@ const IndexCards: React.FC<IndexCardsProps> = ({ editor, variant = 'view', onReq
       {variant === 'view' && timelineOpen && (
         <StoryMap
           editor={editor}
-          title="Timeline"
+          title={t('indexCards.timeline')}
           embedded
           onSelectScene={scrollToCard}
           onRequestClose={() => setTimelineOpen(false)}

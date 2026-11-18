@@ -331,7 +331,16 @@
     "hidden": "Oculto",
     "zoomIn": "Ampliar",
     "zoomOut": "Reducir",
-    "zoom": "Ampliación ({{level}}%)"
+    "zoom": "Ampliación ({{level}}%)",
+    "storyMap": "Mapa de la historia",
+    "storyMapTip": "Las escenas en una sola tira, por extensión en páginas o tiempo en pantalla",
+    "speed": "Velocidad",
+    "splitScreen": "Pantalla dividida",
+    "sideBySide": "Lado a lado",
+    "stacked": "Apilado",
+    "onePane": "Un panel",
+    "secondPane": "Segundo panel",
+    "pageView": "Vista de página"
   },
   "tools": {
     "tools": "Herramientas",

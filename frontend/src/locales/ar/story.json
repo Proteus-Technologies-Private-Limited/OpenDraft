@@ -181,7 +181,10 @@
     "dragToReorder": "اسحب لإعادة الترتيب",
     "goToScene": "انقر للانتقال إلى المشهد",
     "synopsisPlaceholder": "أضف ملخصًا...",
-    "expandSynopsis": "توسيع الملخص"
+    "expandSynopsis": "توسيع الملخص",
+    "timeline": "الخط الزمني",
+    "showTimeline": "إظهار الخط الزمني للمشاهد",
+    "hideTimeline": "إخفاء الخط الزمني للمشاهد"
   },
   "outline": {
     "title": "المخطط",
@@ -629,5 +632,24 @@
     "linked": "مرتبطة",
     "removeTitle": "إزالة الشخصية",
     "removeConfirm": "إزالة “{{name}}” من قائمة الشخصيات؟"
+  },
+  "storyMap": {
+    "title": "خريطة القصة",
+    "measureIn": "قياس الخريطة بحسب",
+    "pages": "الصفحات",
+    "pagesTip": "حجم المشاهد حسب طول الصفحات",
+    "time": "الزمن",
+    "timeTip": "حجم المشاهد حسب زمن العرض المقدَّر",
+    "pagesTotal": "{{pages}} صفحة",
+    "pagesShort": "{{pages}}ص",
+    "noLength": "لا يوجد طول بعد",
+    "close": "إغلاق {{title}}",
+    "empty": "لا توجد مشاهد بعد. اكتب عنوان مشهد (INT. أو EXT.) وسيظهر هنا."
+  },
+  "splitScreen": {
+    "pageView": "عرض الصفحة",
+    "closePageView": "إغلاق عرض الصفحة",
+    "noPages": "لا توجد صفحات بعد. ابدأ الكتابة وستظهر الصفحات هنا.",
+    "close": "إغلاق تقسيم الشاشة"
   }
 }

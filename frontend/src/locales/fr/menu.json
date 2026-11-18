@@ -331,7 +331,16 @@
     "hidden": "Masqué",
     "zoomIn": "Zoom avant",
     "zoomOut": "Zoom arrière",
-    "zoom": "Zoom ({{level}} %)"
+    "zoom": "Zoom ({{level}} %)",
+    "storyMap": "Carte de l’histoire",
+    "storyMapTip": "Les scènes en une seule bande, selon la longueur en pages ou le temps à l’écran",
+    "speed": "Vitesse",
+    "splitScreen": "Écran partagé",
+    "sideBySide": "Côte à côte",
+    "stacked": "Empilé",
+    "onePane": "Un seul volet",
+    "secondPane": "Deuxième volet",
+    "pageView": "Vue Page"
   },
   "tools": {
     "tools": "Outils",

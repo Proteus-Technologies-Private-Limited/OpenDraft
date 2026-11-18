@@ -326,7 +326,16 @@
     "hidden": "Hidden",
     "zoomIn": "Zoom In",
     "zoomOut": "Zoom Out",
-    "zoom": "Zoom ({{level}}%)"
+    "zoom": "Zoom ({{level}}%)",
+    "storyMap": "Story Map",
+    "storyMapTip": "The scenes as one strip, by page length or screen time",
+    "speed": "Speed",
+    "splitScreen": "Split Screen",
+    "sideBySide": "Side by Side",
+    "stacked": "Stacked",
+    "onePane": "One Pane",
+    "secondPane": "Second Pane",
+    "pageView": "Page View"
   },
   "tools": {
     "tools": "Tools",

@@ -169,7 +169,10 @@
     "dragToReorder": "Arrastra para reordenar",
     "goToScene": "Haz clic para ir a la escena",
     "synopsisPlaceholder": "Añadir sinopsis...",
-    "expandSynopsis": "Expandir sinopsis"
+    "expandSynopsis": "Expandir sinopsis",
+    "timeline": "Línea de tiempo",
+    "showTimeline": "Mostrar la línea de tiempo de escenas",
+    "hideTimeline": "Ocultar la línea de tiempo de escenas"
   },
   "outline": {
     "title": "Esquema",
@@ -575,5 +578,24 @@
     "linked": "Vinculada",
     "removeTitle": "Quitar personaje",
     "removeConfirm": "¿Quitar a «{{name}}» de la lista de personajes?"
+  },
+  "storyMap": {
+    "title": "Mapa de la historia",
+    "measureIn": "Medir el mapa en",
+    "pages": "Páginas",
+    "pagesTip": "Ajustar el tamaño de las escenas según su extensión en páginas",
+    "time": "Tiempo",
+    "timeTip": "Ajustar el tamaño de las escenas según el tiempo estimado en pantalla",
+    "pagesTotal": "{{pages}} páginas",
+    "pagesShort": "{{pages}} p",
+    "noLength": "Aún sin extensión",
+    "close": "Cerrar {{title}}",
+    "empty": "Aún no hay escenas. Escribe un encabezado de escena (INT. o EXT.) y aparecerá aquí."
+  },
+  "splitScreen": {
+    "pageView": "Vista de página",
+    "closePageView": "Cerrar la vista de página",
+    "noPages": "Aún no hay páginas. Empieza a escribir y las páginas aparecerán aquí.",
+    "close": "Cerrar la pantalla dividida"
   }
 }
