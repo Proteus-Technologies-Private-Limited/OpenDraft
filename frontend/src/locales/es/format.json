@@ -249,5 +249,21 @@
     "textColor": "Color del texto",
     "highlight": "Resaltado",
     "highlightColor": "Color de resaltado"
+  },
+  "lineSpacing": {
+    "title": "Interlineado",
+    "help": "Amplía el espacio entre las líneas del guion. La página en pantalla, el número de páginas y los archivos PDF, Word y Final Draft lo siguen. El estándar es seis líneas por pulgada, el interlineado con el que Final Draft imprime un guion.",
+    "preset": {
+      "standard": "Estándar",
+      "slightlyOpen": "Algo más amplio",
+      "open": "Amplio"
+    },
+    "fine": "Ajuste fino",
+    "value": "{{points}} pt por línea ({{value}}×)",
+    "pages": "Número de páginas: {{pages}}",
+    "pagesChange": "Número de páginas: {{from}} → {{to}}",
+    "scope": "Se aplica solo a este guion y viaja con él. Las líneas en blanco entre elementos y la estimación de duración no cambian.",
+    "reset": "Restablecer a estándar",
+    "failed": "No se pudo aplicar el interlineado. El guion conserva el actual."
   }
 }

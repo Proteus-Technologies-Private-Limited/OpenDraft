@@ -24,6 +24,7 @@ import { t } from '../i18n';
 const VIEW_STATE_KEY = 'opendraft:viewState';
 interface ViewState extends PosturePreferences {
   navigatorOpen?: boolean;
+  navigatorHeadingFont?: NavigatorHeadingFont;
   indexCardsOpen?: boolean;
   beatBoardOpen?: boolean;
   scriptNotesOpen?: boolean;
@@ -48,6 +49,12 @@ interface ViewState extends PosturePreferences {
   spellingSettings?: SpellingSettings;
   includeTitlePageInOutput?: boolean;
 }
+
+/**
+ * The font the Navigator lists scene headings in. The interface font keeps the
+ * list from competing with the page; the script font matches it.
+ */
+export type NavigatorHeadingFont = 'interface' | 'script';
 
 /** One colour a script has been revised in. */
 export interface RevisionHistoryEntry {
@@ -805,6 +812,8 @@ interface EditorState {
   scenes: SceneInfo[];
   setScenes: (scenes: SceneInfo[]) => void;
   navigatorOpen: boolean;
+  navigatorHeadingFont: NavigatorHeadingFont;
+  setNavigatorHeadingFont: (font: NavigatorHeadingFont) => void;
   toggleNavigator: () => void;
 
   // Panels
@@ -1248,6 +1257,11 @@ export const useEditorStore = create<EditorState>()(skipUnchanged((set, get) => 
 
   scenes: [],
   setScenes: (scenes) => { if (!sameItems(get().scenes, scenes, sameScene)) set({ scenes }); },
+  navigatorHeadingFont: _vs.navigatorHeadingFont === 'script' ? 'script' : 'interface',
+  setNavigatorHeadingFont: (font) => {
+    saveViewState({ navigatorHeadingFont: font });
+    set({ navigatorHeadingFont: font });
+  },
   navigatorOpen: _vs.navigatorOpen ?? (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0 ? false : true),
   toggleNavigator: () => set((s) => {
     const v = !s.navigatorOpen;

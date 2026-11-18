@@ -33,7 +33,9 @@
       "lockedTitle": "Öneri vermek için katıldınız: yazar düzenlemelerinizi kabul eder veya reddeder",
       "title": "Düzenlemeleriniz öneri olarak kaydedilir. Doğrudan düzenlemeye dönmek için tıklayın.",
       "label": "Öneri modu"
-    }
+    },
+    "zoomFitWidth": "Genişliğe sığdır",
+    "zoomFitWidthTitle": "Sayfa pencerenin genişliğini dolduracak şekilde yakınlaştır"
   },
   "resetToDefault": "Varsayılana sıfırla",
   "richText": {

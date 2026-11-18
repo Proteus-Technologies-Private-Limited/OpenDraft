@@ -10,7 +10,19 @@
     "customColor": "لون مخصص",
     "pageSingular": "{{n}} صفحة",
     "pagePlural": "{{n}} صفحة",
-    "autoWithDuration": "تلقائي ({{duration}})"
+    "autoWithDuration": "تلقائي ({{duration}})",
+    "colors": {
+      "violet": "بنفسجي",
+      "indigo": "نيلي",
+      "blue": "أزرق",
+      "green": "أخضر",
+      "yellow": "أصفر",
+      "orange": "برتقالي",
+      "red": "أحمر",
+      "black": "أسود",
+      "white": "أبيض",
+      "none": "بدون لون"
+    }
   },
   "scriptProfile": {
     "title": "النوع والإيقاع",
@@ -395,9 +407,6 @@
     "pageSingular": "{{n}} صفحة",
     "pagePlural": "{{n}} صفحة",
     "pageAndDuration": "{{pages}} · {{duration}}",
-    "noSynopsis": "لا يتوفر ملخص لهذا المشهد.",
-    "editSynopsis": "تحرير",
-    "addSynopsis": "+ إضافة",
     "noPages": "لا صفحات بعد. ابدأ الكتابة لرؤية معاينات الصفحات.",
     "pageLabel": "الصفحة {{label}}",
     "sectionCount_zero": "لا أقسام",
@@ -429,7 +438,24 @@
     "skippedHeadings_two": "تُخطّي عنوانا مشهد يحتويان على فاصل سطر",
     "skippedHeadings_few": "تُخطّيت {{count}} عناوين مشاهد تحتوي على فاصل سطر",
     "skippedHeadings_many": "تُخطّي {{count}} عنوان مشهد يحتوي على فاصل سطر",
-    "skippedHeadings_other": "تُخطّي {{count}} عنوان مشهد يحتوي على فاصل سطر"
+    "skippedHeadings_other": "تُخطّي {{count}} عنوان مشهد يحتوي على فاصل سطر",
+    "showAllSynopses": "إظهار كل الملخصات",
+    "hideAllSynopses": "إخفاء كل الملخصات",
+    "expandScene": "إظهار الملخص",
+    "collapseScene": "إخفاء الملخص",
+    "changeColor": "لون المشهد",
+    "changeColorFor": "لون المشهد {{number}}",
+    "headingFontScript": "عرض العناوين بخط السيناريو",
+    "headingFontInterface": "عرض العناوين بخط الواجهة",
+    "startsOnPage": "يبدأ في الصفحة {{label}}",
+    "synopsisFor": "ملخص {{heading}}",
+    "synopsisEditHint": "Enter للحفظ · Shift+Enter لسطر جديد · Esc للإلغاء",
+    "clickToEditSynopsis": "انقر لتحرير الملخص",
+    "clickToAddSynopsis": "أضف ملخصًا…",
+    "moreSceneOptions": "المزيد…",
+    "moreSceneOptionsTitle": "الملخص واللون ومدة المشهد",
+    "sceneNotFound": "هذا المشهد لم يعد في السيناريو.",
+    "sceneSaveFailed": "تعذّر حفظ المشهد. أعد المحاولة."
   },
   "beatBoard": {
     "title": "لوحة النقاط الدرامية",

@@ -13,7 +13,7 @@
  */
 import { spellChecker } from '../editor/spellchecker';
 import type { JSONContent } from '@tiptap/react';
-import { importedFormat, restoreImportedFormat } from './importedFormat';
+import { importedFormat, restoreImportedFormat, importedLineSpacingFormat } from './importedFormat';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { DEFAULT_PAGE_LAYOUT, type PageLayout } from '../stores/editorStore';
 import { parseFountain } from './fountainParser';
@@ -434,12 +434,26 @@ async function parseScreenplayImportInternal(
 
   if (ext === 'fdx') {
     const parsed = parseFDXFull(text);
+    // Line spacing travels as the script's own format, as a Fade In file's
+    // element rules do. Single-spaced files — nearly all — get none.
+    const spacingFormat = parsed.lineSpacing ? importedLineSpacingFormat(parsed.lineSpacing) : null;
+    const metadata = fdxMetadata(parsed);
+    if (spacingFormat) {
+      metadata._templateId = spacingFormat.id;
+      metadata._templateSnapshot = spacingFormat;
+      // Any app setting marks a payload as OpenDraft's; say it is a new one,
+      // as fdxMetadata does, or it would be taken for a pre-2-line script.
+      metadata._sceneHeadingSpaceBefore = null;
+    }
     if (hydrateStores) {
       resetStoresForImport();
       applyFdxSideEffects(parsed);
       applyDocumentFont(parsed.documentFont);
+      if (spacingFormat && !useFormattingTemplateStore.getState().restoreDocumentTemplate(spacingFormat.id, spacingFormat)) {
+        console.warn('[import] the .fdx line spacing could not be applied; the script opens single-spaced');
+      }
     }
-    return { doc: parsed.doc, title: '', formatLabel, warnings: [], metadata: fdxMetadata(parsed) };
+    return { doc: parsed.doc, title: '', formatLabel, warnings: [], metadata };
   }
 
   if (ext === 'odraft') {

@@ -170,7 +170,9 @@
     "overrideOff": "Toute la mise en forme est verrouillée : les utilisateurs ne peuvent changer aucun style de cet élément.",
     "preview": "Aperçu",
     "sampleText": "Texte d’exemple…",
-    "selectElement": "Sélectionnez un élément dans la liste pour modifier sa mise en forme."
+    "selectElement": "Sélectionnez un élément dans la liste pour modifier sa mise en forme.",
+    "lineSpacing": "Interlignage",
+    "lineSpacingHint": "Aère les lignes de chaque élément. Un élément que le format espace déjà, comme un dialogue en double interligne, s'aère d'autant. Le nombre de pages est celui du script ouvert."
   },
   "select": {
     "title": "Format de scénario / modèle",

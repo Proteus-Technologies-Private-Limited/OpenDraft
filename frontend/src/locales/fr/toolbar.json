@@ -35,7 +35,9 @@
       "lockedTitle": "Vous avez rejoint le document pour faire des suggestions : l’auteur accepte ou refuse vos modifications",
       "title": "Vos modifications sont des suggestions. Cliquez pour modifier à nouveau directement.",
       "label": "Suggestion"
-    }
+    },
+    "zoomFitWidth": "Pleine largeur",
+    "zoomFitWidthTitle": "Zoomer pour que la page occupe toute la largeur de la fenêtre"
   },
   "resetToDefault": "Rétablir les valeurs par défaut",
   "richText": {

@@ -168,7 +168,9 @@
     "overrideOff": "All formatting is locked — users cannot change any styling for this element.",
     "preview": "Preview",
     "sampleText": "Sample text...",
-    "selectElement": "Select an element from the list to edit its formatting."
+    "selectElement": "Select an element from the list to edit its formatting.",
+    "lineSpacing": "Line spacing",
+    "lineSpacingHint": "Opens up the lines of every element. An element the format already spaces out, such as double-spaced dialogue, opens up by the same amount. The page count is for the script that is open."
   },
   "select": {
     "title": "Script Format / Template",

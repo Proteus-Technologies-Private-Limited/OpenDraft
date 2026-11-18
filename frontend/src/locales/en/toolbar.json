@@ -33,7 +33,9 @@
       "lockedTitle": "You joined to suggest: the writer accepts or rejects your edits",
       "title": "Your edits are suggestions. Click to edit directly again.",
       "label": "Suggesting"
-    }
+    },
+    "zoomFitWidth": "Fit width",
+    "zoomFitWidthTitle": "Zoom so the page fills the width of the window"
   },
   "resetToDefault": "Reset to Default",
   "richText": {

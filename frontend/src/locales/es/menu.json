@@ -289,7 +289,9 @@
     "lineAfterTableTip": "Coloca el cursor en una línea de guion normal debajo de esta tabla AV, y la añade si aún no existe",
     "lineBeforeTableTip": "Coloca el cursor en una línea de guion normal encima de esta tabla AV, y la añade si aún no existe",
     "avRowHint": "Primero coloca el cursor en una celda de video o audio de un guion AV",
-    "formattingTemplate": "Plantilla de formato ({{name}})..."
+    "formattingTemplate": "Plantilla de formato ({{name}})...",
+    "lineSpacing": "Interlineado…",
+    "lineSpacingTip": "Amplía el espacio entre líneas y muestra el número de páginas antes de aplicarlo"
   },
   "view": {
     "view": "Ver",

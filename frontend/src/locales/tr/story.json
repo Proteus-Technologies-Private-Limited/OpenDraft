@@ -10,7 +10,19 @@
     "customColor": "Özel renk",
     "pageSingular": "{{n}} sayfa",
     "pagePlural": "{{n}} sayfa",
-    "autoWithDuration": "Otomatik ({{duration}})"
+    "autoWithDuration": "Otomatik ({{duration}})",
+    "colors": {
+      "violet": "Menekşe",
+      "indigo": "Çivit mavisi",
+      "blue": "Mavi",
+      "green": "Yeşil",
+      "yellow": "Sarı",
+      "orange": "Turuncu",
+      "red": "Kırmızı",
+      "black": "Siyah",
+      "white": "Beyaz",
+      "none": "Renk yok"
+    }
   },
   "scriptProfile": {
     "title": "Tür ve tempo",
@@ -359,9 +371,6 @@
     "pageSingular": "{{n}} sayfa",
     "pagePlural": "{{n}} sayfa",
     "pageAndDuration": "{{pages}} · {{duration}}",
-    "noSynopsis": "Bu sahne için sinopsis yok.",
-    "editSynopsis": "Düzenle",
-    "addSynopsis": "+ Ekle",
     "noPages": "Henüz sayfa yok. Sayfa önizlemelerini görmek için yazmaya başlayın.",
     "pageLabel": "Sayfa {{label}}",
     "sectionCount_one": "{{count}} bölüm",
@@ -381,7 +390,24 @@
     "noLocations": "Henüz mekân yok. “INT. COFFEE SHOP - DAY” gibi sahne başlıkları burada görünür.",
     "renameLocation": "Mekânı yeniden adlandır",
     "skippedHeadings_one": "Satır sonu içeren {{count}} sahne başlığı atlandı",
-    "skippedHeadings_other": "Satır sonu içeren {{count}} sahne başlığı atlandı"
+    "skippedHeadings_other": "Satır sonu içeren {{count}} sahne başlığı atlandı",
+    "showAllSynopses": "Tüm sinopsisleri göster",
+    "hideAllSynopses": "Tüm sinopsisleri gizle",
+    "expandScene": "Sinopsisi göster",
+    "collapseScene": "Sinopsisi gizle",
+    "changeColor": "Sahne rengi",
+    "changeColorFor": "Sahne {{number}} rengi",
+    "headingFontScript": "Başlıkları senaryo yazı tipiyle göster",
+    "headingFontInterface": "Başlıkları arayüz yazı tipiyle göster",
+    "startsOnPage": "Başladığı sayfa: {{label}}",
+    "synopsisFor": "Sinopsis: {{heading}}",
+    "synopsisEditHint": "Enter kaydeder · Shift+Enter satır ekler · Esc iptal eder",
+    "clickToEditSynopsis": "Sinopsisi düzenlemek için tıklayın",
+    "clickToAddSynopsis": "Sinopsis ekle…",
+    "moreSceneOptions": "Daha fazla…",
+    "moreSceneOptionsTitle": "Sinopsis, renk ve sahne süresi",
+    "sceneNotFound": "Bu sahne artık senaryoda yok.",
+    "sceneSaveFailed": "Sahne kaydedilemedi. Yeniden deneyin."
   },
   "beatBoard": {
     "title": "Beat panosu",

@@ -10,7 +10,19 @@
     "customColor": "कस्टम रंग",
     "pageSingular": "{{n}} पेज",
     "pagePlural": "{{n}} पेज",
-    "autoWithDuration": "ऑटो ({{duration}})"
+    "autoWithDuration": "ऑटो ({{duration}})",
+    "colors": {
+      "violet": "बैंगनी",
+      "indigo": "जामुनी",
+      "blue": "नीला",
+      "green": "हरा",
+      "yellow": "पीला",
+      "orange": "नारंगी",
+      "red": "लाल",
+      "black": "काला",
+      "white": "सफ़ेद",
+      "none": "कोई रंग नहीं"
+    }
   },
   "scriptProfile": {
     "title": "जॉनर और गति",
@@ -359,9 +371,6 @@
     "pageSingular": "{{n}} पेज",
     "pagePlural": "{{n}} पेज",
     "pageAndDuration": "{{pages}} · {{duration}}",
-    "noSynopsis": "इस सीन की कोई सिनॉप्सिस उपलब्ध नहीं है।",
-    "editSynopsis": "संपादित करें",
-    "addSynopsis": "+ जोड़ें",
     "noPages": "अभी कोई पेज नहीं है। पेज प्रीव्यू देखने के लिए लिखना शुरू करें।",
     "pageLabel": "पेज {{label}}",
     "sectionCount_one": "{{count}} सेक्शन",
@@ -381,7 +390,24 @@
     "noLocations": "अभी कोई लोकेशन नहीं है। “INT. COFFEE SHOP - DAY” जैसी सीन हेडिंग यहाँ दिखेंगी।",
     "renameLocation": "लोकेशन का नाम बदलें",
     "skippedHeadings_one": "लाइन ब्रेक वाली {{count}} सीन हेडिंग छोड़ दी गई",
-    "skippedHeadings_other": "लाइन ब्रेक वाली {{count}} सीन हेडिंग छोड़ दी गईं"
+    "skippedHeadings_other": "लाइन ब्रेक वाली {{count}} सीन हेडिंग छोड़ दी गईं",
+    "showAllSynopses": "सभी सिनॉप्सिस दिखाएँ",
+    "hideAllSynopses": "सभी सिनॉप्सिस छिपाएँ",
+    "expandScene": "सिनॉप्सिस दिखाएँ",
+    "collapseScene": "सिनॉप्सिस छिपाएँ",
+    "changeColor": "सीन का रंग",
+    "changeColorFor": "सीन {{number}} का रंग",
+    "headingFontScript": "हेडिंग स्क्रिप्ट के फ़ॉन्ट में दिखाएँ",
+    "headingFontInterface": "हेडिंग इंटरफ़ेस के फ़ॉन्ट में दिखाएँ",
+    "startsOnPage": "पेज {{label}} से शुरू होता है",
+    "synopsisFor": "{{heading}} की सिनॉप्सिस",
+    "synopsisEditHint": "Enter सेव करता है · Shift+Enter नई लाइन जोड़ता है · Esc रद्द करता है",
+    "clickToEditSynopsis": "सिनॉप्सिस संपादित करने के लिए क्लिक करें",
+    "clickToAddSynopsis": "सिनॉप्सिस जोड़ें…",
+    "moreSceneOptions": "और…",
+    "moreSceneOptionsTitle": "सिनॉप्सिस, रंग और सीन की अवधि",
+    "sceneNotFound": "वह सीन अब स्क्रिप्ट में नहीं है।",
+    "sceneSaveFailed": "सीन सेव नहीं हो सका। फिर से कोशिश करें।"
   },
   "beatBoard": {
     "title": "बीट बोर्ड",

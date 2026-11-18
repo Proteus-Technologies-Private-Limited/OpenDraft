@@ -35,7 +35,9 @@
       "lockedTitle": "Te uniste para sugerir: el autor acepta o rechaza tus cambios",
       "title": "Tus cambios son sugerencias. Haz clic para volver a editar directamente.",
       "label": "Sugiriendo"
-    }
+    },
+    "zoomFitWidth": "Ajustar al ancho",
+    "zoomFitWidthTitle": "Ajustar el zoom para que la página ocupe todo el ancho de la ventana"
   },
   "resetToDefault": "Restablecer valores predeterminados",
   "richText": {

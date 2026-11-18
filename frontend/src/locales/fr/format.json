@@ -249,5 +249,21 @@
     "textColor": "Couleur du texte",
     "highlight": "Surlignage",
     "highlightColor": "Couleur de surlignage"
+  },
+  "lineSpacing": {
+    "title": "Interlignage",
+    "help": "Aère l'espace entre les lignes du script. La page à l'écran, le nombre de pages et les fichiers PDF, Word et Final Draft le suivent tous. Le standard est de six lignes par pouce, l'interlignage avec lequel Final Draft imprime un scénario.",
+    "preset": {
+      "standard": "Normal",
+      "slightlyOpen": "Légèrement aéré",
+      "open": "Aéré"
+    },
+    "fine": "Réglage fin",
+    "value": "{{points}} pt par ligne ({{value}}×)",
+    "pages": "Nombre de pages : {{pages}}",
+    "pagesChange": "Nombre de pages : {{from}} → {{to}}",
+    "scope": "S'applique à ce script uniquement et le suit partout. Les lignes vides entre les éléments et l'estimation de durée ne changent pas.",
+    "reset": "Revenir au normal",
+    "failed": "Impossible d'appliquer l'interlignage. Le script garde son interlignage actuel."
   }
 }

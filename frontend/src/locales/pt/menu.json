@@ -289,7 +289,9 @@
     "lineAfterTableTip": "Coloca o cursor em uma linha comum do roteiro abaixo desta tabela AV, criando uma se ainda não existir",
     "lineBeforeTableTip": "Coloca o cursor em uma linha comum do roteiro acima desta tabela AV, criando uma se ainda não existir",
     "avRowHint": "Coloque primeiro o cursor em uma célula de Vídeo ou Áudio de um roteiro AV",
-    "formattingTemplate": "Modelo de formatação ({{name}})..."
+    "formattingTemplate": "Modelo de formatação ({{name}})...",
+    "lineSpacing": "Espaçamento entre linhas…",
+    "lineSpacingTip": "Abra o espaço entre as linhas e veja a contagem de páginas antes de aplicar"
   },
   "view": {
     "view": "Exibir",

@@ -51,7 +51,7 @@ import Subscript from '@tiptap/extension-subscript';
 import Superscript from '@tiptap/extension-superscript';
 import { PastedHighlight } from '../editor/extensions/PastedHighlight';
 import { useFormattingTemplateStore, subscribeActiveTemplate } from '../stores/formattingTemplateStore';
-import { generateTemplateCss, generatePlaceholderLocaleCss, injectTemplateCss } from '../utils/templateCss';
+import { generateTemplateCss, generatePlaceholderLocaleCss, generateLineSpacingCss, injectTemplateCss } from '../utils/templateCss';
 import { docHasAnyText } from '../utils/docText';
 import { getCurrentElementRule, getLockedFormatting } from '../utils/effectiveFormatting';
 import { createPaginationPlugin, getPageMetrics, activeTemplateHints } from '../editor/pagination';
@@ -2460,11 +2460,13 @@ const ScreenplayEditor: React.FC = () => {
     // most writers are using.
     if (template.id === '__industry_standard__') {
       const titlePageCss = generateTemplateCss(template, pageLayout, { titlePageOnly: true });
-      const combined = [titlePageCss, generatePlaceholderLocaleCss(template), overrideCss].filter(Boolean).join('\n');
+      // Line spacing is emitted here too: the static stylesheet has none, and
+      // pagination counts it whichever template is in use.
+      const combined = [titlePageCss, generatePlaceholderLocaleCss(template), generateLineSpacingCss(template), overrideCss].filter(Boolean).join('\n');
       injectTemplateCss(combined || null);
       return () => { injectTemplateCss(null); };
     }
-    const css = [generateTemplateCss(template, pageLayout), generatePlaceholderLocaleCss(template)].filter(Boolean).join('\n');
+    const css = [generateTemplateCss(template, pageLayout), generatePlaceholderLocaleCss(template), generateLineSpacingCss(template)].filter(Boolean).join('\n');
     injectTemplateCss(overrideCss ? `${css}\n${overrideCss}` : css);
 
     return () => { injectTemplateCss(null); };
@@ -6156,7 +6158,7 @@ const ScreenplayEditor: React.FC = () => {
       </div>
       {!isHistoryMode && (
         <div className="status-bar-row" style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-          <StatusBar editor={editor} />
+          <StatusBar editor={editor} editorMain={editorMainEl} />
           {pluginRegistry.getPanels('status-bar').map((p) => (
             <p.component key={p.id} />
           ))}

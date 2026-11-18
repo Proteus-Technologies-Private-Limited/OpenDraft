@@ -284,7 +284,9 @@
     "lineAfterTableTip": "Put the cursor on an ordinary script line below this AV table, adding one if it is not there yet",
     "lineBeforeTableTip": "Put the cursor on an ordinary script line above this AV table, adding one if it is not there yet",
     "avRowHint": "Put the cursor in an AV script’s Video or Audio cell first",
-    "formattingTemplate": "Formatting Template ({{name}})..."
+    "formattingTemplate": "Formatting Template ({{name}})...",
+    "lineSpacing": "Line Spacing…",
+    "lineSpacingTip": "Open up the space between lines, and see the page count before you apply it"
   },
   "view": {
     "view": "View",

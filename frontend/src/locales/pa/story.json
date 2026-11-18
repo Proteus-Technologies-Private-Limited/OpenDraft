@@ -10,7 +10,19 @@
     "customColor": "ਕਸਟਮ ਰੰਗ",
     "pageSingular": "{{n}} ਪੰਨਾ",
     "pagePlural": "{{n}} ਪੰਨੇ",
-    "autoWithDuration": "ਆਟੋ ({{duration}})"
+    "autoWithDuration": "ਆਟੋ ({{duration}})",
+    "colors": {
+      "violet": "ਬੈਂਗਣੀ",
+      "indigo": "ਗੂੜ੍ਹਾ ਨੀਲਾ",
+      "blue": "ਨੀਲਾ",
+      "green": "ਹਰਾ",
+      "yellow": "ਪੀਲਾ",
+      "orange": "ਸੰਤਰੀ",
+      "red": "ਲਾਲ",
+      "black": "ਕਾਲਾ",
+      "white": "ਚਿੱਟਾ",
+      "none": "ਕੋਈ ਰੰਗ ਨਹੀਂ"
+    }
   },
   "scriptProfile": {
     "title": "ਜੌਨਰ ਅਤੇ ਰਫ਼ਤਾਰ",
@@ -359,9 +371,6 @@
     "pageSingular": "{{n}} ਪੰਨਾ",
     "pagePlural": "{{n}} ਪੰਨੇ",
     "pageAndDuration": "{{pages}} · {{duration}}",
-    "noSynopsis": "ਇਸ ਸੀਨ ਦਾ ਕੋਈ ਸਾਰਾਂਸ਼ ਉਪਲਬਧ ਨਹੀਂ।",
-    "editSynopsis": "ਸੋਧੋ",
-    "addSynopsis": "+ ਜੋੜੋ",
     "noPages": "ਅਜੇ ਕੋਈ ਪੰਨਾ ਨਹੀਂ। ਪੰਨਿਆਂ ਦਾ ਪ੍ਰੀਵਿਊ ਦੇਖਣ ਲਈ ਲਿਖਣਾ ਸ਼ੁਰੂ ਕਰੋ।",
     "pageLabel": "ਪੰਨਾ {{label}}",
     "sectionCount_one": "{{count}} ਸੈਕਸ਼ਨ",
@@ -381,7 +390,24 @@
     "noLocations": "ਅਜੇ ਕੋਈ ਲੋਕੇਸ਼ਨ ਨਹੀਂ। “INT. COFFEE SHOP - DAY” ਵਰਗੀਆਂ ਸੀਨ ਹੈਡਿੰਗਾਂ ਇੱਥੇ ਦਿਖਾਈ ਦੇਣਗੀਆਂ।",
     "renameLocation": "ਲੋਕੇਸ਼ਨ ਦਾ ਨਾਮ ਬਦਲੋ",
     "skippedHeadings_one": "ਲਾਈਨ ਬ੍ਰੇਕ ਵਾਲੀ {{count}} ਸੀਨ ਹੈਡਿੰਗ ਛੱਡ ਦਿੱਤੀ ਗਈ",
-    "skippedHeadings_other": "ਲਾਈਨ ਬ੍ਰੇਕ ਵਾਲੀਆਂ {{count}} ਸੀਨ ਹੈਡਿੰਗਾਂ ਛੱਡ ਦਿੱਤੀਆਂ ਗਈਆਂ"
+    "skippedHeadings_other": "ਲਾਈਨ ਬ੍ਰੇਕ ਵਾਲੀਆਂ {{count}} ਸੀਨ ਹੈਡਿੰਗਾਂ ਛੱਡ ਦਿੱਤੀਆਂ ਗਈਆਂ",
+    "showAllSynopses": "ਸਾਰੇ ਸਾਰਾਂਸ਼ ਦਿਖਾਓ",
+    "hideAllSynopses": "ਸਾਰੇ ਸਾਰਾਂਸ਼ ਲੁਕਾਓ",
+    "expandScene": "ਸਾਰਾਂਸ਼ ਦਿਖਾਓ",
+    "collapseScene": "ਸਾਰਾਂਸ਼ ਲੁਕਾਓ",
+    "changeColor": "ਸੀਨ ਦਾ ਰੰਗ",
+    "changeColorFor": "ਸੀਨ {{number}} ਦਾ ਰੰਗ",
+    "headingFontScript": "ਹੈਡਿੰਗ ਸਕ੍ਰਿਪਟ ਦੇ ਫੌਂਟ ਵਿੱਚ ਦਿਖਾਓ",
+    "headingFontInterface": "ਹੈਡਿੰਗ ਇੰਟਰਫੇਸ ਦੇ ਫੌਂਟ ਵਿੱਚ ਦਿਖਾਓ",
+    "startsOnPage": "ਪੰਨਾ {{label}} ਤੋਂ ਸ਼ੁਰੂ ਹੁੰਦਾ ਹੈ",
+    "synopsisFor": "{{heading}} ਦਾ ਸਾਰਾਂਸ਼",
+    "synopsisEditHint": "Enter ਸੰਭਾਲਦਾ ਹੈ · Shift+Enter ਨਵੀਂ ਲਾਈਨ ਜੋੜਦਾ ਹੈ · Esc ਰੱਦ ਕਰਦਾ ਹੈ",
+    "clickToEditSynopsis": "ਸਾਰਾਂਸ਼ ਸੋਧਣ ਲਈ ਕਲਿੱਕ ਕਰੋ",
+    "clickToAddSynopsis": "ਸਾਰਾਂਸ਼ ਜੋੜੋ…",
+    "moreSceneOptions": "ਹੋਰ…",
+    "moreSceneOptionsTitle": "ਸਾਰਾਂਸ਼, ਰੰਗ ਅਤੇ ਸੀਨ ਦੀ ਮਿਆਦ",
+    "sceneNotFound": "ਉਹ ਸੀਨ ਹੁਣ ਸਕ੍ਰਿਪਟ ਵਿੱਚ ਨਹੀਂ ਹੈ।",
+    "sceneSaveFailed": "ਸੀਨ ਸੰਭਾਲਿਆ ਨਹੀਂ ਜਾ ਸਕਿਆ। ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।"
   },
   "beatBoard": {
     "title": "ਬੀਟ ਬੋਰਡ",

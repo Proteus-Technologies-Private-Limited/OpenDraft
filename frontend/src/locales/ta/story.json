@@ -10,7 +10,19 @@
     "customColor": "தனிப்பயன் நிறம்",
     "pageSingular": "{{n}} பக்கம்",
     "pagePlural": "{{n}} பக்கங்கள்",
-    "autoWithDuration": "தானியங்கி ({{duration}})"
+    "autoWithDuration": "தானியங்கி ({{duration}})",
+    "colors": {
+      "violet": "ஊதா",
+      "indigo": "கருநீலம்",
+      "blue": "நீலம்",
+      "green": "பச்சை",
+      "yellow": "மஞ்சள்",
+      "orange": "ஆரஞ்சு",
+      "red": "சிவப்பு",
+      "black": "கருப்பு",
+      "white": "வெள்ளை",
+      "none": "நிறம் இல்லை"
+    }
   },
   "scriptProfile": {
     "title": "ஜானர் & வேகம்",
@@ -359,9 +371,6 @@
     "pageSingular": "{{n}} பக்கம்",
     "pagePlural": "{{n}} பக்கங்கள்",
     "pageAndDuration": "{{pages}} · {{duration}}",
-    "noSynopsis": "இந்தச் சீனுக்குச் சுருக்கம் எதுவும் இல்லை.",
-    "editSynopsis": "திருத்து",
-    "addSynopsis": "+ சேர்",
     "noPages": "இன்னும் பக்கங்கள் இல்லை. பக்க முன்னோட்டங்களைப் பார்க்க எழுதத் தொடங்குங்கள்.",
     "pageLabel": "பக்கம் {{label}}",
     "sectionCount_one": "{{count}} பிரிவு",
@@ -381,7 +390,24 @@
     "noLocations": "இன்னும் இடங்கள் இல்லை. “INT. COFFEE SHOP - DAY” போன்ற சீன் தலைப்புகள் இங்கே தோன்றும்.",
     "renameLocation": "இடத்தை மறுபெயரிடு",
     "skippedHeadings_one": "வரி முறிவு உள்ள {{count}} சீன் தலைப்பு தவிர்க்கப்பட்டது",
-    "skippedHeadings_other": "வரி முறிவு உள்ள {{count}} சீன் தலைப்புகள் தவிர்க்கப்பட்டன"
+    "skippedHeadings_other": "வரி முறிவு உள்ள {{count}} சீன் தலைப்புகள் தவிர்க்கப்பட்டன",
+    "showAllSynopses": "அனைத்துச் சுருக்கங்களையும் காட்டு",
+    "hideAllSynopses": "அனைத்துச் சுருக்கங்களையும் மறை",
+    "expandScene": "சுருக்கத்தைக் காட்டு",
+    "collapseScene": "சுருக்கத்தை மறை",
+    "changeColor": "சீன் நிறம்",
+    "changeColorFor": "சீன் {{number}} நிறம்",
+    "headingFontScript": "தலைப்புகளை ஸ்கிரிப்ட் எழுத்துருவில் காட்டு",
+    "headingFontInterface": "தலைப்புகளை இடைமுக எழுத்துருவில் காட்டு",
+    "startsOnPage": "பக்கம் {{label}}-இல் தொடங்குகிறது",
+    "synopsisFor": "{{heading}}-க்கான சுருக்கம்",
+    "synopsisEditHint": "Enter சேமிக்கும் · Shift+Enter புதிய வரியைச் சேர்க்கும் · Esc ரத்துசெய்யும்",
+    "clickToEditSynopsis": "சுருக்கத்தைத் திருத்த கிளிக் செய்யவும்",
+    "clickToAddSynopsis": "சுருக்கத்தைச் சேர்…",
+    "moreSceneOptions": "மேலும்…",
+    "moreSceneOptionsTitle": "சுருக்கம், நிறம் மற்றும் சீன் நேர அளவு",
+    "sceneNotFound": "அந்தச் சீன் இனி ஸ்கிரிப்டில் இல்லை.",
+    "sceneSaveFailed": "சீனைச் சேமிக்க முடியவில்லை. மீண்டும் முயலவும்."
   },
   "beatBoard": {
     "title": "பீட் போர்டு",

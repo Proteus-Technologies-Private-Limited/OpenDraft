@@ -244,5 +244,21 @@
     "textColor": "Yazı rengi",
     "highlight": "Vurgu",
     "highlightColor": "Vurgu rengi"
+  },
+  "lineSpacing": {
+    "title": "Satır Aralığı",
+    "help": "Senaryonun satırları arasındaki boşluğu açar. Ekrandaki sayfa, sayfa sayısı ve PDF, Word ve Final Draft dosyaları buna uyar. Standart, inç başına altı satırdır; Final Draft senaryoyu bu aralıkla yazdırır.",
+    "preset": {
+      "standard": "Standart",
+      "slightlyOpen": "Biraz açık",
+      "open": "Açık"
+    },
+    "fine": "İnce ayar",
+    "value": "Satır başına {{points}} pt ({{value}}×)",
+    "pages": "Sayfa sayısı: {{pages}}",
+    "pagesChange": "Sayfa sayısı: {{from}} → {{to}}",
+    "scope": "Yalnızca bu senaryoya uygulanır ve onunla birlikte taşınır. Öğeler arasındaki boş satırlar ve süre tahmini değişmez.",
+    "reset": "Standarda sıfırla",
+    "failed": "Satır aralığı uygulanamadı. Senaryo mevcut aralığını korur."
   }
 }

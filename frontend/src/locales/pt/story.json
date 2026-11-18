@@ -10,7 +10,19 @@
     "customColor": "Cor personalizada",
     "pageSingular": "{{n}} página",
     "pagePlural": "{{n}} páginas",
-    "autoWithDuration": "Auto ({{duration}})"
+    "autoWithDuration": "Auto ({{duration}})",
+    "colors": {
+      "violet": "Violeta",
+      "indigo": "Índigo",
+      "blue": "Azul",
+      "green": "Verde",
+      "yellow": "Amarelo",
+      "orange": "Laranja",
+      "red": "Vermelho",
+      "black": "Preto",
+      "white": "Branco",
+      "none": "Sem cor"
+    }
   },
   "scriptProfile": {
     "title": "Gênero e ritmo",
@@ -368,9 +380,6 @@
     "pageSingular": "{{n}} página",
     "pagePlural": "{{n}} páginas",
     "pageAndDuration": "{{pages}} · {{duration}}",
-    "noSynopsis": "Não há sinopse disponível para esta cena.",
-    "editSynopsis": "Editar",
-    "addSynopsis": "+ Adicionar",
     "noPages": "Ainda não há páginas. Comece a escrever para ver as pré-visualizações.",
     "pageLabel": "Página {{label}}",
     "sectionCount_one": "{{count}} seção",
@@ -393,7 +402,24 @@
     "renameLocation": "Renomear locação",
     "skippedHeadings_one": "{{count}} cabeçalho de cena com quebra de linha foi ignorado",
     "skippedHeadings_many": "{{count}} de cabeçalhos de cena com quebra de linha foram ignorados",
-    "skippedHeadings_other": "{{count}} cabeçalhos de cena com quebra de linha foram ignorados"
+    "skippedHeadings_other": "{{count}} cabeçalhos de cena com quebra de linha foram ignorados",
+    "showAllSynopses": "Mostrar todas as sinopses",
+    "hideAllSynopses": "Ocultar todas as sinopses",
+    "expandScene": "Mostrar sinopse",
+    "collapseScene": "Ocultar sinopse",
+    "changeColor": "Cor da cena",
+    "changeColorFor": "Cor da cena {{number}}",
+    "headingFontScript": "Mostrar cabeçalhos na fonte do roteiro",
+    "headingFontInterface": "Mostrar cabeçalhos na fonte da interface",
+    "startsOnPage": "Começa na página {{label}}",
+    "synopsisFor": "Sinopse de {{heading}}",
+    "synopsisEditHint": "Enter salva · Shift+Enter adiciona uma linha · Esc cancela",
+    "clickToEditSynopsis": "Clique para editar a sinopse",
+    "clickToAddSynopsis": "Adicionar uma sinopse…",
+    "moreSceneOptions": "Mais…",
+    "moreSceneOptionsTitle": "Sinopse, cor e duração da cena",
+    "sceneNotFound": "Essa cena não está mais no roteiro.",
+    "sceneSaveFailed": "Não foi possível salvar a cena. Tente novamente."
   },
   "beatBoard": {
     "title": "Quadro de beats",

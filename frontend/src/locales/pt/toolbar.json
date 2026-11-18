@@ -35,7 +35,9 @@
       "lockedTitle": "Você entrou para sugerir: o roteirista aceita ou rejeita suas edições",
       "title": "Suas edições são sugestões. Clique para voltar a editar diretamente.",
       "label": "Sugerindo"
-    }
+    },
+    "zoomFitWidth": "Ajustar à largura",
+    "zoomFitWidthTitle": "Ajustar o zoom para a página preencher a largura da janela"
   },
   "resetToDefault": "Restaurar padrão",
   "richText": {

@@ -340,6 +340,7 @@ const TemplateSelectDialog: React.FC<TemplateSelectDialogProps> = ({ editor, onC
         {editingTemplate && (
           <TemplateEditorDialog
             template={editingTemplate}
+            editor={editor}
             onSave={async (updated) => {
               if (!parseTemplateSnapshot(updated, updated.id)) {
                 showToast(t('select.invalidSettings'), 'error');

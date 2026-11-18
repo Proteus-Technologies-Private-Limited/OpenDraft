@@ -16,6 +16,8 @@ class TemplateCreate(BaseModel):
     rules: dict = {}
     # Element ids that must start on a new page (e.g. ["newAct"]).
     forceBreakBefore: list[str] | None = None
+    # Script-wide line spacing (1 = standard). See frontend utils/lineSpacing.ts.
+    lineSpacing: float | None = None
     createdAt: str | None = None
     updatedAt: str | None = None
 
@@ -26,6 +28,7 @@ class TemplateUpdate(BaseModel):
     mode: str | None = None
     rules: dict | None = None
     forceBreakBefore: list[str] | None = None
+    lineSpacing: float | None = None
 
 
 @router.get("/")

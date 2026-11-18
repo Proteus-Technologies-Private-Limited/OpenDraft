@@ -10,7 +10,19 @@
     "customColor": "କଷ୍ଟମ୍ ରଙ୍ଗ",
     "pageSingular": "{{n}} ପୃଷ୍ଠା",
     "pagePlural": "{{n}} ପୃଷ୍ଠା",
-    "autoWithDuration": "ସ୍ୱୟଂ ({{duration}})"
+    "autoWithDuration": "ସ୍ୱୟଂ ({{duration}})",
+    "colors": {
+      "violet": "ବାଇଗଣି",
+      "indigo": "ଘନ ନୀଳ",
+      "blue": "ନୀଳ",
+      "green": "ସବୁଜ",
+      "yellow": "ହଳଦିଆ",
+      "orange": "କମଳା",
+      "red": "ନାଲି",
+      "black": "କଳା",
+      "white": "ଧଳା",
+      "none": "ରଙ୍ଗ ନାହିଁ"
+    }
   },
   "scriptProfile": {
     "title": "ଧରଣ ଓ ଗତି",
@@ -359,9 +371,6 @@
     "pageSingular": "{{n}} ପୃଷ୍ଠା",
     "pagePlural": "{{n}} ପୃଷ୍ଠା",
     "pageAndDuration": "{{pages}} · {{duration}}",
-    "noSynopsis": "ଏହି ସିନ୍ ପାଇଁ କୌଣସି ସିନୋପସିସ୍ ଉପଲବ୍ଧ ନାହିଁ।",
-    "editSynopsis": "ସମ୍ପାଦନା",
-    "addSynopsis": "+ ଯୋଡ଼ନ୍ତୁ",
     "noPages": "ଏପର୍ଯ୍ୟନ୍ତ କୌଣସି ପୃଷ୍ଠା ନାହିଁ। ପୃଷ୍ଠା ପ୍ରିଭ୍ୟୁ ଦେଖିବାକୁ ଲେଖିବା ଆରମ୍ଭ କରନ୍ତୁ।",
     "pageLabel": "ପୃଷ୍ଠା {{label}}",
     "sectionCount_one": "{{count}} ବିଭାଗ",
@@ -381,7 +390,24 @@
     "noLocations": "ଏପର୍ଯ୍ୟନ୍ତ କୌଣସି ଲୋକେସନ୍ ନାହିଁ। “INT. COFFEE SHOP - DAY” ପରି ସିନ୍ ହେଡିଂ ଏଠାରେ ଦେଖାଯିବ।",
     "renameLocation": "ଲୋକେସନ୍‌ର ନାମ ବଦଳାନ୍ତୁ",
     "skippedHeadings_one": "ଧାଡ଼ି ବିରତି ଥିବା {{count}} ସିନ୍ ହେଡିଂ ଛାଡ଼ି ଦିଆଗଲା",
-    "skippedHeadings_other": "ଧାଡ଼ି ବିରତି ଥିବା {{count}} ସିନ୍ ହେଡିଂ ଛାଡ଼ି ଦିଆଗଲା"
+    "skippedHeadings_other": "ଧାଡ଼ି ବିରତି ଥିବା {{count}} ସିନ୍ ହେଡିଂ ଛାଡ଼ି ଦିଆଗଲା",
+    "showAllSynopses": "ସମସ୍ତ ସିନୋପସିସ୍ ଦେଖାନ୍ତୁ",
+    "hideAllSynopses": "ସମସ୍ତ ସିନୋପସିସ୍ ଲୁଚାନ୍ତୁ",
+    "expandScene": "ସିନୋପସିସ୍ ଦେଖାନ୍ତୁ",
+    "collapseScene": "ସିନୋପସିସ୍ ଲୁଚାନ୍ତୁ",
+    "changeColor": "ସିନ୍ ରଙ୍ଗ",
+    "changeColorFor": "ସିନ୍ {{number}} ର ରଙ୍ଗ",
+    "headingFontScript": "ହେଡିଂ ସ୍କ୍ରିପ୍ଟ ଫଣ୍ଟରେ ଦେଖାନ୍ତୁ",
+    "headingFontInterface": "ହେଡିଂ ଇଣ୍ଟରଫେସ୍ ଫଣ୍ଟରେ ଦେଖାନ୍ତୁ",
+    "startsOnPage": "ପୃଷ୍ଠା {{label}} ରୁ ଆରମ୍ଭ ହୁଏ",
+    "synopsisFor": "{{heading}} ର ସିନୋପସିସ୍",
+    "synopsisEditHint": "Enter ସେଭ୍ କରେ · Shift+Enter ନୂଆ ଧାଡ଼ି ଯୋଡ଼େ · Esc ବାତିଲ୍ କରେ",
+    "clickToEditSynopsis": "ସିନୋପସିସ୍ ସମ୍ପାଦନା କରିବାକୁ କ୍ଲିକ୍ କରନ୍ତୁ",
+    "clickToAddSynopsis": "ଏକ ସିନୋପସିସ୍ ଯୋଡ଼ନ୍ତୁ…",
+    "moreSceneOptions": "ଅଧିକ…",
+    "moreSceneOptionsTitle": "ସିନୋପସିସ୍, ରଙ୍ଗ ଓ ସିନ୍ ଅବଧି",
+    "sceneNotFound": "ସେହି ସିନ୍ ଆଉ ସ୍କ୍ରିପ୍ଟରେ ନାହିଁ।",
+    "sceneSaveFailed": "ସିନ୍ ସେଭ୍ କରାଯାଇପାରିଲା ନାହିଁ। ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।"
   },
   "beatBoard": {
     "title": "ବିଟ୍ ବୋର୍ଡ",

@@ -10,7 +10,19 @@
     "customColor": "Color personalizado",
     "pageSingular": "{{n}} página",
     "pagePlural": "{{n}} páginas",
-    "autoWithDuration": "Automática ({{duration}})"
+    "autoWithDuration": "Automática ({{duration}})",
+    "colors": {
+      "violet": "Violeta",
+      "indigo": "Índigo",
+      "blue": "Azul",
+      "green": "Verde",
+      "yellow": "Amarillo",
+      "orange": "Naranja",
+      "red": "Rojo",
+      "black": "Negro",
+      "white": "Blanco",
+      "none": "Sin color"
+    }
   },
   "scriptProfile": {
     "title": "Género y ritmo",
@@ -368,9 +380,6 @@
     "pageSingular": "{{n}} página",
     "pagePlural": "{{n}} páginas",
     "pageAndDuration": "{{pages}} · {{duration}}",
-    "noSynopsis": "No hay sinopsis disponible para esta escena.",
-    "editSynopsis": "Editar",
-    "addSynopsis": "+ Añadir",
     "noPages": "Aún no hay páginas. Empieza a escribir para ver las vistas previas.",
     "pageLabel": "Página {{label}}",
     "sectionCount_one": "{{count}} sección",
@@ -393,7 +402,24 @@
     "renameLocation": "Renombrar localización",
     "skippedHeadings_one": "Se omitió {{count}} encabezado de escena que contiene un salto de línea",
     "skippedHeadings_many": "Se omitieron {{count}} de encabezados de escena que contienen un salto de línea",
-    "skippedHeadings_other": "Se omitieron {{count}} encabezados de escena que contienen un salto de línea"
+    "skippedHeadings_other": "Se omitieron {{count}} encabezados de escena que contienen un salto de línea",
+    "showAllSynopses": "Mostrar todas las sinopsis",
+    "hideAllSynopses": "Ocultar todas las sinopsis",
+    "expandScene": "Mostrar sinopsis",
+    "collapseScene": "Ocultar sinopsis",
+    "changeColor": "Color de la escena",
+    "changeColorFor": "Color de la escena {{number}}",
+    "headingFontScript": "Mostrar los encabezados con la fuente del guion",
+    "headingFontInterface": "Mostrar los encabezados con la fuente de la interfaz",
+    "startsOnPage": "Empieza en la página {{label}}",
+    "synopsisFor": "Sinopsis de {{heading}}",
+    "synopsisEditHint": "Enter guarda · Shift+Enter añade una línea · Esc cancela",
+    "clickToEditSynopsis": "Haz clic para editar la sinopsis",
+    "clickToAddSynopsis": "Añadir una sinopsis…",
+    "moreSceneOptions": "Más…",
+    "moreSceneOptionsTitle": "Sinopsis, color y duración de la escena",
+    "sceneNotFound": "Esa escena ya no está en el guion.",
+    "sceneSaveFailed": "No se pudo guardar la escena. Inténtalo de nuevo."
   },
   "beatBoard": {
     "title": "Tablero de beats",

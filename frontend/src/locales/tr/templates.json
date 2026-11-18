@@ -168,7 +168,9 @@
     "overrideOff": "Tüm biçimlendirme kilitli — kullanıcılar bu öğenin hiçbir stilini değiştiremez.",
     "preview": "Önizleme",
     "sampleText": "Örnek metin...",
-    "selectElement": "Biçimlendirmesini düzenlemek için listeden bir öğe seçin."
+    "selectElement": "Biçimlendirmesini düzenlemek için listeden bir öğe seçin.",
+    "lineSpacing": "Satır aralığı",
+    "lineSpacingHint": "Her öğenin satırlarını açar. Biçimin zaten aralıklı yazdığı bir öğe, örneğin çift aralıklı diyalog, aynı oranda açılır. Sayfa sayısı açık olan senaryo içindir."
   },
   "select": {
     "title": "Senaryo biçimi / şablon",

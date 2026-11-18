@@ -6,11 +6,21 @@ import type { TFunction } from 'i18next';
 import { formatNumber } from '../i18n/format';
 import { useDelayedUnmount, useSwipeDismiss } from '../hooks/useTouch';
 import { useEditorStore, useEditorFields } from '../stores/editorStore';
-import { computeSceneLengths, computePageBlocks, activeTemplateHints, type PageContentInfo } from '../editor/pagination';
+import {
+  computeSceneLengths, computePageBlocks, activeTemplateHints, paginationPluginKey, sceneStartPages,
+  type PageContentInfo, type PaginationState,
+} from '../editor/pagination';
 import { getSpaceBefore } from '../utils/elementSpacing';
 import { computeSceneTiming, formatSceneDuration, getTimingColor } from '../utils/scriptTiming';
 import { computeScriptStructure, sceneActLabel, type ScriptStructure, type StructureSection } from '../utils/scriptStructure';
 import SynopsisModal from './SynopsisModal';
+import SceneColorSwatches from './SceneColorSwatches';
+import { headingCaseClass } from '../utils/navigatorHeadingCase';
+import { useProjectStore } from '../stores/projectStore';
+import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
+import {
+  allScenesOpen, isSceneOpen, loadExpansion, saveExpansion, setAllScenes, toggleScene, type SynopsisExpansion,
+} from '../utils/navigatorSynopses';
 import { showToast } from './Toast';
 import { blockContentRange, characterKey, singleLine } from '../utils/nodeText';
 import Select from './Select';
@@ -127,6 +137,40 @@ function highlightText(text: string, query: string): React.ReactNode {
   );
 }
 
+// ── Scene heading lookup ────────────────────────────────────────────────
+
+/**
+ * Position of the nth scene heading, or -1. Scenes are addressed by their place
+ * in the script, as everywhere in the Navigator: the list is rebuilt from the
+ * document and carries no positions of its own.
+ */
+function sceneHeadingPos(doc: Editor['state']['doc'], sceneIndex: number): number {
+  let seen = -1;
+  let found = -1;
+  doc.descendants((node, pos) => {
+    if (found >= 0) return false;
+    if (node.type.name === 'sceneHeading') {
+      seen++;
+      if (seen === sceneIndex) { found = pos; return false; }
+    }
+    return !node.isTextblock;
+  });
+  return found;
+}
+
+/**
+ * Ink for a scene number drawn on the scene's own colour: dark on a light
+ * colour (yellow, white), light on a dark one.
+ */
+function readableOn(hex: string): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return '#ffffff';
+  const n = parseInt(m[1], 16);
+  const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.6 ? '#1a1a1a' : '#ffffff';
+}
+
+
 // ── Scene detail helpers ────────────────────────────────────────────────
 
 interface SceneDetail {
@@ -207,6 +251,8 @@ interface SectionOutlineProps {
   onGoToSection: (sectionIndex: number) => void;
   onGoToScene: (sceneIndex: number) => void;
   query: string;
+  /** The page's case for scene headings, as a class (see headingCaseClass). */
+  headingCase: string;
 }
 
 /**
@@ -217,7 +263,7 @@ interface SectionOutlineProps {
  * format allows — is still drawn where the writer put it.
  */
 const SectionOutline: React.FC<SectionOutlineProps> = ({
-  sections, onGoToSection, onGoToScene, query,
+  sections, onGoToSection, onGoToScene, query, headingCase,
 }) => {
   const { t } = useTranslation(['story', 'common']);
   return (
@@ -256,7 +302,7 @@ const SectionOutline: React.FC<SectionOutlineProps> = ({
                 onClick={() => onGoToScene(scene.sceneIndex)}
               >
                 <span className="structure-scene-num">{scene.sceneIndex + 1}</span>
-                <span className="structure-scene-heading">{scene.heading}</span>
+                <span className={`structure-scene-heading${headingCase}`}>{scene.heading}</span>
               </div>
             ))}
           </div>
@@ -266,6 +312,7 @@ const SectionOutline: React.FC<SectionOutlineProps> = ({
           onGoToSection={onGoToSection}
           onGoToScene={onGoToScene}
           query={query}
+          headingCase={headingCase}
         />
       </div>
     ))}
@@ -284,6 +331,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
   // and structure each walk the whole script (#229).
   const doc = useSettledEditorDoc(editor, shouldRender);
   const pageLayout = useEditorStore((s) => s.pageLayout);
+  const pageCount = useEditorStore((s) => s.pageCount);
   const plotlines = useEditorStore((s) => s.plotlines);
   const fontFamily = useEditorStore((s) => s.fontFamily);
   const fontSize = useEditorStore((s) => s.fontSize);
@@ -293,8 +341,39 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
   const [renameValue, setRenameValue] = useState('');
   const renameInputRef = useRef<HTMLInputElement>(null);
 
-  // Expanded scene (shows synopsis inline)
-  const [expandedSceneIdx, setExpandedSceneIdx] = useState<number | null>(null);
+  // Which scenes are open to their synopsis, remembered per script.
+  const currentProjectId = useProjectStore((s) => s.currentProject?.id ?? null);
+  const currentScriptId = useProjectStore((s) => s.currentScriptId);
+  const expansionKey = currentScriptId ? `${currentProjectId ?? 'local'}:${currentScriptId}` : null;
+  const [expansion, setExpansion] = useState<SynopsisExpansion>(() => loadExpansion(expansionKey));
+  useEffect(() => { setExpansion(loadExpansion(expansionKey)); }, [expansionKey]);
+  const updateExpansion = useCallback((next: SynopsisExpansion) => {
+    setExpansion(next);
+    saveExpansion(expansionKey, next);
+  }, [expansionKey]);
+
+  // Inline editing in a scene row: its colour strip, or its synopsis.
+  const [colorStripId, setColorStripId] = useState<string | null>(null);
+  const [editingSynopsisId, setEditingSynopsisId] = useState<string | null>(null);
+  const [synopsisDraft, setSynopsisDraft] = useState('');
+  /** Set once Enter, Esc or blur has ended the edit, so the others do nothing. */
+  const synopsisEditDone = useRef(false);
+
+  const headingFont = useEditorStore((s) => s.navigatorHeadingFont);
+  const setHeadingFont = useEditorStore((s) => s.setNavigatorHeadingFont);
+  // The active format: its spacing changes scene lengths and the page
+  // thumbnails without editing the document. Stored templates are replaced,
+  // never mutated, so the object itself says when it changed.
+  const activeTemplate = useFormattingTemplateStore((s) => s.getActiveTemplate());
+  const headingTransform = useFormattingTemplateStore((s) => {
+    try {
+      return s.getActiveTemplate().rules.sceneHeading?.textTransform;
+    } catch (err) {
+      console.warn('[navigator] could not read the scene heading rule', err);
+      return undefined;
+    }
+  });
+  const caseClass = headingCaseClass(headingTransform);
 
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
@@ -319,34 +398,61 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
   // Synopsis modal state
   const [synopsisModal, setSynopsisModal] = useState<{ sceneIdx: number; id: string; heading: string; synopsis: string; color: string } | null>(null);
 
-  const handleSaveSynopsis = useCallback(
-    (synopsis: string, color: string, timingOverride?: number | null) => {
-      if (!synopsisModal || !editor) return;
-      const { sceneIdx, id } = synopsisModal;
-      updateSceneSynopsis(id, synopsis);
-      updateSceneColor(id, color);
-      let currentScene = -1;
-      let targetPos = -1;
-      editor.state.doc.descendants((node, pos) => {
-        if (node.type.name === 'sceneHeading') {
-          currentScene++;
-          if (currentScene === sceneIdx) { targetPos = pos; return false; }
+  /**
+   * Write a scene's synopsis, colour or timing to its heading.
+   *
+   * The one path the dialog and the inline editors share, so each behaves as
+   * the dialog always has for undo and for collaborators: the store updates at
+   * once, and the heading's attributes change outside the undo history.
+   */
+  const writeSceneAttrs = useCallback(
+    (sceneIdx: number, id: string, patch: { synopsis?: string; sceneColor?: string; timingOverride?: number | null }) => {
+      if (!editor) return;
+      if (patch.synopsis !== undefined) updateSceneSynopsis(id, patch.synopsis);
+      if (patch.sceneColor !== undefined) updateSceneColor(id, patch.sceneColor);
+      try {
+        const targetPos = sceneHeadingPos(editor.state.doc, sceneIdx);
+        const node = targetPos >= 0 ? editor.state.doc.nodeAt(targetPos) : null;
+        if (!node || node.type.name !== 'sceneHeading') {
+          console.warn('[navigator] scene heading not found for', id, 'at index', sceneIdx);
+          showToast(t('navigator.sceneNotFound'), 'error');
+          return;
         }
-        return true;
-      });
-      if (targetPos >= 0) {
-        const node = editor.state.doc.nodeAt(targetPos);
-        if (node) {
-          const { tr } = editor.state;
-          const newAttrs = { ...node.attrs, synopsis, sceneColor: color, timingOverride: timingOverride ?? null };
-          tr.setNodeMarkup(targetPos, undefined, newAttrs);
-          tr.setMeta('addToHistory', false);
-          editor.view.dispatch(tr);
-        }
+        const { tr } = editor.state;
+        tr.setNodeMarkup(targetPos, undefined, { ...node.attrs, ...patch });
+        tr.setMeta('addToHistory', false);
+        editor.view.dispatch(tr);
+      } catch (err) {
+        console.error('[navigator] could not save the scene', err);
+        showToast(t('navigator.sceneSaveFailed'), 'error');
       }
     },
-    [synopsisModal, editor, updateSceneSynopsis, updateSceneColor],
+    [editor, updateSceneSynopsis, updateSceneColor, t],
   );
+
+  const handleSaveSynopsis = useCallback(
+    (synopsis: string, color: string, timingOverride?: number | null) => {
+      if (!synopsisModal) return;
+      writeSceneAttrs(synopsisModal.sceneIdx, synopsisModal.id, {
+        synopsis, sceneColor: color, timingOverride: timingOverride ?? null,
+      });
+    },
+    [synopsisModal, writeSceneAttrs],
+  );
+
+  const startSynopsisEdit = useCallback((id: string, current: string) => {
+    synopsisEditDone.current = false;
+    setColorStripId(null);
+    setSynopsisDraft(current);
+    setEditingSynopsisId(id);
+  }, []);
+
+  const finishSynopsisEdit = useCallback((sceneIdx: number, id: string, original: string, save: boolean) => {
+    if (synopsisEditDone.current) return;
+    synopsisEditDone.current = true;
+    setEditingSynopsisId(null);
+    if (save && synopsisDraft !== original) writeSceneAttrs(sceneIdx, id, { synopsis: synopsisDraft });
+  }, [synopsisDraft, writeSceneAttrs]);
 
   const locations = useMemo(() => groupByLocation(scenes), [scenes]);
 
@@ -427,7 +533,9 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
       });
     }
     return details;
-  }, [doc, pageLayout]);
+    // activeTemplate is read through activeTemplateHints(), hence the pragma.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [doc, pageLayout, activeTemplate]);
 
   // ── Compute scene timing ──
 
@@ -453,6 +561,27 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
       return empty;
     }
   }, [doc]);
+
+  // ── The page each scene starts on ──
+
+  // Read off the breaks the editor drew for its current document, the two
+  // taken together so they always belong to each other. Recomputed as the
+  // settled document changes, like everything else here.
+  const sceneStartPage = useMemo((): number[] => {
+    if (!editor || !doc) return [];
+    try {
+      const state = editor.state;
+      const pagination = paginationPluginKey.getState(state) as PaginationState | undefined;
+      if (!pagination) return [];
+      return sceneStartPages(state.doc, pagination.breaks);
+    } catch (err) {
+      console.warn('[navigator] could not work out scene pages', err);
+      return [];
+    }
+    // A template or page-layout change repaginates without editing the document,
+    // so these stand in for "the breaks changed", which nothing else signals.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editor, doc, pageLayout, pageCount]);
 
   // ── Collapsed acts / sequences (Structure tab state) ──
   const [collapsedActs, setCollapsedActs] = useState<Set<number>>(new Set());
@@ -485,7 +614,8 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
       pageLayout,
       activeTemplateHints(),
     );
-  }, [doc, pageLayout, activeTab]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [doc, pageLayout, activeTab, activeTemplate]);
 
   // ── Exact-match page layout for thumbnails ──
 
@@ -632,16 +762,12 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
   const goToScene = useCallback(
     (sceneIndex: number) => {
       if (!editor) return;
-      const { doc } = editor.state;
-      let currentScene = -1;
-      let targetPos = 0;
-      doc.descendants((node, pos) => {
-        if (node.type.name === 'sceneHeading') {
-          currentScene++;
-          if (currentScene === sceneIndex) { targetPos = pos; return false; }
-        }
-        return true;
-      });
+      const found = sceneHeadingPos(editor.state.doc, sceneIndex);
+      if (found < 0) {
+        console.warn('[navigator] no scene heading at index', sceneIndex);
+        return;
+      }
+      const targetPos = found;
       editor.chain().focus().setTextSelection(targetPos + 1).run();
       requestAnimationFrame(() => {
         const coords = editor.view.coordsAtPos(targetPos + 1);
@@ -805,7 +931,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
 
   return (
     <>
-    <div ref={navPanelRef} className={`scene-navigator ${panelClass}`} style={style}>
+    <div ref={navPanelRef} className={`scene-navigator ${panelClass} nav-heading-font-${headingFont}`} style={style}>
       {/* Tab bar — horizontally scrollable tab strip + pinned close button */}
       <div className="navigator-tabs">
         <div className="navigator-tabs-scroll">
@@ -826,6 +952,37 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
             <span className="scene-count">
               {(hasActiveFilter || searchQuery) ? `${filteredIndices.length}/` : ''}{scenes.length}
             </span>
+            {(() => {
+              const everyOpen = allScenesOpen(expansion, scenes.map((sc) => sc.id));
+              const label = everyOpen ? t('navigator.hideAllSynopses') : t('navigator.showAllSynopses');
+              return (
+                <button
+                  type="button"
+                  className={`scene-filter-btn scene-expand-all-btn${everyOpen ? ' active' : ''}`}
+                  onClick={() => updateExpansion(setAllScenes(!everyOpen))}
+                  disabled={scenes.length === 0}
+                  title={label}
+                  aria-label={label}
+                  aria-pressed={everyOpen}
+                >
+                  <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.3" aria-hidden="true">
+                    {everyOpen
+                      ? <><path d="M4 7l4-3.5L12 7" /><path d="M4 12.5L8 9l4 3.5" /></>
+                      : <><path d="M4 3.5L8 7l4-3.5" /><path d="M4 9l4 3.5L12 9" /></>}
+                  </svg>
+                </button>
+              );
+            })()}
+            <button
+              type="button"
+              className={`scene-filter-btn scene-heading-font-btn${headingFont === 'script' ? ' active' : ''}`}
+              onClick={() => setHeadingFont(headingFont === 'script' ? 'interface' : 'script')}
+              title={headingFont === 'script' ? t('navigator.headingFontInterface') : t('navigator.headingFontScript')}
+              aria-label={t('navigator.headingFontScript')}
+              aria-pressed={headingFont === 'script'}
+            >
+              <span aria-hidden="true">Aa</span>
+            </button>
             <button
               className={`scene-filter-btn${hasActiveFilter ? ' active' : ''}`}
               onClick={() => setShowFilters(!showFilters)}
@@ -943,20 +1100,55 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
               filteredIndices.map((sceneIdx) => {
                 const scene = scenes[sceneIdx];
                 const detail = sceneDetails[sceneIdx];
-                const isExpanded = expandedSceneIdx === sceneIdx;
+                const timing = sceneTimings[sceneIdx];
+                const isExpanded = isSceneOpen(expansion, scene.id);
+                const isEditingSynopsis = editingSynopsisId === scene.id;
+                const isColorOpen = colorStripId === scene.id;
+                const startPage = sceneStartPage[sceneIdx];
+                const pageText = startPage ? String(pageLabels?.[startPage - 1] ?? startPage) : '';
+                const toggleLabel = isExpanded ? t('navigator.collapseScene') : t('navigator.expandScene');
                 return (
-                  <div key={scene.id} className={`navigator-scene${isExpanded ? ' expanded' : ''}`}>
-                    <div className="scene-info" onClick={() => { setExpandedSceneIdx(isExpanded ? null : sceneIdx); goToScene(sceneIdx); }}>
+                  <div
+                    key={scene.id}
+                    className={`navigator-scene${isExpanded ? ' expanded' : ''}`}
+                    onContextMenu={(e) => {
+                      // Right-click is the other way to the colours — except in
+                      // the synopsis editor, where it is the text's own menu.
+                      if ((e.target as HTMLElement).closest('textarea, input')) return;
+                      e.preventDefault();
+                      setEditingSynopsisId(null);
+                      setColorStripId(isColorOpen ? null : scene.id);
+                    }}
+                  >
+                    <div className="scene-info" onClick={() => goToScene(sceneIdx)}>
                       <div className="scene-heading-row">
+                        <button
+                          type="button"
+                          className={`scene-expand-toggle structure-chevron${isExpanded ? ' expanded' : ''}`}
+                          onClick={(e) => { e.stopPropagation(); updateExpansion(toggleScene(expansion, scene.id)); }}
+                          aria-expanded={isExpanded}
+                          aria-label={toggleLabel}
+                          title={toggleLabel}
+                        >&#9662;</button>
                         <div className="scene-heading-text">
-                          {scene.sceneNumber != null && (
-                            <span className="scene-number-badge" style={scene.color ? { background: scene.color } : undefined}>{scene.sceneNumber}</span>
-                          )}
+                          <button
+                            type="button"
+                            className={`scene-number-badge scene-color-trigger${scene.color ? ' has-color' : ''}`}
+                            style={scene.color ? { background: scene.color, color: readableOn(scene.color) } : undefined}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingSynopsisId(null);
+                              setColorStripId(isColorOpen ? null : scene.id);
+                            }}
+                            aria-expanded={isColorOpen}
+                            aria-label={t('navigator.changeColorFor', { number: scene.sceneNumber ?? sceneIdx + 1 })}
+                            title={t('navigator.changeColor')}
+                          >{scene.sceneNumber ?? sceneIdx + 1}</button>
                           {(() => {
                             const label = sceneActLabel(structure, sceneIdx);
                             return label ? <span className="scene-act-badge" title={t('navigator.actTitle', { number: label.slice(1) })}>{label}</span> : null;
                           })()}
-                          <span className="scene-heading-label">{highlightText(scene.heading, searchQuery)}</span>
+                          <span className={`scene-heading-label${caseClass}`} title={scene.heading}>{highlightText(scene.heading, searchQuery)}</span>
                           {/* The plotlines this scene carries — View → Story Timeline. */}
                           {plotlines.some((p) => scene.plotlineIds?.includes(p.id)) && (
                             <span className="scene-plotline-dots">
@@ -966,47 +1158,116 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
                             </span>
                           )}
                         </div>
+                        {pageText && (
+                          <span className="scene-start-page" title={t('navigator.startsOnPage', { label: pageText })}>
+                            {pageText}
+                          </span>
+                        )}
                         {detail && detail.pageLength > 0 && (
                           <div className="scene-length" data-tooltip={
                             formatPageLength(t, detail.pageLength) +
-                            (sceneTimings[sceneIdx]?.finalSeconds ? ` \u00b7 ${formatSceneDuration(sceneTimings[sceneIdx].finalSeconds)}` : '')
+                            (timing?.finalSeconds ? ` · ${formatSceneDuration(timing.finalSeconds)}` : '')
                           }>
                             <SceneLengthIcon pages={detail.pageLength} />
                           </div>
                         )}
                       </div>
-                      {!isExpanded && scene.synopsis && (
+                      {isColorOpen && (
+                        <div className="scene-color-strip" onClick={(e) => e.stopPropagation()}>
+                          <SceneColorSwatches
+                            compact
+                            autoFocus
+                            value={scene.color}
+                            onChange={(color, source) => {
+                              writeSceneAttrs(sceneIdx, scene.id, { sceneColor: color });
+                              // One click to open, one to pick. The custom picker
+                              // stays open while its colour is dragged around.
+                              if (source === 'preset') setColorStripId(null);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Escape') { e.stopPropagation(); setColorStripId(null); }
+                            }}
+                          />
+                          <button
+                            type="button"
+                            className="scene-color-strip-close"
+                            onClick={() => setColorStripId(null)}
+                            aria-label={t('common:close')}
+                            title={t('common:close')}
+                          >&times;</button>
+                        </div>
+                      )}
+                      {!isExpanded && !isEditingSynopsis && scene.synopsis && (
                         <div className="scene-synopsis-preview">{highlightText(scene.synopsis.split('\n')[0], searchQuery)}</div>
                       )}
-                      {isExpanded && (
-                        <div className="scene-synopsis-expanded">
-                          {(detail || sceneTimings[sceneIdx]) && (
+                      {(isExpanded || isEditingSynopsis) && (
+                        <div className="scene-synopsis-expanded" onClick={(e) => e.stopPropagation()}>
+                          {(detail || timing) && (
                             <div className="scene-detail-meta">
                               {detail && detail.pageLength > 0 && (
                                 <span className="scene-meta-item">{formatPageLength(t, detail.pageLength)}</span>
                               )}
-                              {sceneTimings[sceneIdx]?.finalSeconds > 0 && (
-                                <span className="scene-meta-item" style={{ color: getTimingColor(sceneTimings[sceneIdx].finalSeconds) }}>
-                                  {formatSceneDuration(sceneTimings[sceneIdx].finalSeconds)}
-                                  {sceneTimings[sceneIdx].overrideSeconds != null && ' *'}
+                              {timing?.finalSeconds > 0 && (
+                                <span className="scene-meta-item" style={{ color: getTimingColor(timing.finalSeconds) }}>
+                                  {formatSceneDuration(timing.finalSeconds)}
+                                  {timing.overrideSeconds != null && ' *'}
                                 </span>
                               )}
                             </div>
                           )}
-                          {scene.synopsis ? (
-                            <div className="scene-synopsis-text">{scene.synopsis}</div>
+                          {isEditingSynopsis ? (
+                            <>
+                              <textarea
+                                className="scene-synopsis-input"
+                                value={synopsisDraft}
+                                autoFocus
+                                rows={Math.min(8, Math.max(2, synopsisDraft.split('\n').length + 1))}
+                                placeholder={t('synopsis.placeholder')}
+                                aria-label={t('navigator.synopsisFor', { heading: scene.heading })}
+                                onFocus={(e) => { const end = e.currentTarget.value.length; e.currentTarget.setSelectionRange(end, end); }}
+                                onChange={(e) => setSynopsisDraft(e.target.value)}
+                                onBlur={() => finishSynopsisEdit(sceneIdx, scene.id, scene.synopsis, true)}
+                                onKeyDown={(e) => {
+                                  // Keys typed here are the synopsis's, never the app's shortcuts.
+                                  e.stopPropagation();
+                                  if (e.nativeEvent.isComposing) return;
+                                  if (e.key === 'Enter' && !e.shiftKey) {
+                                    e.preventDefault();
+                                    finishSynopsisEdit(sceneIdx, scene.id, scene.synopsis, true);
+                                  } else if (e.key === 'Escape') {
+                                    e.preventDefault();
+                                    finishSynopsisEdit(sceneIdx, scene.id, scene.synopsis, false);
+                                  }
+                                }}
+                              />
+                              <div className="scene-synopsis-hint">{t('navigator.synopsisEditHint')}</div>
+                            </>
+                          ) : scene.synopsis ? (
+                            <button
+                              type="button"
+                              className="scene-synopsis-text"
+                              onClick={() => startSynopsisEdit(scene.id, scene.synopsis)}
+                              title={t('navigator.clickToEditSynopsis')}
+                            >{highlightText(scene.synopsis, searchQuery)}</button>
                           ) : (
-                            <div className="scene-synopsis-empty">{t('navigator.noSynopsis')}</div>
+                            <button
+                              type="button"
+                              className="scene-synopsis-empty"
+                              onClick={() => startSynopsisEdit(scene.id, '')}
+                            >{t('navigator.clickToAddSynopsis')}</button>
                           )}
-                          <button
-                            className="scene-synopsis-edit-btn"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSynopsisModal({ sceneIdx, id: scene.id, heading: scene.heading, synopsis: scene.synopsis, color: scene.color });
-                            }}
-                          >
-                            {scene.synopsis ? t('navigator.editSynopsis') : t('navigator.addSynopsis')}
-                          </button>
+                          {!isEditingSynopsis && (
+                            <button
+                              type="button"
+                              className="scene-synopsis-edit-btn"
+                              onClick={() => {
+                                setSynopsisModal({ sceneIdx, id: scene.id, heading: scene.heading, synopsis: scene.synopsis, color: scene.color });
+                              }}
+                              title={t('navigator.moreSceneOptionsTitle')}
+                            >
+                              {t('navigator.moreSceneOptions')}
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>
@@ -1044,7 +1305,10 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
                           <div
                             key={i}
                             className={`page-thumb-el page-thumb-${block.typeName}`}
-                            style={getBlockStyle(block.typeName, i === 0)}
+                            style={block.lineHeightMultiplier !== 1
+                              // Line spacing (utils/lineSpacing): drawn at the pitch the page uses.
+                              ? { ...getBlockStyle(block.typeName, i === 0), lineHeight: `${LINE_HEIGHT_PX * block.lineHeightMultiplier}px` }
+                              : getBlockStyle(block.typeName, i === 0)}
                           >
                             {block.text || '\u00A0'}
                           </div>
@@ -1086,6 +1350,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
                   onGoToSection={goToSection}
                   onGoToScene={goToScene}
                   query={searchQuery}
+                  headingCase={caseClass}
                 />
               </div>
             )}
@@ -1135,7 +1400,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
                                       onClick={() => goToScene(s.sceneIndex)}
                                     >
                                       <span className="structure-scene-num">{s.sceneIndex + 1}</span>
-                                      <span className="structure-scene-heading">{s.heading}</span>
+                                      <span className={`structure-scene-heading${caseClass}`}>{s.heading}</span>
                                     </div>
                                   ))}
                                 </div>
@@ -1152,7 +1417,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
                                 onClick={() => goToScene(s.sceneIndex)}
                               >
                                 <span className="structure-scene-num">{s.sceneIndex + 1}</span>
-                                <span className="structure-scene-heading">{s.heading}</span>
+                                <span className={`structure-scene-heading${caseClass}`}>{s.heading}</span>
                               </div>
                             ))}
                           </div>
@@ -1233,7 +1498,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
                 return (
                   <div key={key} className="location-group">
                     <div className="location-header" onClick={() => setExpandedLocation(isExpanded ? null : key)}>
-                      <span className="location-name">{loc.name}</span>
+                      <span className={`location-name${caseClass}`}>{loc.name}</span>
                       <span className="location-scene-count">{loc.sceneIndices.length}</span>
                       <span className={`location-chevron${isExpanded ? ' expanded' : ''}`}>&#9662;</span>
                     </div>

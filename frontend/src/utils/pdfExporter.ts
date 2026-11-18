@@ -6,6 +6,7 @@ import { resolveMoresContds, resolveHeaderFooter, printedPageNumber, resolveHFFi
 import type { PageLayout, HeaderFooterContent } from '../stores/editorStore';
 import { getForceBreakIds, startsOwnPage, elementIdOf, laysItselfOut } from './pageBreaks';
 import { getSpaceBefore } from './elementSpacing';
+import { getLineSpacing } from './lineSpacing';
 import { resolveImageUrl, loadImageData } from './imageAsset';
 import { jsonBlockRuns } from './nodeText';
 import { parseCssColor } from './inkColor';
@@ -794,6 +795,12 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
   const usableBottomPt = pageHeightPt - bottomMarginPt;
   // "Mores & Continueds" config for page-break (MORE)/(CONT'D) markers.
   const mc = resolveMoresContds(layout);
+  // Line spacing (utils/lineSpacing): how far apart each element's lines are
+  // drawn, from the same template the editor paginates with.
+  const lineSpacing = getLineSpacing();
+  /** The pitch of an element's lines, in points — 12 at standard spacing. */
+  const lineHeightPtOf = (n: { typeName: string; attrs?: Record<string, unknown> }): number =>
+    LINE_HEIGHT_PT * lineSpacing.multiplierOf({ type: n.typeName, attrs: n.attrs });
 
   const encryption = pdfEncryption(options?.security);
   const pdf = new jsPDF({
@@ -910,7 +917,10 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
     const pageLines = Math.floor((pageHeightPt - topMarginPt - bottomMarginPt) / LINE_HEIGHT_PT);
     const cueLines =
       (typeName === 'dialogue' || typeName === 'lyrics') && mc.dialogueBreakContd ? 1 : 0;
-    const oversized = SPLIT_PARAGRAPH_TYPES.has(typeName) && getTextLines(text, cpl) + cueLines > pageLines;
+    // Measured in 12pt lines, as the editor measures it: a paragraph drawn at
+    // double spacing fills a page with half as many lines of text.
+    const lineMul = lineSpacing.multiplierOf({ type: typeName, attrs: node.attrs as Record<string, unknown> | undefined });
+    const oversized = SPLIT_PARAGRAPH_TYPES.has(typeName) && getTextLines(text, cpl) * lineMul + cueLines > pageLines;
     if (oversized) {
       const fragments = paragraphFragments(text, cpl);
       fragments.forEach((fragment, part) => {
@@ -1125,6 +1135,19 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
   /** Parts of a note still to be drawn, continuing onto the next page. */
   let pendingSlices: NoteSlice[] = [];
   const linesPerPage = Math.floor((pageHeightPt - topMarginPt - bottomMarginPt) / LINE_HEIGHT_PT);
+  /**
+   * The foot of the text area, for deciding what fits.
+   *
+   * The editor gives a page `linesPerPage` whole 12pt lines; the sheet usually
+   * has a sliver more (A4 holds 58.16). At standard spacing every element ends
+   * on a whole line, so the sliver never fits anything and the two agree. Line
+   * spacing ends elements on eighths of a line, and an element ending in the
+   * sliver would fit here and not on screen — so then the foot is the
+   * editor's. Left alone at standard spacing so those PDFs stay as they were.
+   */
+  const textBottomPt = lineSpacing.standard
+    ? usableBottomPt
+    : Math.min(usableBottomPt, topMarginPt + linesPerPage * LINE_HEIGHT_PT);
 
   function reserveLines(): number {
     if (!drawFootnotes) return 0;
@@ -1133,7 +1156,7 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
 
   /** Where the script has to stop on this page. */
   function bottomPt(): number {
-    return usableBottomPt - reserveLines() * LINE_HEIGHT_PT;
+    return textBottomPt - reserveLines() * LINE_HEIGHT_PT;
   }
 
   /**
@@ -1583,7 +1606,11 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
     const spaceBeforePt = isFirstElement ? 0 : spaceBeforePtOf(node);
 
     const wrappedLines = node.fragmentWrapped ?? wrapForDrawing(node.runs, maxChars, forceUpper);
-    const elementHeightPt = wrappedLines.length * LINE_HEIGHT_PT;
+    const lineHeightPt = lineHeightPtOf(node);
+    /** Half the extra room line spacing adds, above each line — the screen
+     *  centres a line in its taller line box the same way. 0 at standard. */
+    const leadPt = (lineHeightPt - LINE_HEIGHT_PT) / 2;
+    const elementHeightPt = wrappedLines.length * lineHeightPt;
     const totalHeightPt = spaceBeforePt + elementHeightPt;
 
     /**
@@ -1598,6 +1625,8 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
      */
     interface BlockPart {
       nodeIndex: number; sbPt: number; wrapped: TextRun[][]; lines: number; heightPt: number;
+      /** The text alone, without the space before: `lines` at the element's pitch. */
+      textPt: number; lineHeightPt: number;
     }
     const measure = (at: number): BlockPart => {
       const n = nodes[at];
@@ -1605,14 +1634,16 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
         n.runs, CHARS_PER_LINE[n.typeName] || 62, UPPERCASE_TYPES.has(n.typeName),
       );
       const sb = spaceBeforePtOf(n);
+      const lh = lineHeightPtOf(n);
       return {
         nodeIndex: at, sbPt: sb, wrapped: w, lines: w.length,
-        heightPt: sb + w.length * LINE_HEIGHT_PT,
+        heightPt: sb + w.length * lh, textPt: w.length * lh, lineHeightPt: lh,
       };
     };
     const parts: BlockPart[] = [{
       nodeIndex: i, sbPt: spaceBeforePt, wrapped: wrappedLines,
       lines: wrappedLines.length, heightPt: totalHeightPt,
+      textPt: elementHeightPt, lineHeightPt,
     }];
     /** Index in `parts` of the character name, when this block is a speech. */
     let speechAt = -1;
@@ -1652,7 +1683,7 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
       const own = oversizedSpeech || dNode.fragmentFrom !== undefined ? claimNotes(dNode) : [];
       if (
         speechAt < 0 && dNode.fragmentFrom !== undefined &&
-        currentY + (withSpaceBefore ? part.sbPt : 0) + part.lines * LINE_HEIGHT_PT > bottomPt() &&
+        currentY + (withSpaceBefore ? part.sbPt : 0) + part.textPt > bottomPt() &&
         currentY > topMarginPt
       ) {
         for (const entry of own) pageEntries = pageEntries.filter((e) => e !== entry);
@@ -1664,15 +1695,16 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
       if (withSpaceBefore) currentY += part.sbPt;
       renderElement(
         pdf, part.wrapped, dIndents[0] * PTS_PER_INCH, dIndents[1] * PTS_PER_INCH,
-        currentY, dNode.typeName, fonts, revisionMarkX,
+        currentY, dNode.typeName, fonts, revisionMarkX, part.lineHeightPt,
       );
+      const partLead = (part.lineHeightPt - LINE_HEIGHT_PT) / 2;
       const partNumber = elementNumberOf(dNode);
-      if (partNumber) drawElementNumber(pdf, partNumber, dIndents[0] * PTS_PER_INCH, currentY, fonts);
+      if (partNumber) drawElementNumber(pdf, partNumber, dIndents[0] * PTS_PER_INCH, currentY + partLead, fonts);
       // A heading kept with the one before it — the scene after an OMITTED —
       // is drawn here, and is numbered like any other.
-      drawSceneNumbers(dNode, currentY);
-      place(dNode.srcIndex, currentY, currentY + part.lines * LINE_HEIGHT_PT);
-      currentY += part.lines * LINE_HEIGHT_PT;
+      drawSceneNumbers(dNode, currentY + partLead);
+      place(dNode.srcIndex, currentY, currentY + part.textPt);
+      currentY += part.textPt;
     };
 
     /**
@@ -1715,7 +1747,7 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
       for (let p = speechAt + 1; p < parts.length; p++) {
         addEntries(parts[p]);
         const room = oversizedSpeech && plan
-          ? usableBottomPt - packFootnotePage(pendingSlices, fittedEntries, linesPerPage).reserve * LINE_HEIGHT_PT
+          ? textBottomPt - packFootnotePage(pendingSlices, fittedEntries, linesPerPage).reserve * LINE_HEIGHT_PT
             - currentY - (mc.dialogueBreakContd ? LINE_HEIGHT_PT : 0)
           : remaining;
         if (fittedPt + parts[p].heightPt > room) break;
@@ -1822,11 +1854,11 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
     }
 
     // Render the element
-    renderElement(pdf, wrappedLines, leftPt, rightPt, currentY, typeName, fonts, revisionMarkX);
+    renderElement(pdf, wrappedLines, leftPt, rightPt, currentY, typeName, fonts, revisionMarkX, lineHeightPt);
     const number = elementNumberOf(node);
-    if (number) drawElementNumber(pdf, number, leftPt, currentY, fonts);
+    if (number) drawElementNumber(pdf, number, leftPt, currentY + leadPt, fonts);
 
-    drawSceneNumbers(node, currentY);
+    drawSceneNumbers(node, currentY + leadPt);
 
     place(node.srcIndex, currentY, currentY + elementHeightPt);
     currentY += elementHeightPt;
@@ -2106,14 +2138,22 @@ function renderElement(
   fonts: FontContext,
   /** Where to draw a revised line's margin mark; null draws none. */
   revisionMarkX: RevisionMarker | null = null,
+  /** The element's line pitch (utils/lineSpacing); 12pt at standard spacing. */
+  lineHeightPt: number = LINE_HEIGHT_PT,
 ): void {
   const isCentered = CENTERED_TYPES.has(typeName);
   const isRightAligned = RIGHT_ALIGNED_TYPES.has(typeName);
   const maxWidthPt = rightPt - leftPt;
+  // Opened-up lines sit in the middle of their taller slot, as the editor's
+  // CSS line box centres them. At standard spacing this is 0.
+  const leadPt = (lineHeightPt - LINE_HEIGHT_PT) / 2;
 
   for (let lineIdx = 0; lineIdx < wrappedLines.length; lineIdx++) {
     const lineRuns = wrappedLines[lineIdx];
-    const y = startY + (lineIdx + 1) * LINE_HEIGHT_PT; // +1 because jsPDF text baseline
+    // +LINE_HEIGHT_PT because jsPDF draws at the text baseline. Summed in the
+    // brackets first so that at standard spacing the value is bit-for-bit
+    // `startY + (lineIdx + 1) * 12`, as it always was.
+    const y = startY + (leadPt + lineIdx * lineHeightPt + LINE_HEIGHT_PT);
 
     if (isCentered) {
       const totalWidth = measureLine(pdf, lineRuns, fonts);

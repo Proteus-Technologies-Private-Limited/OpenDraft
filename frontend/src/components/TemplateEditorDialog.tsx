@@ -21,6 +21,9 @@ import { createDefaultRule, AV_BLOCK_RULE_ID, type AvCellPlacement } from '../st
 import { avPlacementOf } from '../utils/avCellElements';
 import { AV_BASE_CELL_ELEMENT_IDS, AV_SCREENPLAY_CELL_ELEMENT_IDS } from '../editor/extensions/AvBlock';
 import Select from './Select';
+import type { Editor } from '@tiptap/react';
+import LineSpacingControl from './LineSpacingControl';
+import { normalizeLineSpacing, STANDARD_LINE_SPACING } from '../utils/lineSpacing';
 
 /** The four AV paragraph types: always offered in both columns, so the control
  *  shows what they are rather than pretending it is a choice. */
@@ -84,6 +87,8 @@ interface TemplateEditorDialogProps {
   template: FormattingTemplate;
   onSave: (template: FormattingTemplate) => void;
   onCancel: () => void;
+  /** The open script, so Line Spacing can show what it does to its page count. */
+  editor?: Editor | null;
 }
 
 function uuid(): string {
@@ -94,6 +99,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
   template: initial,
   onSave,
   onCancel,
+  editor = null,
 }) => {
   const { t } = useTranslation(['templates', 'common']);
   const [name, setName] = useState(initial.name);
@@ -111,6 +117,9 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
   const [forceBreakBefore, setForceBreakBefore] = useState<string[]>(
     () => [...(initial.forceBreakBefore ?? [])],
   );
+
+  /** Script-wide line spacing (utils/lineSpacing); Standard is 1. */
+  const [lineSpacing, setLineSpacing] = useState(() => normalizeLineSpacing(initial.lineSpacing));
 
   const selectedRule = selectedId ? rules[selectedId] : null;
 
@@ -161,6 +170,10 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
       rules: withoutStaleResets(rules),
       // Only keep break rules for elements that still exist in the template.
       forceBreakBefore: forceBreakBefore.filter((id) => rules[id]),
+      // Written as undefined at Standard rather than 1, so a template set back
+      // to Standard saves as the template it was before (and an update clears
+      // a stored value instead of keeping it).
+      lineSpacing: lineSpacing === STANDARD_LINE_SPACING ? undefined : lineSpacing,
       updatedAt: new Date().toISOString(),
     });
   };
@@ -234,6 +247,19 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                 ? t('editor.modeEnforceHint')
                 : t('editor.modeOverrideHint')}
             </span>
+          </div>
+          <div className="template-editor-field template-editor-line-spacing">
+            <label id="template-line-spacing-label">{t('editor.lineSpacing')}</label>
+            <div aria-labelledby="template-line-spacing-label" role="group">
+              <LineSpacingControl
+                value={lineSpacing}
+                onChange={setLineSpacing}
+                editor={editor}
+                currentValue={normalizeLineSpacing(initial.lineSpacing)}
+                compact
+              />
+            </div>
+            <span className="template-editor-hint">{t('editor.lineSpacingHint')}</span>
           </div>
         </div>
 

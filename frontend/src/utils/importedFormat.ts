@@ -4,6 +4,7 @@ import type {
   FormattingElementRule,
   FormattingTemplate,
 } from '../stores/formattingTypes';
+import type { ImportedLineSpacing } from './lineSpacing';
 export function importedFormat(
   rules: Record<string, Partial<FormattingElementRule>>,
 ): FormattingTemplate {
@@ -39,4 +40,25 @@ export function restoreImportedFormat(value: unknown): void {
   )
     return;
   useFormattingTemplateStore.getState().restoreDocumentTemplate(template.id, template);
+}
+
+/**
+ * The format an .fdx with line spacing opens in: Industry Standard, opened up
+ * as the file's element settings say (utils/lineSpacing). Only built when the
+ * file is not single-spaced, so an ordinary import is untouched.
+ */
+export function importedLineSpacingFormat(spacing: ImportedLineSpacing): FormattingTemplate {
+  const ts = new Date().toISOString();
+  return {
+    ...structuredClone(INDUSTRY_STANDARD_TEMPLATE),
+    id: `fdx-import:${crypto.randomUUID()}`,
+    name: 'Imported Final Draft formatting', // i18n-ignore: stored as the format's name
+    category: 'user',
+    lineSpacing: spacing.lineSpacing,
+    ...(Object.keys(spacing.lineHeightMultiplier).length > 0
+      ? { lineHeightMultiplier: { ...spacing.lineHeightMultiplier } }
+      : {}),
+    createdAt: ts,
+    updatedAt: ts,
+  };
 }

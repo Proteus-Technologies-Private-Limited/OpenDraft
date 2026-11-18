@@ -28,6 +28,18 @@ def list_templates() -> list[dict]:
     return templates
 
 
+def _line_spacing(value: object) -> float | None:
+    """A template's line spacing as stored: a positive number other than the
+    standard 1, or None. Anything malformed is dropped rather than refused, so
+    a bad value can never stop a template from saving."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    number = float(value)
+    if number != number or number <= 0 or number > 4 or number == 1:
+        return None
+    return number
+
+
 def get_template(template_id: str) -> dict:
     """Get a single formatting template by ID."""
     path = _templates_dir() / f"{template_id}.json"
@@ -50,6 +62,9 @@ def create_template(data: dict) -> dict:
         "createdAt": data.get("createdAt", now),
         "updatedAt": data.get("updatedAt", now),
     }
+    spacing = _line_spacing(data.get("lineSpacing"))
+    if spacing is not None:
+        template["lineSpacing"] = spacing
     path = _templates_dir() / f"{template_id}.json"
     path.write_text(json.dumps(template, indent=2), encoding="utf-8")
     return template
@@ -66,6 +81,13 @@ def update_template(template_id: str, data: dict) -> dict:
         k: v for k, v in data.items()
         if k in ("name", "description", "mode", "rules", "forceBreakBefore")
     })
+    # Line spacing: a positive number is kept, standard (1) is stored as absent.
+    if "lineSpacing" in data:
+        spacing = _line_spacing(data.get("lineSpacing"))
+        if spacing is None:
+            existing.pop("lineSpacing", None)
+        else:
+            existing["lineSpacing"] = spacing
     existing["updatedAt"] = now
     path.write_text(json.dumps(existing, indent=2), encoding="utf-8")
     return existing

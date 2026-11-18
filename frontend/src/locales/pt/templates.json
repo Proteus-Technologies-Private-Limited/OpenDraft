@@ -170,7 +170,9 @@
     "overrideOff": "Toda a formatação é travada — os usuários não podem alterar nenhum estilo deste elemento.",
     "preview": "Pré-visualização",
     "sampleText": "Texto de exemplo...",
-    "selectElement": "Selecione um elemento na lista para editar sua formatação."
+    "selectElement": "Selecione um elemento na lista para editar sua formatação.",
+    "lineSpacing": "Espaçamento entre linhas",
+    "lineSpacingHint": "Abre as linhas de todos os elementos. Um elemento que o formato já espaça, como o diálogo em espaço duplo, abre na mesma proporção. A contagem de páginas é do roteiro aberto."
   },
   "select": {
     "title": "Formato de roteiro / Modelo",

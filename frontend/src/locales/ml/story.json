@@ -10,7 +10,19 @@
     "customColor": "ഇഷ്ടാനുസൃത നിറം",
     "pageSingular": "{{n}} പേജ്",
     "pagePlural": "{{n}} പേജുകൾ",
-    "autoWithDuration": "ഓട്ടോ ({{duration}})"
+    "autoWithDuration": "ഓട്ടോ ({{duration}})",
+    "colors": {
+      "violet": "വയലറ്റ്",
+      "indigo": "ഇൻഡിഗോ",
+      "blue": "നീല",
+      "green": "പച്ച",
+      "yellow": "മഞ്ഞ",
+      "orange": "ഓറഞ്ച്",
+      "red": "ചുവപ്പ്",
+      "black": "കറുപ്പ്",
+      "white": "വെള്ള",
+      "none": "നിറമില്ല"
+    }
   },
   "scriptProfile": {
     "title": "ജേണറും വേഗതയും",
@@ -359,9 +371,6 @@
     "pageSingular": "{{n}} പേജ്",
     "pagePlural": "{{n}} പേജുകൾ",
     "pageAndDuration": "{{pages}} · {{duration}}",
-    "noSynopsis": "ഈ സീനിന് സിനോപ്സിസ് ലഭ്യമല്ല.",
-    "editSynopsis": "എഡിറ്റ്",
-    "addSynopsis": "+ ചേർക്കുക",
     "noPages": "ഇതുവരെ പേജുകളില്ല. പേജ് പ്രിവ്യൂ കാണാൻ എഴുതിത്തുടങ്ങുക.",
     "pageLabel": "പേജ് {{label}}",
     "sectionCount_one": "{{count}} വിഭാഗം",
@@ -381,7 +390,24 @@
     "noLocations": "ഇതുവരെ ലൊക്കേഷനുകളില്ല. “INT. COFFEE SHOP - DAY” പോലുള്ള സീൻ ഹെഡ്ഡിംഗുകൾ ഇവിടെ വരും.",
     "renameLocation": "ലൊക്കേഷന്റെ പേര് മാറ്റുക",
     "skippedHeadings_one": "ലൈൻ ബ്രേക്ക് ഉള്ള {{count}} സീൻ ഹെഡ്ഡിംഗ് ഒഴിവാക്കി",
-    "skippedHeadings_other": "ലൈൻ ബ്രേക്ക് ഉള്ള {{count}} സീൻ ഹെഡ്ഡിംഗുകൾ ഒഴിവാക്കി"
+    "skippedHeadings_other": "ലൈൻ ബ്രേക്ക് ഉള്ള {{count}} സീൻ ഹെഡ്ഡിംഗുകൾ ഒഴിവാക്കി",
+    "showAllSynopses": "എല്ലാ സിനോപ്സിസുകളും കാണിക്കുക",
+    "hideAllSynopses": "എല്ലാ സിനോപ്സിസുകളും മറയ്ക്കുക",
+    "expandScene": "സിനോപ്സിസ് കാണിക്കുക",
+    "collapseScene": "സിനോപ്സിസ് മറയ്ക്കുക",
+    "changeColor": "സീൻ നിറം",
+    "changeColorFor": "സീൻ {{number}} നിറം",
+    "headingFontScript": "ഹെഡ്ഡിംഗുകൾ സ്ക്രിപ്റ്റ് ഫോണ്ടിൽ കാണിക്കുക",
+    "headingFontInterface": "ഹെഡ്ഡിംഗുകൾ ഇന്റർഫേസ് ഫോണ്ടിൽ കാണിക്കുക",
+    "startsOnPage": "പേജ് {{label}}-ൽ തുടങ്ങുന്നു",
+    "synopsisFor": "{{heading}} എന്നതിന്റെ സിനോപ്സിസ്",
+    "synopsisEditHint": "Enter സേവ് ചെയ്യുന്നു · Shift+Enter പുതിയ വരി ചേർക്കുന്നു · Esc റദ്ദാക്കുന്നു",
+    "clickToEditSynopsis": "സിനോപ്സിസ് എഡിറ്റ് ചെയ്യാൻ ക്ലിക്ക് ചെയ്യുക",
+    "clickToAddSynopsis": "ഒരു സിനോപ്സിസ് ചേർക്കുക…",
+    "moreSceneOptions": "കൂടുതൽ…",
+    "moreSceneOptionsTitle": "സിനോപ്സിസ്, നിറം, സീൻ ദൈർഘ്യം",
+    "sceneNotFound": "ആ സീൻ ഇപ്പോൾ സ്ക്രിപ്റ്റിൽ ഇല്ല.",
+    "sceneSaveFailed": "സീൻ സേവ് ചെയ്യാനായില്ല. വീണ്ടും ശ്രമിക്കുക."
   },
   "beatBoard": {
     "title": "ബീറ്റ് ബോർഡ്",

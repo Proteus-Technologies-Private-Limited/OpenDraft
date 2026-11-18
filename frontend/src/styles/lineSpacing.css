@@ -1,0 +1,104 @@
+/* Line Spacing control (components/LineSpacingControl.tsx), used by
+   Format › Line Spacing and the Template Editor. */
+
+.line-spacing-control {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.line-spacing-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.line-spacing-preset {
+  padding: 6px 14px;
+  font-size: 13px;
+  background: var(--fd-toolbar-bg, #2a2a2a);
+  color: var(--fd-text);
+  border: 1px solid var(--fd-border);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.line-spacing-preset:hover:not(:disabled):not(.active) {
+  border-color: var(--fd-text-muted, #888);
+}
+.line-spacing-preset.active {
+  background: var(--fd-accent, #4a9eff);
+  border-color: var(--fd-accent, #4a9eff);
+  color: #fff;
+}
+.line-spacing-preset:focus-visible {
+  outline: 2px solid var(--fd-accent, #4a9eff);
+  outline-offset: 2px;
+}
+.line-spacing-preset:disabled { opacity: 0.5; cursor: default; }
+
+.line-spacing-fine {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--fd-text);
+}
+.line-spacing-fine input[type="range"] { width: 100%; min-width: 0; }
+.line-spacing-value {
+  min-width: 9em;
+  font-variant-numeric: tabular-nums;
+  color: var(--fd-text-muted, #888);
+  text-align: end;
+}
+
+/* A slice of the page, drawn at the real pitch: 16px a line at standard. */
+.line-spacing-preview {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--fd-border);
+  border-radius: 4px;
+  background: var(--fd-page-bg, #fff);
+  transition: height 120ms ease;
+}
+.line-spacing-preview-line {
+  position: absolute;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--page-ink-faint, rgba(0, 0, 0, 0.28));
+  transition: top 120ms ease;
+}
+
+.line-spacing-pages {
+  margin: 0;
+  font-size: 13px;
+  color: var(--fd-text);
+}
+
+.line-spacing-help {
+  margin: 0;
+  font-size: 12px;
+  color: var(--fd-text-muted, #888);
+  line-height: 1.4;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .line-spacing-preview,
+  .line-spacing-preview-line { transition: none; }
+}
+
+@media (max-width: 520px) {
+  .line-spacing-fine { grid-template-columns: 1fr; }
+  .line-spacing-value { text-align: start; }
+}
+
+/* In the Template Editor's settings row: a full-width row of its own, and the
+   row's small-caps label style kept off the control's own labels. */
+.template-editor-field.template-editor-line-spacing { flex-basis: 100%; }
+.template-editor-field .line-spacing-fine {
+  font-size: 13px;
+  color: var(--fd-text);
+  text-transform: none;
+  letter-spacing: normal;
+}
+.template-editor-line-spacing .line-spacing-control { gap: 8px; }

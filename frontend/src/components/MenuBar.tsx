@@ -71,6 +71,7 @@ import {
 import { trackChangesPluginKey } from '../editor/trackChanges';
 import PageSetupDialog from './PageSetupDialog';
 import TemplateSelectDialog from './TemplateSelectDialog';
+import LineSpacingDialog from './LineSpacingDialog';
 import ScriptFormatPreferencesDialog from './ScriptFormatPreferencesDialog';
 import ScriptFormatPickerDialog from './ScriptFormatPickerDialog';
 import { useFormattingTemplateStore, ensureTemplatesLoaded } from '../stores/formattingTemplateStore';
@@ -244,6 +245,7 @@ import {
   FaLayerGroup,
   FaUserEdit,
   FaTrashAlt,
+  FaTextHeight,
 } from 'react-icons/fa';
 import { REVISION_COLORS, nextRevisionColor } from '../editor/revisionColors';
 import RevisionSettingsDialog from './RevisionSettingsDialog';
@@ -1045,6 +1047,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
   // ── Page Setup ──
   const [pageSetupOpen, setPageSetupOpen] = useState(false);
   const [templateSelectOpen, setTemplateSelectOpen] = useState(false);
+  const [lineSpacingOpen, setLineSpacingOpen] = useState(false);
 
   // ── Script-format preferences (multi-select) and per-script picker ──
   // `formatPrefsOpen` controls the multi-select preferences dialog. When `firstRun`
@@ -3434,6 +3437,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
         { icon: <FaFileAlt />, label: t('menu:format.titlePage'), action: () => useEditorStore.getState().setTitlePageEditorOpen(true) },
         { icon: <FaStream />, label: t('menu:format.genrePacing'), title: t('menu:format.genresForThisScriptAndThe'), action: () => useEditorStore.getState().setScriptProfileOpen(true) },
         { icon: <FaFileAlt />, label: t('menu:format.formattingTemplate', { name: activeTemplate.name }), action: () => setTemplateSelectOpen(true), disabled: !canEditDocumentFormat },
+        { icon: <FaTextHeight />, label: t('menu:format.lineSpacing'), title: t('menu:format.lineSpacingTip'), action: () => setLineSpacingOpen(true), disabled: !canEditDocumentFormat },
         { icon: <FaFileAlt />, label: t('menu:format.scriptFormatPreferences'), action: () => setFormatPrefsOpen({ firstRun: false, afterSave: null }) },
       ],
     },
@@ -4342,6 +4346,9 @@ const MenuBar: React.FC<MenuBarProps> = ({
     )}
     {templateSelectOpen && canEditDocumentFormat && (
       <TemplateSelectDialog editor={editor} onClose={() => setTemplateSelectOpen(false)} />
+    )}
+    {lineSpacingOpen && canEditDocumentFormat && (
+      <LineSpacingDialog editor={editor} onClose={() => setLineSpacingOpen(false)} />
     )}
     {formatPrefsOpen && (
       <ScriptFormatPreferencesDialog

@@ -151,6 +151,7 @@ function optionalFormatFields(source: Partial<FormattingTemplate>): Partial<Form
   if (source.titlePageFields?.length) out.titlePageFields = source.titlePageFields;
   if (source.forceBreakBefore?.length) out.forceBreakBefore = source.forceBreakBefore;
   if (source.lineHeightMultiplier) out.lineHeightMultiplier = source.lineHeightMultiplier;
+  if (source.lineSpacing !== undefined) out.lineSpacing = source.lineSpacing;
   if (source.scriptTypeGroup) out.scriptTypeGroup = source.scriptTypeGroup;
   if (source.scriptTypeTagline) out.scriptTypeTagline = source.scriptTypeTagline;
   return out;
@@ -356,8 +357,14 @@ export const useFormattingTemplateStore = create<FormattingTemplateState>((set, 
     const updated = get().templates.find((t) => t.id === id);
     if (updated) {
       try {
-        await (api as any).updateFormattingTemplate(id, updated);
-      } catch { /* ignore */ }
+        // Standard line spacing is sent as 1, not left out: the backend keeps
+        // any field a request omits, so a template set back to Standard would
+        // otherwise stay opened up there. Stored as absent either way.
+        await (api as any).updateFormattingTemplate(id, { ...updated, lineSpacing: updated.lineSpacing ?? 1 });
+      } catch (err) {
+        // The edit stays in memory for this session; say why it may not last.
+        console.warn('[formattingTemplates] could not save the template to storage', err);
+      }
     }
   },
 

@@ -10,6 +10,7 @@ import { singleLine } from '../utils/nodeText';
 import { SPLIT_PARAGRAPH_TYPES, paragraphFragments, originalTextOffset } from '../utils/paragraphPagination';
 import { getTextLines } from '../utils/wrapText';
 import { DEFAULT_SPACE_BEFORE, buildSpaceBefore, getSpaceBefore, type SpaceBeforeSource } from '../utils/elementSpacing';
+import { lineMultiplierFor, normalizeLineSpacing } from '../utils/lineSpacing';
 import { findTitlePageRegion, titlePageAttrsCarryData } from '../utils/titlePageRegion';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { isNonPrintingType } from '../utils/nonPrinting';
@@ -36,6 +37,13 @@ export interface TemplateHints {
   /** Per-element line-height multiplier (e.g. dialogue: 2.0 for double-spaced sitcom). */
   lineHeightMultiplier: Record<string, number>;
   /**
+   * Script-wide line spacing (Format › Line Spacing), multiplying the
+   * per-element value. Absent means Standard. Never read directly: go through
+   * `lineMultiplierFor`, which exempts the title page, dual dialogue and the
+   * rest, and rounds to the eighths the screen can draw exactly.
+   */
+  lineSpacing?: number;
+  /**
    * Blank lines before each element, from the template's per-element
    * `marginTop`. Previously pagination used a hardcoded map, so a template that
    * changed an element's spacing moved it on screen but not in the page count.
@@ -46,6 +54,7 @@ export interface TemplateHints {
 const EMPTY_HINTS: TemplateHints = {
   forceBreakBefore: new Set(),
   lineHeightMultiplier: {},
+  lineSpacing: 1,
   spaceBefore: DEFAULT_SPACE_BEFORE,
 };
 
@@ -53,6 +62,7 @@ const EMPTY_HINTS: TemplateHints = {
 export interface HintSource extends SpaceBeforeSource {
   forceBreakBefore?: string[];
   lineHeightMultiplier?: Record<string, number>;
+  lineSpacing?: number;
 }
 
 // computeBreaks runs on every doc change, so cache the derived Set per template
@@ -67,6 +77,7 @@ export function buildTemplateHints(tpl: HintSource | null | undefined): Template
   const hints: TemplateHints = {
     forceBreakBefore: new Set(tpl.forceBreakBefore ?? []),
     lineHeightMultiplier: tpl.lineHeightMultiplier ?? {},
+    lineSpacing: normalizeLineSpacing(tpl.lineSpacing),
     spaceBefore: buildSpaceBefore(tpl),
   };
   hintCache.set(tpl as object, hints);
@@ -449,6 +460,22 @@ export function computeBreaks(
   return labels ? { ...result, pageLabels: labels } : result;
 }
 
+/**
+ * How many pages the script would run with a different line spacing — the
+ * figure Format › Line Spacing shows before the writer applies it. The same
+ * computation the editor paginates with, so it is the count the status bar
+ * will show afterwards, not an estimate.
+ */
+export function pageCountAtLineSpacing(
+  doc: PmNode,
+  layout: PageLayout,
+  hints: TemplateHints,
+  lineSpacing: number,
+  plan: FootnotePlan | null = null,
+): number {
+  return computeBreaks(doc, layout, { ...hints, lineSpacing: normalizeLineSpacing(lineSpacing) }, plan).pageCount;
+}
+
 /** Page labels while pages are locked, or null when no block is anchored. */
 function lockedLabelsFor(doc: PmNode, result: PaginationState): string[] | null {
   const found: Array<{ index: number; label: string; mid: boolean }> = [];
@@ -494,6 +521,12 @@ function computeBreaksUnlabelled(
     nodeSize: number;
     lineMul: number;
     fixedLines?: number;
+    /**
+     * Printed lines of text, before line spacing. Final Draft's rule of two
+     * lines of dialogue either side of a page turn counts these — a
+     * double-spaced line is still one line of dialogue — and so does the PDF.
+     */
+    printedLines: number;
     startsNewPage: boolean;
     hasTitleData: boolean;
     sourceIndex: number;
@@ -509,7 +542,7 @@ function computeBreaksUnlabelled(
     const typeName = node.type.name;
     const elementId = getElementId(node);
     const sb = isFirst ? 0 : (hints.spaceBefore[elementId] ?? 0);
-    const lineMul = hints.lineHeightMultiplier[elementId] ?? 1;
+    const lineMul = lineMultiplierFor(hints, typeName, elementId);
     // Images occupy a fixed estimated number of lines (no text to wrap).
     // Sections and Notes are structure, not script — they never reach the page,
     // so they occupy no lines and claim no space before them. Counted like any
@@ -534,9 +567,9 @@ function computeBreaksUnlabelled(
     const rawText = node.textContent || '';
     const markedText = plan ? plan.textWithMarkers(index, rawText) : rawText;
     // Detailed offsets are allocated only for a paragraph taller than a page.
-    const measuredLines =
-      fixedLines ??
-      measuredParagraphLines(node, markedText, CHARS_PER_LINE[typeName] || 62) * lineMul;
+    const textLines =
+      fixedLines ?? measuredParagraphLines(node, markedText, CHARS_PER_LINE[typeName] || 62);
+    const measuredLines = fixedLines ?? textLines * lineMul;
     const cueLines =
       (typeName === 'dialogue' || typeName === 'lyrics') && resolveMoresContds(layout).dialogueBreakContd
         ? 1 : 0;
@@ -552,6 +585,7 @@ function computeBreaksUnlabelled(
       nodeSize: node.nodeSize,
       lineMul,
       fixedLines: fixedLines ?? measuredLines,
+      printedLines: textLines,
       startsNewPage: node.attrs?.startsNewPage === true || startsLockedPage(node.attrs),
       hasTitleData: titlePageAttrsCarryData(node.attrs),
       sourceIndex: index,
@@ -586,6 +620,7 @@ function computeBreaksUnlabelled(
           spaceBefore: part > 0 ? 0 : base.spaceBefore,
           text: fragment.text,
           fixedLines: fragment.lines.length * lineMul,
+          printedLines: fragment.lines.length,
           startsNewPage: part === 0 && base.startsNewPage,
         });
       });
@@ -647,6 +682,16 @@ function computeBreaksUnlabelled(
   const titleRegion = findTitlePageRegion(titleNodes);
   const bodyStart = nodes.findIndex((node) => node.sourceIndex >= titleRegion.length);
   const titleRegionLength = titleRegion.isReal ? (bodyStart < 0 ? nodes.length : bodyStart) : 0;
+  // The title page is laid out on its own 12pt grid (its spacer lines are how
+  // the title is positioned) and the exporters draw it that way whatever the
+  // line spacing, so nothing in the region is opened up.
+  for (let t = 0; t < titleRegionLength; t++) {
+    const n = nodes[t];
+    if (n.lineMul !== 1) {
+      n.fixedLines = n.printedLines;
+      n.lineMul = 1;
+    }
+  }
   let titleBroken = false;
 
   while (i < nodes.length) {
@@ -899,14 +944,13 @@ function computeBreaksUnlabelled(
             // A Note between two paragraphs is not a place to turn the page:
             // it prints nothing, so the turn would land on a blank.
             if (isNonPrintingType(dn.typeName)) continue;
-            const dl = linesOf(dn);
-            const dnTotal = dn.spaceBefore + dl;
+            const dnTotal = dn.spaceBefore + linesOf(dn);
             const dnNotes = notesFor(j, j);
             const candNotes = dnNotes.length > 0 ? fittedNotes.concat(dnNotes) : fittedNotes;
             const room = dnNotes.length > 0 ? capacityWith(candNotes) - lineCount : remaining;
             if (fittedLines + dnTotal + (oversizedSpeech ? contdLine : 0) <= room) {
               fittedLines += dnTotal;
-              fittedDL += dl;
+              fittedDL += dn.printedLines;
               fittedNotes = candNotes;
               remaining = room;
               candidates.push({ lastNode: j, lines: fittedLines, dl: fittedDL, notes: fittedNotes });
@@ -915,10 +959,10 @@ function computeBreaksUnlabelled(
             }
           }
 
-          /** Dialogue lines left in this speech after a split following `j`. */
+          /** Printed dialogue lines left in this speech after a split following `j`. */
           const linesAfter = (j: number): number => {
             let n = 0;
-            for (let k = j + 1; k <= blockEnd; k++) n += linesOf(nodes[k]);
+            for (let k = j + 1; k <= blockEnd; k++) n += nodes[k].printedLines;
             return n;
           };
 
@@ -1078,6 +1122,38 @@ function computeBreaksUnlabelled(
   return { pageCount: pageNumber - 1, breaks: mappedBreaks, footnotePages };
 }
 
+// ── Scene start pages ───────────────────────────────────────────────────
+
+/**
+ * The script page each scene heading starts on, one per top-level heading in
+ * document order — the page number, not its label: a caller with locked pages
+ * reads the label off `pageLabels[page - 1]`.
+ *
+ * Read off the breaks the editor already drew, so it is the page the writer
+ * sees. A break that falls inside a block (a split paragraph or a dual-dialogue
+ * row) leaves that block's start on the page before; only a break at the
+ * block's very top moves the block itself. Headings before the title-page break
+ * are on the title page, which has no number, and report 1.
+ */
+export function sceneStartPages(doc: PmNode, breaks: readonly BreakInfo[]): number[] {
+  const starts: number[] = [];
+  let b = 0;
+  let page = 1;
+  doc.forEach((node, _offset, index) => {
+    // Every break that opens a page at or before this block's top.
+    while (b < breaks.length) {
+      const brk = breaks[b];
+      const atTop = !brk.contentOffset && brk.dualRow === undefined;
+      if (brk.nodeIndex < index || (brk.nodeIndex === index && atTop)) {
+        page = brk.pageNumber;
+        b++;
+      } else break;
+    }
+    if (node.type.name === 'sceneHeading') starts.push(Math.max(1, page));
+  });
+  return starts;
+}
+
 // ── Scene length computation ────────────────────────────────────────────
 
 /**
@@ -1101,8 +1177,15 @@ export function computeSceneLengths(
     // A Section or Note inside a scene adds nothing to its length, for the same
     // reason it adds nothing to the page: it is never printed.
     const nonPrinting = isNonPrintingType(typeName);
-    const textLines = nonPrinting ? 0 : getTextLines(node.textContent || '', cpl);
-    const sb = nodeIdx === 0 || nonPrinting ? 0 : (hints.spaceBefore[typeName] ?? 0);
+    // In 12pt lines, as the page is filled: an element's lines open up with
+    // line spacing, so a scene grows with it — the same answer the page count
+    // gives. Keyed by template element id, as computeBreaks keys them, so a
+    // custom element gets its own spacing here too.
+    const elementId = getElementId(node);
+    const textLines = nonPrinting
+      ? 0
+      : getTextLines(node.textContent || '', cpl) * lineMultiplierFor(hints, typeName, elementId);
+    const sb = nodeIdx === 0 || nonPrinting ? 0 : (hints.spaceBefore[elementId] ?? 0);
 
     if (typeName === 'sceneHeading') {
       if (inScene) lengths.push(sceneLines / linesPerPage);
@@ -1121,8 +1204,14 @@ export function computeSceneLengths(
 
 export interface PageBlockInfo {
   typeName: string;
+  /** Where the block starts on its page, in 12pt lines. */
   lineStart: number;
+  /** How much of the page the block fills, in 12pt lines — its printed lines
+   *  times `lineHeightMultiplier`. */
   lineCount: number;
+  /** How far apart its lines are drawn, in 12pt lines (1 = standard). A
+   *  thumbnail draws the block at `16px × lineHeightMultiplier` to match. */
+  lineHeightMultiplier: number;
   docPos: number;
   text: string;
 }
@@ -1147,9 +1236,14 @@ export function computePageBlocks(
   const { breaks } = computeBreaks(doc, layout, hints, plan);
 
   // Collect top-level nodes
-  const nodes: { typeName: string; text: string; offset: number }[] = [];
+  const nodes: { typeName: string; text: string; offset: number; lineMul: number }[] = [];
   doc.forEach((node, offset) => {
-    nodes.push({ typeName: node.type.name, text: node.textContent || '', offset });
+    nodes.push({
+      typeName: node.type.name,
+      text: node.textContent || '',
+      offset,
+      lineMul: lineMultiplierFor(hints, node.type.name, getElementId(node)),
+    });
   });
 
   if (nodes.length === 0) return [];
@@ -1203,6 +1297,7 @@ export function computePageBlocks(
           ? grid.filter((offset) => offset >= from &&
               (offset < to || to === node.text.length && offset === to)).length
           : getTextLines(displayed, CHARS_PER_LINE[node.typeName] || 62);
+        lines *= node.lineMul;
       }
       const sb = firstPrinting || nonPrinting ? 0 : (hints.spaceBefore[node.typeName] ?? 0);
       if (!nonPrinting) firstPrinting = false;
@@ -1210,6 +1305,7 @@ export function computePageBlocks(
         typeName: node.typeName,
         lineStart: lineOnPage + sb,
         lineCount: lines,
+        lineHeightMultiplier: dual ? 1 : node.lineMul,
         docPos: dual?.[rowFrom]?.[0]
           ? dualCellPosition(doc.child(index), node.offset, dual[rowFrom][0])
           : from ? node.offset + 1 + from : node.offset,

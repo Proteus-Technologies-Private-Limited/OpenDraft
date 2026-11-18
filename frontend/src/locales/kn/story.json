@@ -10,7 +10,19 @@
     "customColor": "ಕಸ್ಟಮ್ ಬಣ್ಣ",
     "pageSingular": "{{n}} ಪುಟ",
     "pagePlural": "{{n}} ಪುಟಗಳು",
-    "autoWithDuration": "ಸ್ವಯಂ ({{duration}})"
+    "autoWithDuration": "ಸ್ವಯಂ ({{duration}})",
+    "colors": {
+      "violet": "ನೇರಳೆ",
+      "indigo": "ಊದಾ",
+      "blue": "ನೀಲಿ",
+      "green": "ಹಸಿರು",
+      "yellow": "ಹಳದಿ",
+      "orange": "ಕಿತ್ತಳೆ",
+      "red": "ಕೆಂಪು",
+      "black": "ಕಪ್ಪು",
+      "white": "ಬಿಳಿ",
+      "none": "ಬಣ್ಣವಿಲ್ಲ"
+    }
   },
   "scriptProfile": {
     "title": "ಪ್ರಕಾರ ಮತ್ತು ವೇಗ",
@@ -359,9 +371,6 @@
     "pageSingular": "{{n}} ಪುಟ",
     "pagePlural": "{{n}} ಪುಟಗಳು",
     "pageAndDuration": "{{pages}} · {{duration}}",
-    "noSynopsis": "ಈ ಸೀನ್‌ಗೆ ಸಾರಾಂಶ ಲಭ್ಯವಿಲ್ಲ.",
-    "editSynopsis": "ಸಂಪಾದಿಸಿ",
-    "addSynopsis": "+ ಸೇರಿಸಿ",
     "noPages": "ಇನ್ನೂ ಪುಟಗಳಿಲ್ಲ. ಪುಟ ಪೂರ್ವವೀಕ್ಷಣೆ ನೋಡಲು ಬರೆಯಲು ಆರಂಭಿಸಿ.",
     "pageLabel": "ಪುಟ {{label}}",
     "sectionCount_one": "{{count}} ವಿಭಾಗ",
@@ -381,7 +390,24 @@
     "noLocations": "ಇನ್ನೂ ಲೊಕೇಶನ್‌ಗಳಿಲ್ಲ. “INT. COFFEE SHOP - DAY” ನಂತಹ ಸೀನ್ ಹೆಡಿಂಗ್‌ಗಳು ಇಲ್ಲಿ ಕಾಣಿಸುತ್ತವೆ.",
     "renameLocation": "ಲೊಕೇಶನ್ ಮರುಹೆಸರಿಸಿ",
     "skippedHeadings_one": "ಸಾಲು ವಿರಾಮ ಇರುವ {{count}} ಸೀನ್ ಹೆಡಿಂಗ್ ಬಿಟ್ಟುಬಿಡಲಾಯಿತು",
-    "skippedHeadings_other": "ಸಾಲು ವಿರಾಮ ಇರುವ {{count}} ಸೀನ್ ಹೆಡಿಂಗ್‌ಗಳನ್ನು ಬಿಟ್ಟುಬಿಡಲಾಯಿತು"
+    "skippedHeadings_other": "ಸಾಲು ವಿರಾಮ ಇರುವ {{count}} ಸೀನ್ ಹೆಡಿಂಗ್‌ಗಳನ್ನು ಬಿಟ್ಟುಬಿಡಲಾಯಿತು",
+    "showAllSynopses": "ಎಲ್ಲಾ ಸಾರಾಂಶಗಳನ್ನು ತೋರಿಸಿ",
+    "hideAllSynopses": "ಎಲ್ಲಾ ಸಾರಾಂಶಗಳನ್ನು ಮರೆಮಾಡಿ",
+    "expandScene": "ಸಾರಾಂಶ ತೋರಿಸಿ",
+    "collapseScene": "ಸಾರಾಂಶ ಮರೆಮಾಡಿ",
+    "changeColor": "ಸೀನ್ ಬಣ್ಣ",
+    "changeColorFor": "ಸೀನ್ {{number}} ಬಣ್ಣ",
+    "headingFontScript": "ಹೆಡಿಂಗ್‌ಗಳನ್ನು ಸ್ಕ್ರಿಪ್ಟ್ ಫಾಂಟ್‌ನಲ್ಲಿ ತೋರಿಸಿ",
+    "headingFontInterface": "ಹೆಡಿಂಗ್‌ಗಳನ್ನು ಇಂಟರ್‌ಫೇಸ್ ಫಾಂಟ್‌ನಲ್ಲಿ ತೋರಿಸಿ",
+    "startsOnPage": "ಪುಟ {{label}} ರಿಂದ ಆರಂಭ",
+    "synopsisFor": "{{heading}} ಸಾರಾಂಶ",
+    "synopsisEditHint": "Enter ಉಳಿಸುತ್ತದೆ · Shift+Enter ಹೊಸ ಸಾಲು ಸೇರಿಸುತ್ತದೆ · Esc ರದ್ದುಮಾಡುತ್ತದೆ",
+    "clickToEditSynopsis": "ಸಾರಾಂಶವನ್ನು ಸಂಪಾದಿಸಲು ಕ್ಲಿಕ್ ಮಾಡಿ",
+    "clickToAddSynopsis": "ಸಾರಾಂಶ ಸೇರಿಸಿ…",
+    "moreSceneOptions": "ಇನ್ನಷ್ಟು…",
+    "moreSceneOptionsTitle": "ಸಾರಾಂಶ, ಬಣ್ಣ ಮತ್ತು ಸೀನ್ ಅವಧಿ",
+    "sceneNotFound": "ಆ ಸೀನ್ ಈಗ ಸ್ಕ್ರಿಪ್ಟ್‌ನಲ್ಲಿ ಇಲ್ಲ.",
+    "sceneSaveFailed": "ಸೀನ್ ಉಳಿಸಲಾಗಲಿಲ್ಲ. ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ."
   },
   "beatBoard": {
     "title": "ಬೀಟ್ ಬೋರ್ಡ್",
