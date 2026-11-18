@@ -8,6 +8,8 @@ mod native_menu;
 /// Platform text-to-speech for Table Read (issue #131).
 mod tts;
 mod dictation;
+/// Installed-font lookup for the PDF exporter's fallback (desktop only; a stub on mobile).
+mod system_fonts;
 /// Native hinge posture for foldable iPhones (issue #231).
 mod fold;
 use percent_encoding::percent_decode_str;
@@ -3118,6 +3120,7 @@ pub fn run() {
             tts::tts_native_stop,
             tts::tts_table_read,
             tts::tts_speech_server_request,
+            system_fonts::system_font_for_text,
         ]);
 
         // ── Native menu (desktop only) ────────────────────────────────

@@ -856,3 +856,46 @@ it.each(Array.from({ length: 150 }, (_, trial) => trial))(
     expect(new Set(tokens).size).toBe(tokens.length);
   },
 );
+
+describe('a script set at another font size (#270)', () => {
+  const script = (): JSONContent => doc(
+    ...Array.from({ length: 30 }, (_, s) => [
+      tagged('sceneHeading', s * 4, 'INT. ROOM - DAY'),
+      tagged('action', s * 4 + 1, 'Maria looks out of the window while the wind tugs at the curtains all night long.'),
+      tagged('character', s * 4 + 2, 'MARIA'),
+      tagged('dialogue', s * 4 + 3, 'We should leave before the storm gets any worse than this.'),
+    ]).flat(),
+  );
+  const at = (fontSize: number): Layout => ({ ...DEFAULT_PAGE_LAYOUT, fontSize });
+  const editorPageCount = (layout: Layout) =>
+    computeBreaks(pmDoc(script()), layout, activeTemplateHints()).pageCount;
+
+  it('runs to fewer pages when smaller and more when larger, as the writer expects', () => {
+    const standard = editorPageCount(DEFAULT_PAGE_LAYOUT);
+    expect(editorPageCount(at(8))).toBeLessThan(standard);
+    expect(editorPageCount(at(18))).toBeGreaterThan(standard);
+    expect(editorPageCount(at(24))).toBeGreaterThan(editorPageCount(at(18)));
+  });
+
+  it('is the same script at 12pt as with no size set', () => {
+    expect(editorPageCount(at(12))).toBe(editorPageCount(DEFAULT_PAGE_LAYOUT));
+  });
+
+  it('holds fewer lines to a page when larger', () => {
+    expect(getPageMetrics(at(18)).linesPerPage).toBeLessThan(getPageMetrics(DEFAULT_PAGE_LAYOUT).linesPerPage);
+    expect(getPageMetrics(at(8)).linesPerPage).toBeGreaterThan(getPageMetrics(DEFAULT_PAGE_LAYOUT).linesPerPage);
+  });
+
+  it.each([8, 10, 14, 18, 24])('turns the page on the same element in the PDF at %ipt', async (size) => {
+    const { disagree, pdf } = await bothWays(script(), at(size));
+    expect(disagree).toEqual([]);
+    expect(Math.max(...pdf)).toBe(editorPageCount(at(size)));
+  });
+
+  it('puts the font size back after an export, so the next one is at 12pt', async () => {
+    await exportPDF(script(), 'Large', at(24));
+    draws.length = 0; pageCount = 1; currentPage = 1;
+    const { disagree } = await bothWays(script(), DEFAULT_PAGE_LAYOUT);
+    expect(disagree).toEqual([]);
+  });
+});

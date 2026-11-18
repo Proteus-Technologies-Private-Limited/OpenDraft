@@ -450,6 +450,10 @@ export interface PageLayout {
   /** Footnote/endnote config. Optional for back-compat with documents saved
    *  before this existed — read via resolveFootnotes(). */
   footnotes?: FootnoteSettings;
+  /** The size the whole script is set at, in points. Absent means the standard
+   *  12pt. The editor's pages and the PDF lay out on the 12pt grid scaled by
+   *  this over 12 — see utils/fontScale. */
+  fontSize?: number;
 }
 
 export const DEFAULT_PAGE_LAYOUT: PageLayout = {

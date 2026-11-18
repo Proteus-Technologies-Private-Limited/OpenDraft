@@ -19,7 +19,8 @@ interface FormatPanelProps {
 const FormatPanel: React.FC<FormatPanelProps> = ({ editor, onClose }) => {
   const { t } = useTranslation(['format', 'common']);
   useEditorTransactions(editor);
-  const { fontFamily: pageFont, fontSize: pageFontSize } = useEditorStore();
+  const { fontFamily: pageFont } = useEditorStore();
+  const pageFontSize = useEditorStore((s) => s.pageLayout.fontSize ?? s.fontSize);
 
   // Per-attribute locking from active template
   const activeTemplate = useFormattingTemplateStore((s) => s.getActiveTemplate());

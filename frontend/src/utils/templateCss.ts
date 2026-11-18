@@ -257,7 +257,8 @@ function generateRuleProperties(
 
   // Margin
   if (rule.marginTop > 0) {
-    props.push(`margin-top: ${rule.marginTop}pt;`);
+    // Blank lines open up with the script's font size, as the page counts them.
+    props.push(`margin-top: calc(${rule.marginTop}pt * var(--script-scale, 1));`);
   } else {
     props.push('margin-top: 0;');
   }

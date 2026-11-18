@@ -9,6 +9,7 @@ import { singleLine } from '../utils/nodeText';
 // agree exactly or the editor paginates differently from the exported file.
 import { SPLIT_PARAGRAPH_TYPES, paragraphFragments, originalTextOffset } from '../utils/paragraphPagination';
 import { getTextLines } from '../utils/wrapText';
+import { fontScaleOf, scaledCpl } from '../utils/fontScale';
 import { DEFAULT_SPACE_BEFORE, buildSpaceBefore, getSpaceBefore, type SpaceBeforeSource } from '../utils/elementSpacing';
 import { lineMultiplierFor, normalizeLineSpacing } from '../utils/lineSpacing';
 import { findTitlePageRegion, titlePageAttrsCarryData } from '../utils/titlePageRegion';
@@ -141,6 +142,12 @@ for (const [type, [l, r]] of Object.entries(FD_INDENTS)) {
   CHARS_PER_LINE[type] = Math.round((r - l) * FD_CPI);
 }
 
+/** Characters to a line for an element, at the script's font size. */
+export function charsPerLine(typeName: string, scale: number): number {
+  const indents = FD_INDENTS[typeName];
+  return scaledCpl(CHARS_PER_LINE[typeName] || 62, scale, indents ? indents[1] - indents[0] : 6);
+}
+
 // Space before each element now comes from the template, via
 // hints.spaceBefore — see utils/elementSpacing.ts for the defaults.
 
@@ -158,14 +165,24 @@ const DIALOGUE_BLOCK_TYPES = new Set(['dialogue', 'parenthetical', 'lyrics']);
  */
 export function getPageMetrics(layout: PageLayout) {
   const contentHeightPt = layout.pageHeight * 72 - layout.topMargin - layout.bottomMargin;
-  const linesPerPage = Math.floor(contentHeightPt / LINE_HEIGHT_PT);
-  const lineHeightPx = LINE_HEIGHT_PT * (96 / 72);
+  // A script set larger or smaller than 12pt has taller or shorter lines, so
+  // the page holds fewer or more of them (#270).
+  const scale = fontScaleOf(layout);
+  const linePt = LINE_HEIGHT_PT * scale;
+  const linesPerPage = Math.floor(contentHeightPt / linePt + 1e-9);
+  const lineHeightPx = linePt * (96 / 72);
   const pageContentPx = linesPerPage * lineHeightPx;
+  // A page holds a whole number of lines. At 12pt that leaves nothing over on
+  // the standard sheet; at another size it can leave a few points, which belong
+  // to the gap between sheets — otherwise every page ends that much early and
+  // the sheets drift off the page breaks (#270). Left out at 12pt so a script at
+  // the standard size lays out exactly as it always has.
+  const leftoverPx = scale === 1 ? 0 : (contentHeightPt - linesPerPage * linePt) * (96 / 72);
   const sepHeightPx = Math.round(
-    (layout.bottomMargin / 72) * 96 + 40 + (layout.topMargin / 72) * 96
+    (layout.bottomMargin / 72) * 96 + 40 + (layout.topMargin / 72) * 96 + leftoverPx
   );
   const contentStartPx = (layout.topMargin / 72) * 96;
-  return { linesPerPage, pageContentPx, sepHeightPx, contentStartPx };
+  return { linesPerPage, pageContentPx, sepHeightPx, contentStartPx, lineHeightPx };
 }
 
 export interface BreakInfo {
@@ -330,8 +347,8 @@ export function createPaginationPlugin(
   });
 
   function buildDecorations(state: EditorState, ps: PaginationState, layout: PageLayout): DecorationSet {
-    const { linesPerPage, sepHeightPx } = getPageMetrics(layout);
-    const lineHeightPx = LINE_HEIGHT_PT * (96 / 72);
+    const { linesPerPage, sepHeightPx, lineHeightPx } = getPageMetrics(layout);
+    const scale = fontScaleOf(layout);
     // Only reserve room for the CONT'D label when the marker is actually shown.
     const showDialogueBreakContd = resolveMoresContds(layout).dialogueBreakContd;
     const decos: Decoration[] = [];
@@ -346,7 +363,7 @@ export function createPaginationPlugin(
       const turns = new Set(
         ps.breaks.filter((b) => b.nodeIndex === index).map((b) => b.contentOffset),
       );
-      const lines = paragraphFragments(text, CHARS_PER_LINE[node.type.name] || 62)
+      const lines = paragraphFragments(text, charsPerLine(node.type.name, scale))
         .flatMap((part) => part.lines);
       for (const line of lines.slice(1)) {
         const from = originalTextOffset(plan, index, line.from);
@@ -511,6 +528,7 @@ function computeBreaksUnlabelled(
   plan: FootnotePlan | null,
 ): PaginationState {
   const { linesPerPage } = getPageMetrics(layout);
+  const scale = fontScaleOf(layout);
 
   interface NodeInfo {
     typeName: string;
@@ -568,7 +586,7 @@ function computeBreaksUnlabelled(
     const markedText = plan ? plan.textWithMarkers(index, rawText) : rawText;
     // Detailed offsets are allocated only for a paragraph taller than a page.
     const textLines =
-      fixedLines ?? measuredParagraphLines(node, markedText, CHARS_PER_LINE[typeName] || 62);
+      fixedLines ?? measuredParagraphLines(node, markedText, charsPerLine(typeName, scale));
     const measuredLines = fixedLines ?? textLines * lineMul;
     const cueLines =
       (typeName === 'dialogue' || typeName === 'lyrics') && resolveMoresContds(layout).dialogueBreakContd
@@ -598,7 +616,7 @@ function computeBreaksUnlabelled(
     if (!split) nodes.push(base);
     else {
       hasFragments = true;
-      const parts = paragraphFragments(markedText, CHARS_PER_LINE[typeName] || 62);
+      const parts = paragraphFragments(markedText, charsPerLine(typeName, scale));
       parts.forEach((fragment, part) => {
         const from = originalTextOffset(plan, index, fragment.from);
         const to = originalTextOffset(plan, index, fragment.to);
@@ -657,7 +675,7 @@ function computeBreaksUnlabelled(
   const linesOf = (n: NodeInfo): number => (
     n.fixedLines !== undefined
       ? n.fixedLines
-      : getTextLines(n.text, CHARS_PER_LINE[n.typeName] || 62) * n.lineMul
+      : getTextLines(n.text, charsPerLine(n.typeName, scale)) * n.lineMul
   );
 
   /**
@@ -1166,6 +1184,7 @@ export function computeSceneLengths(
   hints: TemplateHints = EMPTY_HINTS,
 ): number[] {
   const { linesPerPage } = getPageMetrics(layout);
+  const scale = fontScaleOf(layout);
   const lengths: number[] = [];
   let sceneLines = 0;
   let inScene = false;
@@ -1173,7 +1192,7 @@ export function computeSceneLengths(
 
   doc.forEach((node) => {
     const typeName = node.type.name;
-    const cpl = CHARS_PER_LINE[typeName] || 62;
+    const cpl = charsPerLine(typeName, scale);
     // A Section or Note inside a scene adds nothing to its length, for the same
     // reason it adds nothing to the page: it is never printed.
     const nonPrinting = isNonPrintingType(typeName);
@@ -1233,6 +1252,7 @@ export function computePageBlocks(
   plan: FootnotePlan | null = null,
 ): PageContentInfo[] {
   const { linesPerPage } = getPageMetrics(layout);
+  const scale = fontScaleOf(layout);
   const { breaks } = computeBreaks(doc, layout, hints, plan);
 
   // Collect top-level nodes
@@ -1257,7 +1277,7 @@ export function computePageBlocks(
     if (turn.contentOffset === undefined || grids.has(turn.nodeIndex)) continue;
     const node = nodes[turn.nodeIndex];
     const marked = plan ? plan.textWithMarkers(turn.nodeIndex, node.text) : node.text;
-    const lines = paragraphFragments(marked, CHARS_PER_LINE[node.typeName] || 62)
+    const lines = paragraphFragments(marked, charsPerLine(node.typeName, scale))
       .flatMap((part) => part.lines);
     grids.set(turn.nodeIndex, lines.map((line) => originalTextOffset(plan, turn.nodeIndex, line.from)));
   }
@@ -1296,7 +1316,7 @@ export function computePageBlocks(
         lines = grid
           ? grid.filter((offset) => offset >= from &&
               (offset < to || to === node.text.length && offset === to)).length
-          : getTextLines(displayed, CHARS_PER_LINE[node.typeName] || 62);
+          : getTextLines(displayed, charsPerLine(node.typeName, scale));
         lines *= node.lineMul;
       }
       const sb = firstPrinting || nonPrinting ? 0 : (hints.spaceBefore[node.typeName] ?? 0);
@@ -1329,7 +1349,7 @@ function dualDecorations(
   plan: FootnotePlan | null = null,
 ): Decoration[] {
   const decos: Decoration[] = [];
-  const linePx = 16;
+  const linePx = 16 * fontScaleOf(layout);
   const mc = resolveMoresContds(layout);
   const blocks = new Map<number, BreakInfo[]>();
   for (const brk of breaks) {

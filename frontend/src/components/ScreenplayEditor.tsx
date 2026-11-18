@@ -54,6 +54,7 @@ import { useFormattingTemplateStore, subscribeActiveTemplate } from '../stores/f
 import { generateTemplateCss, generatePlaceholderLocaleCss, generateLineSpacingCss, injectTemplateCss } from '../utils/templateCss';
 import { docHasAnyText } from '../utils/docText';
 import { getCurrentElementRule, getLockedFormatting } from '../utils/effectiveFormatting';
+import { fontScaleOf } from '../utils/fontScale';
 import { createPaginationPlugin, getPageMetrics, activeTemplateHints } from '../editor/pagination';
 import type { FootnotePageAssignment } from '../editor/pagination';
 import type { EndnotePage } from '../utils/footnotes';
@@ -6137,7 +6138,8 @@ const ScreenplayEditor: React.FC = () => {
                     // actually render in the font the document is set in.
                     ...{
                       '--screenplay-font': fontStack(fontFamily),
-                      '--screenplay-font-size': `${fontSize}pt`,
+                      '--screenplay-font-size': `${pageLayout.fontSize ?? fontSize}pt`,
+                      '--script-scale': String(fontScaleOf(pageLayout)),
                     } as React.CSSProperties,
                   }}
                 >

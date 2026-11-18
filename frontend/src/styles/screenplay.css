@@ -2339,7 +2339,7 @@ body {
   line-height: var(--screenplay-line-height);
   /* Adjust letter-spacing so Courier New matches Final Draft Courier width.
      FD: 62 chars in 6.0" = 9.29px/char. Courier New: 9.60px/char. Diff: -0.31px */
-  letter-spacing: -0.31px;
+  letter-spacing: calc(-0.31px * var(--script-scale, 1));
   color: var(--page-ink);
   outline: none;
   overflow: visible;
@@ -2367,7 +2367,7 @@ body {
 .scene-heading {
   text-transform: uppercase;
   font-weight: bold;
-  margin-top: 24pt;
+  margin-top: calc(24pt * var(--script-scale, 1));
   position: relative;
 }
 .scene-heading:first-child { margin-top: 0; }
@@ -2547,12 +2547,12 @@ body {
 }
 
 /* Action */
-.action { margin-top: 12pt; }
+.action { margin-top: calc(12pt * var(--script-scale, 1)); }
 
 /* Character: FDX LeftIndent=3.50, RightIndent=7.50 */
 .character {
   text-transform: uppercase;
-  margin-top: 12pt;
+  margin-top: calc(12pt * var(--script-scale, 1));
   padding-left: calc((3.50in - var(--pl, 1.50in)) * var(--indent-scale, 1));
   padding-right: calc((var(--pw, 8.26in) - 7.50in - var(--pr, 0.76in)) * var(--indent-scale, 1));
 }
@@ -2573,7 +2573,7 @@ body {
 .transition {
   text-transform: uppercase;
   text-align: right;
-  margin-top: 12pt;
+  margin-top: calc(12pt * var(--script-scale, 1));
   padding-left: calc((5.50in - var(--pl, 1.50in)) * var(--indent-scale, 1));
   padding-right: calc((var(--pw, 8.26in) - 7.50in - var(--pr, 0.76in)) * var(--indent-scale, 1));
 }
@@ -2584,7 +2584,7 @@ body {
 /* Shot */
 .shot {
   text-transform: uppercase;
-  margin-top: 12pt;
+  margin-top: calc(12pt * var(--script-scale, 1));
 }
 
 /* New Act */
@@ -2593,7 +2593,7 @@ body {
   text-align: center;
   font-weight: bold;
   text-decoration: underline;
-  margin-top: 24pt;
+  margin-top: calc(24pt * var(--script-scale, 1));
 }
 
 /* End of Act */
@@ -2601,7 +2601,7 @@ body {
   text-transform: uppercase;
   text-align: center;
   font-weight: bold;
-  margin-top: 24pt;
+  margin-top: calc(24pt * var(--script-scale, 1));
 }
 
 /* Lyrics: same indents as Dialogue */
@@ -2621,7 +2621,7 @@ body {
   color: var(--fd-accent, #3b82f6);
   border-left: 3px solid var(--fd-accent, #3b82f6);
   padding-left: 8px;
-  margin-top: 12pt;
+  margin-top: calc(12pt * var(--script-scale, 1));
   letter-spacing: 0.02em;
 }
 
@@ -2641,7 +2641,7 @@ body {
   background: var(--fd-note-bg, rgba(244, 211, 94, 0.10));
   border-left: 3px solid var(--fd-note-border, #f4d35e);
   padding: 2px 8px;
-  margin-top: 12pt;
+  margin-top: calc(12pt * var(--script-scale, 1));
 }
 
 /* Show/Episode */
@@ -2649,7 +2649,7 @@ body {
   text-transform: uppercase;
   text-align: center;
   font-weight: bold;
-  margin-top: 12pt;
+  margin-top: calc(12pt * var(--script-scale, 1));
 }
 
 /* Cast List */
@@ -2663,7 +2663,7 @@ body {
 .dual-dialogue {
   display: flex;
   gap: 0;
-  margin-top: 12pt;
+  margin-top: calc(12pt * var(--script-scale, 1));
   border-left: 2px solid var(--fd-accent, #3b82f6);
   border-radius: 2px;
 }
@@ -2689,7 +2689,7 @@ body {
 }
 /* First character in each column gets top margin */
 .dual-dialogue-column > .screenplay-element.character:first-child {
-  margin-top: 12pt;
+  margin-top: calc(12pt * var(--script-scale, 1));
 }
 
 /* Title Page — WYSIWYG free-flow: title, credits and images render in document

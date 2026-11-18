@@ -98,6 +98,12 @@ const shortcutFor = (id: string): string | undefined => {
   return spec ? formatShortcut(spec) : undefined;
 };
 
+/** Whether the selection is the whole script — Select All, or every position. */
+function selectionCoversScript(state: import('@tiptap/pm/state').EditorState): boolean {
+  const { from, to } = state.selection;
+  return from <= 1 && to >= state.doc.content.size - 1;
+}
+
 const FONT_SIZES = [8, 9, 10, 11, 12, 13, 14, 16, 18, 20, 24, 28, 32, 36, 48, 60, 72, 96];
 
 const CARET_MARKS = ['bold', 'italic', 'underline', 'strike', 'subscript', 'superscript'] as const;
@@ -300,7 +306,10 @@ const ControlBar: React.FC<ControlBarProps> = ({ editor, bar, side, editorMain =
   // Track the font/size of the text at current cursor position. Empty string
   // / null indicates the selection spans more than one value ("mixed").
   const [cursorFont, setCursorFont] = useState<string>(fontFamily);
-  const [cursorSize, setCursorSize] = useState<number | null>(fontSize);
+  // The size the whole script is set at: the layout's, saved with the script,
+  // else the page default. Text without its own size mark is drawn at it.
+  const scriptSize = pageLayout.fontSize ?? fontSize;
+  const [cursorSize, setCursorSize] = useState<number | null>(scriptSize);
   // Fonts found in document that aren't in the registry
   const [extraFonts, setExtraFonts] = useState<string[]>([]);
 
@@ -336,9 +345,9 @@ const ControlBar: React.FC<ControlBarProps> = ({ editor, bar, side, editorMain =
       }
       if (detectedSize) {
         const parsed = parseInt(detectedSize, 10);
-        setCursorSize(!isNaN(parsed) ? parsed : (rule?.fontSize ?? fontSize));
+        setCursorSize(!isNaN(parsed) ? parsed : (rule?.fontSize ?? scriptSize));
       } else {
-        setCursorSize(rule?.fontSize ?? fontSize);
+        setCursorSize(rule?.fontSize ?? scriptSize);
       }
       return;
     }
@@ -371,9 +380,9 @@ const ControlBar: React.FC<ControlBarProps> = ({ editor, bar, side, editorMain =
       setCursorFont(effectiveFont);
       if (detectedSize) {
         const parsed = parseInt(detectedSize, 10);
-        setCursorSize(!isNaN(parsed) ? parsed : (rule?.fontSize ?? fontSize));
+        setCursorSize(!isNaN(parsed) ? parsed : (rule?.fontSize ?? scriptSize));
       } else {
-        setCursorSize(rule?.fontSize ?? fontSize);
+        setCursorSize(rule?.fontSize ?? scriptSize);
       }
       return;
     }
@@ -395,12 +404,12 @@ const ControlBar: React.FC<ControlBarProps> = ({ editor, bar, side, editorMain =
       const single = [...sizes][0] || '';
       if (single) {
         const parsed = parseInt(single, 10);
-        setCursorSize(!isNaN(parsed) ? parsed : (rule?.fontSize ?? fontSize));
+        setCursorSize(!isNaN(parsed) ? parsed : (rule?.fontSize ?? scriptSize));
       } else {
-        setCursorSize(rule?.fontSize ?? fontSize);
+        setCursorSize(rule?.fontSize ?? scriptSize);
       }
     }
-  }, [editor, fontFamily, fontSize, activeTemplate, isEnforceMode]);
+  }, [editor, fontFamily, scriptSize, activeTemplate, isEnforceMode]);
 
   useEffect(() => {
     if (!editor || !needsFormatting) return;
@@ -871,8 +880,21 @@ const ControlBar: React.FC<ControlBarProps> = ({ editor, bar, side, editorMain =
           if (locked.fontSize) return;
           if (e.target.value === '') return; // user clicked the mixed placeholder — no-op
           const val = Number(e.target.value);
-          // Selection-scoped, like the font picker.
-          if (val === fontSize) {
+          // The whole script chosen: set the script's size, which the page
+          // count and the PDF follow (#270). The per-run marks it replaces
+          // are cleared, so the one setting says what size the script is.
+          if (editor && selectionCoversScript(editor.state)) {
+            const next = { ...useEditorStore.getState().pageLayout };
+            if (val === 12) delete next.fontSize;
+            else next.fontSize = val;
+            useEditorStore.getState().setPageLayout(next);
+            editor.chain().focus(undefined, { scrollIntoView: false })
+              .setMark('textStyle', { fontSize: null }).removeEmptyTextStyle().run();
+            closeOverflow(inOverflow);
+            return;
+          }
+          // Otherwise selection-scoped, like the font picker.
+          if (val === scriptSize) {
             editor?.chain().focus(undefined, { scrollIntoView: false }).setMark('textStyle', { fontSize: null }).removeEmptyTextStyle().run();
           } else {
             editor?.chain().focus(undefined, { scrollIntoView: false }).setFontSize(`${val}pt`).run();
