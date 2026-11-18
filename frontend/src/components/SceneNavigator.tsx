@@ -981,6 +981,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
               aria-label={t('navigator.headingFontScript')}
               aria-pressed={headingFont === 'script'}
             >
+              {/* i18n-ignore: a type specimen, not a word; the button is named by its translated aria-label */}
               <span aria-hidden="true">Aa</span>
             </button>
             <button
