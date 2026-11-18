@@ -1,5 +1,5 @@
 import { readSourceFidelity } from '../utils/sourceFidelity';
-import React, { useEffect, useLayoutEffect, useCallback, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useLayoutEffect, useCallback, useRef, useState, useMemo, useSyncExternalStore } from 'react';
 import { panelResize } from '../utils/panelResize';
 import { ModalOverlay } from './ModalOverlay';
 import { useTranslation, Trans } from 'react-i18next';
@@ -78,6 +78,12 @@ import OutlineView from './OutlineView';
 import ScriptStatistics from './ScriptStatistics';
 import TableReadPanel from './TableReadPanel';
 import FoldablePanelDock from './FoldablePanelDock';
+import WorkspaceDock, { type DockPanelDef, type NavigatorRender } from './WorkspaceDock';
+/** Widths where the Navigator is a sliding overlay (screenplay.css), so the docks stand aside. */
+const DOCK_LAYOUT_MAX_COMPACT = '(max-width: 1100px)';
+import LayoutDialog from './LayoutDialog';
+import { panelOpenIn } from '../utils/panelActions';
+import { BUILT_IN_PANELS, movePanelToNewGroup, visibleGroups } from '../utils/workspaceLayout';
 import { useFoldState } from '../hooks/useFoldState';
 import { useFoldWritingPadDock } from '../hooks/useFoldWritingPadDock';
 import { FOLD_CHANGE_EVENT, FOLD_WILL_CHANGE_EVENT, isFoldableDevice } from '../utils/foldPosture';
@@ -624,6 +630,26 @@ const ScreenplayEditor: React.FC = () => {
   // ── Panel resize state ──
   const [navWidth, setNavWidth] = useState(240);
   const [rightPanelWidth, setRightPanelWidth] = useState(300);
+  /** Height of the bottom dock when it holds more than Table Read. */
+  const [bottomDockHeight, setBottomDockHeight] = useState(260);
+  const handleBottomResizePointerDown = useCallback((e: React.PointerEvent) => {
+    e.preventDefault();
+    const startY = e.clientY;
+    const startHeight = bottomDockHeight;
+    const move = (ev: PointerEvent) => {
+      setBottomDockHeight(Math.max(120, Math.min(Math.round(window.innerHeight * 0.7), startHeight - (ev.clientY - startY))));
+    };
+    const up = () => {
+      document.removeEventListener('pointermove', move);
+      document.removeEventListener('pointerup', up);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+    document.addEventListener('pointermove', move);
+    document.addEventListener('pointerup', up);
+    document.body.style.cursor = 'row-resize';
+    document.body.style.userSelect = 'none';
+  }, [bottomDockHeight]);
 
   const resizingRef = useRef<'left' | 'right' | null>(null);
   const resizeStartXRef = useRef(0);
@@ -667,11 +693,34 @@ const ScreenplayEditor: React.FC = () => {
   ).dockNavigator;
   const foldNavigationClass = foldOpen ? (foldNavigatorDocked ? ' fold-nav-docked' : ' fold-nav-overlay') : '';
   const effectiveNavWidth = foldOpen ? (foldNavigatorDocked ? FOLD_NAV_WIDTH : 300) : navWidth;
+  // Layout › Panels places the panels in docks on a wide window. At 1100px
+  // and below the Navigator (and at 900px the right-hand panels) become
+  // overlays that slide in and out (screenplay.css), so narrower windows, a
+  // foldable's postures and phones keep that arrangement, slide included.
+  const compactViewport = useSyncExternalStore(
+    (notify) => {
+      const query = window.matchMedia?.(DOCK_LAYOUT_MAX_COMPACT);
+      if (!query) return () => {};
+      if (typeof query.addEventListener === 'function') {
+        query.addEventListener('change', notify);
+        return () => query.removeEventListener('change', notify);
+      }
+      query.addListener?.(notify);
+      return () => query.removeListener?.(notify);
+    },
+    () => window.matchMedia?.(DOCK_LAYOUT_MAX_COMPACT).matches ?? false,
+    () => false,
+  );
+  const dockLayout = !isHistoryMode && !foldDock && !compactViewport;
+  const workspaceLayout = useEditorStore((s) => s.workspaceLayout);
   // The saved drag width must not override the fixed foldable column width,
   // including the min-width and the floating menu's positioning hint.
   useEffect(() => {
-    useEditorStore.getState().setNavPanelWidth(navigatorOpen ? effectiveNavWidth : 0);
-  }, [effectiveNavWidth, navigatorOpen]);
+    // In the docks the Navigator may be anywhere; what matters to the floating
+    // menu is whether something takes room on the left.
+    const left = dockLayout ? (startDockVisible ? navWidth : 0) : (navigatorOpen ? effectiveNavWidth : 0);
+    if (useEditorStore.getState().navPanelWidth !== left) useEditorStore.getState().setNavPanelWidth(left);
+  });
 
   // Yjs document & provider — stable across renders while collab is active
   const ydocRef = useRef<Y.Doc | null>(null);
@@ -5711,6 +5760,55 @@ const ScreenplayEditor: React.FC = () => {
   const handleDocumentSaved = useCallback((json: string) => { lastSavedJsonRef.current = json; }, []);
   const openJoinCollab = useCallback(() => setJoinCollabOpen(true), []);
   const navStyle = useMemo(() => ({ width: effectiveNavWidth, minWidth: effectiveNavWidth }), [effectiveNavWidth]);
+  // ── Workspace docks (Layout › Panels) ──
+  // Each panel's open switch and how it draws in a dock. The Navigator's five
+  // panels share navigatorOpen and draw through renderDockNavigator.
+  const panelWidthStyle = (w: number | undefined): React.CSSProperties =>
+    (w === undefined ? { width: '100%', minWidth: 0 } : { width: w, minWidth: w });
+  const openFlags = {
+    navigatorOpen, scriptNotesOpen, characterProfilesOpen, tagsPanelOpen, locationDatabaseOpen,
+    dialogueTunerOpen, suggestions: suggestionsPanelOpen, tableRead: tableReadOpen && !statisticsOpen && !beatBoardOpen,
+  };
+  const dockPanels: Record<string, DockPanelDef> = {};
+  if (dockLayout) {
+    for (const panel of BUILT_IN_PANELS) dockPanels[panel] = { open: panelOpenIn(panel, openFlags), render: () => null };
+    dockPanels.notes.render = (w) => <ScriptNotes editor={editor} style={panelWidthStyle(w)} />;
+    dockPanels.characters.render = (w) => <CharacterProfiles editor={editor} projectId={currentProject?.id || ''} style={panelWidthStyle(w)} />;
+    dockPanels.tags.render = (w) => <TagsPanel editor={editor} style={panelWidthStyle(w)} />;
+    dockPanels['location-db'].render = (w) => <LocationDatabase editor={editor} style={panelWidthStyle(w)} />;
+    dockPanels.tuner.render = (w) => <DialogueTuner editor={editor} style={panelWidthStyle(w)} />;
+    dockPanels.suggestions.render = (w) => <SuggestionsPanel editor={editor} style={panelWidthStyle(w)} />;
+    dockPanels['add-ons'] = {
+      // The strip collapses to its tabs on its own; it shows when an add-on has a panel.
+      open: pluginRegistry.getPanels('right-sidebar').length > 0,
+      render: (w) => <PluginPanelTabs editor={editor} width={w ?? rightPanelWidth} onResizeKeyboard={setRightPanelWidth}
+        onActiveChange={setFoldPlugin} onResizePointerDown={(e) => handleResizePointerDown('right', e)} />,
+    };
+    dockPanels['table-read'].render = () => (editor ? <TableReadPanel editor={editor} /> : null);
+  }
+  const renderDockNavigator = ({ tabs, activeTab, onTabChange, bare, width }: NavigatorRender) => (
+    <SceneNavigator editor={editor} scrollContainer={editorMainEl} tabs={tabs} activeTab={activeTab}
+      onTabChange={onTabChange} bare={bare}
+      style={width === undefined ? { width: '100%', minWidth: 0 } : { width, minWidth: width }} />
+  );
+  // A panel left out of the layout but opened anyway (its toolbar button, the
+  // View menu) shows at the end of the right dock rather than nowhere.
+  let renderLayout = workspaceLayout;
+  if (dockLayout) {
+    for (const panel of workspaceLayout.hidden) {
+      if (dockPanels[panel]?.open) renderLayout = movePanelToNewGroup(renderLayout, panel, 'end');
+    }
+  }
+  // The add-on strip shows whenever an add-on has a panel, so it alone does
+  // not count as an open dock (it brings its own resize handle).
+  const dockHasContent = (dock: 'start' | 'end' | 'bottom') =>
+    dockLayout && visibleGroups(renderLayout, dock, (panel) => panel !== 'add-ons' && !!dockPanels[panel]?.open).length > 0;
+  const startDockVisible = dockHasContent('start');
+  const endDockVisible = dockHasContent('end');
+  const bottomDockVisible = dockHasContent('bottom')
+    // Table Read alone sizes itself, as it always has.
+    && renderLayout.docks.bottom.some((id) => renderLayout.groups[id]?.panels.some((p) => p !== 'table-read' && dockPanels[p]?.open));
+
 
   // Show loading screen while collab session is being set up
   if (collabLoading) {
@@ -5877,16 +5975,34 @@ const ScreenplayEditor: React.FC = () => {
       <div className="fold-panel-home" ref={scribbleHome} />
       {!isHistoryMode && <MenuBar editor={editor} onDocumentSaved={handleDocumentSaved} onCollaborate={handleCollaborate} onJoinCollab={openJoinCollab} isCollabActive={collabMode} isCollabGuest={collabMode && !isCollabHost} canEditDocumentFormat={!collabMode || collabRole === 'editor'} />}
       {!isHistoryMode && <Toolbar editor={editor} />}
+      {!isHistoryMode && <LayoutDialog />}
       <div className={`editor-layout${foldDock ? ' fold-layout' : ''}${foldNavigationClass}`} style={{ '--fold-nav-width': `${FOLD_NAV_WIDTH}px` } as React.CSSProperties}>
-        {!isHistoryMode && <SceneNavigator editor={editor} scrollContainer={editorMainEl} style={navStyle} />}
-        {!isHistoryMode && navigatorOpen && (
-          <div className="panel-resize-handle" role="separator" aria-orientation="vertical" tabIndex={0}
-            aria-label={tg('menu:pluginPanels.resize')} aria-valuenow={navWidth} aria-valuemin={160} aria-valuemax={500}
-            onKeyDown={event => {
-              const next = panelResize(navWidth, event.key, 'left', getComputedStyle(event.currentTarget).direction === 'rtl');
-              if (next !== null) { event.preventDefault(); setNavWidth(next); }
-            }}
-            onPointerDown={(e) => handleResizePointerDown('left', e)} style={{ touchAction: 'none' }} />
+        {dockLayout ? (
+          <>
+            <WorkspaceDock dock="start" layout={renderLayout} panels={dockPanels} renderNavigator={renderDockNavigator} width={navWidth} />
+            {startDockVisible && (
+              <div className="panel-resize-handle" role="separator" aria-orientation="vertical" tabIndex={0}
+                aria-label={tg('menu:pluginPanels.resize')} aria-valuenow={navWidth} aria-valuemin={160} aria-valuemax={500}
+                onKeyDown={event => {
+                  const next = panelResize(navWidth, event.key, 'left', getComputedStyle(event.currentTarget).direction === 'rtl');
+                  if (next !== null) { event.preventDefault(); setNavWidth(Math.max(160, Math.min(500, next))); }
+                }}
+                onPointerDown={(e) => handleResizePointerDown('left', e)} style={{ touchAction: 'none' }} />
+            )}
+          </>
+        ) : (
+          <>
+            {!isHistoryMode && <SceneNavigator editor={editor} scrollContainer={editorMainEl} style={navStyle} />}
+            {!isHistoryMode && navigatorOpen && (
+              <div className="panel-resize-handle" role="separator" aria-orientation="vertical" tabIndex={0}
+                aria-label={tg('menu:pluginPanels.resize')} aria-valuenow={navWidth} aria-valuemin={160} aria-valuemax={500}
+                onKeyDown={event => {
+                  const next = panelResize(navWidth, event.key, 'left', getComputedStyle(event.currentTarget).direction === 'rtl');
+                  if (next !== null) { event.preventDefault(); setNavWidth(next); }
+                }}
+                onPointerDown={(e) => handleResizePointerDown('left', e)} style={{ touchAction: 'none' }} />
+            )}
+          </>
         )}
         <div className="editor-center">
           {!isHistoryMode && <IndexCards editor={editor} scrollContainer={editorMainEl} />}
@@ -6127,33 +6243,68 @@ const ScreenplayEditor: React.FC = () => {
             <StoryTimeline editor={editor} docked={foldDock} onClose={() => useEditorStore.getState().setStoryTimelineOpen(false)} />
           )}
           <div className="fold-panel-home" ref={tableReadHome} />
+          {dockLayout && bottomDockVisible && (
+            <div className="panel-resize-handle panel-resize-handle-row" role="separator" aria-orientation="horizontal" tabIndex={0}
+              aria-label={tg('menu:pluginPanels.resize')} aria-valuenow={bottomDockHeight} aria-valuemin={120}
+              onKeyDown={event => {
+                const step = event.key === 'ArrowUp' ? 20 : event.key === 'ArrowDown' ? -20 : 0;
+                if (!step) return;
+                event.preventDefault();
+                setBottomDockHeight((h) => Math.max(120, Math.min(Math.round(window.innerHeight * 0.7), h + step)));
+              }}
+              onPointerDown={handleBottomResizePointerDown} style={{ touchAction: 'none' }} />
+          )}
+          {dockLayout && <WorkspaceDock dock="bottom" layout={renderLayout} panels={dockPanels} renderNavigator={renderDockNavigator} height={bottomDockHeight} />}
         </div>
-        {!isHistoryMode && rightPanelVisible && (
-          <div className="panel-resize-handle" role="separator" aria-orientation="vertical" tabIndex={0}
-            aria-label={tg('menu:pluginPanels.resize')} aria-valuenow={rightPanelWidth} aria-valuemin={200} aria-valuemax={600}
-            onKeyDown={event => {
-              const next = panelResize(rightPanelWidth, event.key, 'right', getComputedStyle(event.currentTarget).direction === 'rtl');
-              if (next !== null) { event.preventDefault(); setRightPanelWidth(Math.max(200, Math.min(600, next))); }
-            }}
-            onPointerDown={(e) => handleResizePointerDown('right', e)} style={{ touchAction: 'none' }} />
-        )}
-        <FoldablePanelDock active={!isHistoryMode && foldDock} panels={[
-          ...(!isHistoryMode ? [
-            { id: 'notes', label: tg('menu:view.notesPanel'), open: scriptNotesOpen, content: <ScriptNotes editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} /> },
-            { id: 'characters', label: tg('menu:view.characters'), open: characterProfilesOpen, content: <CharacterProfiles editor={editor} projectId={currentProject?.id || ''} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} /> },
-            { id: 'tags', label: tg('menu:view.tags'), open: tagsPanelOpen, content: <TagsPanel editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} /> },
-            { id: 'locations', label: tg('menu:view.locations'), open: locationDatabaseOpen, content: <LocationDatabase editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} /> },
-            { id: 'tuner', label: tg('menu:view.dialogueTuner'), open: dialogueTunerOpen, content: <DialogueTuner editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} /> },
-            { id: 'suggestions', label: tg('menu:view.suggestions'), open: suggestionsPanelOpen, content: <SuggestionsPanel editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} /> },
-            { id: 'plugin', label: foldPlugin?.label ?? tg('menu:pluginPanels.tabs'), open: !!foldPlugin, activationKey: foldPlugin?.activation, keepHomeWhenClosed: true,
-              content: <PluginPanelTabs editor={editor} width={rightPanelWidth} onResizeKeyboard={setRightPanelWidth} onActiveChange={setFoldPlugin} onResizePointerDown={(e) => handleResizePointerDown('right', e)} /> },
-            { id: 'table-read', label: tg('menu:tools.tableRead'), open: tableReadOpen && !statisticsOpen && !beatBoardOpen, home: tableReadHome,
-              content: tableReadOpen && editor && !statisticsOpen && !beatBoardOpen ? <TableReadPanel editor={editor} /> : null },
-          ] : []),
+        {dockLayout ? (
+          <>
+            {endDockVisible && (
+              <div className="panel-resize-handle" role="separator" aria-orientation="vertical" tabIndex={0}
+                aria-label={tg('menu:pluginPanels.resize')} aria-valuenow={rightPanelWidth} aria-valuemin={200} aria-valuemax={600}
+                onKeyDown={event => {
+                  const next = panelResize(rightPanelWidth, event.key, 'right', getComputedStyle(event.currentTarget).direction === 'rtl');
+                  if (next !== null) { event.preventDefault(); setRightPanelWidth(Math.max(200, Math.min(600, next))); }
+                }}
+                onPointerDown={(e) => handleResizePointerDown('right', e)} style={{ touchAction: 'none' }} />
+            )}
+            <WorkspaceDock dock="end" layout={renderLayout} panels={dockPanels} renderNavigator={renderDockNavigator} width={rightPanelWidth} />
+            {/* The writing pad floats; it is not a dock panel. */}
+            <FoldablePanelDock active={false} panels={[
           { id: 'handwriting', label: tg('editor:scribble.title'), open: scribbleOpen, dock: scribbleDocked, activationKey: scribbleActivation,
             home: scribbleHome, keepHomeWhenClosed: true,
             content: scribbleOpen && editor ? <ScribbleInput editor={editor} docked={scribbleDocked} viewportConstrained={padPosture && !padCanDock} onClose={() => setScribbleOpen(false)} /> : null },
-        ]} />
+            ]} />
+          </>
+        ) : (
+          <>
+          {!isHistoryMode && rightPanelVisible && (
+            <div className="panel-resize-handle" role="separator" aria-orientation="vertical" tabIndex={0}
+              aria-label={tg('menu:pluginPanels.resize')} aria-valuenow={rightPanelWidth} aria-valuemin={200} aria-valuemax={600}
+              onKeyDown={event => {
+                const next = panelResize(rightPanelWidth, event.key, 'right', getComputedStyle(event.currentTarget).direction === 'rtl');
+                if (next !== null) { event.preventDefault(); setRightPanelWidth(Math.max(200, Math.min(600, next))); }
+              }}
+              onPointerDown={(e) => handleResizePointerDown('right', e)} style={{ touchAction: 'none' }} />
+          )}
+          <FoldablePanelDock active={!isHistoryMode && foldDock} panels={[
+            ...(!isHistoryMode ? [
+              { id: 'notes', label: tg('menu:view.notesPanel'), open: scriptNotesOpen, content: <ScriptNotes editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} /> },
+              { id: 'characters', label: tg('menu:view.characters'), open: characterProfilesOpen, content: <CharacterProfiles editor={editor} projectId={currentProject?.id || ''} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} /> },
+              { id: 'tags', label: tg('menu:view.tags'), open: tagsPanelOpen, content: <TagsPanel editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} /> },
+              { id: 'locations', label: tg('menu:view.locations'), open: locationDatabaseOpen, content: <LocationDatabase editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} /> },
+              { id: 'tuner', label: tg('menu:view.dialogueTuner'), open: dialogueTunerOpen, content: <DialogueTuner editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} /> },
+              { id: 'suggestions', label: tg('menu:view.suggestions'), open: suggestionsPanelOpen, content: <SuggestionsPanel editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} /> },
+              { id: 'plugin', label: foldPlugin?.label ?? tg('menu:pluginPanels.tabs'), open: !!foldPlugin, activationKey: foldPlugin?.activation, keepHomeWhenClosed: true,
+                content: <PluginPanelTabs editor={editor} width={rightPanelWidth} onResizeKeyboard={setRightPanelWidth} onActiveChange={setFoldPlugin} onResizePointerDown={(e) => handleResizePointerDown('right', e)} /> },
+              { id: 'table-read', label: tg('menu:tools.tableRead'), open: tableReadOpen && !statisticsOpen && !beatBoardOpen, home: tableReadHome,
+                content: tableReadOpen && editor && !statisticsOpen && !beatBoardOpen ? <TableReadPanel editor={editor} /> : null },
+            ] : []),
+            { id: 'handwriting', label: tg('editor:scribble.title'), open: scribbleOpen, dock: scribbleDocked, activationKey: scribbleActivation,
+              home: scribbleHome, keepHomeWhenClosed: true,
+              content: scribbleOpen && editor ? <ScribbleInput editor={editor} docked={scribbleDocked} viewportConstrained={padPosture && !padCanDock} onClose={() => setScribbleOpen(false)} /> : null },
+          ]} />
+          </>
+        )}
 
       </div>
       {!isHistoryMode && (

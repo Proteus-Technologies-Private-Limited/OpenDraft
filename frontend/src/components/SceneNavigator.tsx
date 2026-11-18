@@ -29,13 +29,25 @@ import { goToBookmark, removeBookmark } from './bookmarkActions';
 import { elementLabel } from '../editor/elementLabels';
 import { docJSON, useSettledEditorDoc } from '../hooks/useEditorTransactions';
 
+type NavTab = 'scenes' | 'pages' | 'locations' | 'structure' | 'bookmarks';
+const ALL_TABS: NavTab[] = ['scenes', 'pages', 'locations', 'structure', 'bookmarks'];
+
 interface SceneNavigatorProps {
   editor: Editor | null;
   scrollContainer?: HTMLDivElement | null;
   style?: React.CSSProperties;
+  /**
+   * The Navigator panels this copy shows (Layout › Panels). Each panel can be
+   * placed on its own, so a dock may hold some of them and another dock the
+   * rest. Unset: all five, as the Navigator has always been.
+   */
+  tabs?: NavTab[];
+  /** The tab to show, when the dock keeps track of it. */
+  activeTab?: NavTab;
+  onTabChange?: (tab: NavTab) => void;
+  /** A panel inside a group with other panels: the group's tab strip names it. */
+  bare?: boolean;
 }
-
-type NavTab = 'scenes' | 'pages' | 'locations' | 'structure' | 'bookmarks';
 
 // ── Scene heading parser ────────────────────────────────────────────────
 
@@ -322,7 +334,7 @@ const SectionOutline: React.FC<SectionOutlineProps> = ({
 
 // ── Main component ──────────────────────────────────────────────────────
 
-const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer, style }) => {
+const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer, style, tabs, activeTab: shownTab, onTabChange, bare = false }) => {
   const { t } = useTranslation(['story', 'common']);
   const { scenes, navigatorOpen, toggleNavigator, updateSceneSynopsis, updateSceneColor, pageLabels } = useEditorFields('scenes', 'navigatorOpen', 'toggleNavigator', 'updateSceneSynopsis', 'updateSceneColor', 'pageLabels');
   const { shouldRender, animationState } = useDelayedUnmount(navigatorOpen, 250);
@@ -335,7 +347,12 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
   const plotlines = useEditorStore((s) => s.plotlines);
   const fontFamily = useEditorStore((s) => s.fontFamily);
   const fontSize = useEditorStore((s) => s.fontSize);
-  const [activeTab, setActiveTab] = useState<NavTab>('scenes');
+  const visibleTabs = tabs && tabs.length > 0 ? tabs : ALL_TABS;
+  const [ownTab, setOwnTab] = useState<NavTab>(visibleTabs[0]);
+  const activeTab: NavTab = shownTab && visibleTabs.includes(shownTab)
+    ? shownTab
+    : visibleTabs.includes(ownTab) ? ownTab : visibleTabs[0];
+  const setActiveTab = (tab: NavTab) => { setOwnTab(tab); onTabChange?.(tab); };
   const [expandedLocation, setExpandedLocation] = useState<string | null>(null);
   const [renamingLocation, setRenamingLocation] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
@@ -931,18 +948,18 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
 
   return (
     <>
-    <div ref={navPanelRef} className={`scene-navigator ${panelClass} nav-heading-font-${headingFont}`} style={style}>
+    <div ref={navPanelRef} className={`scene-navigator ${panelClass} nav-heading-font-${headingFont}${bare ? ' scene-navigator-bare' : ''}`} style={style}>
       {/* Tab bar — horizontally scrollable tab strip + pinned close button */}
+      {!bare && (
       <div className="navigator-tabs">
         <div className="navigator-tabs-scroll">
-          <button className={`navigator-tab${activeTab === 'scenes' ? ' active' : ''}`} onClick={() => setActiveTab('scenes')}>{t('navigator.tabs.scenes')}</button>
-          <button className={`navigator-tab${activeTab === 'pages' ? ' active' : ''}`} onClick={() => setActiveTab('pages')}>{t('navigator.tabs.pages')}</button>
-          <button className={`navigator-tab${activeTab === 'locations' ? ' active' : ''}`} onClick={() => setActiveTab('locations')}>{t('navigator.tabs.locations')}</button>
-          <button className={`navigator-tab${activeTab === 'structure' ? ' active' : ''}`} onClick={() => setActiveTab('structure')}>{t('navigator.tabs.structure')}</button>
-          <button className={`navigator-tab${activeTab === 'bookmarks' ? ' active' : ''}`} onClick={() => setActiveTab('bookmarks')}>{t('navigator.tabs.bookmarks')}</button>
+          {visibleTabs.map((tab) => (
+            <button key={tab} className={`navigator-tab${activeTab === tab ? ' active' : ''}`} onClick={() => setActiveTab(tab)}>{t(`navigator.tabs.${tab}`)}</button>
+          ))}
         </div>
         <button className="navigator-close" onClick={toggleNavigator} title={t('navigator.close')}>×</button>
       </div>
+      )}
 
       {/* ── Scenes tab ───────────────────────────────────────────────── */}
       {activeTab === 'scenes' && (

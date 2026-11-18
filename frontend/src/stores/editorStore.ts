@@ -17,6 +17,22 @@ import {
   type FootnoteMarkerStyle,
 } from '../utils/noteNumbering';
 import { normalizeNoteThread, type NoteThread } from '../utils/noteThreads';
+import {
+  defaultToolbarLayout,
+  findToolbarPreset,
+  normaliseSavedToolbarLayouts,
+  normaliseToolbarLayout,
+  type SavedToolbarLayout,
+  type ToolbarLayoutState,
+} from '../utils/toolbarLayout';
+import {
+  isWorkspacePreset,
+  normaliseSavedWorkspaceLayouts,
+  normaliseWorkspaceLayout,
+  workspacePreset,
+  type SavedWorkspaceLayout,
+  type WorkspaceLayout,
+} from '../utils/workspaceLayout';
 import { useSettingsStore } from './settingsStore';
 import { t } from '../i18n';
 
@@ -42,6 +58,20 @@ interface ViewState extends PosturePreferences {
   phoneZoomLevel?: number;
   viewLayout?: ViewLayout;
   toolbarMode?: 'compact' | 'comfortable' | 'hidden';
+  /** The toolbar's and footer's controls, sides and labels (toolbarLayout.ts). */
+  toolbarLayout?: ToolbarLayoutState;
+  /** PR #217's single list of toolbar controls, read once into toolbarLayout. */
+  toolbarItems?: string[];
+  /** The preset the bars came from, a saved layout's id, or 'custom'. */
+  toolbarPreset?: string;
+  /** Toolbar layouts the writer saved under their own names. */
+  toolbarLayouts?: SavedToolbarLayout[];
+  /** Where every panel goes (workspaceLayout.ts). */
+  workspaceLayout?: WorkspaceLayout;
+  /** The layout preset, a saved layout's id, or 'custom'. */
+  workspacePreset?: string;
+  /** Workspace layouts the writer saved under their own names. */
+  workspaceLayouts?: SavedWorkspaceLayout[];
   focusTypewriter?: boolean;
   focusDim?: 'off' | 'element' | 'scene';
   characterSortBy?: 'name' | 'importance' | 'scenes' | 'dialogues' | 'appearance';
@@ -90,6 +120,11 @@ function saveViewState(patch: Partial<ViewState>) {
   } catch { /* localStorage unavailable */ }
 }
 const _vs = loadViewState();
+
+/** A deep copy of plain saved data, so a stored layout never shares arrays with the live one. */
+function structuredCloneSafe<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
 
 /**
  * How tight the chrome is before the writer says otherwise.
@@ -1056,6 +1091,34 @@ interface EditorState {
   // Toolbar display mode
   toolbarMode: 'compact' | 'comfortable' | 'hidden';
   setToolbarMode: (mode: 'compact' | 'comfortable' | 'hidden') => void;
+  /** The toolbar's and footer's controls. Saved on this device, like the mode. */
+  toolbarLayout: ToolbarLayoutState;
+  /** Any edit to the bars: the preset becomes 'custom'. */
+  setToolbarLayout: (layout: ToolbarLayoutState) => void;
+  /** Lay the bars out as a built-in preset, keeping each control's settings. */
+  applyToolbarPreset: (preset: string) => void;
+  toolbarPreset: string;
+  savedToolbarLayouts: SavedToolbarLayout[];
+  /** Save the current bars under a name; returns its id, or null for a blank name. */
+  saveToolbarLayout: (label: string) => string | null;
+  applySavedToolbarLayout: (id: string) => void;
+  deleteSavedToolbarLayout: (id: string) => void;
+  /** Where every panel goes: docks, groups and the panels left out. */
+  workspaceLayout: WorkspaceLayout;
+  setWorkspaceLayout: (layout: WorkspaceLayout) => void;
+  /** 'classic', another built-in preset, a saved layout's id, or 'custom'. */
+  workspacePreset: string;
+  /** Switch to a built-in preset or a saved layout. */
+  applyWorkspacePreset: (id: string) => void;
+  savedWorkspaceLayouts: SavedWorkspaceLayout[];
+  saveWorkspaceLayout: (label: string) => string | null;
+  deleteSavedWorkspaceLayout: (id: string) => void;
+  /** The tab each dock group shows. Not saved: groups open on their first tab. */
+  dockActive: Record<string, string>;
+  setDockActive: (groupId: string, panel: string) => void;
+  /** View → Layout…: which tab of the Layout dialog is open, if it is. */
+  layoutDialog: null | 'panels' | 'toolbar';
+  setLayoutDialog: (tab: null | 'panels' | 'toolbar') => void;
   /**
    * View → Focus Mode: full screen, menus and panels out of the way. Not
    * saved — every launch starts with the normal window. Its two options are.
@@ -1834,6 +1897,80 @@ export const useEditorStore = create<EditorState>()(skipUnchanged((set, get) => 
       ? { byPosture: savePostureChoice(loadViewState(), key, { toolbarMode: mode }) }
       : { toolbarMode: mode });
   },
+  toolbarLayout: normaliseToolbarLayout(_vs.toolbarLayout, _vs.toolbarItems),
+  setToolbarLayout: (layout) => {
+    set({ toolbarLayout: layout, toolbarPreset: 'custom' });
+    saveViewState({ toolbarLayout: layout, toolbarPreset: 'custom' });
+  },
+  applyToolbarPreset: (preset) => {
+    const found = findToolbarPreset(preset);
+    if (!found) return;
+    // The default preset is today's bars exactly, labels and sides included.
+    const layout: ToolbarLayoutState = found.id === 'default'
+      ? defaultToolbarLayout()
+      : { ...get().toolbarLayout, bars: { top: [...found.bars.top], bottom: [...found.bars.bottom] } };
+    set({ toolbarLayout: layout, toolbarPreset: found.id });
+    saveViewState({ toolbarLayout: layout, toolbarPreset: found.id });
+  },
+  // An unset preset means the writer has never arranged the bars.
+  toolbarPreset: _vs.toolbarPreset ?? 'default',
+  savedToolbarLayouts: normaliseSavedToolbarLayouts(_vs.toolbarLayouts),
+  saveToolbarLayout: (label) => {
+    const clean = label.trim().slice(0, 40);
+    if (!clean) return null;
+    const id = `toolbar-${uuid()}`;
+    const current = get().toolbarLayout;
+    const layouts = [...get().savedToolbarLayouts, { id, label: clean, ...structuredCloneSafe(current) }];
+    set({ savedToolbarLayouts: layouts, toolbarPreset: id });
+    saveViewState({ toolbarLayouts: layouts, toolbarPreset: id });
+    return id;
+  },
+  applySavedToolbarLayout: (id) => {
+    const saved = get().savedToolbarLayouts.find((entry) => entry.id === id);
+    if (!saved) return;
+    const layout: ToolbarLayoutState = structuredCloneSafe({ bars: saved.bars, options: saved.options, labels: saved.labels });
+    set({ toolbarLayout: layout, toolbarPreset: id });
+    saveViewState({ toolbarLayout: layout, toolbarPreset: id });
+  },
+  deleteSavedToolbarLayout: (id) => {
+    const layouts = get().savedToolbarLayouts.filter((entry) => entry.id !== id);
+    const preset = get().toolbarPreset === id ? 'custom' : get().toolbarPreset;
+    set({ savedToolbarLayouts: layouts, toolbarPreset: preset });
+    saveViewState({ toolbarLayouts: layouts, toolbarPreset: preset });
+  },
+  workspaceLayout: normaliseWorkspaceLayout(_vs.workspaceLayout),
+  setWorkspaceLayout: (layout) => {
+    set({ workspaceLayout: layout, workspacePreset: 'custom' });
+    saveViewState({ workspaceLayout: layout, workspacePreset: 'custom' });
+  },
+  workspacePreset: _vs.workspacePreset ?? 'classic',
+  applyWorkspacePreset: (id) => {
+    const saved = get().savedWorkspaceLayouts.find((entry) => entry.id === id);
+    const layout = isWorkspacePreset(id) ? workspacePreset(id) : saved ? structuredCloneSafe(saved.layout) : null;
+    if (!layout) return;
+    set({ workspaceLayout: layout, workspacePreset: id, dockActive: {} });
+    saveViewState({ workspaceLayout: layout, workspacePreset: id });
+  },
+  savedWorkspaceLayouts: normaliseSavedWorkspaceLayouts(_vs.workspaceLayouts),
+  saveWorkspaceLayout: (label) => {
+    const clean = label.trim().slice(0, 40);
+    if (!clean) return null;
+    const id = `layout-${uuid()}`;
+    const layouts = [...get().savedWorkspaceLayouts, { id, label: clean, layout: structuredCloneSafe(get().workspaceLayout) }];
+    set({ savedWorkspaceLayouts: layouts, workspacePreset: id });
+    saveViewState({ workspaceLayouts: layouts, workspacePreset: id });
+    return id;
+  },
+  deleteSavedWorkspaceLayout: (id) => {
+    const layouts = get().savedWorkspaceLayouts.filter((entry) => entry.id !== id);
+    const preset = get().workspacePreset === id ? 'custom' : get().workspacePreset;
+    set({ savedWorkspaceLayouts: layouts, workspacePreset: preset });
+    saveViewState({ workspaceLayouts: layouts, workspacePreset: preset });
+  },
+  dockActive: {},
+  setDockActive: (groupId, panel) => set((s) => (s.dockActive[groupId] === panel ? {} : { dockActive: { ...s.dockActive, [groupId]: panel } })),
+  layoutDialog: null,
+  setLayoutDialog: (tab) => set({ layoutDialog: tab }),
   focusMode: false,
   setFocusMode: (on) => set({ focusMode: on }),
   focusTypewriter: _vs.focusTypewriter ?? true,

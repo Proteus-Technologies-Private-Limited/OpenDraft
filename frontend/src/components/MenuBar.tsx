@@ -28,6 +28,8 @@ import { insertMacro } from './macroActions';
 import { addScriptNoteAtSelection } from '../utils/addScriptNote';
 import { FOCUS_MODE_SHORTCUT } from '../editor/extensions/FocusMode';
 import { showToast } from './Toast';
+import { APP_COMMAND_EVENT, type AppCommand } from '../utils/appCommands';
+import { WORKSPACE_PRESET_IDS } from '../utils/workspaceLayout';
 import { useFoldState } from '../hooks/useFoldState';
 import { statusColumnX, useFoldedMenuPosition } from '../hooks/useFoldedMenuPosition';
 import { formatFileFailure } from '../services/fileDiagnostics';
@@ -246,6 +248,7 @@ import {
   FaUserEdit,
   FaTrashAlt,
   FaTextHeight,
+  FaThLarge,
 } from 'react-icons/fa';
 import { REVISION_COLORS, nextRevisionColor } from '../editor/revisionColors';
 import RevisionSettingsDialog from './RevisionSettingsDialog';
@@ -641,6 +644,10 @@ const MenuBar: React.FC<MenuBarProps> = ({
   }, [editor, serializeForOrigin, buildSaveContent, onDocumentSaved]);
 
   // ── Save current editor content to backend ──
+  const {
+    workspacePreset, applyWorkspacePreset, savedWorkspaceLayouts, setLayoutDialog,
+  } = useEditorFields('workspacePreset', 'applyWorkspacePreset', 'savedWorkspaceLayouts', 'setLayoutDialog');
+
   const handleSave = useCallback(async () => {
     if (!editor) return;
 
@@ -2376,6 +2383,31 @@ const MenuBar: React.FC<MenuBarProps> = ({
     setPdfExportOpen(true);
   }, [editor]);
 
+  // The bars' file buttons run the menu handlers (PR #217), so those actions
+  // still go through the unsaved-changes guard, the file origin, the library
+  // and the collaboration-guest check the menu items have.
+  useEffect(() => {
+    const onCommand = (event: Event) => {
+      const command = (event as CustomEvent<AppCommand>).detail;
+      try {
+        switch (command) {
+          case 'new-script': if (!isCollabGuest) handleNewScreenplay(); break;
+          case 'import-script': if (!isCollabGuest) confirmOrRun(handleImport); break;
+          case 'save-script': if (!isCollabGuest) void handleSave(); break;
+          case 'export-pdf': handleExportPDF(); break;
+          case 'reports': setReportsOpen(true); break;
+          case 'title-page': useEditorStore.getState().setTitlePageEditorOpen(true); break;
+          default: console.warn('[MenuBar] unknown app command', command);
+        }
+      } catch (err) {
+        console.error('[MenuBar] app command failed', command, err);
+        showToast(err instanceof Error ? err.message : String(err), 'error');
+      }
+    };
+    window.addEventListener(APP_COMMAND_EVENT, onCommand);
+    return () => window.removeEventListener(APP_COMMAND_EVENT, onCommand);
+  }, [isCollabGuest, handleNewScreenplay, confirmOrRun, handleImport, handleSave, handleExportPDF]);
+
   const handleExportPDFWithChoice = useCallback(async (choice: PdfExportChoice) => {
     if (!editor) return;
     setPdfExportOpen(false);
@@ -3484,6 +3516,18 @@ const MenuBar: React.FC<MenuBarProps> = ({
           children: [
             { icon: <FaRegFileAlt />, ...check(viewLayout === 'page', t('menu:view.page'), true), action: () => setViewLayout('page') },
             { icon: <FaMobileAlt />, ...check(viewLayout === 'phone', t('menu:view.phone'), true), action: () => setViewLayout('phone') },
+            { separator: true, label: '' },
+            // Where the panels go (Layout › Panels): the built-in layouts and the writer's own.
+            ...WORKSPACE_PRESET_IDS.map((id) => ({
+              icon: <FaThLarge />, ...check(workspacePreset === id, t(`toolbar:layout.presets.${id}`), true),
+              action: () => applyWorkspacePreset(id),
+            })),
+            ...savedWorkspaceLayouts.map((saved) => ({
+              icon: <FaThLarge />, ...check(workspacePreset === saved.id, saved.label, true),
+              action: () => applyWorkspacePreset(saved.id),
+            })),
+            { separator: true, label: '' },
+            { icon: <FaThLarge />, label: t('toolbar:layout.editLayouts'), action: () => setLayoutDialog('panels') },
           ],
         },
         { separator: true, label: '' },
@@ -3519,6 +3563,8 @@ const MenuBar: React.FC<MenuBarProps> = ({
                 setShowHiddenModeIntro(true);
               }
             }},
+            { separator: true, label: '' },
+            { icon: <FaSlidersH />, label: t('toolbar:layout.customiseBars'), action: () => setLayoutDialog('toolbar') },
           ],
         },
         {

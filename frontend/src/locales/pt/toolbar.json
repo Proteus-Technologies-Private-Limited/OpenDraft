@@ -107,5 +107,302 @@
     "elementType": "Tipo de elemento",
     "elementTypeTitlePage": "Os elementos da página de rosto são definidos no editor de Página de rosto; a formatação deles fica no modelo",
     "titlePage": "Página de rosto"
+  },
+  "layout": {
+    "title": "Layout",
+    "tabs": {
+      "panels": "Painéis",
+      "toolbar": "Barra de ferramentas e de status"
+    },
+    "quickSwitch": "Troca rápida de layout",
+    "close": "Fechar",
+    "done": "Concluído",
+    "customiseBars": "Personalizar barra de ferramentas…",
+    "editLayouts": "Editar layouts…",
+    "presets": {
+      "classic": "Clássico",
+      "nav-end": "Navegador à direita",
+      "nav-bottom": "Navegador embaixo",
+      "split": "Navegador dividido",
+      "custom": "Personalizado"
+    },
+    "presetHints": {
+      "classic": "O layout de sempre",
+      "nav-end": "Todo o Navegador à direita",
+      "nav-bottom": "O Navegador abaixo da página",
+      "split": "Seus painéis distribuídos",
+      "saved": "Salvo neste dispositivo"
+    },
+    "docks": {
+      "left": "Esquerda",
+      "right": "Direita",
+      "bottom": "Embaixo",
+      "hidden": "Não posicionado"
+    },
+    "dockTitle": {
+      "left": "Área esquerda",
+      "right": "Área direita",
+      "bottom": "Área inferior"
+    },
+    "panelsTab": {
+      "presetsHeading": "Layouts predefinidos",
+      "savedHeading": "Salvos",
+      "saveAs": "Salvar layout atual como…",
+      "nameLabel": "Nome deste layout",
+      "save": "Salvar",
+      "cancel": "Cancelar",
+      "deleteNamed": "Excluir {{name}}",
+      "hintGroup": "Arraste o cabeçalho de um grupo para mover o grupo inteiro, como todo o Navegador.",
+      "hintPanel": "Arraste a aba de um painel para mover só esse painel.",
+      "writingArea": "Área de escrita",
+      "writingAreaHint": "Roteiro, Fichas, Quadro de beats e Escaleta se revezam aqui, pelo menu Visualizações. Os painéis ficam ao redor.",
+      "dropNewGroup": "Solte aqui para criar um grupo",
+      "dropGroup": "Solte o grupo aqui",
+      "emptyDock": "Vazia. Arraste um painel ou um grupo para cá.",
+      "newGroup": "+ Novo grupo",
+      "notPlacedHint": "Os painéis aqui ficam fora de Exibir › Painéis. Arraste um para uma área para trazê-lo de volta.",
+      "groupsArrange": "Grupos",
+      "arrangeRows": "Empilhados",
+      "arrangeColumns": "Lado a lado",
+      "selected": "Seleção",
+      "noSelection": "Escolha um painel ou um grupo para ver as opções. Tudo o que você pode arrastar também pode ser definido aqui, pelo teclado ou numa tela sensível ao toque.",
+      "opensIn": "Abre em",
+      "group": "Grupo",
+      "ownGroup": "Sozinho (novo grupo)",
+      "pullOut": "Tirar do grupo",
+      "dontPlace": "Não posicionar",
+      "groupName": "Nome do grupo",
+      "showAs": "Mostrar painéis como",
+      "tabs": "Abas",
+      "stacked": "Empilhados",
+      "panelsInGroup": "Painéis neste grupo",
+      "moveUp": "Mover {{name}} para cima",
+      "moveDown": "Mover {{name}} para baixo",
+      "ungroup": "Desagrupar",
+      "toolbarButton": "Botão da barra de ferramentas",
+      "toolbarButtonHint": "Abre {{name}} onde quer que esteja.",
+      "navigatorTag": "Navegador",
+      "addOnTag": "Complemento",
+      "reset": "Voltar ao Clássico",
+      "dragGroup": "Mover o grupo {{name}}",
+      "dragPanel": "Mover {{name}}",
+      "moveGroupTo": "Onde o grupo {{name}} abre",
+      "navigatorGroupName": "Navegador",
+      "tabCount_one": "{{count}} aba",
+      "tabCount_many": "{{count}} de abas",
+      "tabCount_other": "{{count}} abas",
+      "footerNote": "Salvo neste dispositivo. Nos celulares, os painéis abrem como folhas.",
+      "legendNavigator": "Painéis do Navegador",
+      "groupCount_one": "{{count}} grupo",
+      "groupCount_many": "{{count}} de grupos",
+      "groupCount_other": "{{count}} grupos",
+      "status": "{{preset}} · Painéis do Navegador: {{places}}"
+    },
+    "toolbarTab": {
+      "presetsHeading": "Barras predefinidas",
+      "saveAs": "Salvar como…",
+      "nameLabel": "Nome destas barras",
+      "toolbarShows": "A barra de ferramentas mostra",
+      "footerShows": "A barra de status mostra",
+      "preview": "Pré-visualização ao vivo",
+      "previewHint": "Tudo aqui funciona. Solte um controle em qualquer uma das barras para adicioná-lo.",
+      "onToolbar": "Barra de ferramentas",
+      "onFooter": "Barra de status",
+      "available": "Disponíveis",
+      "availableHint": "Arraste para uma barra ou adicione com os botões. Solte um controle aqui para removê-lo.",
+      "startSide": "Lado inicial",
+      "endSide": "Lado final",
+      "dropStart": "Soltar no lado inicial",
+      "dropEnd": "Soltar no lado final",
+      "count_one": "{{count}} controle",
+      "count_many": "{{count}} de controles",
+      "count_other": "{{count}} controles",
+      "addToToolbar": "Adicionar {{name}} à barra de ferramentas",
+      "addToFooter": "Adicionar {{name}} à barra de status",
+      "removeNamed": "Remover {{name}}",
+      "moveLeft": "Mover {{name}} para o início",
+      "moveRight": "Mover {{name}} para o fim",
+      "showAs": "Mostrar como",
+      "defaultMode": "Padrão ({{mode}})",
+      "placeOn": "Posicionar em",
+      "notPlaced": "Não posicionado",
+      "side": "Lado da barra",
+      "start": "Início",
+      "end": "Fim",
+      "zoomControl": "Controle de zoom",
+      "zoomButtons": "Botões",
+      "zoomSlider": "Controle deslizante",
+      "zoomBoth": "Controle deslizante com botões",
+      "zoomHint": "De 50% a 300%, em passos de 10. ⌘ + e ⌘ − continuam funcionando.",
+      "switcherStyle": "Estilo do seletor",
+      "menu": "Menu suspenso",
+      "buttons": "Botões",
+      "layoutsOffered": "Layouts oferecidos",
+      "editEntry": "Terminar com “Editar layouts…”",
+      "noHeadingHint": "“Sem título” mostra só a lista suspensa, porque o valor dela já diz o que ela é.",
+      "reset": "Voltar ao Padrão",
+      "foldNote": "Os controles que não cabem vão para o menu “…”, a partir do fim do lado inicial.",
+      "keepOne": "A barra de ferramentas mantém pelo menos um controle.",
+      "groups": {
+        "writing": "Escrita",
+        "document": "Documento",
+        "view": "Exibição e layout",
+        "panels": "Painéis",
+        "plugins": "Complementos"
+      },
+      "where": {
+        "top": "Na barra de ferramentas ({{side}})",
+        "bottom": "Na barra de status ({{side}})",
+        "none": "Não posicionado"
+      },
+      "removeFrom": {
+        "top": "Remover da barra de ferramentas",
+        "bottom": "Remover da barra de status"
+      }
+    },
+    "modes": {
+      "icon": "Ícone",
+      "text": "Texto",
+      "both": "Ícone + texto",
+      "none": "Sem título"
+    },
+    "toolbarPresets": {
+      "default": "Padrão",
+      "writing": "Escrita",
+      "review": "Revisão",
+      "everything": "Tudo"
+    },
+    "toolbarPresetHints": {
+      "default": "As duas barras exatamente como sempre foram.",
+      "writing": "Só os controles usados ao escrever, com o zoom na barra de status.",
+      "review": "Arquivos, visualizações, notas e o seletor de layout.",
+      "everything": "Todos os controles integrados."
+    },
+    "items": {
+      "undoRedo": {
+        "label": "Desfazer e refazer",
+        "description": "Desfaz e refaz as últimas alterações."
+      },
+      "element": {
+        "label": "Elemento",
+        "description": "O menu de elementos do roteiro."
+      },
+      "font": {
+        "label": "Fonte",
+        "description": "A fonte da seleção."
+      },
+      "fontSize": {
+        "label": "Tamanho da fonte",
+        "description": "O tamanho da seleção."
+      },
+      "format": {
+        "label": "Estilo do texto",
+        "description": "Negrito, itálico, sublinhado, cores e idioma."
+      },
+      "align": {
+        "label": "Alinhamento",
+        "description": "Texto à esquerda, centralizado, à direita e justificado."
+      },
+      "search": {
+        "label": "Localizar e ir para a página",
+        "description": "Pesquise no roteiro ou vá para uma página."
+      },
+      "notes": {
+        "label": "Notas e tags",
+        "description": "Notas do roteiro e tags de produção."
+      },
+      "document": {
+        "label": "Ações de arquivo",
+        "description": "Criar, importar, salvar e exportar o roteiro."
+      },
+      "titlePage": {
+        "label": "Página de rosto",
+        "description": "Abre o editor da página de rosto."
+      },
+      "production": {
+        "label": "Números de cena e relatórios",
+        "description": "Mostra os números de cena ou abre os Relatórios."
+      },
+      "views": {
+        "label": "Visualizações",
+        "description": "O layout da página, a tela cheia, os painéis e o layout do espaço de trabalho num só menu."
+      },
+      "layout": {
+        "label": "Layout",
+        "description": "Alterne entre layouts do espaço de trabalho com um clique."
+      },
+      "theme": {
+        "label": "Claro / Escuro",
+        "description": "Alterna entre os temas claro e escuro."
+      },
+      "zoom": {
+        "label": "Botões de zoom",
+        "description": "Reduzir zoom, o nível de zoom e aumentar zoom, ou um controle deslizante."
+      },
+      "statusZoom": {
+        "label": "Controle deslizante de zoom",
+        "description": "Zoom com controle deslizante, o nível e Ajustar à largura."
+      },
+      "navigator": {
+        "label": "Navegador",
+        "description": "Mostra ou oculta todos os painéis do Navegador, onde quer que estejam."
+      },
+      "panel": {
+        "description": "Abre {{panel}}, onde quer que esteja."
+      },
+      "plugin": {
+        "description": "Um controle de um complemento."
+      }
+    },
+    "labels": {
+      "undo": "Desfazer",
+      "redo": "Refazer",
+      "element": "Elemento",
+      "font": "Fonte",
+      "fontSize": "Tamanho",
+      "bold": "Negrito",
+      "italic": "Itálico",
+      "underline": "Sublinhado",
+      "strikethrough": "Tachado",
+      "subscript": "Subscrito",
+      "superscript": "Sobrescrito",
+      "textColor": "Cor do texto",
+      "highlight": "Destaque",
+      "alignLeft": "Esquerda",
+      "alignCenter": "Centro",
+      "alignRight": "Direita",
+      "justify": "Justificar",
+      "find": "Localizar",
+      "goToPage": "Ir para a página",
+      "notes": "Notas",
+      "tags": "Tags",
+      "new": "Novo",
+      "import": "Importar",
+      "save": "Salvar",
+      "exportPdf": "Exportar PDF",
+      "titlePage": "Página de rosto",
+      "sceneNumbers": "Números de cena",
+      "reports": "Relatórios",
+      "light": "Claro",
+      "dark": "Escuro",
+      "switchToLight": "Mudar para o tema claro",
+      "switchToDark": "Mudar para o tema escuro",
+      "navigator": "Navegador",
+      "zoomOut": "Reduzir zoom",
+      "zoomIn": "Aumentar zoom"
+    },
+    "views": {
+      "script": "Roteiro",
+      "view": "Exibir"
+    },
+    "panels": {
+      "locationDb": "Banco de dados de locações"
+    },
+    "dnd": {
+      "pickedUp": "{{name}} selecionado. Use as setas para mover, Espaço para soltar e Esc para cancelar.",
+      "over": "{{name}} está sobre {{target}}.",
+      "dropped": "{{name}} solto em {{target}}.",
+      "cancelled": "A movimentação de {{name}} foi cancelada."
+    }
   }
 }

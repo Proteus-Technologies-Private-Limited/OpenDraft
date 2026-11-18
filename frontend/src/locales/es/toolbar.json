@@ -107,5 +107,302 @@
     "elementType": "Tipo de elemento",
     "elementTypeTitlePage": "Los elementos de la portada se definen en el editor de portada; su formato está en la plantilla",
     "titlePage": "Portada"
+  },
+  "layout": {
+    "title": "Disposición",
+    "tabs": {
+      "panels": "Paneles",
+      "toolbar": "Barras de herramientas y de estado"
+    },
+    "quickSwitch": "Cambio rápido de disposición",
+    "close": "Cerrar",
+    "done": "Listo",
+    "customiseBars": "Personalizar la barra de herramientas…",
+    "editLayouts": "Editar disposiciones…",
+    "presets": {
+      "classic": "Clásica",
+      "nav-end": "Navegador a la derecha",
+      "nav-bottom": "Navegador abajo",
+      "split": "Navegador dividido",
+      "custom": "Personalizada"
+    },
+    "presetHints": {
+      "classic": "La disposición de siempre",
+      "nav-end": "Todo el Navegador a la derecha",
+      "nav-bottom": "El Navegador debajo de la página",
+      "split": "Sus paneles repartidos",
+      "saved": "Guardada en este dispositivo"
+    },
+    "docks": {
+      "left": "Izquierda",
+      "right": "Derecha",
+      "bottom": "Abajo",
+      "hidden": "Sin colocar"
+    },
+    "dockTitle": {
+      "left": "Zona izquierda",
+      "right": "Zona derecha",
+      "bottom": "Zona inferior"
+    },
+    "panelsTab": {
+      "presetsHeading": "Disposiciones predefinidas",
+      "savedHeading": "Guardadas",
+      "saveAs": "Guardar la disposición actual como…",
+      "nameLabel": "Nombre de esta disposición",
+      "save": "Guardar",
+      "cancel": "Cancelar",
+      "deleteNamed": "Eliminar {{name}}",
+      "hintGroup": "Arrastra el encabezado de un grupo para mover el grupo entero, como todo el Navegador.",
+      "hintPanel": "Arrastra la pestaña de un panel para mover solo ese panel.",
+      "writingArea": "Área de escritura",
+      "writingAreaHint": "Guion, Fichas, Tablero de beats y Esquema se turnan aquí, desde el menú Vistas. Los paneles se colocan a su alrededor.",
+      "dropNewGroup": "Suelta aquí para crear un grupo nuevo",
+      "dropGroup": "Suelta el grupo aquí",
+      "emptyDock": "Vacía. Arrastra aquí un panel o un grupo.",
+      "newGroup": "+ Grupo nuevo",
+      "notPlacedHint": "Los paneles de aquí quedan fuera de Ver › Paneles. Arrastra uno a una zona para recuperarlo.",
+      "groupsArrange": "Grupos",
+      "arrangeRows": "Apilados",
+      "arrangeColumns": "Lado a lado",
+      "selected": "Selección",
+      "noSelection": "Elige un panel o un grupo para ver sus opciones. Todo lo que puedes arrastrar también se puede configurar aquí, con el teclado o en una pantalla táctil.",
+      "opensIn": "Se abre en",
+      "group": "Grupo",
+      "ownGroup": "Por separado (grupo nuevo)",
+      "pullOut": "Sacar del grupo",
+      "dontPlace": "No colocar",
+      "groupName": "Nombre del grupo",
+      "showAs": "Mostrar los paneles como",
+      "tabs": "Pestañas",
+      "stacked": "Apilados",
+      "panelsInGroup": "Paneles de este grupo",
+      "moveUp": "Subir {{name}}",
+      "moveDown": "Bajar {{name}}",
+      "ungroup": "Desagrupar",
+      "toolbarButton": "Botón de la barra de herramientas",
+      "toolbarButtonHint": "Abre {{name}} esté donde esté.",
+      "navigatorTag": "Navegador",
+      "addOnTag": "Complemento",
+      "reset": "Restablecer a Clásica",
+      "dragGroup": "Mover el grupo {{name}}",
+      "dragPanel": "Mover {{name}}",
+      "moveGroupTo": "Dónde se abre el grupo {{name}}",
+      "navigatorGroupName": "Navegador",
+      "tabCount_one": "{{count}} pestaña",
+      "tabCount_many": "{{count}} de pestañas",
+      "tabCount_other": "{{count}} pestañas",
+      "footerNote": "Se guarda en este dispositivo. En los teléfonos, los paneles se abren como hojas.",
+      "legendNavigator": "Paneles del Navegador",
+      "groupCount_one": "{{count}} grupo",
+      "groupCount_many": "{{count}} de grupos",
+      "groupCount_other": "{{count}} grupos",
+      "status": "{{preset}} · Paneles del Navegador: {{places}}"
+    },
+    "toolbarTab": {
+      "presetsHeading": "Barras predefinidas",
+      "saveAs": "Guardar como…",
+      "nameLabel": "Nombre de estas barras",
+      "toolbarShows": "La barra de herramientas muestra",
+      "footerShows": "La barra de estado muestra",
+      "preview": "Vista previa en directo",
+      "previewHint": "Aquí todo funciona. Suelta un control en cualquiera de las barras para añadirlo.",
+      "onToolbar": "Barra de herramientas",
+      "onFooter": "Barra de estado",
+      "available": "Disponibles",
+      "availableHint": "Arrastra a una barra o añade con los botones. Suelta un control aquí para quitarlo.",
+      "startSide": "Lado inicial",
+      "endSide": "Lado final",
+      "dropStart": "Soltar en el lado inicial",
+      "dropEnd": "Soltar en el lado final",
+      "count_one": "{{count}} control",
+      "count_many": "{{count}} de controles",
+      "count_other": "{{count}} controles",
+      "addToToolbar": "Añadir {{name}} a la barra de herramientas",
+      "addToFooter": "Añadir {{name}} a la barra de estado",
+      "removeNamed": "Quitar {{name}}",
+      "moveLeft": "Mover {{name}} hacia el inicio",
+      "moveRight": "Mover {{name}} hacia el final",
+      "showAs": "Mostrar como",
+      "defaultMode": "Predeterminado ({{mode}})",
+      "placeOn": "Colocar en",
+      "notPlaced": "Sin colocar",
+      "side": "Lado de la barra",
+      "start": "Inicio",
+      "end": "Final",
+      "zoomControl": "Control del zoom",
+      "zoomButtons": "Botones",
+      "zoomSlider": "Control deslizante",
+      "zoomBoth": "Control deslizante con botones",
+      "zoomHint": "Del 50% al 300%, en pasos de 10. ⌘ + y ⌘ − siguen funcionando.",
+      "switcherStyle": "Estilo del selector",
+      "menu": "Menú",
+      "buttons": "Botones",
+      "layoutsOffered": "Disposiciones que ofrece",
+      "editEntry": "Terminar con «Editar disposiciones…»",
+      "noHeadingHint": "«Sin título» muestra solo el desplegable, porque su valor ya indica qué es.",
+      "reset": "Restablecer a Predeterminada",
+      "foldNote": "Los controles que no caben se pliegan en el menú «…», desde el final del lado inicial.",
+      "keepOne": "La barra de herramientas conserva al menos un control.",
+      "groups": {
+        "writing": "Escritura",
+        "document": "Documento",
+        "view": "Vista y disposición",
+        "panels": "Paneles",
+        "plugins": "Complementos"
+      },
+      "where": {
+        "top": "En la barra de herramientas ({{side}})",
+        "bottom": "En la barra de estado ({{side}})",
+        "none": "Sin colocar"
+      },
+      "removeFrom": {
+        "top": "Quitar de la barra de herramientas",
+        "bottom": "Quitar de la barra de estado"
+      }
+    },
+    "modes": {
+      "icon": "Icono",
+      "text": "Texto",
+      "both": "Icono + texto",
+      "none": "Sin título"
+    },
+    "toolbarPresets": {
+      "default": "Predeterminada",
+      "writing": "Escritura",
+      "review": "Revisión",
+      "everything": "Todo"
+    },
+    "toolbarPresetHints": {
+      "default": "Las dos barras exactamente como siempre.",
+      "writing": "Solo los controles que se usan al escribir, con el zoom en la barra de estado.",
+      "review": "Archivos, vistas, notas y el selector de disposición.",
+      "everything": "Todos los controles integrados."
+    },
+    "items": {
+      "undoRedo": {
+        "label": "Deshacer y rehacer",
+        "description": "Deshace y rehace los últimos cambios."
+      },
+      "element": {
+        "label": "Elemento",
+        "description": "El menú de elementos del guion."
+      },
+      "font": {
+        "label": "Fuente",
+        "description": "La tipografía de la selección."
+      },
+      "fontSize": {
+        "label": "Tamaño de fuente",
+        "description": "El tamaño de la selección."
+      },
+      "format": {
+        "label": "Estilo del texto",
+        "description": "Negrita, cursiva, subrayado, colores e idioma."
+      },
+      "align": {
+        "label": "Alineación",
+        "description": "Texto a la izquierda, centrado, a la derecha y justificado."
+      },
+      "search": {
+        "label": "Buscar e ir a la página",
+        "description": "Busca en el guion o salta a una página."
+      },
+      "notes": {
+        "label": "Notas y etiquetas",
+        "description": "Notas del guion y etiquetas de producción."
+      },
+      "document": {
+        "label": "Acciones de archivo",
+        "description": "Crea, importa, guarda y exporta el guion."
+      },
+      "titlePage": {
+        "label": "Portada",
+        "description": "Abre el editor de la portada."
+      },
+      "production": {
+        "label": "Números de escena e informes",
+        "description": "Muestra los números de escena o abre los Informes."
+      },
+      "views": {
+        "label": "Vistas",
+        "description": "El diseño de página, la pantalla completa, los paneles y la disposición del espacio de trabajo en un solo menú."
+      },
+      "layout": {
+        "label": "Disposición",
+        "description": "Cambia de disposición del espacio de trabajo con un clic."
+      },
+      "theme": {
+        "label": "Claro / Oscuro",
+        "description": "Cambia entre el tema claro y el oscuro."
+      },
+      "zoom": {
+        "label": "Botones de zoom",
+        "description": "Reducir, el nivel de zoom y ampliar, o un control deslizante."
+      },
+      "statusZoom": {
+        "label": "Control deslizante de zoom",
+        "description": "Zoom con un control deslizante, el nivel y Ajustar al ancho."
+      },
+      "navigator": {
+        "label": "Navegador",
+        "description": "Muestra u oculta todos los paneles del Navegador, estén donde estén."
+      },
+      "panel": {
+        "description": "Abre {{panel}}, esté donde esté."
+      },
+      "plugin": {
+        "description": "Un control de un complemento."
+      }
+    },
+    "labels": {
+      "undo": "Deshacer",
+      "redo": "Rehacer",
+      "element": "Elemento",
+      "font": "Fuente",
+      "fontSize": "Tamaño",
+      "bold": "Negrita",
+      "italic": "Cursiva",
+      "underline": "Subrayado",
+      "strikethrough": "Tachado",
+      "subscript": "Subíndice",
+      "superscript": "Superíndice",
+      "textColor": "Color del texto",
+      "highlight": "Resaltado",
+      "alignLeft": "Izquierda",
+      "alignCenter": "Centro",
+      "alignRight": "Derecha",
+      "justify": "Justificar",
+      "find": "Buscar",
+      "goToPage": "Ir a la página",
+      "notes": "Notas",
+      "tags": "Etiquetas",
+      "new": "Nuevo",
+      "import": "Importar",
+      "save": "Guardar",
+      "exportPdf": "Exportar PDF",
+      "titlePage": "Portada",
+      "sceneNumbers": "Números de escena",
+      "reports": "Informes",
+      "light": "Claro",
+      "dark": "Oscuro",
+      "switchToLight": "Cambiar al tema claro",
+      "switchToDark": "Cambiar al tema oscuro",
+      "navigator": "Navegador",
+      "zoomOut": "Reducir",
+      "zoomIn": "Ampliar"
+    },
+    "views": {
+      "script": "Guion",
+      "view": "Ver"
+    },
+    "panels": {
+      "locationDb": "Base de datos de localizaciones"
+    },
+    "dnd": {
+      "pickedUp": "Has tomado {{name}}. Usa las flechas para moverlo, Espacio para soltarlo y Escape para cancelar.",
+      "over": "{{name}} está sobre {{target}}.",
+      "dropped": "{{name}} se soltó en {{target}}.",
+      "cancelled": "Se canceló el movimiento de {{name}}."
+    }
   }
 }

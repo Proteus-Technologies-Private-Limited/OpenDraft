@@ -1,5 +1,5 @@
 import type { Editor, JSONContent } from '@tiptap/react';
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ELEMENT_LABELS, type BuiltInElementType, useEditorFields } from '../stores/editorStore';
 import { useProjectStore } from '../stores/projectStore';
@@ -12,6 +12,7 @@ import { countWords } from '../utils/writingGoals';
 import { jsonBlockText } from '../utils/nodeText';
 import { DEFAULT_PACING, pacingOption } from '../utils/scriptProfile';
 import WritingProgress from './WritingProgress';
+import { FooterControls } from './Toolbar';
 import { useSuggestModeStore } from '../stores/suggestModeStore';
 import { formatNumber } from '../i18n/format';
 import { elementLabel as translateElement } from '../editor/elementLabels';
@@ -158,6 +159,8 @@ const StatusBar: React.FC<StatusBarProps> = ({ editor, editorMain }) => {
   return (
     <div className="status-bar">
       <div className="status-left">
+        {/* Controls the writer placed on the footer's start side. */}
+        <FooterControls editor={editor} editorMain={editorMain ?? null} side="start" />
         {currentProject && (
           <span className="status-item status-project">{currentProject.name}</span>
         )}
@@ -241,119 +244,15 @@ const StatusBar: React.FC<StatusBarProps> = ({ editor, editorMain }) => {
             ? <>{t('status.page', { label: currentLabel })} <span className="status-locked" title={t('status.pagesLocked')}>{t('status.locked')}</span></>
             : t('status.pageOf', { current: currentPage, total: pageCount })}
         </span>
-        <StatusZoom editorMain={editorMain ?? null} pageWidthIn={pageLayout.pageWidth} />
+        {/* Controls the writer placed on the footer's end side (Layout › Toolbar & footer).
+            By default that is the zoom slider, with Fit width. */}
+        <FooterControls editor={editor} editorMain={editorMain ?? null} side="end" />
       </div>
     </div>
   );
 };
 
 export default StatusBar;
-
-/** Lowest and highest zoom the store accepts (stores/editorStore setZoomLevel). */
-const ZOOM_MIN = 50;
-const ZOOM_MAX = 300;
-const ZOOM_STEP = 10;
-/** Room left either side of the sheet when fitting it to the pane. */
-const FIT_GUTTER_PX = 32;
-
-/**
- * Zoom in the status bar, the way a word processor has it: out, a slider, the
- * percentage (click to type one), in, and Fit width.
- *
- * It drives the same `zoomLevel` the toolbar and View menu do, so the three
- * always agree, and the phone view keeps its own zoom as before because the
- * store files the value under the current layout.
- */
-function StatusZoom({ editorMain, pageWidthIn }: { editorMain: HTMLElement | null; pageWidthIn: number }) {
-  const { t } = useTranslation('toolbar');
-  const { zoomLevel, setZoomLevel } = useEditorFields('zoomLevel', 'setZoomLevel');
-  const [editing, setEditing] = useState(false);
-  // Only read while typing; seeded from the zoom each time editing starts.
-  const [draft, setDraft] = useState(String(zoomLevel));
-
-  const commit = useCallback(() => {
-    const value = parseInt(draft, 10);
-    if (Number.isFinite(value) && value >= ZOOM_MIN && value <= ZOOM_MAX) setZoomLevel(value);
-    else setDraft(String(zoomLevel));
-    setEditing(false);
-  }, [draft, zoomLevel, setZoomLevel]);
-
-  const fitWidth = useCallback(() => {
-    if (!editorMain) {
-      console.warn('[StatusBar] Fit width: the editor pane is not mounted');
-      return;
-    }
-    const pagePx = pageWidthIn * 96;
-    const room = editorMain.clientWidth - FIT_GUTTER_PX;
-    if (!(pagePx > 0) || !(room > 0)) {
-      console.warn('[StatusBar] Fit width: nothing to measure', { pagePx, room });
-      return;
-    }
-    setZoomLevel(Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, Math.floor((room / pagePx) * 100))));
-  }, [editorMain, pageWidthIn, setZoomLevel]);
-
-  return (
-    <span className="status-item status-zoom" role="group" aria-label={t('toolbar.zoom')}>
-      <button
-        type="button"
-        className="status-zoom-btn"
-        onClick={() => setZoomLevel(zoomLevel - ZOOM_STEP)}
-        disabled={zoomLevel <= ZOOM_MIN}
-        title={t('toolbar.zoomOut')}
-        aria-label={t('toolbar.zoomOut')}
-      >&minus;</button>
-      <input
-        type="range"
-        className="status-zoom-slider"
-        min={ZOOM_MIN}
-        max={ZOOM_MAX}
-        step={ZOOM_STEP}
-        value={zoomLevel}
-        onChange={(e) => setZoomLevel(Number(e.target.value))}
-        aria-label={t('toolbar.zoom')}
-        aria-valuetext={`${zoomLevel}%`}
-      />
-      <button
-        type="button"
-        className="status-zoom-btn"
-        onClick={() => setZoomLevel(zoomLevel + ZOOM_STEP)}
-        disabled={zoomLevel >= ZOOM_MAX}
-        title={t('toolbar.zoomIn')}
-        aria-label={t('toolbar.zoomIn')}
-      >+</button>
-      {editing ? (
-        <input
-          className="status-zoom-input"
-          value={draft}
-          autoFocus
-          inputMode="numeric"
-          aria-label={t('toolbar.zoom')}
-          onChange={(e) => setDraft(e.target.value.replace(/[^0-9]/g, ''))}
-          onBlur={commit}
-          onKeyDown={(e) => {
-            e.stopPropagation();
-            if (e.key === 'Enter') commit();
-            else if (e.key === 'Escape') { setDraft(String(zoomLevel)); setEditing(false); }
-          }}
-        />
-      ) : (
-        <button
-          type="button"
-          className="status-zoom-value"
-          onClick={() => { setDraft(String(zoomLevel)); setEditing(true); }}
-          title={t('toolbar.editZoom')}
-        >{zoomLevel}%</button>
-      )}
-      <button
-        type="button"
-        className="status-zoom-fit"
-        onClick={fitWidth}
-        disabled={!editorMain}
-        title={t('status.zoomFitWidthTitle')}
-      >{t('status.zoomFitWidth')}</button>
-    </span>
-  );
-}
 
 /** "Suggesting" while edits become suggestions; click to stop, unless a Suggest invite holds it on. */
 function SuggestingPill() {
