@@ -4526,6 +4526,11 @@ const MenuBar: React.FC<MenuBarProps> = ({
               <div className="about-section-title">What's New in 2.14.0</div>
               <div className="about-changelog">
               {/* i18n-ignore-start: release notes stay English in phase 1 */}
+              <div className="about-subsection-title">v2.14.1</div>
+              <ul className="about-list">
+                <li><strong>Menu Names Back on Phones</strong> &mdash; 2.14.0 showed only icons in the menu bar on phones, in both Compact and Comfortable. File, Edit, Format, View, Tools and Help are named again, and the bar scrolls sideways when they do not all fit, as before. A foldable opened like a book still shows icons only on the half beside the hinge, where there is no room for the names.</li>
+                <li><strong>Layout Choices Only Where They Apply</strong> &mdash; Panel layouts arrange the left, right and bottom docks, which a window only has when it is wider than 1100 pixels. On phones, narrower windows and foldables the panels open over the script instead, so a layout changed nothing there. <em>View &rarr; Layout</em>, the Views drop-down, the toolbar&rsquo;s right-click menu and the Layout dialog no longer offer them on those screens. The toolbar and footer can still be customised everywhere.</li>
+              </ul>
               <div className="about-subsection-title">v2.14.0</div>
               <ul className="about-list">
                 <li><strong>Arrange the Workspace Your Way</strong> &mdash; Every Navigator tab and tool panel can now sit in the left, right or bottom dock, as tabs or stacked, or be left out. The toolbar and the status bar take any control, shown as an icon, a name or both. Arrange it all by dragging in <em>View &rarr; Layout &rarr; Edit layouts&hellip;</em> (or right-click the toolbar), save the result as a named layout, and switch layouts in one click. <em>Today&rsquo;s layout</em> keeps things as they were (#273).</li>
