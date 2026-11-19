@@ -383,7 +383,6 @@
     },
     "title": "Cuenta y seguridad",
     "description": "Administra tu contraseña, tus dispositivos, la verificación en dos pasos y la eliminación de la cuenta.",
-    "open": "Abrir ajustes de la cuenta",
     "twoFactor": "Verificación en dos pasos",
     "twoFactorHint": "Si está activada, iniciar sesión desde un dispositivo nuevo requiere un código de 6 dígitos enviado a tu correo. Si está desactivada, solo recibirás un correo de aviso para que puedas detectar inicios de sesión no autorizados.",
     "smtpMissing": "El correo no está configurado en este servidor, así que no se pueden enviar códigos de verificación. La verificación en dos pasos no está disponible hasta que se configure SMTP.",
@@ -400,6 +399,24 @@
   "page": {
     "back": "Volver",
     "title": "Ajustes del sistema"
+  },
+  "nav": {
+    "label": "Secciones de ajustes",
+    "search": "Buscar ajustes",
+    "noMatch": "Ningún ajuste coincide con “{{query}}”.",
+    "general": "General",
+    "generalDesc": "El idioma y cómo responde el editor mientras escribes.",
+    "saving": "Guardado y copias de seguridad",
+    "savingDesc": "Cuándo se guarda tu trabajo, dónde van los proyectos nuevos y las copias de seguridad.",
+    "writing": "Herramientas de escritura",
+    "writingDesc": "Sugerencias de SmartType, macros y voces de la lectura de mesa.",
+    "export": "Impresión y exportación",
+    "exportDesc": "Cómo se imprime y se exporta tu guion.",
+    "account": "Cuenta y colaboración",
+    "accountDesc": "Inicio de sesión, seguridad y valores predeterminados de las invitaciones de colaboración.",
+    "advanced": "Avanzado",
+    "advancedDesc": "Direcciones de servidor, para instalaciones propias.",
+    "advancedNote": "Cambia esto solo si tienes tu propio servidor de OpenDraft."
   },
   "language": {
     "title": "Idioma",

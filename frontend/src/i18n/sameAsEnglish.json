@@ -20,6 +20,7 @@
   "projects:properties.field.director",
   "projects:properties.field.logline",
   "settings:macros.title",
+  "settings:nav.general",
   "story:beatBoard.beatCount_other",
   "story:beatBoard.color",
   "story:characters.field.color",

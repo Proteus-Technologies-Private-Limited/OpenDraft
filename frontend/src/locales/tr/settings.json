@@ -372,7 +372,6 @@
     },
     "title": "Hesap ve güvenlik",
     "description": "Parolanızı, cihazlarınızı, iki adımlı doğrulamayı ve hesap silmeyi yönetin.",
-    "open": "Hesap ayarlarını aç",
     "twoFactor": "İki adımlı doğrulama",
     "twoFactorHint": "Açıkken yeni bir cihazdan oturum açmak için e-postanıza gönderilen 6 haneli kod gerekir. Kapalıyken yalnızca yetkisiz oturum açmaları fark edebilmeniz için bir bilgilendirme e-postası alırsınız.",
     "smtpMissing": "Bu sunucuda e-posta yapılandırılmadığından doğrulama kodları gönderilemiyor. SMTP kurulana kadar iki adımlı doğrulama kullanılamaz.",
@@ -389,6 +388,24 @@
   "page": {
     "back": "Geri dön",
     "title": "Sistem ayarları"
+  },
+  "nav": {
+    "label": "Ayar bölümleri",
+    "search": "Ayarlarda ara",
+    "noMatch": "“{{query}}” ile eşleşen ayar yok.",
+    "general": "Genel",
+    "generalDesc": "Dil ve siz yazarken düzenleyicinin davranışı.",
+    "saving": "Kaydetme ve yedekler",
+    "savingDesc": "Çalışmanızın ne zaman kaydedileceği, yeni projelerin nereye gideceği ve yedek kopyalar.",
+    "writing": "Yazma araçları",
+    "writingDesc": "SmartType önerileri, makrolar ve masa okuması sesleri.",
+    "export": "Yazdırma ve dışa aktarma",
+    "exportDesc": "Senaryonuzun nasıl yazdırılıp dışa aktarılacağı.",
+    "account": "Hesap ve iş birliği",
+    "accountDesc": "Oturum açma, güvenlik ve iş birliği davetlerinin varsayılanları.",
+    "advanced": "Gelişmiş",
+    "advancedDesc": "Kendi sunucunuzu kullanan kurulumlar için sunucu adresleri.",
+    "advancedNote": "Bunları yalnızca kendi OpenDraft sunucunuzu çalıştırıyorsanız değiştirin."
   },
   "language": {
     "title": "Dil",

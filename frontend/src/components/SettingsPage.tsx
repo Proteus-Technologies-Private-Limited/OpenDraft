@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useGoBack } from '../hooks/useGoBack';
 import { useSettingsStore } from '../stores/settingsStore';
 import { collabAuthApi, handleAuthResponse, performLogout, isDeviceChallenge, isUnknownAccountError, useSigningOut } from '../services/collabAuth';
@@ -10,7 +11,7 @@ import { showToast } from './Toast';
 import { getApiBase } from '../config';
 import { getDeviceId } from '../services/deviceId';
 import BackupSettingsSection from './BackupSettingsSection';
-import AddOnsSettingsSection from './AddOnsSettingsSection';
+import AddOnsSettingsSection, { addOnName, useAddOns } from './AddOnsSettingsSection';
 import SaveSettingsSection from './SaveSettingsSection';
 import VoiceProviderSettings from './VoiceProviderSettings';
 import { isMacPlatform } from '../utils/shortcuts';
@@ -45,6 +46,35 @@ const FULL_DATE_TIME: Intl.DateTimeFormatOptions = {
 // The word the writer types to confirm deleting the account. The server checks for this exact value, so it is data and is never translated.
 const DELETE_WORD = 'DELETE';
 
+/**
+ * The page is split into these panes, picked from the sidebar. The pane is
+ * kept in the URL hash (/settings#saving) so a menu item can open the one it
+ * means, and Back still leaves Settings in one step (the hash is replaced, not
+ * pushed). The server addresses sit last, under Advanced: few writers ever
+ * change them.
+ */
+const PANES = ['general', 'saving', 'writing', 'export', 'account', 'addons', 'advanced'] as const;
+type Pane = (typeof PANES)[number];
+
+// Older links that named a part of a pane rather than the pane itself.
+const HASH_ALIASES: Record<string, Pane> = { macros: 'writing', smarttype: 'writing', backups: 'saving' };
+
+function paneFromHash(hash: string): Pane {
+  const id = hash.replace(/^#/, '').toLowerCase();
+  if ((PANES as readonly string[]).includes(id)) return id as Pane;
+  return HASH_ALIASES[id] ?? 'general';
+}
+
+const PANE_ICONS: Record<Pane, string> = {
+  general: 'M4 7h9m4 0h3M4 17h3m4 0h9M15 5v4M9 15v4',
+  saving: 'M5 4h11l3 3v13H5zM8 4v5h8V4M8 20v-6h8v6',
+  writing: 'M4 20h4L19 9l-4-4L4 16zM13 7l4 4',
+  export: 'M7 9V4h10v5M6 18H4v-7h16v7h-2M7 14h10v6H7z',
+  account: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 20c1.5-3.5 4.5-5 8-5s6.5 1.5 8 5',
+  addons: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM16.5 13v7M13 16.5h7',
+  advanced: 'M4 5h16v6H4zM4 13h16v6H4zM8 8h.01M8 16h.01',
+};
+
 const SettingsPage: React.FC = () => {
   const { t } = useTranslation(['settings', 'common']);
   const { preference: languagePreference, setLanguage } = useLanguage();
@@ -54,6 +84,12 @@ const SettingsPage: React.FC = () => {
       : o.unit === 'hours' ? t('invite.expiryHours', { count: o.count })
         : t('invite.expiryDays', { count: o.count });
   const goBack = useGoBack();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const pane = paneFromHash(location.hash);
+  const addOns = useAddOns();
+  const [search, setSearch] = useState('');
+  const paneRef = useRef<HTMLDivElement>(null);
   const {
     collabServerUrl, setCollabServerUrl,
     collabAuth, defaultInviteExpiry, setDefaultInviteExpiry,
@@ -123,7 +159,6 @@ const SettingsPage: React.FC = () => {
   const [verifyingDevice, setVerifyingDevice] = useState(false);
 
   // Account management state
-  const [showAccount, setShowAccount] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [newPasswordConfirm, setNewPasswordConfirm] = useState('');
@@ -133,6 +168,7 @@ const SettingsPage: React.FC = () => {
 
   const [devices, setDevices] = useState<DeviceRecord[] | null>(null);
   const [devicesLoading, setDevicesLoading] = useState(false);
+  const [devicesFailed, setDevicesFailed] = useState(false);
 
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deletePassword, setDeletePassword] = useState('');
@@ -444,13 +480,19 @@ const SettingsPage: React.FC = () => {
   };
 
   // ── Account: devices list ──
-  const refreshDevices = useCallback(async () => {
+  // `quiet`: the automatic load when the Account pane opens says it failed in
+  // the list itself rather than with a toast, which would otherwise appear on
+  // every visit while the server is down. Refresh still toasts.
+  const refreshDevices = useCallback(async (quiet = false) => {
     setDevicesLoading(true);
+    setDevicesFailed(false);
     try {
       const list = await collabAuthApi.listDevices();
       setDevices(list);
     } catch (err: any) {
-      showToast(err.message || t('account.devices.loadFailed'), 'error');
+      console.error('[SettingsPage] Loading signed-in devices failed:', err);
+      if (!quiet) showToast(err.message || t('account.devices.loadFailed'), 'error');
+      setDevicesFailed(true);
       setDevices([]);
     } finally {
       setDevicesLoading(false);
@@ -458,11 +500,12 @@ const SettingsPage: React.FC = () => {
   }, [t]);
 
   useEffect(() => {
-    if (showAccount && isLoggedIn && devices === null && !devicesLoading) {
-      void refreshDevices();
+    // The device list is fetched the first time the Account pane is shown.
+    if (pane === 'account' && isLoggedIn && devices === null && !devicesLoading) {
+      void refreshDevices(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showAccount, isLoggedIn]);
+  }, [pane, isLoggedIn]);
 
   const handleRevokeDevice = async (deviceId: string) => {
     if (deviceId === getDeviceId()) {
@@ -567,6 +610,69 @@ const SettingsPage: React.FC = () => {
     if (e.key === 'Enter') action();
   };
 
+  const paneLabel: Record<Pane, string> = {
+    general: t('nav.general'),
+    saving: t('nav.saving'),
+    writing: t('nav.writing'),
+    export: t('nav.export'),
+    account: t('nav.account'),
+    addons: t('addOns.title'),
+    advanced: t('nav.advanced'),
+  };
+  const paneDescription: Record<Pane, string> = {
+    general: t('nav.generalDesc'),
+    saving: t('nav.savingDesc'),
+    writing: t('nav.writingDesc'),
+    export: t('nav.exportDesc'),
+    account: t('nav.accountDesc'),
+    addons: t('addOns.description'),
+    advanced: t('nav.advancedDesc'),
+  };
+  const showPrinting = printRoute() === 'dialog';
+  // What the search box matches in each pane, beside its name: the headings and main labels inside it.
+  const paneTerms: Record<Pane, string[]> = {
+    general: [t('language.title'), t('editing.title'), t('editing.menuOnEnter'), t('editing.shortcut')],
+    saving: [
+      t('saving.title'), t('saving.library'), t('saving.every'), t('saving.projectFolders'), t('saving.newProjectsIn'),
+      t('saving.projectsFolder'), t('saving.fileFormat'), translate('backup:backupSettings.title'),
+      translate('backup:backupSettings.enable'), translate('backup:backupSettings.folder'),
+      translate('backup:backupSettings.includeImages'),
+    ],
+    writing: [
+      t('smartType.title'), t('smartType.fields.scenePrefixes.label'), t('smartType.fields.times.label'),
+      t('smartType.fields.characterExtensions.label'), t('smartType.fields.transitions.label'),
+      t('macros.title'), t('tableRead.title'), t('voice.provider'),
+    ],
+    export: [
+      ...(showPrinting ? [t('printing.title'), t('printing.viaPdf')] : []),
+      t('wordExport.title'), t('wordExport.exactHighlights'),
+    ],
+    account: [
+      t('auth.title'), t('auth.signIn'), t('auth.createAccount'), t('account.title'), t('account.twoFactor'),
+      t('account.changePassword'), t('account.devices.title'), t('account.delete.title'), t('invite.title'), t('invite.expiry'),
+    ],
+    addons: addOns.map(addOnName),
+    advanced: [t('collabServer.title'), t('collabServer.serverUrl'), t('cloud.title'), t('cloud.apiUrl')],
+  };
+  // Add-ons is listed only when one is installed; its pane would be empty otherwise.
+  const visiblePanes = PANES.filter((p) => p !== 'addons' || addOns.length > 0);
+  const current: Pane = visiblePanes.includes(pane) ? pane : 'general';
+  const query = search.trim().toLocaleLowerCase();
+  const listedPanes = query
+    ? visiblePanes.filter((p) => [paneLabel[p], paneDescription[p], ...paneTerms[p]]
+      .some((text) => text.toLocaleLowerCase().includes(query)))
+    : visiblePanes;
+
+  const openPane = (next: Pane) => {
+    navigate({ pathname: location.pathname, search: location.search, hash: next }, { replace: true });
+    // Focus stays on the sidebar button, so the keyboard can carry on through
+    // the list. On a narrow window the list sits above the pane, so bring the
+    // pane into view instead of leaving it below the fold.
+    if (window.matchMedia('(max-width: 760px)').matches) {
+      requestAnimationFrame(() => paneRef.current?.scrollIntoView({ block: 'start' }));
+    }
+  };
+
   return (
     <div className="settings-page">
       <div className="settings-header">
@@ -576,767 +682,849 @@ const SettingsPage: React.FC = () => {
         <h1>{t('page.title')}</h1>
       </div>
 
-      <div className="settings-content">
-        {/* ── Interface language ── */}
-        <section className="settings-section">
-          <h2 className="settings-section-title">{t('language.title')}</h2>
-          <p className="settings-section-desc">{t('language.description')}</p>
-
-          <div className="settings-row">
-            <label id="settings-language-label">{t('language.title')}</label>
-          </div>
-          <div className="language-grid" role="radiogroup" aria-labelledby="settings-language-label">
-            {languageOptions.map((opt) => {
-              const selected = opt.value === languagePreference;
-              const english = LANGUAGES.find((l) => l.code === opt.value)?.englishName;
-              return (
-                // i18n-ignore: a language is listed under its own name, never translated
-                <button
-                  key={opt.value}
-                  type="button"
-                  role="radio"
-                  aria-checked={selected}
-                  className={`language-tile${selected ? ' selected' : ''}`}
-                  lang={opt.lang}
-                  dir={opt.dir}
-                  onClick={() => { void handleLanguageChange(opt.value); }}
-                >
-                  <span className="language-tile-name">{opt.label}</span>
-                  {english && english !== opt.label && <span className="language-tile-sub" lang="en" dir="ltr">{english}</span>}
-                </button>
-              );
-            })}
-          </div>
-        </section>
-
-        {/* ── Collaboration Server URL ── */}
-        <section className="settings-section">
-          <h2 className="settings-section-title">{t('collabServer.title')}</h2>
-          <p className="settings-section-desc">
-            <Trans ns="settings" i18nKey="collabServer.description" components={{ code: <code /> }} />
-          </p>
-
-          <div className="settings-row">
-            <label htmlFor="settings-collab-url">{t('collabServer.serverUrl')}</label>
-            <div className="settings-url-row">
-              <input
-                id="settings-collab-url"
-                className="dialog-input settings-url-input"
-                value={urlInput}
-                onChange={(e) => setUrlInput(e.target.value)}
-                placeholder="wss://collab.open-draft.com"
-                onKeyDown={(e) => handleKeyDown(e, handleSaveUrl)}
-              />
-              <button className="dialog-btn dialog-btn-primary" onClick={handleSaveUrl}>
-                {t('common:save')}
-              </button>
-              <button
-                className="dialog-btn"
-                onClick={handleTestConnection}
-                disabled={connectionStatus === 'testing'}
-              >
-                {connectionStatus === 'testing' ? t('collabServer.testing') :
-                  connectionStatus === 'ok' ? t('collabServer.connected') :
-                    connectionStatus === 'fail' ? t('collabServer.failed') : t('collabServer.test')}
-              </button>
-            </div>
-            {connectionStatus === 'ok' && (
-              <div className="settings-status settings-status-ok">{t('collabServer.reachable')}</div>
-            )}
-            {connectionStatus === 'fail' && (
-              <div className="settings-status settings-status-fail">{t('collabServer.unreachable')}</div>
-            )}
-            {urlInput.startsWith('wss://') && (
-              <div className="settings-hint">{t('collabServer.tls')}</div>
-            )}
-            {urlInput.startsWith('ws://') && (
-              <div className="settings-hint">{t('collabServer.noEncryption')}</div>
-            )}
-          </div>
-        </section>
-
-        {/* ── OpenDraft Cloud API URL ── */}
-        <section className="settings-section">
-          <h2 className="settings-section-title">{t('cloud.title')}</h2>
-          <p className="settings-section-desc">
-            <Trans ns="settings" i18nKey="cloud.description" components={{ code: <code /> }} />
-          </p>
-
-          <div className="settings-row">
-            <label htmlFor="settings-cloud-url">{t('cloud.apiUrl')}</label>
-            <div className="settings-url-row">
-              <input
-                id="settings-cloud-url"
-                className="dialog-input settings-url-input"
-                value={cloudApiInput}
-                onChange={(e) => setCloudApiInput(e.target.value)}
-                placeholder="https://open-draft.com"
-                onKeyDown={(e) => handleKeyDown(e, handleSaveCloudApi)}
-              />
-              <button className="dialog-btn dialog-btn-primary" onClick={handleSaveCloudApi}>
-                {t('common:save')}
-              </button>
-              <button
-                className="dialog-btn"
-                onClick={handleTestCloudApi}
-                disabled={cloudApiStatus === 'testing'}
-              >
-                {cloudApiStatus === 'testing' ? t('collabServer.testing') :
-                  cloudApiStatus === 'ok' ? t('cloud.reachable') :
-                    cloudApiStatus === 'fail' ? t('collabServer.failed') : t('collabServer.test')}
-              </button>
-            </div>
-            {cloudApiStatus === 'ok' && (
-              <div className="settings-status settings-status-ok">{t('collabServer.reachable')}</div>
-            )}
-            {cloudApiStatus === 'fail' && (
-              <div className="settings-status settings-status-fail">{t('collabServer.unreachable')}</div>
-            )}
-          </div>
-        </section>
-
-        <SaveSettingsSection />
-
-        <BackupSettingsSection />
-
-        <AddOnsSettingsSection />
-
-        {/* ── Collab Account ── */}
-        <section className="settings-section">
-          <h2 className="settings-section-title">{t('auth.title')}</h2>
-          <p className="settings-section-desc">
-            {t('auth.description')}
-          </p>
-
-          {isDemoServer && (
-            <div className="settings-demo-notice">
-              <Trans ns="settings" i18nKey="auth.demoNotice" components={{ strong: <strong /> }} />
-            </div>
+      <div className="settings-layout">
+        <nav className="settings-nav" aria-label={t('nav.label')}>
+          {/* Its own form: Chrome groups form-less fields together, and would
+              otherwise fill a saved email in here as the "username" for the
+              password fields on the Account pane. */}
+          <form className="settings-search" role="search" autoComplete="off" onSubmit={(e) => e.preventDefault()}>
+            <svg className="settings-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+              <circle cx="11" cy="11" r="7" />
+              <path d="M20 20l-3.5-3.5" />
+            </svg>
+            <input
+              type="search"
+              name="settings-search"
+              autoComplete="off"
+              data-1p-ignore
+              data-lpignore="true"
+              className="dialog-input settings-search-input"
+              aria-label={t('nav.search')}
+              placeholder={t('nav.search')}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && listedPanes.length > 0) openPane(listedPanes[0]);
+                else if (e.key === 'Escape' && search) { e.stopPropagation(); setSearch(''); }
+              }}
+            />
+          </form>
+          {listedPanes.length === 0 ? (
+            <p className="settings-nav-empty" role="status">{t('nav.noMatch', { query: search.trim() })}</p>
+          ) : (
+            <ul className="settings-nav-list">
+              {listedPanes.map((p) => (
+                <li key={p}>
+                  <button
+                    type="button"
+                    className="settings-nav-item"
+                    aria-current={p === current ? 'page' : undefined}
+                    onClick={() => openPane(p)}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d={PANE_ICONS[p]} />
+                    </svg>
+                    <span>{paneLabel[p]}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
           )}
+        </nav>
 
-          {isLoggedIn ? (
-            <div className="settings-auth-card">
-              <div className="settings-user-info">
-                <div className="settings-user-avatar">
-                  {collabAuth.user!.displayName.charAt(0).toUpperCase()}
-                </div>
-                <div className="settings-user-details">
-                  <div className="settings-user-name">{collabAuth.user!.displayName}</div>
-                  <div className="settings-user-email">{collabAuth.user!.email}</div>
-                  {!collabAuth.user!.emailVerified && (
-                    <div className="settings-email-unverified">{t('auth.emailNotVerified')}</div>
-                  )}
-                </div>
-                <button
-                  className="dialog-btn settings-logout-btn"
-                  onClick={handleLogout}
-                  disabled={signingOut}
-                  aria-busy={signingOut}
-                >
-                  {signingOut ? t('auth.signingOut') : t('auth.signOut')}
-                </button>
-              </div>
+        <div className="settings-content" ref={paneRef}>
+          <div className="settings-pane-head">
+            <h2 className="settings-pane-title">{paneLabel[current]}</h2>
+            <p className="settings-pane-desc">{paneDescription[current]}</p>
+          </div>
 
-              {/* Email verification form */}
-              {!collabAuth.user!.emailVerified && (
-                <div className="settings-verify-section">
-                  <p className="settings-verify-text">
-                    {t('auth.enterCode')}
-                  </p>
-                  <div className="settings-verify-row">
+          {current === 'general' && (
+            <>
+      {/* ── Interface language ── */}
+              <section className="settings-section">
+                <h3 className="settings-section-title">{t('language.title')}</h3>
+                <p className="settings-section-desc">{t('language.description')}</p>
+
+                <div className="settings-row">
+                  <label id="settings-language-label">{t('language.title')}</label>
+                </div>
+                <div className="language-grid" role="radiogroup" aria-labelledby="settings-language-label">
+                  {languageOptions.map((opt) => {
+                    const selected = opt.value === languagePreference;
+                    const english = LANGUAGES.find((l) => l.code === opt.value)?.englishName;
+                    return (
+                      // i18n-ignore: a language is listed under its own name, never translated
+                      <button
+                        key={opt.value}
+                        type="button"
+                        role="radio"
+                        aria-checked={selected}
+                        className={`language-tile${selected ? ' selected' : ''}`}
+                        lang={opt.lang}
+                        dir={opt.dir}
+                        onClick={() => { void handleLanguageChange(opt.value); }}
+                      >
+                        <span className="language-tile-name">{opt.label}</span>
+                        {english && english !== opt.label && <span className="language-tile-sub" lang="en" dir="ltr">{english}</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+
+      {/* ── Editing ── */}
+              <section className="settings-section">
+                <h3 className="settings-section-title">{t('editing.title')}</h3>
+                <p className="settings-section-desc">
+                  {t('editing.description')}
+                </p>
+
+                <div className="settings-row">
+                  <label>
                     <input
-                      className="dialog-input settings-verify-input"
-                      value={verifyCode}
-                      onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                      placeholder="000000"
-                      maxLength={6}
-                      onKeyDown={(e) => handleKeyDown(e, handleVerifyEmail)}
-                    />
-                    <button
-                      className="dialog-btn dialog-btn-primary"
-                      onClick={handleVerifyEmail}
-                      disabled={verifyCode.length !== 6 || verifying}
-                    >
-                      {verifying ? t('auth.verifying') : t('auth.verify')}
-                    </button>
-                    <button className="dialog-btn" onClick={handleResendVerification}>
-                      {t('auth.resend')}
-                    </button>
+                      type="checkbox"
+                      checked={elementMenuOnEnter}
+                      onChange={(e) => setElementMenuOnEnter(e.target.checked)}
+                    />{' '}
+                    {t('editing.menuOnEnter')}
+                  </label>
+                  <div className="settings-hint">
+                    {t('editing.menuOnEnterHint')}
                   </div>
                 </div>
-              )}
-            </div>
-          ) : (
-            <div className="settings-auth-card">
-              <div className="settings-auth-tabs">
-                <button
-                  className={`settings-auth-tab ${authTab === 'login' ? 'active' : ''}`}
-                  onClick={() => setAuthTab('login')}
-                >
-                  {t('auth.signIn')}
-                </button>
-                <button
-                  className={`settings-auth-tab ${authTab === 'register' ? 'active' : ''}`}
-                  onClick={() => setAuthTab('register')}
-                >
-                  {t('auth.createAccount')}
-                </button>
-              </div>
 
-              {authTab === 'login' ? (
-                pendingChallenge ? (
-                  <div className="settings-auth-form">
-                    <div className="settings-verify-text">
-                      <Trans
-                        ns="settings"
-                        i18nKey="auth.deviceChallenge"
-                        values={{ email: pendingChallenge.email }}
-                        components={{ strong: <strong /> }}
-                      />
-                    </div>
-                    <div className="settings-field">
-                      <label>{t('auth.verificationCode')}</label>
-                      <input
-                        className="dialog-input settings-verify-input"
-                        value={deviceCode}
-                        onChange={(e) => setDeviceCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                        placeholder="000000"
-                        maxLength={6}
-                        autoFocus
-                        onKeyDown={(e) => handleKeyDown(e, handleVerifyDevice)}
-                      />
-                    </div>
-                    <div className="settings-verify-row">
+                <div className="settings-row">
+                  <label htmlFor="element-menu-shortcut">{t('editing.shortcut')}</label>
+                  <ShortcutField
+                    id="element-menu-shortcut"
+                    value={elementMenuShortcut}
+                    onChange={setElementMenuShortcut}
+                  />
+                  <div className="settings-hint">
+                    {isMacPlatform() ? t('editing.shortcutHintMac') : t('editing.shortcutHintOther')}
+                  </div>
+                </div>
+              </section>
+            </>
+          )}
+
+          {current === 'saving' && (
+            <>
+              <SaveSettingsSection />
+              <BackupSettingsSection />
+            </>
+          )}
+
+          {current === 'writing' && (
+            <>
+              <SmartTypeSettingsSection />
+              <MacroSettingsSection />
+      {/* ── Table Read (issue #131) ── */}
+              <section className="settings-section">
+                <h3 className="settings-section-title">{t('tableRead.title')}</h3>
+                <p className="settings-section-desc">
+                  {isTauriApp() ? t('tableRead.descriptionDevice') : t('tableRead.descriptionComputer')}
+                </p>
+                <VoiceProviderSettings />
+              </section>
+            </>
+          )}
+
+          {current === 'export' && (
+            <>
+      {/* ── Printing ──
+                  Only where there is a choice to make. iPad, iPhone and Android have
+                  no print dialog of their own — printRoute() explains why — so they
+                  print the PDF whatever this says, and a switch that changed nothing
+                  would be worse than no switch at all. */}
+              {showPrinting && (
+              <section className="settings-section">
+                <h3 className="settings-section-title">{t('printing.title')}</h3>
+                <p className="settings-section-desc">
+                  {t('printing.description')}
+                </p>
+
+                <div className="settings-row">
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={printViaPdf}
+                      onChange={(e) => setPrintViaPdf(e.target.checked)}
+                    />{' '}
+                    {t('printing.viaPdf')}
+                  </label>
+                  <div className="settings-hint">
+                    {t('printing.viaPdfHint')}
+                  </div>
+                </div>
+              </section>
+              )}
+
+      {/* ── Word export (#226) ──
+                  Every platform exports Word, so unlike Printing this is always shown. */}
+              <section className="settings-section">
+                <h3 className="settings-section-title">{t('wordExport.title')}</h3>
+                <p className="settings-section-desc">
+                  {t('wordExport.description')}
+                </p>
+
+                <div className="settings-row">
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={docxExactHighlights}
+                      onChange={(e) => setDocxExactHighlights(e.target.checked)}
+                    />{' '}
+                    {t('wordExport.exactHighlights')}
+                  </label>
+                  <div className="settings-hint">
+                    {t('wordExport.exactHighlightsHint')}
+                  </div>
+                </div>
+              </section>
+            </>
+          )}
+
+          {current === 'account' && (
+            <>
+      {/* ── Collab Account ── */}
+              <section className="settings-section">
+                <h3 className="settings-section-title">{t('auth.title')}</h3>
+                <p className="settings-section-desc">
+                  {t('auth.description')}
+                </p>
+
+                {isDemoServer && (
+                  <div className="settings-demo-notice">
+                    <Trans ns="settings" i18nKey="auth.demoNotice" components={{ strong: <strong /> }} />
+                  </div>
+                )}
+
+                {isLoggedIn ? (
+                  <div className="settings-auth-card">
+                    <div className="settings-user-info">
+                      <div className="settings-user-avatar">
+                        {collabAuth.user!.displayName.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="settings-user-details">
+                        <div className="settings-user-name">{collabAuth.user!.displayName}</div>
+                        <div className="settings-user-email">{collabAuth.user!.email}</div>
+                        {!collabAuth.user!.emailVerified && (
+                          <div className="settings-email-unverified">{t('auth.emailNotVerified')}</div>
+                        )}
+                      </div>
                       <button
-                        className="dialog-btn dialog-btn-primary"
-                        onClick={handleVerifyDevice}
-                        disabled={deviceCode.length !== 6 || verifyingDevice}
+                        className="dialog-btn settings-logout-btn"
+                        onClick={handleLogout}
+                        disabled={signingOut}
+                        aria-busy={signingOut}
                       >
-                        {verifyingDevice ? t('auth.verifying') : t('auth.verifyDevice')}
-                      </button>
-                      <button
-                        className="dialog-btn"
-                        onClick={handleResendDeviceCode}
-                        disabled={verifyingDevice}
-                      >
-                        {t('auth.resendCode')}
-                      </button>
-                      <button
-                        className="dialog-btn"
-                        onClick={() => { setPendingChallenge(null); setDeviceCode(''); }}
-                        disabled={verifyingDevice}
-                      >
-                        {t('common:cancel')}
+                        {signingOut ? t('auth.signingOut') : t('auth.signOut')}
                       </button>
                     </div>
+
+                    {/* Email verification form */}
+                    {!collabAuth.user!.emailVerified && (
+                      <div className="settings-verify-section">
+                        <p className="settings-verify-text">
+                          {t('auth.enterCode')}
+                        </p>
+                        <div className="settings-verify-row">
+                          <input
+                            className="dialog-input settings-verify-input"
+                            value={verifyCode}
+                            onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                            placeholder="000000"
+                            maxLength={6}
+                            onKeyDown={(e) => handleKeyDown(e, handleVerifyEmail)}
+                          />
+                          <button
+                            className="dialog-btn dialog-btn-primary"
+                            onClick={handleVerifyEmail}
+                            disabled={verifyCode.length !== 6 || verifying}
+                          >
+                            {verifying ? t('auth.verifying') : t('auth.verify')}
+                          </button>
+                          <button className="dialog-btn" onClick={handleResendVerification}>
+                            {t('auth.resend')}
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ) : (
-                <div className="settings-auth-form">
-                  {noAccountEmail ? (
-                    <div className="settings-auth-notice" role="alert">
-                      <span>
-                        <Trans ns="settings" i18nKey="auth.noAccount" values={{ email: noAccountEmail }} components={{ strong: <strong /> }} />
-                      </span>
-                      <button type="button" className="settings-auth-notice-action" onClick={() => goToCreateAccount(noAccountEmail)}>
+                  <div className="settings-auth-card">
+                    <div className="settings-auth-tabs">
+                      <button
+                        className={`settings-auth-tab ${authTab === 'login' ? 'active' : ''}`}
+                        onClick={() => setAuthTab('login')}
+                      >
+                        {t('auth.signIn')}
+                      </button>
+                      <button
+                        className={`settings-auth-tab ${authTab === 'register' ? 'active' : ''}`}
+                        onClick={() => setAuthTab('register')}
+                      >
                         {t('auth.createAccount')}
                       </button>
                     </div>
-                  ) : !knownUser && (
-                    <div className="settings-auth-notice">
-                      <span>{t('auth.newUserNotice')}</span>
-                      <button type="button" className="settings-auth-notice-action" onClick={() => goToCreateAccount(loginEmail)}>
-                        {t('auth.createAccount')}
-                      </button>
-                    </div>
-                  )}
-                  <div className="settings-field">
-                    <label>{t('auth.email')}</label>
-                    <input
-                      className="dialog-input"
-                      type="email"
-                      value={loginEmail}
-                      onChange={(e) => { setLoginEmail(e.target.value); setNoAccountEmail(null); }}
-                      placeholder={t('auth.emailPlaceholder')}
-                      onKeyDown={(e) => handleKeyDown(e, handleLogin)}
-                    />
-                  </div>
-                  <div className="settings-field">
-                    <label>{t('auth.password')}</label>
-                    <input
-                      className="dialog-input"
-                      type="password"
-                      value={loginPassword}
-                      onChange={(e) => setLoginPassword(e.target.value)}
-                      placeholder={t('auth.password')}
-                      onKeyDown={(e) => handleKeyDown(e, handleLogin)}
-                    />
-                  </div>
-                  <button
-                    className="dialog-btn dialog-btn-primary settings-auth-submit"
-                    onClick={handleLogin}
-                    disabled={!loginEmail || !loginPassword || authLoading}
-                  >
-                    {authLoading ? t('auth.signingIn') : t('auth.signIn')}
-                  </button>
-                </div>
-                )
-              ) : (
-                <div className="settings-auth-form">
-                  <div className="settings-field">
-                    <label>{t('auth.displayName')}</label>
-                    <input
-                      className="dialog-input"
-                      value={regName}
-                      onChange={(e) => setRegName(e.target.value)}
-                      placeholder={t('auth.namePlaceholder')}
-                    />
-                  </div>
-                  <div className="settings-field">
-                    <label>{t('auth.email')}</label>
-                    <input
-                      className="dialog-input"
-                      type="email"
-                      value={regEmail}
-                      onChange={(e) => setRegEmail(e.target.value)}
-                      placeholder={t('auth.emailPlaceholder')}
-                    />
-                  </div>
-                  <div className="settings-field">
-                    <label>{t('auth.password')}</label>
-                    <input
-                      className="dialog-input"
-                      type="password"
-                      value={regPassword}
-                      onChange={(e) => setRegPassword(e.target.value)}
-                      placeholder={t('auth.passwordPlaceholder')}
-                    />
-                  </div>
-                  <div className="settings-field">
-                    <label>{t('auth.confirmPassword')}</label>
-                    <input
-                      className="dialog-input"
-                      type="password"
-                      value={regConfirm}
-                      onChange={(e) => setRegConfirm(e.target.value)}
-                      placeholder={t('auth.confirmPasswordPlaceholder')}
-                      onKeyDown={(e) => handleKeyDown(e, handleRegister)}
-                    />
-                  </div>
-                  <button
-                    className="dialog-btn dialog-btn-primary settings-auth-submit"
-                    onClick={handleRegister}
-                    disabled={!regEmail || !regPassword || !regName || authLoading}
-                  >
-                    {authLoading ? t('auth.creatingAccount') : t('auth.createAccount')}
-                  </button>
-                </div>
-              )}
 
-              <div className="collab-remember-section">
-                <label className="collab-remember-label">
-                  <input
-                    type="checkbox"
-                    checked={rememberEmail}
-                    onChange={(e) => {
-                      setRememberEmail(e.target.checked);
-                      try {
-                        if (!e.target.checked) localStorage.removeItem('opendraft:rememberedEmail');
-                      } catch { /* ignore */ }
-                    }}
-                  />
-                  {t('auth.rememberEmail')}
-                </label>
-                <p className="collab-remember-hint">
-                  {t('auth.rememberHint')}
-                </p>
-              </div>
-
-              {/* Google sign-in */}
-              {serverConfig?.googleEnabled && (
-                <div className="settings-google-section">
-                  <div className="settings-divider">
-                    <span>{t('auth.or')}</span>
-                  </div>
-                  <button
-                    className="dialog-btn settings-google-btn"
-                    onClick={handleGoogleLogin}
-                    disabled={googleLoading}
-                  >
-                    <svg viewBox="0 0 24 24" width="18" height="18" style={{ marginRight: 8 }}>
-                      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/>
-                      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                    </svg>
-                    {googleLoading ? t('auth.signingIn') : t('auth.signInWithGoogle')}
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-        </section>
-
-        {/* ── Account & Security (signed-in users only) ── */}
-        {isLoggedIn && (
-          <section className="settings-section">
-            <h2 className="settings-section-title">{t('account.title')}</h2>
-            <p className="settings-section-desc">
-              {t('account.description')}
-            </p>
-
-            {!showAccount ? (
-              <button className="dialog-btn" onClick={() => setShowAccount(true)}>
-                {t('account.open')}
-              </button>
-            ) : (
-              <div className="settings-auth-card">
-                {/* Two-factor toggle */}
-                <div className="settings-account-block">
-                  <div className="settings-account-row">
-                    <div>
-                      <div className="settings-account-title">{t('account.twoFactor')}</div>
-                      <div className="settings-account-hint">
-                        {t('account.twoFactorHint')}
-                      </div>
-                      {serverConfig && serverConfig.smtpConfigured === false && (
-                        <div
-                          className="settings-account-hint"
-                          style={{ color: 'var(--fd-warning, #b85c00)', marginTop: 4 }}
-                        >
-                          {t('account.smtpMissing')}
-                        </div>
-                      )}
-                    </div>
-                    <label className="settings-switch">
-                      <input
-                        type="checkbox"
-                        checked={Boolean(collabAuth.user?.twoFactorEnabled)}
-                        disabled={
-                          twoFactorBusy ||
-                          (serverConfig?.smtpConfigured === false &&
-                            !collabAuth.user?.twoFactorEnabled)
-                        }
-                        onChange={(e) => handleToggleTwoFactor(e.target.checked)}
-                      />
-                      <span>{collabAuth.user?.twoFactorEnabled ? t('common:on') : t('common:off')}</span>
-                    </label>
-                  </div>
-                </div>
-
-                {/* Change password */}
-                <div className="settings-account-block">
-                  <div className="settings-account-title">{t('account.changePassword')}</div>
-                  <div className="settings-account-hint">
-                    {t('account.changePasswordHint')}
-                  </div>
-                  <div className="settings-field">
-                    <label>{t('account.currentPassword')}</label>
-                    <input
-                      className="dialog-input"
-                      type="password"
-                      value={currentPassword}
-                      onChange={(e) => setCurrentPassword(e.target.value)}
-                      placeholder={t('account.currentPasswordPlaceholder')}
-                      autoComplete="current-password"
-                    />
-                  </div>
-                  <div className="settings-field">
-                    <label>{t('account.newPassword')}</label>
-                    <input
-                      className="dialog-input"
-                      type="password"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      placeholder={t('auth.passwordPlaceholder')}
-                      autoComplete="new-password"
-                    />
-                  </div>
-                  <div className="settings-field">
-                    <label>{t('account.confirmNewPassword')}</label>
-                    <input
-                      className="dialog-input"
-                      type="password"
-                      value={newPasswordConfirm}
-                      onChange={(e) => setNewPasswordConfirm(e.target.value)}
-                      placeholder={t('account.repeatNewPassword')}
-                      autoComplete="new-password"
-                    />
-                  </div>
-                  <button
-                    className="dialog-btn dialog-btn-primary"
-                    onClick={handleChangePassword}
-                    disabled={!currentPassword || !newPassword || !newPasswordConfirm || changingPassword}
-                  >
-                    {changingPassword ? t('account.updating') : t('account.updatePassword')}
-                  </button>
-                </div>
-
-                {/* Devices */}
-                <div className="settings-account-block">
-                  <div className="settings-account-row">
-                    <div>
-                      <div className="settings-account-title">{t('account.devices.title')}</div>
-                      <div className="settings-account-hint">
-                        {t('account.devices.hint')}
-                      </div>
-                    </div>
-                    <button className="dialog-btn" onClick={refreshDevices} disabled={devicesLoading}>
-                      {devicesLoading ? t('account.devices.loading') : t('account.devices.refresh')}
-                    </button>
-                  </div>
-                  {devicesLoading && devices === null ? (
-                    <div className="settings-account-hint">{t('account.devices.loadingList')}</div>
-                  ) : (devices || []).length === 0 ? (
-                    <div className="settings-account-hint">{t('account.devices.none')}</div>
-                  ) : (
-                    <ul className="settings-device-list">
-                      {(devices || []).map((d) => (
-                        <li key={d.deviceId} className="settings-device-row">
-                          <div className="settings-device-info">
-                            <div className="settings-device-name">
-                              {d.deviceName}
-                              {d.current && <span className="settings-device-current"> {t('account.devices.thisDevice')}</span>}
-                            </div>
-                            <div className="settings-device-meta">
-                              {d.platform || t('account.devices.unknownPlatform')}
-                              {d.ipAddress ? ` · ${d.ipAddress}` : ''}
-                            </div>
-                            <div className="settings-device-meta">
-                              {t('account.devices.lastSeen', { date: formatDateTime(d.lastSeenAt, FULL_DATE_TIME) })}
-                            </div>
-                          </div>
-                          {!d.current && (
-                            <button
-                              className="dialog-btn dialog-btn-danger"
-                              onClick={() => handleRevokeDevice(d.deviceId)}
-                            >
-                              {t('account.devices.revoke')}
-                            </button>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-
-                {/* Delete account (Apple Guideline 5.1.1(v)) */}
-                <div className="settings-account-block settings-account-danger">
-                  <div className="settings-account-title">{t('account.delete.title')}</div>
-                  <div className="settings-account-hint">
-                    {t('account.delete.hint')}
-                  </div>
-                  {!deleteOpen ? (
-                    <button
-                      className="dialog-btn dialog-btn-danger"
-                      onClick={handleOpenDelete}
-                    >
-                      {t('account.delete.open')}
-                    </button>
-                  ) : (
-                    <div className="settings-delete-confirm">
-                      <div className="settings-delete-warning">
-                        <strong>{t('account.delete.before')}</strong>{' '}
-                        {inventoryLoading ? (
-                          t('account.delete.checking')
-                        ) : cloudInventory && (cloudInventory.projects > 0 || cloudInventory.scripts > 0) ? (
-                          <Trans
-                            ns="settings"
-                            i18nKey="account.delete.found"
-                            values={{
-                              projects: t('account.delete.projects', { count: cloudInventory.projects }),
-                              screenplays: cloudInventory.scripts > 0
-                                ? `${t('account.delete.screenplays', { count: cloudInventory.scripts })} `
-                                : '',
-                            }}
-                            components={{ strong: <strong />, em: <em /> }}
-                          />
-                        ) : (
-                          t('account.delete.generic')
-                        )}
-                        {cloudPortalLink && (
-                          <>
-                            {' '}
+                    {authTab === 'login' ? (
+                      pendingChallenge ? (
+                        <div className="settings-auth-form">
+                          <div className="settings-verify-text">
                             <Trans
                               ns="settings"
-                              i18nKey="account.delete.portal"
-                              values={{ url: cloudPortalLink }}
-                              components={{ link: <a href={cloudPortalLink} target="_blank" rel="noreferrer" /> }}
+                              i18nKey="auth.deviceChallenge"
+                              values={{ email: pendingChallenge.email }}
+                              components={{ strong: <strong /> }}
                             />
-                          </>
+                          </div>
+                          <div className="settings-field">
+                            <label>{t('auth.verificationCode')}</label>
+                            <input
+                              className="dialog-input settings-verify-input"
+                              value={deviceCode}
+                              onChange={(e) => setDeviceCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                              placeholder="000000"
+                              maxLength={6}
+                              autoFocus
+                              onKeyDown={(e) => handleKeyDown(e, handleVerifyDevice)}
+                            />
+                          </div>
+                          <div className="settings-verify-row">
+                            <button
+                              className="dialog-btn dialog-btn-primary"
+                              onClick={handleVerifyDevice}
+                              disabled={deviceCode.length !== 6 || verifyingDevice}
+                            >
+                              {verifyingDevice ? t('auth.verifying') : t('auth.verifyDevice')}
+                            </button>
+                            <button
+                              className="dialog-btn"
+                              onClick={handleResendDeviceCode}
+                              disabled={verifyingDevice}
+                            >
+                              {t('auth.resendCode')}
+                            </button>
+                            <button
+                              className="dialog-btn"
+                              onClick={() => { setPendingChallenge(null); setDeviceCode(''); }}
+                              disabled={verifyingDevice}
+                            >
+                              {t('common:cancel')}
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                      <div className="settings-auth-form">
+                        {noAccountEmail ? (
+                          <div className="settings-auth-notice" role="alert">
+                            <span>
+                              <Trans ns="settings" i18nKey="auth.noAccount" values={{ email: noAccountEmail }} components={{ strong: <strong /> }} />
+                            </span>
+                            <button type="button" className="settings-auth-notice-action" onClick={() => goToCreateAccount(noAccountEmail)}>
+                              {t('auth.createAccount')}
+                            </button>
+                          </div>
+                        ) : !knownUser && (
+                          <div className="settings-auth-notice">
+                            <span>{t('auth.newUserNotice')}</span>
+                            <button type="button" className="settings-auth-notice-action" onClick={() => goToCreateAccount(loginEmail)}>
+                              {t('auth.createAccount')}
+                            </button>
+                          </div>
+                        )}
+                        <div className="settings-field">
+                          <label>{t('auth.email')}</label>
+                          <input
+                            className="dialog-input"
+                            type="email"
+                            value={loginEmail}
+                            onChange={(e) => { setLoginEmail(e.target.value); setNoAccountEmail(null); }}
+                            placeholder={t('auth.emailPlaceholder')}
+                            onKeyDown={(e) => handleKeyDown(e, handleLogin)}
+                          />
+                        </div>
+                        <div className="settings-field">
+                          <label>{t('auth.password')}</label>
+                          <input
+                            className="dialog-input"
+                            type="password"
+                            value={loginPassword}
+                            onChange={(e) => setLoginPassword(e.target.value)}
+                            placeholder={t('auth.password')}
+                            onKeyDown={(e) => handleKeyDown(e, handleLogin)}
+                          />
+                        </div>
+                        <button
+                          className="dialog-btn dialog-btn-primary settings-auth-submit"
+                          onClick={handleLogin}
+                          disabled={!loginEmail || !loginPassword || authLoading}
+                        >
+                          {authLoading ? t('auth.signingIn') : t('auth.signIn')}
+                        </button>
+                      </div>
+                      )
+                    ) : (
+                      <div className="settings-auth-form">
+                        <div className="settings-field">
+                          <label>{t('auth.displayName')}</label>
+                          <input
+                            className="dialog-input"
+                            value={regName}
+                            onChange={(e) => setRegName(e.target.value)}
+                            placeholder={t('auth.namePlaceholder')}
+                          />
+                        </div>
+                        <div className="settings-field">
+                          <label>{t('auth.email')}</label>
+                          <input
+                            className="dialog-input"
+                            type="email"
+                            value={regEmail}
+                            onChange={(e) => setRegEmail(e.target.value)}
+                            placeholder={t('auth.emailPlaceholder')}
+                          />
+                        </div>
+                        <div className="settings-field">
+                          <label>{t('auth.password')}</label>
+                          <input
+                            className="dialog-input"
+                            type="password"
+                            value={regPassword}
+                            onChange={(e) => setRegPassword(e.target.value)}
+                            placeholder={t('auth.passwordPlaceholder')}
+                          />
+                        </div>
+                        <div className="settings-field">
+                          <label>{t('auth.confirmPassword')}</label>
+                          <input
+                            className="dialog-input"
+                            type="password"
+                            value={regConfirm}
+                            onChange={(e) => setRegConfirm(e.target.value)}
+                            placeholder={t('auth.confirmPasswordPlaceholder')}
+                            onKeyDown={(e) => handleKeyDown(e, handleRegister)}
+                          />
+                        </div>
+                        <button
+                          className="dialog-btn dialog-btn-primary settings-auth-submit"
+                          onClick={handleRegister}
+                          disabled={!regEmail || !regPassword || !regName || authLoading}
+                        >
+                          {authLoading ? t('auth.creatingAccount') : t('auth.createAccount')}
+                        </button>
+                      </div>
+                    )}
+
+                    <div className="collab-remember-section">
+                      <label className="collab-remember-label">
+                        <input
+                          type="checkbox"
+                          checked={rememberEmail}
+                          onChange={(e) => {
+                            setRememberEmail(e.target.checked);
+                            try {
+                              if (!e.target.checked) localStorage.removeItem('opendraft:rememberedEmail');
+                            } catch { /* ignore */ }
+                          }}
+                        />
+                        {t('auth.rememberEmail')}
+                      </label>
+                      <p className="collab-remember-hint">
+                        {t('auth.rememberHint')}
+                      </p>
+                    </div>
+
+                    {/* Google sign-in */}
+                    {serverConfig?.googleEnabled && (
+                      <div className="settings-google-section">
+                        <div className="settings-divider">
+                          <span>{t('auth.or')}</span>
+                        </div>
+                        <button
+                          className="dialog-btn settings-google-btn"
+                          onClick={handleGoogleLogin}
+                          disabled={googleLoading}
+                        >
+                          <svg viewBox="0 0 24 24" width="18" height="18" style={{ marginRight: 8 }}>
+                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/>
+                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                          </svg>
+                          {googleLoading ? t('auth.signingIn') : t('auth.signInWithGoogle')}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </section>
+
+      {/* ── Account & Security (signed-in users only) ── */}
+              {isLoggedIn && (
+                <section className="settings-section">
+                  <h3 className="settings-section-title">{t('account.title')}</h3>
+                  <p className="settings-section-desc">
+                    {t('account.description')}
+                  </p>
+
+                  <div className="settings-auth-card">
+                      {/* Two-factor toggle */}
+                      <div className="settings-account-block">
+                        <div className="settings-account-row">
+                          <div>
+                            <div className="settings-account-title">{t('account.twoFactor')}</div>
+                            <div className="settings-account-hint">
+                              {t('account.twoFactorHint')}
+                            </div>
+                            {serverConfig && serverConfig.smtpConfigured === false && (
+                              <div
+                                className="settings-account-hint"
+                                style={{ color: 'var(--fd-warning, #b85c00)', marginTop: 4 }}
+                              >
+                                {t('account.smtpMissing')}
+                              </div>
+                            )}
+                          </div>
+                          <label className="settings-switch">
+                            <input
+                              type="checkbox"
+                              checked={Boolean(collabAuth.user?.twoFactorEnabled)}
+                              disabled={
+                                twoFactorBusy ||
+                                (serverConfig?.smtpConfigured === false &&
+                                  !collabAuth.user?.twoFactorEnabled)
+                              }
+                              onChange={(e) => handleToggleTwoFactor(e.target.checked)}
+                            />
+                            <span>{collabAuth.user?.twoFactorEnabled ? t('common:on') : t('common:off')}</span>
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* Change password */}
+                      <div className="settings-account-block">
+                        <div className="settings-account-title">{t('account.changePassword')}</div>
+                        <div className="settings-account-hint">
+                          {t('account.changePasswordHint')}
+                        </div>
+                        <div className="settings-field">
+                          <label>{t('account.currentPassword')}</label>
+                          <input
+                            className="dialog-input"
+                            type="password"
+                            value={currentPassword}
+                            onChange={(e) => setCurrentPassword(e.target.value)}
+                            placeholder={t('account.currentPasswordPlaceholder')}
+                            autoComplete="current-password"
+                          />
+                        </div>
+                        <div className="settings-field">
+                          <label>{t('account.newPassword')}</label>
+                          <input
+                            className="dialog-input"
+                            type="password"
+                            value={newPassword}
+                            onChange={(e) => setNewPassword(e.target.value)}
+                            placeholder={t('auth.passwordPlaceholder')}
+                            autoComplete="new-password"
+                          />
+                        </div>
+                        <div className="settings-field">
+                          <label>{t('account.confirmNewPassword')}</label>
+                          <input
+                            className="dialog-input"
+                            type="password"
+                            value={newPasswordConfirm}
+                            onChange={(e) => setNewPasswordConfirm(e.target.value)}
+                            placeholder={t('account.repeatNewPassword')}
+                            autoComplete="new-password"
+                          />
+                        </div>
+                        <button
+                          className="dialog-btn dialog-btn-primary"
+                          onClick={handleChangePassword}
+                          disabled={!currentPassword || !newPassword || !newPasswordConfirm || changingPassword}
+                        >
+                          {changingPassword ? t('account.updating') : t('account.updatePassword')}
+                        </button>
+                      </div>
+
+                      {/* Devices */}
+                      <div className="settings-account-block">
+                        <div className="settings-account-row">
+                          <div>
+                            <div className="settings-account-title">{t('account.devices.title')}</div>
+                            <div className="settings-account-hint">
+                              {t('account.devices.hint')}
+                            </div>
+                          </div>
+                          <button className="dialog-btn" onClick={() => { void refreshDevices(); }} disabled={devicesLoading}>
+                            {devicesLoading ? t('account.devices.loading') : t('account.devices.refresh')}
+                          </button>
+                        </div>
+                        {devicesLoading && devices === null ? (
+                          <div className="settings-account-hint">{t('account.devices.loadingList')}</div>
+                        ) : devicesFailed ? (
+                      <div className="settings-account-hint" role="alert">{t('account.devices.loadFailed')}</div>
+                    ) : (devices || []).length === 0 ? (
+                          <div className="settings-account-hint">{t('account.devices.none')}</div>
+                        ) : (
+                          <ul className="settings-device-list">
+                            {(devices || []).map((d) => (
+                              <li key={d.deviceId} className="settings-device-row">
+                                <div className="settings-device-info">
+                                  <div className="settings-device-name">
+                                    {d.deviceName}
+                                    {d.current && <span className="settings-device-current"> {t('account.devices.thisDevice')}</span>}
+                                  </div>
+                                  <div className="settings-device-meta">
+                                    {d.platform || t('account.devices.unknownPlatform')}
+                                    {d.ipAddress ? ` · ${d.ipAddress}` : ''}
+                                  </div>
+                                  <div className="settings-device-meta">
+                                    {t('account.devices.lastSeen', { date: formatDateTime(d.lastSeenAt, FULL_DATE_TIME) })}
+                                  </div>
+                                </div>
+                                {!d.current && (
+                                  <button
+                                    className="dialog-btn dialog-btn-danger"
+                                    onClick={() => handleRevokeDevice(d.deviceId)}
+                                  >
+                                    {t('account.devices.revoke')}
+                                  </button>
+                                )}
+                              </li>
+                            ))}
+                          </ul>
                         )}
                       </div>
 
-                      <div className="settings-field">
-                        <label>{t('account.delete.passwordLabel')}</label>
-                        <input
-                          className="dialog-input"
-                          type="password"
-                          value={deletePassword}
-                          onChange={(e) => setDeletePassword(e.target.value)}
-                          placeholder={t('account.delete.passwordPlaceholder')}
-                          autoComplete="current-password"
-                        />
-                      </div>
+                  </div>
+                </section>
+              )}
 
-                      <div className="settings-field">
-                        <label><Trans ns="settings" i18nKey="account.delete.typeLabel" values={{ word: DELETE_WORD }} components={{ strong: <strong /> }} /></label>
-                        <input
-                          className="dialog-input"
-                          value={deleteConfirmation}
-                          onChange={(e) => setDeleteConfirmation(e.target.value)}
-                          placeholder={DELETE_WORD}
-                        />
-                      </div>
+      {/* ── Invite Defaults ── */}
+              <section className="settings-section">
+                <h3 className="settings-section-title">{t('invite.title')}</h3>
+                <p className="settings-section-desc">
+                  {t('invite.description')}
+                </p>
 
-                      <div className="settings-verify-row">
-                        <button
-                          className="dialog-btn dialog-btn-danger"
-                          onClick={handleDeleteAccount}
-                          disabled={deleting || deleteConfirmation !== DELETE_WORD}
-                        >
-                          {deleting ? t('account.delete.deleting') : t('account.delete.confirm')}
-                        </button>
-                        <button
-                          className="dialog-btn"
-                          onClick={() => {
-                            setDeleteOpen(false);
-                            setDeletePassword('');
-                            setDeleteConfirmation('');
-                          }}
-                          disabled={deleting}
-                        >
-                          {t('common:cancel')}
-                        </button>
+                <div className="settings-row">
+                  <label htmlFor="settings-invite-expiry">{t('invite.expiry')}</label>
+                  <Select
+                    id="settings-invite-expiry"
+                    className="dialog-input settings-select"
+                    value={defaultInviteExpiry}
+                    onChange={(e) => setDefaultInviteExpiry(Number(e.target.value))}
+                  >
+                    {EXPIRY_OPTIONS.map((opt) => (
+                      <option key={opt.hours} value={opt.hours}>
+                        {expiryLabel(opt)}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+              </section>
+
+              {/* ── Delete account (signed-in users only), last in the pane ── */}
+              {isLoggedIn && (
+                <section className="settings-section">
+                  <div className="settings-auth-card">
+                      {/* Delete account (Apple Guideline 5.1.1(v)) */}
+                      <div className="settings-account-block settings-account-danger">
+                        <div className="settings-account-title">{t('account.delete.title')}</div>
+                        <div className="settings-account-hint">
+                          {t('account.delete.hint')}
+                        </div>
+                        {!deleteOpen ? (
+                          <button
+                            className="dialog-btn dialog-btn-danger"
+                            onClick={handleOpenDelete}
+                          >
+                            {t('account.delete.open')}
+                          </button>
+                        ) : (
+                          <div className="settings-delete-confirm">
+                            <div className="settings-delete-warning">
+                              <strong>{t('account.delete.before')}</strong>{' '}
+                              {inventoryLoading ? (
+                                t('account.delete.checking')
+                              ) : cloudInventory && (cloudInventory.projects > 0 || cloudInventory.scripts > 0) ? (
+                                <Trans
+                                  ns="settings"
+                                  i18nKey="account.delete.found"
+                                  values={{
+                                    projects: t('account.delete.projects', { count: cloudInventory.projects }),
+                                    screenplays: cloudInventory.scripts > 0
+                                      ? `${t('account.delete.screenplays', { count: cloudInventory.scripts })} `
+                                      : '',
+                                  }}
+                                  components={{ strong: <strong />, em: <em /> }}
+                                />
+                              ) : (
+                                t('account.delete.generic')
+                              )}
+                              {cloudPortalLink && (
+                                <>
+                                  {' '}
+                                  <Trans
+                                    ns="settings"
+                                    i18nKey="account.delete.portal"
+                                    values={{ url: cloudPortalLink }}
+                                    components={{ link: <a href={cloudPortalLink} target="_blank" rel="noreferrer" /> }}
+                                  />
+                                </>
+                              )}
+                            </div>
+
+                            <div className="settings-field">
+                              <label>{t('account.delete.passwordLabel')}</label>
+                              <input
+                                className="dialog-input"
+                                type="password"
+                                value={deletePassword}
+                                onChange={(e) => setDeletePassword(e.target.value)}
+                                placeholder={t('account.delete.passwordPlaceholder')}
+                                autoComplete="current-password"
+                              />
+                            </div>
+
+                            <div className="settings-field">
+                              <label><Trans ns="settings" i18nKey="account.delete.typeLabel" values={{ word: DELETE_WORD }} components={{ strong: <strong /> }} /></label>
+                              <input
+                                className="dialog-input"
+                                value={deleteConfirmation}
+                                onChange={(e) => setDeleteConfirmation(e.target.value)}
+                                placeholder={DELETE_WORD}
+                              />
+                            </div>
+
+                            <div className="settings-verify-row">
+                              <button
+                                className="dialog-btn dialog-btn-danger"
+                                onClick={handleDeleteAccount}
+                                disabled={deleting || deleteConfirmation !== DELETE_WORD}
+                              >
+                                {deleting ? t('account.delete.deleting') : t('account.delete.confirm')}
+                              </button>
+                              <button
+                                className="dialog-btn"
+                                onClick={() => {
+                                  setDeleteOpen(false);
+                                  setDeletePassword('');
+                                  setDeleteConfirmation('');
+                                }}
+                                disabled={deleting}
+                              >
+                                {t('common:cancel')}
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    </div>
+                  </div>
+                </section>
+              )}
+            </>
+          )}
+
+          {current === 'addons' && <AddOnsSettingsSection embedded />}
+
+          {current === 'advanced' && (
+            <>
+              <div className="settings-demo-notice settings-advanced-note">{t('nav.advancedNote')}</div>
+      {/* ── Collaboration Server URL ── */}
+              <section className="settings-section">
+                <h3 className="settings-section-title">{t('collabServer.title')}</h3>
+                <p className="settings-section-desc">
+                  <Trans ns="settings" i18nKey="collabServer.description" components={{ code: <code /> }} />
+                </p>
+
+                <div className="settings-row">
+                  <label htmlFor="settings-collab-url">{t('collabServer.serverUrl')}</label>
+                  <div className="settings-url-row">
+                    <input
+                      id="settings-collab-url"
+                      className="dialog-input settings-url-input"
+                      value={urlInput}
+                      onChange={(e) => setUrlInput(e.target.value)}
+                      placeholder="wss://collab.open-draft.com"
+                      onKeyDown={(e) => handleKeyDown(e, handleSaveUrl)}
+                    />
+                    <button className="dialog-btn dialog-btn-primary" onClick={handleSaveUrl}>
+                      {t('common:save')}
+                    </button>
+                    <button
+                      className="dialog-btn"
+                      onClick={handleTestConnection}
+                      disabled={connectionStatus === 'testing'}
+                    >
+                      {connectionStatus === 'testing' ? t('collabServer.testing') :
+                        connectionStatus === 'ok' ? t('collabServer.connected') :
+                          connectionStatus === 'fail' ? t('collabServer.failed') : t('collabServer.test')}
+                    </button>
+                  </div>
+                  {connectionStatus === 'ok' && (
+                    <div className="settings-status settings-status-ok">{t('collabServer.reachable')}</div>
+                  )}
+                  {connectionStatus === 'fail' && (
+                    <div className="settings-status settings-status-fail">{t('collabServer.unreachable')}</div>
+                  )}
+                  {urlInput.startsWith('wss://') && (
+                    <div className="settings-hint">{t('collabServer.tls')}</div>
+                  )}
+                  {urlInput.startsWith('ws://') && (
+                    <div className="settings-hint">{t('collabServer.noEncryption')}</div>
                   )}
                 </div>
-              </div>
-            )}
-          </section>
-        )}
+              </section>
 
-        {/* ── Printing ──
-            Only where there is a choice to make. iPad, iPhone and Android have
-            no print dialog of their own — printRoute() explains why — so they
-            print the PDF whatever this says, and a switch that changed nothing
-            would be worse than no switch at all. */}
-        {printRoute() === 'dialog' && (
-        <section className="settings-section">
-          <h2 className="settings-section-title">{t('printing.title')}</h2>
-          <p className="settings-section-desc">
-            {t('printing.description')}
-          </p>
+      {/* ── OpenDraft Cloud API URL ── */}
+              <section className="settings-section">
+                <h3 className="settings-section-title">{t('cloud.title')}</h3>
+                <p className="settings-section-desc">
+                  <Trans ns="settings" i18nKey="cloud.description" components={{ code: <code /> }} />
+                </p>
 
-          <div className="settings-row">
-            <label>
-              <input
-                type="checkbox"
-                checked={printViaPdf}
-                onChange={(e) => setPrintViaPdf(e.target.checked)}
-              />{' '}
-              {t('printing.viaPdf')}
-            </label>
-            <div className="settings-hint">
-              {t('printing.viaPdfHint')}
-            </div>
-          </div>
-        </section>
-        )}
-
-        {/* ── Word export (#226) ──
-            Every platform exports Word, so unlike Printing this is always shown. */}
-        <section className="settings-section">
-          <h2 className="settings-section-title">{t('wordExport.title')}</h2>
-          <p className="settings-section-desc">
-            {t('wordExport.description')}
-          </p>
-
-          <div className="settings-row">
-            <label>
-              <input
-                type="checkbox"
-                checked={docxExactHighlights}
-                onChange={(e) => setDocxExactHighlights(e.target.checked)}
-              />{' '}
-              {t('wordExport.exactHighlights')}
-            </label>
-            <div className="settings-hint">
-              {t('wordExport.exactHighlightsHint')}
-            </div>
-          </div>
-        </section>
-
-        {/* ── Table Read (issue #131) ── */}
-        <section className="settings-section">
-          <h2 className="settings-section-title">{t('tableRead.title')}</h2>
-          <p className="settings-section-desc">
-            {isTauriApp() ? t('tableRead.descriptionDevice') : t('tableRead.descriptionComputer')}
-          </p>
-          <VoiceProviderSettings />
-        </section>
-
-        {/* ── Editing ── */}
-        <section className="settings-section">
-          <h2 className="settings-section-title">{t('editing.title')}</h2>
-          <p className="settings-section-desc">
-            {t('editing.description')}
-          </p>
-
-          <div className="settings-row">
-            <label>
-              <input
-                type="checkbox"
-                checked={elementMenuOnEnter}
-                onChange={(e) => setElementMenuOnEnter(e.target.checked)}
-              />{' '}
-              {t('editing.menuOnEnter')}
-            </label>
-            <div className="settings-hint">
-              {t('editing.menuOnEnterHint')}
-            </div>
-          </div>
-
-          <div className="settings-row">
-            <label htmlFor="element-menu-shortcut">{t('editing.shortcut')}</label>
-            <ShortcutField
-              id="element-menu-shortcut"
-              value={elementMenuShortcut}
-              onChange={setElementMenuShortcut}
-            />
-            <div className="settings-hint">
-              {isMacPlatform() ? t('editing.shortcutHintMac') : t('editing.shortcutHintOther')}
-            </div>
-          </div>
-        </section>
-
-        <SmartTypeSettingsSection />
-
-        <MacroSettingsSection />
-
-        {/* ── Invite Defaults ── */}
-        <section className="settings-section">
-          <h2 className="settings-section-title">{t('invite.title')}</h2>
-          <p className="settings-section-desc">
-            {t('invite.description')}
-          </p>
-
-          <div className="settings-row">
-            <label htmlFor="settings-invite-expiry">{t('invite.expiry')}</label>
-            <Select
-              id="settings-invite-expiry"
-              className="dialog-input settings-select"
-              value={defaultInviteExpiry}
-              onChange={(e) => setDefaultInviteExpiry(Number(e.target.value))}
-            >
-              {EXPIRY_OPTIONS.map((opt) => (
-                <option key={opt.hours} value={opt.hours}>
-                  {expiryLabel(opt)}
-                </option>
-              ))}
-            </Select>
-          </div>
-        </section>
+                <div className="settings-row">
+                  <label htmlFor="settings-cloud-url">{t('cloud.apiUrl')}</label>
+                  <div className="settings-url-row">
+                    <input
+                      id="settings-cloud-url"
+                      className="dialog-input settings-url-input"
+                      value={cloudApiInput}
+                      onChange={(e) => setCloudApiInput(e.target.value)}
+                      placeholder="https://open-draft.com"
+                      onKeyDown={(e) => handleKeyDown(e, handleSaveCloudApi)}
+                    />
+                    <button className="dialog-btn dialog-btn-primary" onClick={handleSaveCloudApi}>
+                      {t('common:save')}
+                    </button>
+                    <button
+                      className="dialog-btn"
+                      onClick={handleTestCloudApi}
+                      disabled={cloudApiStatus === 'testing'}
+                    >
+                      {cloudApiStatus === 'testing' ? t('collabServer.testing') :
+                        cloudApiStatus === 'ok' ? t('cloud.reachable') :
+                          cloudApiStatus === 'fail' ? t('collabServer.failed') : t('collabServer.test')}
+                    </button>
+                  </div>
+                  {cloudApiStatus === 'ok' && (
+                    <div className="settings-status settings-status-ok">{t('collabServer.reachable')}</div>
+                  )}
+                  {cloudApiStatus === 'fail' && (
+                    <div className="settings-status settings-status-fail">{t('collabServer.unreachable')}</div>
+                  )}
+                </div>
+              </section>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

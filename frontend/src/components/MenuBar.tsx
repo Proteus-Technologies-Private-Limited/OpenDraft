@@ -751,6 +751,10 @@ const MenuBar: React.FC<MenuBarProps> = ({
     () => { void leaveEditor(() => navigate('/settings')); },
     [leaveEditor, navigate],
   );
+  const goToBackupSettings = useCallback(
+    () => { void leaveEditor(() => navigate('/settings#saving')); },
+    [leaveEditor, navigate],
+  );
   const goToMacroSettings = useCallback(
     () => { void leaveEditor(() => navigate('/settings#macros')); },
     [leaveEditor, navigate],
@@ -3198,7 +3202,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
               ...(supportsRevealBackup() ? [
                 { icon: <FaFolderOpen />, label: t('menu:file.openBackupFolder'), action: handleOpenBackupFolder },
               ] : []),
-              { icon: <FaCog />, label: t('menu:file.backupSettings'), action: goToSettings },
+              { icon: <FaCog />, label: t('menu:file.backupSettings'), action: goToBackupSettings },
             ],
           },
         ] : []),

@@ -19,13 +19,13 @@ import './AddOnsSettingsSection.css';
 type SaveFn = () => boolean | Promise<boolean>;
 
 // What a plugin shows about itself: its own translation when it brought one, else its English text.
-const addOnName = (p: OpenDraftPlugin): string => resolvePluginText(p.nameKey, p.name);
+export const addOnName = (p: OpenDraftPlugin): string => resolvePluginText(p.nameKey, p.name);
 const addOnDescription = (p: OpenDraftPlugin): string | undefined =>
   p.description ? resolvePluginText(p.descriptionKey, p.description) : undefined;
 const addOnPrivacy = (p: OpenDraftPlugin): string | undefined =>
   p.privacy ? resolvePluginText(p.privacyKey, p.privacy) : undefined;
 
-function useAddOns(): OpenDraftPlugin[] {
+export function useAddOns(): OpenDraftPlugin[] {
   // getAddOns() builds a new array each call; cache it per registry revision so
   // useSyncExternalStore sees a stable snapshot.
   const cache = useRef<{ rev: number; list: OpenDraftPlugin[] }>({ rev: -1, list: [] });
@@ -199,7 +199,8 @@ type Pending =
   | { kind: 'disable'; plugin: OpenDraftPlugin }
   | null;
 
-const AddOnsSettingsSection: React.FC = () => {
+/** `embedded`: the Settings page already heads this pane with the same title and description, so they are left out here. */
+const AddOnsSettingsSection: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
   const { t } = useTranslation(['settings', 'common']);
   const addOns = useAddOns();
   const [pending, setPending] = useState<Pending>(null);
@@ -208,11 +209,15 @@ const AddOnsSettingsSection: React.FC = () => {
   if (addOns.length === 0) return null;
 
   return (
-    <section className="settings-section">
-      <h2 className="settings-section-title">{t('addOns.title')}</h2>
-      <p className="settings-section-desc">
-        {t('addOns.description')}
-      </p>
+    <section className="settings-section" aria-label={embedded ? t('addOns.title') : undefined}>
+      {!embedded && (
+        <>
+          <h3 className="settings-section-title">{t('addOns.title')}</h3>
+          <p className="settings-section-desc">
+            {t('addOns.description')}
+          </p>
+        </>
+      )}
 
       <ul className="addon-list">
         {addOns.map((plugin) => {

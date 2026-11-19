@@ -383,7 +383,6 @@
     },
     "title": "Compte et sécurité",
     "description": "Gérez votre mot de passe, vos appareils, la vérification en deux étapes et la suppression du compte.",
-    "open": "Ouvrir les réglages du compte",
     "twoFactor": "Vérification en deux étapes",
     "twoFactorHint": "Activée, la connexion depuis un nouvel appareil exige un code à 6 chiffres envoyé par courriel. Désactivée, vous recevrez seulement un courriel d’alerte pour repérer les connexions non autorisées.",
     "smtpMissing": "Le courriel n’est pas configuré sur ce serveur ; les codes de vérification ne peuvent donc pas être envoyés. La vérification en deux étapes est indisponible tant que SMTP n’est pas configuré.",
@@ -400,6 +399,24 @@
   "page": {
     "back": "Retour",
     "title": "Réglages système"
+  },
+  "nav": {
+    "label": "Sections des réglages",
+    "search": "Rechercher dans les réglages",
+    "noMatch": "Aucun réglage ne correspond à « {{query}} ».",
+    "general": "Général",
+    "generalDesc": "La langue, et le comportement de l’éditeur pendant que vous écrivez.",
+    "saving": "Enregistrement et sauvegardes",
+    "savingDesc": "Quand votre travail est enregistré, où vont les nouveaux projets, et les copies de sauvegarde.",
+    "writing": "Outils d’écriture",
+    "writingDesc": "Suggestions SmartType, macros et voix de la lecture à la table.",
+    "export": "Impression et export",
+    "exportDesc": "Comment votre script est imprimé et exporté.",
+    "account": "Compte et collaboration",
+    "accountDesc": "Connexion, sécurité et paramètres par défaut des invitations à collaborer.",
+    "advanced": "Avancé",
+    "advancedDesc": "Adresses des serveurs, pour une installation auto-hébergée.",
+    "advancedNote": "Ne modifiez ces adresses que si vous utilisez votre propre serveur OpenDraft."
   },
   "language": {
     "title": "Langue",

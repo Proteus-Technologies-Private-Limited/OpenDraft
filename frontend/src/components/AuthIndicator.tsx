@@ -140,7 +140,7 @@ const AuthIndicator: React.FC = () => {
               // `beforeunload` nor Tauri's close handler, so the open document
               // is flushed — or, with auto-save off, asked about — first
               // (issues #65, #135).
-              void leaveEditor(() => navigate('/settings'));
+              void leaveEditor(() => navigate('/settings#account'));
             }}
           >
             <FaUserCircle /> {t('auth.accountSettings')}
