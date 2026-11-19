@@ -4205,6 +4205,10 @@ const MenuBar: React.FC<MenuBarProps> = ({
   // the controls on the other half. Measured rather than set at a breakpoint:
   // the room depends on the device, and the labels' width on the language.
   // The width the labels needed is kept, so they come back once it is there.
+  // On phones and narrow windows the stylesheet already makes the bar scroll
+  // sideways with its labels showing; overflow there is by design, so the
+  // labels stay. Only book posture, where scrolling is a last resort beside
+  // the hinge, drops them.
   const [menuIconsOnly, setMenuIconsOnly] = useState(false);
   const labelledMenuWidth = useRef(0);
   useLayoutEffect(() => {
@@ -4220,7 +4224,12 @@ const MenuBar: React.FC<MenuBarProps> = ({
     };
     const fit = () => {
       try {
-        if (!bar.classList.contains('menu-bar--icons')) {
+        const overflowX = getComputedStyle(bar).overflowX;
+        const scrollsByDesign = (overflowX === 'auto' || overflowX === 'scroll')
+          && !document.documentElement.classList.contains('fold-book');
+        if (scrollsByDesign) {
+          apply(false);
+        } else if (!bar.classList.contains('menu-bar--icons')) {
           labelledMenuWidth.current = bar.scrollWidth;
           apply(bar.scrollWidth > bar.clientWidth + 1);
         } else {
@@ -4238,7 +4247,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
     const observer = new ResizeObserver(fit);
     observer.observe(bar);
     return () => observer.disconnect();
-  }, [toolbarMode, menuI18n.language, menus.length]);
+  }, [toolbarMode, menuI18n.language, menus.length, foldState.fold]);
 
   const menuBarClass = `${toolbarMode === 'comfortable' ? 'menu-bar chrome-comfortable' : 'menu-bar'}${menuIconsOnly ? ' menu-bar--icons' : ''}`;
 
