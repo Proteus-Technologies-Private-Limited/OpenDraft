@@ -218,10 +218,70 @@ class MainActivity : TauriActivity() {
         fun readUriBytes(context: android.content.Context, uriString: String): ByteArray? {
             return try {
                 val uri = android.net.Uri.parse(uriString)
-                context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                context.contentResolver.openInputStream(uri)?.use { input ->
+                    // A provider that reports its size lets the buffer be sized
+                    // once. readBytes() grows by doubling and holds the old and
+                    // new buffer together, so a big document briefly needs about
+                    // three times its own size in the Java heap.
+                    val declared = uriSize(context, uriString)
+                    val out = java.io.ByteArrayOutputStream(
+                        if (declared in 1..MAX_READ_BYTES) declared.toInt() else 8192,
+                    )
+                    val chunk = ByteArray(64 * 1024)
+                    var total = 0L
+                    while (true) {
+                        val n = input.read(chunk)
+                        if (n < 0) break
+                        total += n
+                        if (total > MAX_READ_BYTES) {
+                            android.util.Log.e("OpenDraft", "[content-uri] readUriBytes: over $MAX_READ_BYTES bytes, refusing")
+                            return null
+                        }
+                        out.write(chunk, 0, n)
+                    }
+                    out.toByteArray()
+                }
             } catch (e: Exception) {
                 android.util.Log.e("OpenDraft", "[content-uri] readUriBytes failed: ${e.message}")
                 null
+            } catch (e: OutOfMemoryError) {
+                // An Error, not an Exception, so the clause above never saw it.
+                // Left alone it reaches the main thread's uncaught handler and
+                // the app dies; here it becomes the same null the Rust side
+                // already turns into a message.
+                android.util.Log.e("OpenDraft", "[content-uri] readUriBytes ran out of memory")
+                null
+            }
+        }
+
+        /**
+         * The largest document the importers will read into memory, in bytes.
+         * A screenplay, with its images, is a few megabytes; this leaves a wide
+         * margin while keeping a wrong pick (a video, a disk image) from taking
+         * the app down with it.
+         */
+        const val MAX_READ_BYTES = 64L * 1024 * 1024
+
+        /**
+         * The size a provider reports for a document, or -1 when it does not say.
+         *
+         * Asked before the content is read so an oversized file can be refused
+         * with a message rather than loaded and then failed. Providers are free
+         * to omit the column or to report 0 for a stream, so -1 and 0 both mean
+         * "unknown" to the caller, which then relies on the bounded read.
+         */
+        @JvmStatic
+        fun uriSize(context: android.content.Context, uriString: String): Long {
+            return try {
+                val uri = android.net.Uri.parse(uriString)
+                context.contentResolver.query(
+                    uri, arrayOf(android.provider.OpenableColumns.SIZE), null, null, null,
+                )?.use { cursor ->
+                    if (cursor.moveToFirst() && !cursor.isNull(0)) cursor.getLong(0) else -1L
+                } ?: -1L
+            } catch (e: Exception) {
+                android.util.Log.e("OpenDraft", "[content-uri] uriSize failed: ${e.message}")
+                -1L
             }
         }
 
