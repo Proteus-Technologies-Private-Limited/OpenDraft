@@ -69,6 +69,15 @@ export const LATIN_FONT_ID = 'CourierPrime';
  * and then for all of that document's Latin text.
  */
 export const LATIN_WIDE_FONT_ID = 'Cousine';
+
+/**
+ * The proportional Latin face for a script set in Arial, Helvetica or any other
+ * sans-serif (#269). jsPDF's Helvetica cannot write ł, ą, ę…, and handing those
+ * lines to the monospace Courier Prime turned a sans-serif script into a
+ * mixture of two typefaces. Liberation Sans is metric-compatible with Arial, so
+ * line breaks stay where Helvetica would have put them.
+ */
+export const LATIN_SANS_FONT_ID = 'LiberationSans';
 export const DEVANAGARI_FONT_ID = 'NotoSansDevanagari';
 export const CJK_FONT_ID = 'NotoSansCJK';
 
@@ -122,6 +131,13 @@ interface FallbackSpec {
    * first letter to its last, rather than changing font at the first accent.
    */
   latin?: boolean;
+  /**
+   * Set for the proportional Latin face that stands in for Helvetica. It is
+   * never chosen by `specFor`: a run is routed to it only when it is drawn in a
+   * sans-serif base face (`StyledText.sans`), so a Courier script embeds
+   * Courier Prime and not both.
+   */
+  sans?: boolean;
   /**
    * Whether the face is cut down to the characters the document draws before it
    * is embedded. Only worth doing — and only safe — for a face drawn glyph for
@@ -431,6 +447,27 @@ const FALLBACKS: readonly FallbackSpec[] = [
     }],
   },
   {
+    // Not reached by specFor — see FallbackSpec.sans. Same repertoire as Cousine.
+    id: LATIN_SANS_FONT_ID,
+    latin: false,
+    sans: true,
+    coverage: [[0x0020, 0x007e], [0x00a0, 0x024f], [0x0300, 0x0304], [0x0306, 0x030c],
+      [0x0323, 0x0323], [0x0326, 0x0328], [0x1e00, 0x1eff], [0x2013, 0x2014],
+      [0x2018, 0x201e], [0x2020, 0x2022], [0x2026, 0x2026], [0x2030, 0x2030],
+      [0x2039, 0x203a], [0x20ab, 0x20ac], [0x2122, 0x2122]],
+    monospace: false,
+    variants: [{
+      key: LATIN_SANS_FONT_ID,
+      get label() { return t('messages:pdfFonts.latin'); },
+      files: {
+        normal: '/fonts/LiberationSans-Regular.ttf',
+        bold: '/fonts/LiberationSans-Bold.ttf',
+        italic: '/fonts/LiberationSans-Italic.ttf',
+        bolditalic: '/fonts/LiberationSans-BoldItalic.ttf',
+      },
+    }],
+  },
+  {
     id: UNICODE_FONT_ID,
     // The blocks the bundled subset was cut to — see public/fonts/README.md.
     coverage: [[0x0000, 0x02ff], [0x0370, 0x058f], [0x10a0, 0x10ff],
@@ -546,7 +583,7 @@ function isStandardEncodable(codePoint: number): boolean {
 function specFor(codePoint: number): FallbackSpec | null {
   if (isStandardEncodable(codePoint)) return null;
   for (const spec of FALLBACKS) {
-    if (inRanges(codePoint, spec.coverage)) return spec;
+    if (!spec.sans && inRanges(codePoint, spec.coverage)) return spec;
   }
   return null; // nothing bundled covers it — see unsupportedScripts()
 }
@@ -576,6 +613,12 @@ export interface StyledText {
   text: string;
   bold?: boolean;
   italic?: boolean;
+  /**
+   * Drawn in a sans-serif base face (Helvetica). Latin text it cannot write is
+   * then embedded from the proportional Liberation Sans rather than Courier
+   * Prime — see LATIN_SANS_FONT_ID.
+   */
+  sans?: boolean;
 }
 
 export function styleKey(bold?: boolean, italic?: boolean): FontStyle {
@@ -623,13 +666,17 @@ export function requiredUnicodeFaces(drawn: StyledText[]): RequiredFaces {
   // Only the text that reached a face with a choice to make, so deciding which
   // CJK family a document is in does not mean re-walking all of it.
   const samples = new Map<string, string[]>();
+  const sansSpec = FALLBACKS.find((spec) => spec.sans);
 
   for (const item of drawn) {
     if (!item.text) continue;
     const style = styleKey(item.bold, item.italic);
     for (const char of item.text) {
-      const spec = specFor(char.codePointAt(0)!);
+      const codePoint = char.codePointAt(0)!;
+      let spec = specFor(codePoint);
       if (!spec) continue;
+      // A sans-serif run keeps its Latin letters in the sans face, not Courier's.
+      if (item.sans && sansSpec && spec.latin && inRanges(codePoint, sansSpec.coverage)) spec = sansSpec;
       let face = required.get(spec.id);
       if (!face) {
         required.set(spec.id, (face = { styles: new Set(), variant: spec.variants[0].key }));
@@ -655,6 +702,13 @@ export function requiredUnicodeFaces(drawn: StyledText[]): RequiredFaces {
     const latinFace = required.get(id);
     if (!latinFace) continue;
     for (const item of drawn) if (item.text) latinFace.styles.add(styleKey(item.bold, item.italic));
+  }
+
+  // The sans face is drawn whole wherever the base face is Helvetica (see
+  // segmentByFace), so like the Latin faces it needs every style that is used.
+  const sansFace = required.get(LATIN_SANS_FONT_ID);
+  if (sansFace) {
+    for (const item of drawn) if (item.text && item.sans) sansFace.styles.add(styleKey(item.bold, item.italic));
   }
 
   // For the faces that get cut down: every character they could be asked to
@@ -874,6 +928,8 @@ export interface UnicodeFont {
   monospace: boolean;
   /** Whether this is the Latin face a run is drawn in whole — see FallbackSpec.latin. */
   latin: boolean;
+  /** Whether this is the proportional Latin face that stands in for Helvetica. */
+  sans: boolean;
   /** Whether this face can write the code point. */
   covers(codePoint: number): boolean;
   /** The text as this face needs it ordered, which for Latin scripts is as it is. */
@@ -903,6 +959,8 @@ export interface UnicodeFallbacks {
   readonly unsupported: readonly string[];
   /** The embedded Latin face, when the script needed one — see FallbackSpec.latin. */
   readonly latin: UnicodeFont | null;
+  /** The embedded sans-serif Latin face, when a Helvetica run needed one. */
+  readonly sans: UnicodeFont | null;
   /** Every embedded face, narrowest coverage first. */
   readonly faces: readonly UnicodeFont[];
   /** The embedded face that has to write this code point, or null. */
@@ -910,7 +968,7 @@ export interface UnicodeFallbacks {
 }
 
 export const NO_FALLBACKS: UnicodeFallbacks = {
-  none: true, missing: [], unsupported: [], latin: null, faces: [], faceFor: () => null,
+  none: true, missing: [], unsupported: [], latin: null, sans: null, faces: [], faceFor: () => null,
 };
 
 /**
@@ -979,6 +1037,7 @@ async function embedOne(
     charSpace,
     monospace: spec.monospace,
     latin: !!spec.latin,
+    sans: !!spec.sans,
     covers: (codePoint) => inRanges(codePoint, spec.coverage),
     shape: spec.shape ?? ((text) => text),
     shaped,
@@ -1019,6 +1078,7 @@ export async function embedUnicodeFonts(
     missing,
     unsupported,
     latin: faces.find((face) => face.latin) ?? null,
+    sans: faces.find((face) => face.sans) ?? null,
     faces,
     faceFor(codePoint: number) {
       if (isStandardEncodable(codePoint)) return null;
@@ -1047,13 +1107,26 @@ export interface FaceSegment {
 export function segmentByFace(
   text: string,
   fallbacks: UnicodeFallbacks,
-  opts: { latinBase?: boolean } = {},
+  opts: { latinBase?: boolean; sansBase?: boolean } = {},
 ): FaceSegment[] {
   // Latin text goes in one face from end to end. Splitting it at the first
   // accent leaves "Za" in Courier and "żółć" in another font (#269). With
   // `latinBase` the run's own face is Courier, which the embedded Courier Prime
   // replaces throughout, so every line of the script looks alike.
+  // A sans-serif script gets the same treatment in its own typeface: every line
+  // in Liberation Sans, so Arial text does not turn to Courier at the first ł.
+  const sans = fallbacks.sans;
+  if (opts.sansBase && sans && text) {
+    let whole = true;
+    for (const char of text) {
+      if (!sans.covers(char.codePointAt(0)!)) { whole = false; break; }
+    }
+    if (whole) return [{ text, fallback: sans }];
+  }
+
   const latin = fallbacks.latin;
+  // If the sans face could not be loaded, a Helvetica run still gets Courier
+  // Prime whole, as before: a consistent face beats a blank line.
   if (latin && text && (opts.latinBase || needsUnicodeFont(text))) {
     let whole = true;
     for (const char of text) {
@@ -1171,6 +1244,7 @@ export async function embedSystemFonts(
     charSpace: 0,
     monospace: false,
     latin: false,
+    sans: false,
     covers: (codePoint) => covered.has(codePoint),
     shape: (text) => text,
     shaped: false,

@@ -11,7 +11,7 @@ vi.mock('./systemFonts', () => ({ systemFontForText: systemFont.lookup }));
 import {
   needsUnicodeFont, requiredUnicodeFaces, styleKey, embedUnicodeFonts, segmentByFace,
   unsupportedScripts, embedSystemFonts, uncoveredCharacters,
-  NO_FALLBACKS, UNICODE_FONT_ID, LATIN_FONT_ID, LATIN_WIDE_FONT_ID, DEVANAGARI_FONT_ID, CJK_FONT_ID,
+  NO_FALLBACKS, UNICODE_FONT_ID, LATIN_FONT_ID, LATIN_WIDE_FONT_ID, LATIN_SANS_FONT_ID, DEVANAGARI_FONT_ID, CJK_FONT_ID,
   type FontStyle, type RequiredFaces,
 } from './pdfUnicodeFont';
 
@@ -767,6 +767,62 @@ describe('Latin text outside WinAnsi', () => {
     expect(pieces.length).toBeGreaterThan(0);
     expect(pieces.some((p) => p.fallback?.id === UNICODE_FONT_ID)).toBe(true);
     expect(pieces.map((p) => p.text).join('')).toBe('łódź Привет');
+  });
+});
+
+// --- Polish in a sans-serif script (#269: Arial changed font too) -----------
+
+describe('Latin Extended in a sans-serif script', () => {
+  const POLISH_LINE = 'Zażółć gęślą jaźń, a potem łódź płynęła.';
+
+  it('embeds Liberation Sans, not Courier Prime, for a Helvetica run', () => {
+    const faces = requiredUnicodeFaces([{ text: POLISH_LINE, sans: true }]);
+    expect([...faces.keys()]).toEqual([LATIN_SANS_FONT_ID]);
+  });
+
+  it('still embeds Courier Prime for a Courier run, and never both for one script', () => {
+    expect([...requiredUnicodeFaces([{ text: POLISH_LINE }]).keys()]).toEqual([LATIN_FONT_ID]);
+    expect([...requiredUnicodeFaces([{ text: POLISH_LINE, sans: false }]).keys()]).toEqual([LATIN_FONT_ID]);
+  });
+
+  it('embeds every style the sans runs are drawn in', () => {
+    const faces = requiredUnicodeFaces([
+      { text: POLISH_LINE, sans: true },
+      { text: 'INT. ROOM - DAY', sans: true, bold: true },
+      { text: 'Plain English in italics', sans: true, italic: true },
+    ]);
+    expect([...faces.get(LATIN_SANS_FONT_ID)!.styles].sort()).toEqual(['bold', 'italic', 'normal']);
+  });
+
+  it('draws every line of a Helvetica run in the sans face, accented or not', async () => {
+    stubFontFetch();
+    const fallbacks = await embedUnicodeFonts(
+      fakePdf() as never, asked([LATIN_SANS_FONT_ID, ['normal']]), FD_CHAR_WIDTH_PT,
+    );
+    const sansBase = { sansBase: true };
+    expect(segmentByFace(POLISH_LINE, fallbacks, sansBase).map((s) => [s.text, s.fallback?.id]))
+      .toEqual([[POLISH_LINE, LATIN_SANS_FONT_ID]]);
+    // One face for the whole script: an unaccented line must match the Polish ones.
+    expect(segmentByFace('INT. ROOM - DAY', fallbacks, sansBase).map((s) => s.fallback?.id))
+      .toEqual([LATIN_SANS_FONT_ID]);
+    // It is proportional, so it is measured, not put on Courier's cell.
+    expect(fallbacks.sans!.monospace).toBe(false);
+    expect(fallbacks.sans!.charSpace).toBe(0);
+  });
+
+  it('leaves a Courier run on Courier Prime when the sans face is also embedded', async () => {
+    stubFontFetch();
+    const fallbacks = await embedUnicodeFonts(
+      fakePdf() as never,
+      asked([LATIN_FONT_ID, ['normal']], [LATIN_SANS_FONT_ID, ['normal']]),
+      FD_CHAR_WIDTH_PT,
+    );
+    expect(segmentByFace(POLISH_LINE, fallbacks, { latinBase: true }).map((s) => s.fallback?.id))
+      .toEqual([LATIN_FONT_ID]);
+  });
+
+  it('is never picked for a run that is not sans-serif', () => {
+    expect(requiredUnicodeFaces([{ text: 'Привет' }]).has(LATIN_SANS_FONT_ID)).toBe(false);
   });
 });
 

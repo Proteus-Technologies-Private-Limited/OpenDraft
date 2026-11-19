@@ -204,14 +204,16 @@ function applyTypeStyles(runs: TextRun[], typeName: string): TextRun[] {
  * can write it is never embedded and a Hindi AV script or a Cyrillic
  * simultaneous speech comes out of the exporter blank.
  */
-function collectNestedText(node: JSONContent, out: StyledText[]): void {
+function collectNestedText(node: JSONContent, out: StyledText[], documentFont?: string): void {
   const content = node.content ?? [];
   if (content.some((child) => child.type === 'text')) {
     const runs = applyTypeStyles(extractRuns(node), String(node.type ?? ''));
-    for (const run of runs) out.push({ text: run.text, bold: run.bold, italic: run.italic });
+    for (const run of runs) {
+      out.push({ text: run.text, bold: run.bold, italic: run.italic, sans: isSansFamily(run.fontFamily || documentFont) });
+    }
   }
   for (const child of content) {
-    if (child.type !== 'text') collectNestedText(child, out);
+    if (child.type !== 'text') collectNestedText(child, out, documentFont);
   }
 }
 
@@ -238,6 +240,11 @@ export function pdfFontFor(family: string | undefined): 'courier' | 'times' | 'h
     case 'serif': case 'cursive': return 'times';
     default: return 'helvetica';
   }
+}
+
+/** Whether a family is drawn in Helvetica — Arial and every other sans-serif. */
+function isSansFamily(family: string | undefined): boolean {
+  return pdfFontFor(family) === 'helvetica';
 }
 
 /**
@@ -328,7 +335,7 @@ function drawnPieces(
 
   const pieces = isOwnFont(family, fonts)
     ? [asBase(text)]
-    : segmentByFace(text, fonts.fallbacks, { latinBase: base === 'courier' }).map((segment): DrawnPiece => (segment.fallback
+    : segmentByFace(text, fonts.fallbacks, { latinBase: base === 'courier', sansBase: base === 'helvetica' }).map((segment): DrawnPiece => (segment.fallback
       ? {
         text: segment.fallback.shaped ? segment.text : segment.fallback.shape(segment.text),
         face: segment.fallback.id,
@@ -1013,14 +1020,16 @@ async function renderPDFAtScale(doc: JSONContent, title: string, layout: PageLay
   // collected first, with the style it will be drawn in.
   const drawn: StyledText[] = [];
   for (const node of nodes) {
-    for (const run of node.runs) drawn.push({ text: run.text, bold: run.bold, italic: run.italic });
+    for (const run of node.runs) {
+      drawn.push({ text: run.text, bold: run.bold, italic: run.italic, sans: isSansFamily(run.fontFamily || documentFont) });
+    }
     // A dialogue block broken across a page repeats the character name.
-    if (node.typeName === 'character') drawn.push({ text: node.plainText });
+    if (node.typeName === 'character') drawn.push({ text: node.plainText, sans: isSansFamily(documentFont) });
     // A block that draws itself carries its text below the run list.
-    if (node.raw) collectNestedText(node.raw, drawn);
+    if (node.raw) collectNestedText(node.raw, drawn, documentFont);
   }
   for (const it of titleItems) {
-    if (it.kind === 'text') drawn.push({ text: it.text || '', bold: it.field === 'title' });
+    if (it.kind === 'text') drawn.push({ text: it.text || '', bold: it.field === 'title', sans: isSansFamily(it.font || documentFont) });
   }
   if (plan) {
     // Every string this export will draw has to be declared here or a face
@@ -1046,6 +1055,9 @@ async function renderPDFAtScale(doc: JSONContent, title: string, layout: PageLay
     { text: docTitle }, { text: revColor }, { text: new Date().toLocaleDateString() },
     ...[hContent, fContent].flatMap((c) => [{ text: c.left }, { text: c.center }, { text: c.right }]),
   );
+
+  // Page furniture, notes and the rest are drawn in the script's own face.
+  for (const item of drawn) if (item.sans === undefined) item.sans = isSansFamily(documentFont);
 
   // Fonts the writer installed themselves are embedded outright, so a script
   // set in one exports as that font rather than as the nearest built-in.

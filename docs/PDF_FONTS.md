@@ -24,6 +24,13 @@ other character is routed, per character, to a font that is embedded in the PDF.
   middle of a Cyrillic or Polish sentence.
 - Courier text in a document that needs Latin Extended is drawn in Courier Prime
   (or Cousine, for Vietnamese) throughout, not just at the accented letters.
+- A script set in Arial, Helvetica or another sans-serif gets the same treatment
+  in its own typeface: its Latin Extended text is drawn in **Liberation Sans**
+  (metric-compatible with Arial) from the first line to the last, not in the
+  monospace Courier Prime, so Polish lines do not turn to Courier in the middle
+  of an Arial script. The exporter marks each run `sans` when its base face is
+  Helvetica (`StyledText.sans`); only then is Liberation Sans embedded, so a
+  Courier script still carries Courier Prime alone.
 - Faces that are not on the Final Draft cell (all Noto) are measured; faces that
   are (Courier Prime, Cousine, DejaVu) are stretched to it, so line breaks do
   not move.

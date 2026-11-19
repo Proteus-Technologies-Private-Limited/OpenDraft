@@ -197,6 +197,21 @@ U+1E00-1EFF,U+2013-2014,U+2018-201E,U+2020-2022,U+2026,U+2030,U+2039-203A,U+20AB
   --output-file=Cousine-Regular.ttf
 ```
 
+## Liberation Sans (Latin Extended, for sans-serif scripts)
+
+PDF export face for a script set in Arial, Helvetica or another sans-serif that
+uses letters outside WinAnsi (#269): Polish ł, ą, ę…, Czech, Turkish, Romanian,
+Vietnamese. SIL Open Font License 1.1 (`LICENSE-Liberation.txt`), metric-
+compatible with Arial, so lines break where Helvetica's would. Subset from
+Liberation Fonts 2.1.5 with the same recipe as Cousine above:
+
+```sh
+python3 -m fontTools.subset LiberationSans-Regular.ttf --no-hinting --layout-features='' \
+  --unicodes="U+0020-007E,U+00A0-024F,U+0300-0304,U+0306-030C,U+0323,U+0326-0328,\
+U+1E00-1EFF,U+2013-2014,U+2018-201E,U+2020-2022,U+2026,U+2030,U+2039-203A,U+20AB,U+20AC,U+2122" \
+  --output-file=LiberationSans-Regular.ttf
+```
+
 ## Noto Sans Khmer, Lao, Myanmar
 
 Bundled PDF export fallbacks, unmodified from Google Fonts (50–180 kB each),

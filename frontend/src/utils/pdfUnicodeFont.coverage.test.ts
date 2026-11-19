@@ -155,3 +155,18 @@ describe('scripts still without a face are named, not drawn blank', () => {
     });
   }
 });
+
+describe('Liberation Sans, the face a sans-serif Latin script is drawn in (#269)', () => {
+  // The sans face is chosen per run, not per character, so describeFaceFor never
+  // returns it; its files are checked here instead.
+  const SAMPLES = ['Zażółć gęślą jaźń ZAŻÓŁĆ GĘŚLĄ JAŹŃ', 'Příliš žluťoučký kůň', 'ığüşöç İĞÜŞÖÇ', 'Việt Nam đẹp ế ề ộ'];
+  for (const style of ['Regular', 'Bold', 'Italic', 'BoldItalic']) {
+    it(`${style} has a glyph for every Latin Extended and Vietnamese letter used`, () => {
+      const cmap = cmapFor(join(FONT_DIR, `LiberationSans-${style}.ttf`));
+      for (const char of SAMPLES.join('')) {
+        if (char === ' ') continue;
+        expect(cmap.has(char.codePointAt(0)!), `${style}: no glyph for ${char}`).toBe(true);
+      }
+    });
+  }
+});
