@@ -13,6 +13,7 @@ import { DndContext, DragOverlay, useDraggable, type DragEndEvent, type DragStar
 import { FaGripVertical, FaChevronLeft, FaChevronRight, FaTimes, FaPlus, FaTrashAlt } from 'react-icons/fa';
 import { useEditorFields } from '../../stores/editorStore';
 import { pluginRegistry } from '../../plugins/registry';
+import { useWorkspaceDocksAvailable } from '../../hooks/useWorkspaceDocks';
 import {
   TOOLBAR_PRESETS,
   TOOLBAR_PLUGIN_PREFIX,
@@ -150,7 +151,15 @@ const BarsTab: React.FC<Props> = ({ state, setState }) => {
     [workspaceLayout],
   );
   const pluginIds = useMemo(() => pluginRegistry.getPanels('toolbar').map((p) => p.id), []);
-  const everyItem = useMemo(() => allToolbarItemIds(placedPanels, pluginIds), [placedPanels, pluginIds]);
+  // The Layout switcher moves the panel docks; where there are none (a phone,
+  // a narrow window) the bars leave it out, so the customiser does too. A
+  // placement made on a wider screen is kept in the saved layout.
+  const docksAvailable = useWorkspaceDocksAvailable();
+  const shown = useCallback((id: string) => docksAvailable || id !== 'layout', [docksAvailable]);
+  const everyItem = useMemo(
+    () => allToolbarItemIds(placedPanels, pluginIds).filter(shown),
+    [placedPanels, pluginIds, shown],
+  );
   const available = everyItem.filter((id) => !barOf(state.bars, id));
 
   const nameOf = useCallback((dragId: string) => {
@@ -191,7 +200,7 @@ const BarsTab: React.FC<Props> = ({ state, setState }) => {
   };
 
   const renderList = (bar: ToolbarBar) => {
-    const { start, end } = splitBySide(state.bars[bar], state.options);
+    const { start, end } = splitBySide(state.bars[bar].filter(shown), state.options);
     const title = bar === 'top' ? t('layout.toolbarTab.onToolbar') : t('layout.toolbarTab.onFooter');
     const divider = (side: ToolbarSide) => (
       <DropZone id={`side:${bar}:${side}`} className="bars-side">
@@ -202,7 +211,7 @@ const BarsTab: React.FC<Props> = ({ state, setState }) => {
     );
     return (
       <section className="bars-list" aria-label={title}>
-        <h3>{title} <small>{t('layout.toolbarTab.count', { count: state.bars[bar].length })}</small></h3>
+        <h3>{title} <small>{t('layout.toolbarTab.count', { count: state.bars[bar].filter(shown).length })}</small></h3>
         <div className="bars-list-body">
           {divider('start')}
           {start.map((id) => <BarRow key={id} id={id} bar={bar} state={state} selected={selected === id} onSelect={() => setSelected(id)} onChange={setState} />)}
@@ -214,7 +223,7 @@ const BarsTab: React.FC<Props> = ({ state, setState }) => {
   };
 
   const renderPreviewBar = (bar: ToolbarBar) => {
-    const { start, end } = splitBySide(state.bars[bar], state.options);
+    const { start, end } = splitBySide(state.bars[bar].filter(shown), state.options);
     return (
       <DropZone id={`bar:${bar}`} className={`bars-preview-bar bars-preview-${bar}`}>
         <span className="bars-preview-tag">{bar === 'top' ? t('layout.toolbarTab.onToolbar') : t('layout.toolbarTab.onFooter')}</span>
@@ -232,7 +241,7 @@ const BarsTab: React.FC<Props> = ({ state, setState }) => {
     .filter((entry) => entry.ids.length > 0);
 
   // ── Settings for the selected control ──
-  const sel = everyItem.includes(selected) || barOf(state.bars, selected) ? selected : null;
+  const sel = everyItem.includes(selected) || (shown(selected) && barOf(state.bars, selected)) ? selected : null;
   const renderSettings = () => {
     if (!sel) return <p className="layout-muted">{t('layout.panelsTab.noSelection')}</p>;
     const meta = metaOf(sel);

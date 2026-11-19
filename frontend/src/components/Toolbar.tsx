@@ -64,6 +64,7 @@ import { isInAvCell, isInAvRow, avCellSideAt } from '../editor/extensions/AvBloc
 import { avCellElementRules, scriptBodyElementRules } from '../utils/avCellElements';
 import Select from './Select';
 import { useFoldState } from '../hooks/useFoldState';
+import { useWorkspaceDocksAvailable } from '../hooks/useWorkspaceDocks';
 import { PHONE_DEVICE_CHANGE_EVENT } from '../utils/phoneDevice';
 import { FOLD_CHANGE_EVENT } from '../utils/foldPosture';
 import { formatShortcut } from '../utils/shortcuts';
@@ -173,6 +174,7 @@ function PanelButton({ panel, mode, onDone }: { panel: string; mode: ToolbarLabe
 function BarContextMenu({ at, onClose }: { at: { x: number; y: number }; onClose: () => void }) {
   const { t } = useTranslation('toolbar');
   const setLayoutDialog = useEditorStore((s) => s.setLayoutDialog);
+  const docksAvailable = useWorkspaceDocksAvailable();
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const onDown = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) onClose(); };
@@ -188,9 +190,12 @@ function BarContextMenu({ at, onClose }: { at: { x: number; y: number }; onClose
       <button type="button" className="toolbar-context-item" role="menuitem" onClick={() => { onClose(); setLayoutDialog('toolbar'); }}>
         <FaSlidersH /> {t('layout.customiseBars')}
       </button>
-      <button type="button" className="toolbar-context-item" role="menuitem" onClick={() => { onClose(); setLayoutDialog('panels'); }}>
-        <FaCompass /> {t('layout.editLayouts')}
-      </button>
+      {/* Panel layouts only where the docks exist (useWorkspaceDocks). */}
+      {docksAvailable && (
+        <button type="button" className="toolbar-context-item" role="menuitem" onClick={() => { onClose(); setLayoutDialog('panels'); }}>
+          <FaCompass /> {t('layout.editLayouts')}
+        </button>
+      )}
     </div>
   );
 }
@@ -228,6 +233,7 @@ interface ControlBarProps {
  */
 const ControlBar: React.FC<ControlBarProps> = ({ editor, bar, side, editorMain = null }) => {
   const foldState = useFoldState();
+  const docksAvailable = useWorkspaceDocksAvailable();
   const { t } = useTranslation(['toolbar', 'common']);
   const {
     activeElement,
@@ -715,7 +721,7 @@ const ControlBar: React.FC<ControlBarProps> = ({ editor, bar, side, editorMain =
       cancelAnimationFrame(rafId);
     };
     // The layout's labels change widths without changing the item list.
-  }, [isTop, hideOrder, toolbarLayout, toolbarMode, foldState.foldable, foldState.size, foldState.fold]);
+  }, [isTop, hideOrder, toolbarLayout, toolbarMode, foldState.foldable, foldState.size, foldState.fold, docksAvailable]);
 
   // ── Notes handler (shared between inline and overflow) ──
   const handleNotesClick = useCallback((e: React.PointerEvent | React.MouseEvent) => {
@@ -1139,7 +1145,8 @@ const ControlBar: React.FC<ControlBarProps> = ({ editor, bar, side, editorMain =
             () => { requestAppCommand('reports'); closeOverflow(inOverflow); })}
         </div>;
       case 'views': return <ViewsMenu key="views" label={mode} inOverflow={inOverflow} />;
-      case 'layout': return <LayoutSwitcher key="layout" label={mode} options={options} />;
+      // The switcher moves the panel docks, which a phone or narrow window does not have.
+      case 'layout': return docksAvailable ? <LayoutSwitcher key="layout" label={mode} options={options} /> : null;
       case 'theme': {
         const dark = appearance !== 'light';
         return <div className="toolbar-group" key="theme">

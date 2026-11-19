@@ -1,5 +1,5 @@
 import { readSourceFidelity } from '../utils/sourceFidelity';
-import React, { useEffect, useLayoutEffect, useCallback, useRef, useState, useMemo, useSyncExternalStore } from 'react';
+import React, { useEffect, useLayoutEffect, useCallback, useRef, useState, useMemo } from 'react';
 import { panelResize } from '../utils/panelResize';
 import { ModalOverlay } from './ModalOverlay';
 import { useTranslation, Trans } from 'react-i18next';
@@ -82,8 +82,7 @@ import ScriptStatistics from './ScriptStatistics';
 import TableReadPanel from './TableReadPanel';
 import FoldablePanelDock from './FoldablePanelDock';
 import WorkspaceDock, { type DockPanelDef, type NavigatorRender } from './WorkspaceDock';
-/** Widths where the Navigator is a sliding overlay (screenplay.css), so the docks stand aside. */
-const DOCK_LAYOUT_MAX_COMPACT = '(max-width: 1100px)';
+import { useCompactViewport } from '../hooks/useWorkspaceDocks';
 import LayoutDialog from './LayoutDialog';
 import { panelOpenIn } from '../utils/panelActions';
 import { BUILT_IN_PANELS, movePanelToNewGroup, visibleGroups } from '../utils/workspaceLayout';
@@ -702,20 +701,8 @@ const ScreenplayEditor: React.FC = () => {
   // and below the Navigator (and at 900px the right-hand panels) become
   // overlays that slide in and out (screenplay.css), so narrower windows, a
   // foldable's postures and phones keep that arrangement, slide included.
-  const compactViewport = useSyncExternalStore(
-    (notify) => {
-      const query = window.matchMedia?.(DOCK_LAYOUT_MAX_COMPACT);
-      if (!query) return () => {};
-      if (typeof query.addEventListener === 'function') {
-        query.addEventListener('change', notify);
-        return () => query.removeEventListener('change', notify);
-      }
-      query.addListener?.(notify);
-      return () => query.removeListener?.(notify);
-    },
-    () => window.matchMedia?.(DOCK_LAYOUT_MAX_COMPACT).matches ?? false,
-    () => false,
-  );
+  // useWorkspaceDocks.ts holds the breakpoint, shared with the places that offer the layouts.
+  const compactViewport = useCompactViewport();
   const dockLayout = !isHistoryMode && !foldDock && !compactViewport;
   const workspaceLayout = useEditorStore((s) => s.workspaceLayout);
   // The saved drag width must not override the fixed foldable column width,

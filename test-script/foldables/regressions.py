@@ -229,6 +229,26 @@ class FoldableRegressions(unittest.TestCase):
         self.page.wait_for_function("!document.querySelector('.menu-bar').classList.contains('menu-bar--icons')")
         self.assertTrue(self.page.locator('.status-center').is_visible())
 
+    def test_phone_menu_bar_keeps_its_labels_and_scrolls(self):
+        # 2.14.0 dropped the labels on every phone: the book-posture fit saw
+        # the labelled menus overflow, but on a phone the bar is meant to
+        # scroll sideways with them showing, in compact and comfortable alike.
+        self.page.evaluate("document.dispatchEvent(new CustomEvent('plugin-panel:close'))")
+        self.posture(width=390, height=800, axis=None)
+        self.page.wait_for_function("!document.documentElement.classList.contains('fold-book')")
+        for mode in ('compact', 'comfortable'):
+            self.page.evaluate(f"testStore.getState().setToolbarMode('{mode}')")
+            self.page.wait_for_timeout(200)
+            bar = self.page.evaluate("""() => {
+                const bar = document.querySelector('.menu-bar:not(.menu-bar--floating)');
+                const label = bar.querySelector('.menu-label');
+                return {iconsOnly: bar.classList.contains('menu-bar--icons'),
+                        labelWidth: label.getBoundingClientRect().width,
+                        scrolls: bar.scrollWidth > bar.clientWidth};
+            }""")
+            self.assertFalse(bar['iconsOnly'], mode)
+            self.assertGreater(bar['labelWidth'], 10, mode)
+
     def test_long_script_keeps_selection_and_reading_anchor(self):
         # The probe supplies the editor reference; close it for the reading
         # check. Focused/open panel preservation is exercised separately.
