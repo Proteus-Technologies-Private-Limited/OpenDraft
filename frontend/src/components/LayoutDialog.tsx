@@ -13,6 +13,7 @@ import { ModalOverlay } from './ModalOverlay';
 import PanelsTab from './layout/PanelsTab';
 import BarsTab from './layout/BarsTab';
 import { useWorkspaceLayoutChoices } from './toolbar/toolbarMeta';
+import { useWorkspaceDocksAvailable } from '../hooks/useWorkspaceDocks';
 import '../styles/workspaceLayout.css';
 
 const LayoutDialog: React.FC = () => {
@@ -25,6 +26,9 @@ const LayoutDialog: React.FC = () => {
     'toolbarLayout', 'setToolbarLayout', 'applyToolbarPreset',
   );
   const layouts = useWorkspaceLayoutChoices();
+  // On a phone or narrow window the panels are overlays, not docks, so the
+  // Panels tab and the layout switch would change nothing: only the bars.
+  const docksAvailable = useWorkspaceDocksAvailable();
   const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   useEffect(() => {
@@ -41,8 +45,9 @@ const LayoutDialog: React.FC = () => {
   }, [layoutDialog, setLayoutDialog]);
 
   if (!layoutDialog) return null;
+  const activeTab = docksAvailable ? layoutDialog : 'toolbar';
   const tabs = [
-    { id: 'panels' as const, label: t('layout.tabs.panels') },
+    ...(docksAvailable ? [{ id: 'panels' as const, label: t('layout.tabs.panels') }] : []),
     { id: 'toolbar' as const, label: t('layout.tabs.toolbar') },
   ];
   const known = layouts.some((choice) => choice.id === workspacePreset);
@@ -60,10 +65,10 @@ const LayoutDialog: React.FC = () => {
                 type="button"
                 role="tab"
                 id={`layout-tab-${tab.id}`}
-                aria-selected={layoutDialog === tab.id}
+                aria-selected={activeTab === tab.id}
                 aria-controls={`layout-tabpanel-${tab.id}`}
-                tabIndex={layoutDialog === tab.id ? 0 : -1}
-                className={layoutDialog === tab.id ? 'is-on' : ''}
+                tabIndex={activeTab === tab.id ? 0 : -1}
+                className={activeTab === tab.id ? 'is-on' : ''}
                 onClick={() => setLayoutDialog(tab.id)}
                 onKeyDown={(e) => {
                   if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
@@ -78,26 +83,28 @@ const LayoutDialog: React.FC = () => {
             ))}
           </div>
           <span className="layout-dialog-spacer" />
-          <label className="layout-quick-switch">
-            <span>{t('layout.quickSwitch')}</span>
-            <select value={known ? workspacePreset : 'custom'} onChange={(e) => { if (e.target.value !== 'custom') applyWorkspacePreset(e.target.value); }}>
-              {!known && <option value="custom">{t('layout.presets.custom')}</option>}
-              {layouts.map((choice) => <option key={choice.id} value={choice.id}>{choice.label}</option>)}
-            </select>
-          </label>
+          {docksAvailable && (
+            <label className="layout-quick-switch">
+              <span>{t('layout.quickSwitch')}</span>
+              <select value={known ? workspacePreset : 'custom'} onChange={(e) => { if (e.target.value !== 'custom') applyWorkspacePreset(e.target.value); }}>
+                {!known && <option value="custom">{t('layout.presets.custom')}</option>}
+                {layouts.map((choice) => <option key={choice.id} value={choice.id}>{choice.label}</option>)}
+              </select>
+            </label>
+          )}
           <button type="button" className="layout-icon-btn layout-dialog-close" aria-label={t('layout.close')} onClick={() => setLayoutDialog(null)}>
             <FaTimes aria-hidden="true" />
           </button>
         </div>
 
-        <div className="layout-dialog-body" role="tabpanel" id={`layout-tabpanel-${layoutDialog}`} aria-labelledby={`layout-tab-${layoutDialog}`}>
-          {layoutDialog === 'panels'
+        <div className="layout-dialog-body" role="tabpanel" id={`layout-tabpanel-${activeTab}`} aria-labelledby={`layout-tab-${activeTab}`}>
+          {activeTab === 'panels'
             ? <PanelsTab layout={workspaceLayout} setLayout={setWorkspaceLayout} />
             : <BarsTab state={toolbarLayout} setState={setToolbarLayout} />}
         </div>
 
         <div className="layout-dialog-footer">
-          {layoutDialog === 'panels' ? (
+          {activeTab === 'panels' ? (
             <button type="button" className="layout-link" onClick={() => applyWorkspacePreset('classic')}>{t('layout.panelsTab.reset')}</button>
           ) : (
             <button type="button" className="layout-link" onClick={() => applyToolbarPreset('default')}>{t('layout.toolbarTab.reset')}</button>

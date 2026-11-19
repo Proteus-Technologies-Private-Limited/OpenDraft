@@ -17,6 +17,7 @@ import { currentMainView, setMainView, togglePanel, usePanelOpen, type MainView 
 import { NAVIGATOR_PANELS, isNavigatorPanel, layoutPanels } from '../../utils/workspaceLayout';
 import type { ToolbarLabelMode } from '../../utils/toolbarLayout';
 import { panelIcon, usePanelLabel, useWorkspaceLayoutChoices } from './toolbarMeta';
+import { useWorkspaceDocksAvailable } from '../../hooks/useWorkspaceDocks';
 
 
 function PanelCheck({ panel, label, onDone, onToggle }: { panel: string; label: string; onDone: () => void; onToggle?: () => void }) {
@@ -46,6 +47,7 @@ const ViewsMenu: React.FC<Props> = ({ label, inOverflow = false }) => {
   );
   const panelLabel = usePanelLabel();
   const layouts = useWorkspaceLayoutChoices();
+  const docksAvailable = useWorkspaceDocksAvailable();
   const [open, setOpen] = useState(false);
   const [align, setAlign] = useState<'start' | 'end'>('end');
   const ref = useRef<HTMLDivElement>(null);
@@ -128,18 +130,23 @@ const ViewsMenu: React.FC<Props> = ({ label, inOverflow = false }) => {
           )}
           {toolPanels.map((panel) => <PanelCheck key={panel} panel={panel} label={panelLabel(panel)} onDone={close} />)}
 
-          <div className="toolbar-views-sep" />
-          <div className="toolbar-views-heading">{t('toolbar:layout.items.layout.label')}</div>
-          {layouts.map((choice) => (
-            <label className="toolbar-views-option" key={choice.id}>
-              <input type="radio" name={`${name}-layout`} checked={workspacePreset === choice.id}
-                onChange={() => { applyWorkspacePreset(choice.id); close(); }} />
-              {choice.label}
-            </label>
-          ))}
-          <button type="button" className="toolbar-views-action" onClick={() => { setLayoutDialog('panels'); close(); }}>
-            {t('toolbar:layout.editLayouts')}
-          </button>
+          {/* Panel layouts only where the docks exist (useWorkspaceDocks). */}
+          {docksAvailable && (
+            <>
+              <div className="toolbar-views-sep" />
+              <div className="toolbar-views-heading">{t('toolbar:layout.items.layout.label')}</div>
+              {layouts.map((choice) => (
+                <label className="toolbar-views-option" key={choice.id}>
+                  <input type="radio" name={`${name}-layout`} checked={workspacePreset === choice.id}
+                    onChange={() => { applyWorkspacePreset(choice.id); close(); }} />
+                  {choice.label}
+                </label>
+              ))}
+              <button type="button" className="toolbar-views-action" onClick={() => { setLayoutDialog('panels'); close(); }}>
+                {t('toolbar:layout.editLayouts')}
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>

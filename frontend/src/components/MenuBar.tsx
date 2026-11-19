@@ -31,6 +31,7 @@ import { showToast } from './Toast';
 import { APP_COMMAND_EVENT, type AppCommand } from '../utils/appCommands';
 import { WORKSPACE_PRESET_IDS } from '../utils/workspaceLayout';
 import { useFoldState } from '../hooks/useFoldState';
+import { useWorkspaceDocksAvailable } from '../hooks/useWorkspaceDocks';
 import { statusColumnX, useFoldedMenuPosition } from '../hooks/useFoldedMenuPosition';
 import { formatFileFailure } from '../services/fileDiagnostics';
 import { useTranslation, Trans } from 'react-i18next';
@@ -666,6 +667,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
   const {
     workspacePreset, applyWorkspacePreset, savedWorkspaceLayouts, setLayoutDialog,
   } = useEditorFields('workspacePreset', 'applyWorkspacePreset', 'savedWorkspaceLayouts', 'setLayoutDialog');
+  const workspaceDocksAvailable = useWorkspaceDocksAvailable();
 
   const handleSave = useCallback(async () => {
     if (!editor) return;
@@ -3558,18 +3560,21 @@ const MenuBar: React.FC<MenuBarProps> = ({
             { icon: <FaRegFileAlt />, ...check(viewLayout === 'page', t('menu:view.page'), true), action: () => setViewLayout('page') },
             { icon: <FaMobileAlt />, ...check(viewLayout === 'phone', t('menu:view.phone'), true), action: () => setViewLayout('phone') },
             { icon: <FaBolt />, ...check(viewLayout === 'speed', t('menu:view.speed'), true), action: () => setViewLayout('speed') },
-            { separator: true, label: '' },
             // Where the panels go (Layout › Panels): the built-in layouts and the writer's own.
-            ...WORKSPACE_PRESET_IDS.map((id) => ({
-              icon: <FaThLarge />, ...check(workspacePreset === id, t(`toolbar:layout.presets.${id}`), true),
-              action: () => applyWorkspacePreset(id),
-            })),
-            ...savedWorkspaceLayouts.map((saved) => ({
-              icon: <FaThLarge />, ...check(workspacePreset === saved.id, saved.label, true),
-              action: () => applyWorkspacePreset(saved.id),
-            })),
-            { separator: true, label: '' },
-            { icon: <FaThLarge />, label: t('toolbar:layout.editLayouts'), action: () => setLayoutDialog('panels') },
+            // Only where the docks exist; on a phone or narrow window they change nothing.
+            ...(workspaceDocksAvailable ? [
+              { separator: true, label: '' },
+              ...WORKSPACE_PRESET_IDS.map((id) => ({
+                icon: <FaThLarge />, ...check(workspacePreset === id, t(`toolbar:layout.presets.${id}`), true),
+                action: () => applyWorkspacePreset(id),
+              })),
+              ...savedWorkspaceLayouts.map((saved) => ({
+                icon: <FaThLarge />, ...check(workspacePreset === saved.id, saved.label, true),
+                action: () => applyWorkspacePreset(saved.id),
+              })),
+              { separator: true, label: '' },
+              { icon: <FaThLarge />, label: t('toolbar:layout.editLayouts'), action: () => setLayoutDialog('panels') },
+            ] : []),
           ],
         },
         { separator: true, label: '' },
