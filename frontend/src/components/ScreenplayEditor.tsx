@@ -1,5 +1,5 @@
 import { readSourceFidelity } from '../utils/sourceFidelity';
-import React, { useEffect, useLayoutEffect, useCallback, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useLayoutEffect, useCallback, useRef, useState, useMemo, useSyncExternalStore } from 'react';
 import { panelResize } from '../utils/panelResize';
 import { ModalOverlay } from './ModalOverlay';
 import { useTranslation, Trans } from 'react-i18next';
@@ -83,6 +83,17 @@ import TableReadPanel from './TableReadPanel';
 import FoldablePanelDock from './FoldablePanelDock';
 import WorkspaceDock, { type DockPanelDef, type NavigatorRender } from './WorkspaceDock';
 import { useCompactViewport } from '../hooks/useWorkspaceDocks';
+/** Add-on panels come and go at runtime (an add-on switched on, or removed), and
+ *  the dock decides from their count whether to show the Add-ons panel. */
+const subscribeAddOnPanels = (listener: () => void) => pluginRegistry.subscribe(listener);
+const addOnPanelCount = () => {
+  try {
+    return pluginRegistry.getPanels('right-sidebar').length;
+  } catch (error) {
+    console.error('[workspace] could not read the add-on panels:', error);
+    return 0;
+  }
+};
 import LayoutDialog from './LayoutDialog';
 import { panelOpenIn } from '../utils/panelActions';
 import { BUILT_IN_PANELS, movePanelToNewGroup, visibleGroups } from '../utils/workspaceLayout';
@@ -703,6 +714,10 @@ const ScreenplayEditor: React.FC = () => {
   // foldable's postures and phones keep that arrangement, slide included.
   // useWorkspaceDocks.ts holds the breakpoint, shared with the places that offer the layouts.
   const compactViewport = useCompactViewport();
+  // Re-render when an add-on registers or removes a panel: only the dock knows
+  // whether the Add-ons panel is open, and PluginPanelTabs (which listens too)
+  // is not mounted until it is.
+  const addOnPanels = useSyncExternalStore(subscribeAddOnPanels, addOnPanelCount, addOnPanelCount);
   const dockLayout = !isHistoryMode && !foldDock && !compactViewport;
   const workspaceLayout = useEditorStore((s) => s.workspaceLayout);
   // The saved drag width must not override the fixed foldable column width,
@@ -5813,7 +5828,7 @@ const ScreenplayEditor: React.FC = () => {
     dockPanels.suggestions.render = (w) => <SuggestionsPanel editor={editor} style={panelWidthStyle(w)} />;
     dockPanels['add-ons'] = {
       // The strip collapses to its tabs on its own; it shows when an add-on has a panel.
-      open: pluginRegistry.getPanels('right-sidebar').length > 0,
+      open: addOnPanels > 0,
       render: (w) => <PluginPanelTabs editor={editor} width={w ?? rightPanelWidth} onResizeKeyboard={setRightPanelWidth}
         onActiveChange={setFoldPlugin} onResizePointerDown={(e) => handleResizePointerDown('right', e)} />,
     };
@@ -6335,8 +6350,10 @@ const ScreenplayEditor: React.FC = () => {
                 onPointerDown={(e) => handleResizePointerDown('right', e)} style={{ touchAction: 'none' }} />
             )}
             <WorkspaceDock dock="end" layout={renderLayout} panels={dockPanels} renderNavigator={renderDockNavigator} width={rightPanelWidth} />
-            {/* The writing pad floats; it is not a dock panel. */}
-            <FoldablePanelDock active={false} panels={[
+            {/* The writing pad floats; it is not a dock panel. The same key as the
+                overlay branch's dock below keeps the pad mounted, with its draft,
+                when a resize crosses the 1100px line between the two. */}
+            <FoldablePanelDock key="fold-panels" active={false} panels={[
           { id: 'handwriting', label: tg('editor:scribble.title'), open: scribbleOpen, dock: scribbleDocked, activationKey: scribbleActivation,
             home: scribbleHome, keepHomeWhenClosed: true,
             content: scribbleOpen && editor ? <ScribbleInput editor={editor} docked={scribbleDocked} viewportConstrained={padPosture && !padCanDock} onClose={() => setScribbleOpen(false)} /> : null },
@@ -6353,7 +6370,7 @@ const ScreenplayEditor: React.FC = () => {
               }}
               onPointerDown={(e) => handleResizePointerDown('right', e)} style={{ touchAction: 'none' }} />
           )}
-          <FoldablePanelDock active={!isHistoryMode && foldDock} panels={[
+          <FoldablePanelDock key="fold-panels" active={!isHistoryMode && foldDock} panels={[
             ...(!isHistoryMode ? [
               { id: 'notes', label: tg('menu:view.notesPanel'), open: scriptNotesOpen, content: <ScriptNotes editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} /> },
               { id: 'characters', label: tg('menu:view.characters'), open: characterProfilesOpen, content: <CharacterProfiles editor={editor} projectId={currentProject?.id || ''} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} /> },
