@@ -1,0 +1,270 @@
+{
+  "durationMs": 25206.051,
+  "samples": 22457,
+  "self": [
+    {
+      "frame": "(idle) @ (native):0:0",
+      "ms": 16272.9
+    },
+    {
+      "frame": "(program) @ (native):0:0",
+      "ms": 4550.3
+    },
+    {
+      "frame": "collapse @ (native):0:0",
+      "ms": 632
+    },
+    {
+      "frame": "forChild @ formattingTemplateStore-D5wxqxM_.js:3235:10",
+      "ms": 385
+    },
+    {
+      "frame": "nodesBetween @ dist-CsvgF7ZU.js:161:14",
+      "ms": 282
+    },
+    {
+      "frame": "(garbage collector) @ (native):0:0",
+      "ms": 217.1
+    },
+    {
+      "frame": "(anonymous) @ index-xAa4TMuF.js:181650:56",
+      "ms": 169.5
+    },
+    {
+      "frame": "child @ dist-CsvgF7ZU.js:290:7",
+      "ms": 116.6
+    },
+    {
+      "frame": "(anonymous) @ titlePageBlocks-pLHN73n1.js:384:14",
+      "ms": 105.9
+    },
+    {
+      "frame": "forEach @ dist-CsvgF7ZU.js:305:9",
+      "ms": 90.7
+    },
+    {
+      "frame": "getBoundingClientRect @ (native):0:0",
+      "ms": 81.2
+    },
+    {
+      "frame": "get isLeaf @ dist-CsvgF7ZU.js:1976:12",
+      "ms": 80.6
+    },
+    {
+      "frame": "fetch @ (native):0:0",
+      "ms": 72.7
+    },
+    {
+      "frame": "measuredParagraphLines @ titlePageBlocks-pLHN73n1.js:366:32",
+      "ms": 44
+    },
+    {
+      "frame": "isNodeEmpty @ dist-BrksLrPb.js:2949:21",
+      "ms": 41.5
+    },
+    {
+      "frame": "querySelector @ (native):0:0",
+      "ms": 41.1
+    },
+    {
+      "frame": "capture @ index-xAa4TMuF.js:173746:19",
+      "ms": 39.9
+    },
+    {
+      "frame": "characterKey @ nodeText-D7ogiHeX.js:129:22",
+      "ms": 38.9
+    },
+    {
+      "frame": "preMatch @ formattingTemplateStore-D5wxqxM_.js:1577:18",
+      "ms": 36.2
+    },
+    {
+      "frame": "setItem @ (native):0:0",
+      "ms": 36.1
+    },
+    {
+      "frame": "findNodeMatch @ formattingTemplateStore-D5wxqxM_.js:1454:15",
+      "ms": 33.8
+    },
+    {
+      "frame": "findIndex @ dist-CsvgF7ZU.js:333:11",
+      "ms": 33
+    },
+    {
+      "frame": "(anonymous) @ nonPrinting-CdSLaRFf.js:4782:30",
+      "ms": 31.5
+    },
+    {
+      "frame": "sameOuterDeco @ formattingTemplateStore-D5wxqxM_.js:1387:23",
+      "ms": 30.7
+    },
+    {
+      "frame": "saveScript @ api-DT62cklY.js:115:14",
+      "ms": 28.5
+    }
+  ],
+  "inclusive": [
+    {
+      "frame": "(root) @ (native):0:0",
+      "ms": 25205.3
+    },
+    {
+      "frame": "(idle) @ (native):0:0",
+      "ms": 16272.9
+    },
+    {
+      "frame": "(program) @ (native):0:0",
+      "ms": 4550.3
+    },
+    {
+      "frame": "DOMObserver.observer @ formattingTemplateStore-D5wxqxM_.js:3542:74",
+      "ms": 2756.6
+    },
+    {
+      "frame": "flush @ formattingTemplateStore-D5wxqxM_.js:3636:7",
+      "ms": 2755.5
+    },
+    {
+      "frame": "EditorView.dispatch @ formattingTemplateStore-D5wxqxM_.js:4515:41",
+      "ms": 2726.1
+    },
+    {
+      "frame": "dispatchTransaction @ index-xAa4TMuF.js:31117:38",
+      "ms": 2724.2
+    },
+    {
+      "frame": "dispatchTransaction @ dist-BrksLrPb.js:4109:21",
+      "ms": 2719.4
+    },
+    {
+      "frame": "(anonymous) @ formattingTemplateStore-D5wxqxM_.js:4153:44",
+      "ms": 2714.6
+    },
+    {
+      "frame": "readDOMChange @ formattingTemplateStore-D5wxqxM_.js:3879:23",
+      "ms": 2713.5
+    },
+    {
+      "frame": "updateState @ formattingTemplateStore-D5wxqxM_.js:4208:13",
+      "ms": 1479.7
+    },
+    {
+      "frame": "updateStateInner @ formattingTemplateStore-D5wxqxM_.js:4211:18",
+      "ms": 1477.5
+    },
+    {
+      "frame": "apply @ dist-CsvgF7ZU.js:5612:7",
+      "ms": 927.9
+    },
+    {
+      "frame": "applyTransaction @ dist-CsvgF7ZU.js:5632:18",
+      "ms": 926.8
+    },
+    {
+      "frame": "applyInner @ dist-CsvgF7ZU.js:5676:12",
+      "ms": 840.7
+    },
+    {
+      "frame": "apply @ titlePageBlocks-pLHN73n1.js:192:9",
+      "ms": 662.8
+    },
+    {
+      "frame": "selectionToDOM @ formattingTemplateStore-D5wxqxM_.js:1747:24",
+      "ms": 645.7
+    },
+    {
+      "frame": "setSelection @ formattingTemplateStore-D5wxqxM_.js:809:14",
+      "ms": 642.3
+    },
+    {
+      "frame": "collapse @ (native):0:0",
+      "ms": 632
+    },
+    {
+      "frame": "updateInner @ formattingTemplateStore-D5wxqxM_.js:1156:13",
+      "ms": 597.7
+    },
+    {
+      "frame": "update @ formattingTemplateStore-D5wxqxM_.js:1151:8",
+      "ms": 597.7
+    },
+    {
+      "frame": "updateChildren @ formattingTemplateStore-D5wxqxM_.js:1091:16",
+      "ms": 595.5
+    },
+    {
+      "frame": "iterDeco @ formattingTemplateStore-D5wxqxM_.js:1613:18",
+      "ms": 543.9
+    },
+    {
+      "frame": "performWorkOnRoot @ index-xAa4TMuF.js:6334:28",
+      "ms": 508.9
+    },
+    {
+      "frame": "nodesBetween @ dist-CsvgF7ZU.js:161:14",
+      "ms": 501.4
+    },
+    {
+      "frame": "forEach @ dist-CsvgF7ZU.js:1113:9",
+      "ms": 477.9
+    },
+    {
+      "frame": "nodesBetween @ dist-CsvgF7ZU.js:1126:14",
+      "ms": 474
+    },
+    {
+      "frame": "forEach @ dist-CsvgF7ZU.js:305:9",
+      "ms": 470.7
+    },
+    {
+      "frame": "computeBreaks @ titlePageBlocks-pLHN73n1.js:323:23",
+      "ms": 424.6
+    },
+    {
+      "frame": "renderRootSync @ index-xAa4TMuF.js:6545:25",
+      "ms": 409.1
+    }
+  ],
+  "paginationAndPersistence": [
+    {
+      "frame": "computeBreaks @ titlePageBlocks-pLHN73n1.js:323:23",
+      "ms": 424.6
+    },
+    {
+      "frame": "computeBreaksUnlabelled @ titlePageBlocks-pLHN73n1.js:377:33",
+      "ms": 405.7
+    },
+    {
+      "frame": "capture @ index-xAa4TMuF.js:173746:19",
+      "ms": 125.6
+    },
+    {
+      "frame": "saveScript @ api-DT62cklY.js:115:14",
+      "ms": 103.5
+    },
+    {
+      "frame": "saveScript @ index-xAa4TMuF.js:95982:14",
+      "ms": 103.5
+    },
+    {
+      "frame": "Storage.setItem @ (native):12:40",
+      "ms": 37.2
+    },
+    {
+      "frame": "setItem @ (native):0:0",
+      "ms": 36.1
+    },
+    {
+      "frame": "buildDecorations @ titlePageBlocks-pLHN73n1.js:237:27",
+      "ms": 13.2
+    },
+    {
+      "frame": "buildDecorations$2 @ index-xAa4TMuF.js:30139:28",
+      "ms": 12
+    },
+    {
+      "frame": "captureKeyDown @ formattingTemplateStore-D5wxqxM_.js:2116:24",
+      "ms": 3.6
+    }
+  ]
+}

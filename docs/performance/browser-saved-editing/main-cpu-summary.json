@@ -1,0 +1,274 @@
+{
+  "durationMs": 25260.97,
+  "samples": 22582,
+  "self": [
+    {
+      "frame": "(idle) @ (native):0:0",
+      "ms": 16236.1
+    },
+    {
+      "frame": "(program) @ (native):0:0",
+      "ms": 4310.2
+    },
+    {
+      "frame": "collapse @ (native):0:0",
+      "ms": 577.8
+    },
+    {
+      "frame": "nodesBetween @ dist-CsvgF7ZU.js:161:14",
+      "ms": 440.6
+    },
+    {
+      "frame": "forChild @ formattingTemplateStore-DLZzKQm6.js:3235:10",
+      "ms": 359.9
+    },
+    {
+      "frame": "(garbage collector) @ (native):0:0",
+      "ms": 248.6
+    },
+    {
+      "frame": "takeSpansForNode @ formattingTemplateStore-DLZzKQm6.js:3430:26",
+      "ms": 232.5
+    },
+    {
+      "frame": "(anonymous) @ index-k9-Qpy4M.js:181650:56",
+      "ms": 162.5
+    },
+    {
+      "frame": "(anonymous) @ titlePageBlocks-D_wkF-yj.js:352:14",
+      "ms": 159.2
+    },
+    {
+      "frame": "child @ dist-CsvgF7ZU.js:290:7",
+      "ms": 115.2
+    },
+    {
+      "frame": "fetch @ (native):0:0",
+      "ms": 106.2
+    },
+    {
+      "frame": "get isLeaf @ dist-CsvgF7ZU.js:1976:12",
+      "ms": 69.4
+    },
+    {
+      "frame": "getBoundingClientRect @ (native):0:0",
+      "ms": 68.5
+    },
+    {
+      "frame": "get nodeSize @ dist-CsvgF7ZU.js:1087:14",
+      "ms": 62.6
+    },
+    {
+      "frame": "forEach @ dist-CsvgF7ZU.js:305:9",
+      "ms": 60.8
+    },
+    {
+      "frame": "measuredParagraphLines @ titlePageBlocks-D_wkF-yj.js:334:32",
+      "ms": 57.4
+    },
+    {
+      "frame": "setItem @ (native):0:0",
+      "ms": 55
+    },
+    {
+      "frame": "isNodeEmpty @ dist-Bl58Hqtz.js:2949:21",
+      "ms": 50
+    },
+    {
+      "frame": "querySelector @ (native):0:0",
+      "ms": 44.2
+    },
+    {
+      "frame": "capture @ index-k9-Qpy4M.js:173746:19",
+      "ms": 37.7
+    },
+    {
+      "frame": "(anonymous) @ index-k9-Qpy4M.js:182986:29",
+      "ms": 36.4
+    },
+    {
+      "frame": "(anonymous) @ nonPrinting-CdSLaRFf.js:4782:30",
+      "ms": 36.1
+    },
+    {
+      "frame": "saveScript @ api-B2GFWZIQ.js:115:14",
+      "ms": 32.4
+    },
+    {
+      "frame": "commitBeforeMutationEffects @ index-k9-Qpy4M.js:5343:38",
+      "ms": 30.7
+    },
+    {
+      "frame": "(anonymous) @ index-k9-Qpy4M.js:32330:26",
+      "ms": 30.2
+    }
+  ],
+  "inclusive": [
+    {
+      "frame": "(root) @ (native):0:0",
+      "ms": 25260.4
+    },
+    {
+      "frame": "(idle) @ (native):0:0",
+      "ms": 16236.1
+    },
+    {
+      "frame": "(program) @ (native):0:0",
+      "ms": 4310.2
+    },
+    {
+      "frame": "EditorView.dispatch @ formattingTemplateStore-DLZzKQm6.js:4515:41",
+      "ms": 3040
+    },
+    {
+      "frame": "dispatchTransaction @ index-k9-Qpy4M.js:31117:38",
+      "ms": 3038.9
+    },
+    {
+      "frame": "dispatchTransaction @ dist-Bl58Hqtz.js:4109:21",
+      "ms": 3033.6
+    },
+    {
+      "frame": "flush @ formattingTemplateStore-DLZzKQm6.js:3636:7",
+      "ms": 3015.1
+    },
+    {
+      "frame": "DOMObserver.observer @ formattingTemplateStore-DLZzKQm6.js:3542:74",
+      "ms": 3014
+    },
+    {
+      "frame": "(anonymous) @ formattingTemplateStore-DLZzKQm6.js:4153:44",
+      "ms": 2985.5
+    },
+    {
+      "frame": "readDOMChange @ formattingTemplateStore-DLZzKQm6.js:3879:23",
+      "ms": 2981.9
+    },
+    {
+      "frame": "updateState @ formattingTemplateStore-DLZzKQm6.js:4208:13",
+      "ms": 1942.7
+    },
+    {
+      "frame": "updateStateInner @ formattingTemplateStore-DLZzKQm6.js:4211:18",
+      "ms": 1941.6
+    },
+    {
+      "frame": "apply @ dist-CsvgF7ZU.js:5612:7",
+      "ms": 766.2
+    },
+    {
+      "frame": "applyTransaction @ dist-CsvgF7ZU.js:5632:18",
+      "ms": 764
+    },
+    {
+      "frame": "someProp @ formattingTemplateStore-DLZzKQm6.js:4303:10",
+      "ms": 755.5
+    },
+    {
+      "frame": "forEach @ dist-CsvgF7ZU.js:1113:9",
+      "ms": 755.5
+    },
+    {
+      "frame": "forEach @ dist-CsvgF7ZU.js:305:9",
+      "ms": 750.1
+    },
+    {
+      "frame": "viewDecorations @ formattingTemplateStore-DLZzKQm6.js:3493:25",
+      "ms": 678
+    },
+    {
+      "frame": "(anonymous) @ formattingTemplateStore-DLZzKQm6.js:3495:31",
+      "ms": 677
+    },
+    {
+      "frame": "nodesBetween @ dist-CsvgF7ZU.js:161:14",
+      "ms": 674.5
+    },
+    {
+      "frame": "applyInner @ dist-CsvgF7ZU.js:5676:12",
+      "ms": 667.7
+    },
+    {
+      "frame": "selectionToDOM @ formattingTemplateStore-DLZzKQm6.js:1747:24",
+      "ms": 602.5
+    },
+    {
+      "frame": "nodesBetween @ dist-CsvgF7ZU.js:1126:14",
+      "ms": 597
+    },
+    {
+      "frame": "setSelection @ formattingTemplateStore-DLZzKQm6.js:809:14",
+      "ms": 589.4
+    },
+    {
+      "frame": "collapse @ (native):0:0",
+      "ms": 577.8
+    },
+    {
+      "frame": "update @ formattingTemplateStore-DLZzKQm6.js:1151:8",
+      "ms": 546.3
+    },
+    {
+      "frame": "updateInner @ formattingTemplateStore-DLZzKQm6.js:1156:13",
+      "ms": 545.5
+    },
+    {
+      "frame": "updateChildren @ formattingTemplateStore-DLZzKQm6.js:1091:16",
+      "ms": 543.3
+    },
+    {
+      "frame": "descendants @ dist-CsvgF7ZU.js:1133:13",
+      "ms": 529.7
+    },
+    {
+      "frame": "iterDeco @ formattingTemplateStore-DLZzKQm6.js:1613:18",
+      "ms": 515.4
+    }
+  ],
+  "paginationAndPersistence": [
+    {
+      "frame": "computeBreaks @ titlePageBlocks-D_wkF-yj.js:291:23",
+      "ms": 487.1
+    },
+    {
+      "frame": "buildDecorations @ titlePageBlocks-D_wkF-yj.js:205:27",
+      "ms": 487.1
+    },
+    {
+      "frame": "computeBreaksUnlabelled @ titlePageBlocks-D_wkF-yj.js:345:33",
+      "ms": 474.1
+    },
+    {
+      "frame": "saveScript @ api-B2GFWZIQ.js:115:14",
+      "ms": 142.9
+    },
+    {
+      "frame": "saveScript @ index-k9-Qpy4M.js:95982:14",
+      "ms": 142.9
+    },
+    {
+      "frame": "capture @ index-k9-Qpy4M.js:173746:19",
+      "ms": 140.7
+    },
+    {
+      "frame": "Storage.setItem @ (native):12:40",
+      "ms": 57.2
+    },
+    {
+      "frame": "setItem @ (native):0:0",
+      "ms": 55
+    },
+    {
+      "frame": "buildDecorations$2 @ index-k9-Qpy4M.js:30139:28",
+      "ms": 13.1
+    },
+    {
+      "frame": "caretVisible @ titlePageBlocks-D_wkF-yj.js:145:22",
+      "ms": 9
+    },
+    {
+      "frame": "captureKeyDown @ formattingTemplateStore-DLZzKQm6.js:2116:24",
+      "ms": 2.2
+    }
+  ]
+}

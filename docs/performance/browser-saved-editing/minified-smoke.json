@@ -1,0 +1,153 @@
+{
+  "revision": "candidate-minified-base-7714d63",
+  "url": "http://127.0.0.1:4187",
+  "bundlePath": "/assets/index-DbSJKFZQ.js",
+  "bundleHash": "2752189996381926528f7542384481a5e04371a23f421282357e4689fad620af",
+  "browser": "154.0.8037.57",
+  "profile": false,
+  "fixture": "150",
+  "requestedPages": 150,
+  "layout": "page",
+  "navigator": "on",
+  "spellcheck": "on",
+  "autoSaveSeconds": 5,
+  "fixtureHash": "f70382ee8f3e656af819ff8537d6d168f7f35c077002c52fce7f2c3e6da7da27",
+  "target": 84026,
+  "pages": 150,
+  "renderedPageGaps": 149,
+  "blocks": 3110,
+  "docSize": 168013,
+  "sceneCount": "115",
+  "spellMarks": 304,
+  "pageClass": "page tags-hidden notes-hidden show-element-numbers",
+  "navigatorVisible": true,
+  "editorClass": "tiptap ProseMirror screenplay-content",
+  "phases": [
+    {
+      "name": "typing",
+      "docDelta": 120,
+      "keys": 120,
+      "repeated": 0,
+      "wallMs": 10694.20595,
+      "latencyMs": {
+        "median": 30.300000000745058,
+        "p95": 45.69999999925494,
+        "max": 86.10000000149012
+      },
+      "mainThreadMs": {
+        "TaskDuration": 4452.526,
+        "ScriptDuration": 2064.822,
+        "LayoutDuration": 626.6709999999999,
+        "RecalcStyleDuration": 9.265
+      },
+      "counts": {
+        "layout": 189,
+        "style": 70
+      }
+    },
+    {
+      "name": "backspace",
+      "docDelta": -120,
+      "keys": 120,
+      "repeated": 119,
+      "wallMs": 8444.423921000001,
+      "latencyMs": {
+        "median": 29,
+        "p95": 56.100000001490116,
+        "max": 132.89999999850988
+      },
+      "mainThreadMs": {
+        "TaskDuration": 4188.32,
+        "ScriptDuration": 1926.3310000000001,
+        "LayoutDuration": 592.182,
+        "RecalcStyleDuration": 9.62
+      },
+      "counts": {
+        "layout": 186,
+        "style": 66
+      }
+    }
+  ],
+  "saves": [
+    {
+      "phase": "typing",
+      "ms": 143.39999999850988,
+      "status": 200,
+      "bytes": 1412171,
+      "at": 11510.89999999851
+    },
+    {
+      "phase": "typing",
+      "ms": 109.5,
+      "status": 200,
+      "bytes": 1412239,
+      "at": 16514.300000000745
+    },
+    {
+      "phase": "backspace",
+      "ms": 130,
+      "status": 200,
+      "bytes": 1412235,
+      "at": 21497.5
+    },
+    {
+      "phase": "backspace",
+      "ms": 146.10000000149012,
+      "status": 200,
+      "bytes": 1412148,
+      "at": 26540.60000000149
+    },
+    {
+      "phase": "settle",
+      "ms": 94.10000000149012,
+      "status": 200,
+      "bytes": 1412143,
+      "at": 31459.800000000745
+    }
+  ],
+  "recovery": [
+    {
+      "phase": "typing",
+      "ms": 13.900000002235174,
+      "bytes": 1412424,
+      "at": 11168.300000000745
+    },
+    {
+      "phase": "typing",
+      "ms": 20.800000000745058,
+      "bytes": 1412519,
+      "at": 19502.60000000149
+    },
+    {
+      "phase": "backspace",
+      "ms": 3.099999997764826,
+      "bytes": 1412399,
+      "at": 27942.199999999255
+    }
+  ],
+  "longTasks": [
+    {
+      "phase": "typing",
+      "ms": 53
+    },
+    {
+      "phase": "typing",
+      "ms": 59
+    },
+    {
+      "phase": "typing",
+      "ms": 78
+    },
+    {
+      "phase": "backspace",
+      "ms": 53
+    },
+    {
+      "phase": "backspace",
+      "ms": 72
+    }
+  ],
+  "sameDoc": true,
+  "persistedBodyVerified": true,
+  "errors": []
+}

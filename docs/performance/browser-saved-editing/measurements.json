@@ -1,0 +1,3089 @@
+{
+  "builds": {
+    "release": {
+      "baseRevision": "d30f985433e93489ea61de396b6542355f010caa",
+      "entry": "/assets/index-B7nqW2Fp.js",
+      "entrySha256": "5c695b208f1f82d9883177090034d60a1385673c64c4d95092d8e0d7c8cf5033",
+      "minify": false
+    },
+    "main": {
+      "baseRevision": "7714d63e480485d6f7de3561fbd3663f52c82c1b",
+      "entry": "/assets/index-k9-Qpy4M.js",
+      "entrySha256": "106f24bd9a441c55d60f09c2a52d31ae2d5776ab3f32e9e6ba78c127910b3e34",
+      "minify": false
+    },
+    "candidate": {
+      "baseRevision": "7714d63e480485d6f7de3561fbd3663f52c82c1b",
+      "entry": "/assets/index-xAa4TMuF.js",
+      "entrySha256": "8c707bbed84f4894a42df519641edcc373ed8bb6319f2fda7dac40546d1d027b",
+      "minify": false,
+      "paginationSourceSha256": "bdd535fa58e614c537538910db06fc0bab7b4d1fc61994e42a6edd62ca08e277",
+      "paginationPatchSha256": "90f746f70e903a207263dd9bfcf9d356851ba6af559809a43d4e3f43b3de73af"
+    }
+  },
+  "runs": [
+    {
+      "name": "baseline-main-150-1",
+      "url": "http://127.0.0.1:4187",
+      "browser": "154.0.8037.57",
+      "profile": false,
+      "fixture": "150",
+      "requestedPages": 150,
+      "layout": "page",
+      "navigator": "on",
+      "spellcheck": "on",
+      "autoSaveSeconds": 5,
+      "fixtureHash": "f70382ee8f3e656af819ff8537d6d168f7f35c077002c52fce7f2c3e6da7da27",
+      "target": 84026,
+      "pages": 150,
+      "blocks": 3110,
+      "docSize": 168013,
+      "sceneCount": "115",
+      "spellMarks": 304,
+      "editorClass": "tiptap ProseMirror screenplay-content",
+      "phases": [
+        {
+          "name": "typing",
+          "docDelta": 120,
+          "keys": 120,
+          "repeated": 0,
+          "wallMs": 10610.019863,
+          "latencyMs": {
+            "median": 29.400000002235174,
+            "p95": 44.30000000074506,
+            "max": 87.79999999701977
+          },
+          "mainThreadMs": {
+            "TaskDuration": 4476.142999999999,
+            "ScriptDuration": 2109.759,
+            "LayoutDuration": 576.7339999999999,
+            "RecalcStyleDuration": 8.938
+          },
+          "counts": {
+            "layout": 189,
+            "style": 70
+          }
+        },
+        {
+          "name": "backspace",
+          "docDelta": -120,
+          "keys": 120,
+          "repeated": 119,
+          "wallMs": 8346.973849000002,
+          "latencyMs": {
+            "median": 28.299999997019768,
+            "p95": 38.69999999925494,
+            "max": 90.39999999850988
+          },
+          "mainThreadMs": {
+            "TaskDuration": 4029.6080000000006,
+            "ScriptDuration": 1864.9020000000003,
+            "LayoutDuration": 584.639,
+            "RecalcStyleDuration": 8.107999999999999
+          },
+          "counts": {
+            "layout": 185,
+            "style": 65
+          }
+        }
+      ],
+      "saves": [
+        {
+          "phase": "typing",
+          "ms": 161.89999999850988,
+          "status": 200,
+          "bytes": 1412176,
+          "at": 11505.89999999851
+        },
+        {
+          "phase": "typing",
+          "ms": 150.90000000223517,
+          "status": 200,
+          "bytes": 1412243,
+          "at": 16503.5
+        },
+        {
+          "phase": "backspace",
+          "ms": 134.89999999850988,
+          "status": 200,
+          "bytes": 1412227,
+          "at": 21500.89999999851
+        },
+        {
+          "phase": "backspace",
+          "ms": 141.80000000074506,
+          "status": 200,
+          "bytes": 1412143,
+          "at": 26483.199999999255
+        }
+      ],
+      "recovery": [
+        {
+          "phase": "typing",
+          "ms": 19.800000000745058,
+          "bytes": 1412430,
+          "at": 11191.300000000745
+        },
+        {
+          "phase": "typing",
+          "ms": 18.100000001490116,
+          "bytes": 1412519,
+          "at": 19098
+        },
+        {
+          "phase": "backspace",
+          "ms": 14.699999999254942,
+          "bytes": 1412487,
+          "at": 21162.5
+        }
+      ],
+      "longTasks": [
+        {
+          "phase": "typing",
+          "ms": 56
+        },
+        {
+          "phase": "typing",
+          "ms": 68
+        },
+        {
+          "phase": "typing",
+          "ms": 71
+        }
+      ],
+      "sameDoc": true,
+      "persistedBodyVerified": true,
+      "errors": [],
+      "originalRevisionLabel": "7714d63e48",
+      "buildId": "main",
+      "bundleIdentityOrigin": "from-preserved-preview-output-after-runs"
+    },
+    {
+      "name": "baseline-main-150-2",
+      "url": "http://127.0.0.1:4187",
+      "browser": "154.0.8037.57",
+      "profile": false,
+      "fixture": "150",
+      "requestedPages": 150,
+      "layout": "page",
+      "navigator": "on",
+      "spellcheck": "on",
+      "autoSaveSeconds": 5,
+      "fixtureHash": "f70382ee8f3e656af819ff8537d6d168f7f35c077002c52fce7f2c3e6da7da27",
+      "target": 84026,
+      "pages": 150,
+      "blocks": 3110,
+      "docSize": 168013,
+      "sceneCount": "115",
+      "spellMarks": 304,
+      "editorClass": "tiptap ProseMirror screenplay-content",
+      "phases": [
+        {
+          "name": "typing",
+          "docDelta": 120,
+          "keys": 120,
+          "repeated": 0,
+          "wallMs": 10615.129128999999,
+          "latencyMs": {
+            "median": 29.399999998509884,
+            "p95": 42.19999999925494,
+            "max": 94.5
+          },
+          "mainThreadMs": {
+            "TaskDuration": 4429.5,
+            "ScriptDuration": 2040.6369999999997,
+            "LayoutDuration": 593.921,
+            "RecalcStyleDuration": 13.376000000000001
+          },
+          "counts": {
+            "layout": 189,
+            "style": 70
+          }
+        },
+        {
+          "name": "backspace",
+          "docDelta": -120,
+          "keys": 120,
+          "repeated": 119,
+          "wallMs": 8644.475079,
+          "latencyMs": {
+            "median": 30.399999998509884,
+            "p95": 51,
+            "max": 104.69999999925494
+          },
+          "mainThreadMs": {
+            "TaskDuration": 4330.905000000001,
+            "ScriptDuration": 2077.6670000000004,
+            "LayoutDuration": 615.3000000000001,
+            "RecalcStyleDuration": 8.818999999999999
+          },
+          "counts": {
+            "layout": 186,
+            "style": 66
+          }
+        }
+      ],
+      "saves": [
+        {
+          "phase": "typing",
+          "ms": 106.5,
+          "status": 200,
+          "bytes": 1412172,
+          "at": 11501
+        },
+        {
+          "phase": "typing",
+          "ms": 107.59999999776483,
+          "status": 200,
+          "bytes": 1412240,
+          "at": 16515.699999999255
+        },
+        {
+          "phase": "backspace",
+          "ms": 89.19999999925494,
+          "status": 200,
+          "bytes": 1412234,
+          "at": 21489.89999999851
+        },
+        {
+          "phase": "backspace",
+          "ms": 168.40000000223517,
+          "status": 200,
+          "bytes": 1412148,
+          "at": 26573.800000000745
+        },
+        {
+          "phase": "settle",
+          "ms": 91.10000000149012,
+          "status": 200,
+          "bytes": 1412143,
+          "at": 31480.60000000149
+        }
+      ],
+      "recovery": [
+        {
+          "phase": "typing",
+          "ms": 10.100000001490116,
+          "bytes": 1412425,
+          "at": 11202.10000000149
+        },
+        {
+          "phase": "typing",
+          "ms": 20.600000001490116,
+          "bytes": 1412519,
+          "at": 19413.300000000745
+        },
+        {
+          "phase": "backspace",
+          "ms": 3,
+          "bytes": 1412494,
+          "at": 21196.800000000745
+        },
+        {
+          "phase": "backspace",
+          "ms": 19,
+          "bytes": 1412399,
+          "at": 28072.39999999851
+        }
+      ],
+      "longTasks": [
+        {
+          "phase": "typing",
+          "ms": 62
+        },
+        {
+          "phase": "typing",
+          "ms": 62
+        },
+        {
+          "phase": "typing",
+          "ms": 77
+        },
+        {
+          "phase": "backspace",
+          "ms": 62
+        },
+        {
+          "phase": "backspace",
+          "ms": 51
+        },
+        {
+          "phase": "backspace",
+          "ms": 81
+        }
+      ],
+      "sameDoc": true,
+      "persistedBodyVerified": true,
+      "errors": [],
+      "originalRevisionLabel": "7714d63e48",
+      "buildId": "main",
+      "bundleIdentityOrigin": "from-preserved-preview-output-after-runs"
+    },
+    {
+      "name": "baseline-main-short-1",
+      "url": "http://127.0.0.1:4187",
+      "browser": "154.0.8037.57",
+      "profile": false,
+      "fixture": "short",
+      "requestedPages": null,
+      "layout": "page",
+      "navigator": "on",
+      "spellcheck": "on",
+      "autoSaveSeconds": 5,
+      "fixtureHash": "04d73702e26f097cbfe34c402be02e38f8995d88f45b9d100d727879ea30533a",
+      "target": 6004,
+      "pages": 11,
+      "blocks": 217,
+      "docSize": 11725,
+      "sceneCount": "8",
+      "spellMarks": 25,
+      "editorClass": "tiptap ProseMirror screenplay-content",
+      "phases": [
+        {
+          "name": "typing",
+          "docDelta": 120,
+          "keys": 120,
+          "repeated": 0,
+          "wallMs": 8274.627816,
+          "latencyMs": {
+            "median": 7.399999998509884,
+            "p95": 17.600000001490116,
+            "max": 26.799999997019768
+          },
+          "mainThreadMs": {
+            "TaskDuration": 1031.3500000000001,
+            "ScriptDuration": 437.103,
+            "LayoutDuration": 78.00500000000001,
+            "RecalcStyleDuration": 6.773000000000001
+          },
+          "counts": {
+            "layout": 188,
+            "style": 69
+          }
+        },
+        {
+          "name": "backspace",
+          "docDelta": -120,
+          "keys": 120,
+          "repeated": 119,
+          "wallMs": 6202.298355999999,
+          "latencyMs": {
+            "median": 7.099999997764826,
+            "p95": 18.5,
+            "max": 20.100000001490116
+          },
+          "mainThreadMs": {
+            "TaskDuration": 907.783,
+            "ScriptDuration": 359.69399999999996,
+            "LayoutDuration": 75.58099999999999,
+            "RecalcStyleDuration": 5.317999999999999
+          },
+          "counts": {
+            "layout": 183,
+            "style": 64
+          }
+        }
+      ],
+      "saves": [
+        {
+          "phase": "typing",
+          "ms": 17.100000001490116,
+          "status": 200,
+          "bytes": 101218,
+          "at": 11401.5
+        },
+        {
+          "phase": "typing",
+          "ms": 20.399999998509884,
+          "status": 200,
+          "bytes": 101291,
+          "at": 16405.29999999702
+        },
+        {
+          "phase": "backspace",
+          "ms": 15.300000000745058,
+          "status": 200,
+          "bytes": 101179,
+          "at": 21400
+        },
+        {
+          "phase": "settle",
+          "ms": 13.400000002235174,
+          "status": 200,
+          "bytes": 101171,
+          "at": 26398
+        }
+      ],
+      "recovery": [
+        {
+          "phase": "typing",
+          "ms": 0.6000000014901161,
+          "bytes": 101472,
+          "at": 11177.89999999851
+        },
+        {
+          "phase": "backspace",
+          "ms": 0.30000000074505806,
+          "bytes": 101443,
+          "at": 21177
+        },
+        {
+          "phase": "backspace",
+          "ms": 0.19999999925494194,
+          "bytes": 101429,
+          "at": 22889.89999999851
+        }
+      ],
+      "longTasks": [],
+      "sameDoc": true,
+      "persistedBodyVerified": true,
+      "errors": [],
+      "originalRevisionLabel": "7714d63e48",
+      "buildId": "main",
+      "bundleIdentityOrigin": "from-preserved-preview-output-after-runs"
+    },
+    {
+      "name": "baseline-main-short-2",
+      "url": "http://127.0.0.1:4187",
+      "browser": "154.0.8037.57",
+      "profile": false,
+      "fixture": "short",
+      "requestedPages": null,
+      "layout": "page",
+      "navigator": "on",
+      "spellcheck": "on",
+      "autoSaveSeconds": 5,
+      "fixtureHash": "04d73702e26f097cbfe34c402be02e38f8995d88f45b9d100d727879ea30533a",
+      "target": 6004,
+      "pages": 11,
+      "blocks": 217,
+      "docSize": 11725,
+      "sceneCount": "8",
+      "spellMarks": 25,
+      "editorClass": "tiptap ProseMirror screenplay-content",
+      "phases": [
+        {
+          "name": "typing",
+          "docDelta": 120,
+          "keys": 120,
+          "repeated": 0,
+          "wallMs": 8279.635703,
+          "latencyMs": {
+            "median": 7.300000000745058,
+            "p95": 18.699999999254942,
+            "max": 35.5
+          },
+          "mainThreadMs": {
+            "TaskDuration": 1039.542,
+            "ScriptDuration": 440.75199999999995,
+            "LayoutDuration": 79.352,
+            "RecalcStyleDuration": 6.548
+          },
+          "counts": {
+            "layout": 188,
+            "style": 69
+          }
+        },
+        {
+          "name": "backspace",
+          "docDelta": -120,
+          "keys": 120,
+          "repeated": 119,
+          "wallMs": 6234.396247000001,
+          "latencyMs": {
+            "median": 7.5,
+            "p95": 17.900000002235174,
+            "max": 19.599999997764826
+          },
+          "mainThreadMs": {
+            "TaskDuration": 949.5449999999998,
+            "ScriptDuration": 394.7,
+            "LayoutDuration": 71.64399999999999,
+            "RecalcStyleDuration": 6.515999999999999
+          },
+          "counts": {
+            "layout": 183,
+            "style": 64
+          }
+        }
+      ],
+      "saves": [
+        {
+          "phase": "typing",
+          "ms": 17,
+          "status": 200,
+          "bytes": 101218,
+          "at": 11416.800000000745
+        },
+        {
+          "phase": "typing",
+          "ms": 15.5,
+          "status": 200,
+          "bytes": 101291,
+          "at": 16416.300000000745
+        },
+        {
+          "phase": "backspace",
+          "ms": 21,
+          "status": 200,
+          "bytes": 101179,
+          "at": 21421.10000000149
+        },
+        {
+          "phase": "settle",
+          "ms": 14.900000002235174,
+          "status": 200,
+          "bytes": 101171,
+          "at": 26415.89999999851
+        }
+      ],
+      "recovery": [
+        {
+          "phase": "typing",
+          "ms": 0.4000000022351742,
+          "bytes": 101472,
+          "at": 11213.300000000745
+        },
+        {
+          "phase": "backspace",
+          "ms": 0.30000000074505806,
+          "bytes": 101441,
+          "at": 21211.199999999255
+        },
+        {
+          "phase": "backspace",
+          "ms": 0.19999999925494194,
+          "bytes": 101429,
+          "at": 22915.5
+        }
+      ],
+      "longTasks": [],
+      "sameDoc": true,
+      "persistedBodyVerified": true,
+      "errors": [],
+      "originalRevisionLabel": "7714d63e48",
+      "buildId": "main",
+      "bundleIdentityOrigin": "from-preserved-preview-output-after-runs"
+    },
+    {
+      "name": "baseline-release-150-1",
+      "url": "http://127.0.0.1:4186",
+      "browser": "154.0.8037.57",
+      "profile": false,
+      "fixture": "150",
+      "requestedPages": 150,
+      "layout": "page",
+      "navigator": "on",
+      "spellcheck": "on",
+      "autoSaveSeconds": 5,
+      "fixtureHash": "f70382ee8f3e656af819ff8537d6d168f7f35c077002c52fce7f2c3e6da7da27",
+      "target": 84026,
+      "pages": 150,
+      "blocks": 3110,
+      "docSize": 168013,
+      "sceneCount": "115",
+      "spellMarks": 304,
+      "editorClass": "tiptap ProseMirror screenplay-content",
+      "phases": [
+        {
+          "name": "typing",
+          "docDelta": 120,
+          "keys": 120,
+          "repeated": 0,
+          "wallMs": 10918.729598999998,
+          "latencyMs": {
+            "median": 31.100000001490116,
+            "p95": 47,
+            "max": 143
+          },
+          "mainThreadMs": {
+            "TaskDuration": 4831.369000000001,
+            "ScriptDuration": 2298.757,
+            "LayoutDuration": 638.051,
+            "RecalcStyleDuration": 9.957
+          },
+          "counts": {
+            "layout": 190,
+            "style": 70
+          }
+        },
+        {
+          "name": "backspace",
+          "docDelta": -120,
+          "keys": 120,
+          "repeated": 119,
+          "wallMs": 8373.748598999999,
+          "latencyMs": {
+            "median": 27.600000001490116,
+            "p95": 41.69999999925494,
+            "max": 122.40000000223517
+          },
+          "mainThreadMs": {
+            "TaskDuration": 4042.6000000000004,
+            "ScriptDuration": 1904.598,
+            "LayoutDuration": 563.5640000000001,
+            "RecalcStyleDuration": 7.605
+          },
+          "counts": {
+            "layout": 185,
+            "style": 65
+          }
+        }
+      ],
+      "saves": [
+        {
+          "phase": "typing",
+          "ms": 168,
+          "status": 200,
+          "bytes": 1409874,
+          "at": 11624.70000000298
+        },
+        {
+          "phase": "typing",
+          "ms": 123.10000000149012,
+          "status": 200,
+          "bytes": 1409939,
+          "at": 16580.900000002235
+        },
+        {
+          "phase": "backspace",
+          "ms": 81.40000000223517,
+          "status": 200,
+          "bytes": 1409933,
+          "at": 21539.70000000298
+        },
+        {
+          "phase": "backspace",
+          "ms": 126.5,
+          "status": 200,
+          "bytes": 1409844,
+          "at": 26586.900000002235
+        },
+        {
+          "phase": "settle",
+          "ms": 87.5,
+          "status": 200,
+          "bytes": 1409843,
+          "at": 31535.60000000149
+        }
+      ],
+      "recovery": [
+        {
+          "phase": "typing",
+          "ms": 25.299999997019768,
+          "bytes": 1410128,
+          "at": 11329.5
+        },
+        {
+          "phase": "typing",
+          "ms": 20.399999998509884,
+          "bytes": 1410219,
+          "at": 19471.5
+        },
+        {
+          "phase": "backspace",
+          "ms": 19.800000000745058,
+          "bytes": 1410192,
+          "at": 21306.800000000745
+        },
+        {
+          "phase": "backspace",
+          "ms": 9.100000001490116,
+          "bytes": 1410099,
+          "at": 27773.70000000298
+        }
+      ],
+      "longTasks": [
+        {
+          "phase": "typing",
+          "ms": 82
+        },
+        {
+          "phase": "typing",
+          "ms": 56
+        },
+        {
+          "phase": "typing",
+          "ms": 63
+        },
+        {
+          "phase": "typing",
+          "ms": 85
+        },
+        {
+          "phase": "typing",
+          "ms": 55
+        },
+        {
+          "phase": "typing",
+          "ms": 62
+        },
+        {
+          "phase": "backspace",
+          "ms": 71
+        }
+      ],
+      "sameDoc": true,
+      "persistedBodyVerified": true,
+      "errors": [],
+      "originalRevisionLabel": "d30f985433",
+      "buildId": "release",
+      "bundleIdentityOrigin": "from-preserved-preview-output-after-runs"
+    },
+    {
+      "name": "baseline-release-150-2",
+      "url": "http://127.0.0.1:4186",
+      "browser": "154.0.8037.57",
+      "profile": false,
+      "fixture": "150",
+      "requestedPages": 150,
+      "layout": "page",
+      "navigator": "on",
+      "spellcheck": "on",
+      "autoSaveSeconds": 5,
+      "fixtureHash": "f70382ee8f3e656af819ff8537d6d168f7f35c077002c52fce7f2c3e6da7da27",
+      "target": 84026,
+      "pages": 150,
+      "blocks": 3110,
+      "docSize": 168013,
+      "sceneCount": "115",
+      "spellMarks": 304,
+      "editorClass": "tiptap ProseMirror screenplay-content",
+      "phases": [
+        {
+          "name": "typing",
+          "docDelta": 120,
+          "keys": 120,
+          "repeated": 0,
+          "wallMs": 10656.506750999999,
+          "latencyMs": {
+            "median": 27.699999999254942,
+            "p95": 41,
+            "max": 98.10000000149012
+          },
+          "mainThreadMs": {
+            "TaskDuration": 4401.604,
+            "ScriptDuration": 2041.392,
+            "LayoutDuration": 586.9309999999999,
+            "RecalcStyleDuration": 9.141
+          },
+          "counts": {
+            "layout": 189,
+            "style": 70
+          }
+        },
+        {
+          "name": "backspace",
+          "docDelta": -120,
+          "keys": 120,
+          "repeated": 119,
+          "wallMs": 8249.644831000001,
+          "latencyMs": {
+            "median": 29,
+            "p95": 45.19999999925494,
+            "max": 72.39999999850988
+          },
+          "mainThreadMs": {
+            "TaskDuration": 4070.081,
+            "ScriptDuration": 1897.1489999999997,
+            "LayoutDuration": 574.933,
+            "RecalcStyleDuration": 7.949000000000002
+          },
+          "counts": {
+            "layout": 185,
+            "style": 65
+          }
+        }
+      ],
+      "saves": [
+        {
+          "phase": "typing",
+          "ms": 137.89999999850988,
+          "status": 200,
+          "bytes": 1409876,
+          "at": 11506.89999999851
+        },
+        {
+          "phase": "typing",
+          "ms": 110.30000000074506,
+          "status": 200,
+          "bytes": 1409944,
+          "at": 16490.599999997765
+        },
+        {
+          "phase": "backspace",
+          "ms": 121.30000000074506,
+          "status": 200,
+          "bytes": 1409928,
+          "at": 21510
+        },
+        {
+          "phase": "backspace",
+          "ms": 150.80000000074506,
+          "status": 200,
+          "bytes": 1409843,
+          "at": 26534.599999997765
+        }
+      ],
+      "recovery": [
+        {
+          "phase": "typing",
+          "ms": 21.600000001490116,
+          "bytes": 1410130,
+          "at": 11211.199999999255
+        },
+        {
+          "phase": "typing",
+          "ms": 3.300000000745058,
+          "bytes": 1410219,
+          "at": 19139.699999999255
+        },
+        {
+          "phase": "backspace",
+          "ms": 3.099999997764826,
+          "bytes": 1410188,
+          "at": 21180.199999999255
+        }
+      ],
+      "longTasks": [
+        {
+          "phase": "typing",
+          "ms": 59
+        },
+        {
+          "phase": "typing",
+          "ms": 52
+        },
+        {
+          "phase": "typing",
+          "ms": 74
+        },
+        {
+          "phase": "backspace",
+          "ms": 69
+        }
+      ],
+      "sameDoc": true,
+      "persistedBodyVerified": true,
+      "errors": [],
+      "originalRevisionLabel": "d30f985433",
+      "buildId": "release",
+      "bundleIdentityOrigin": "from-preserved-preview-output-after-runs"
+    },
+    {
+      "name": "baseline-release-short-1",
+      "url": "http://127.0.0.1:4186",
+      "browser": "154.0.8037.57",
+      "profile": false,
+      "fixture": "short",
+      "requestedPages": null,
+      "layout": "page",
+      "navigator": "on",
+      "spellcheck": "on",
+      "autoSaveSeconds": 5,
+      "fixtureHash": "04d73702e26f097cbfe34c402be02e38f8995d88f45b9d100d727879ea30533a",
+      "target": 6004,
+      "pages": 11,
+      "blocks": 217,
+      "docSize": 11725,
+      "sceneCount": "8",
+      "spellMarks": 25,
+      "editorClass": "tiptap ProseMirror screenplay-content",
+      "phases": [
+        {
+          "name": "typing",
+          "docDelta": 120,
+          "keys": 120,
+          "repeated": 0,
+          "wallMs": 8354.582392,
+          "latencyMs": {
+            "median": 7.400000002235174,
+            "p95": 18.700000002980232,
+            "max": 31.400000002235174
+          },
+          "mainThreadMs": {
+            "TaskDuration": 1062.979,
+            "ScriptDuration": 450.66499999999996,
+            "LayoutDuration": 85.592,
+            "RecalcStyleDuration": 7.3759999999999994
+          },
+          "counts": {
+            "layout": 188,
+            "style": 69
+          }
+        },
+        {
+          "name": "backspace",
+          "docDelta": -120,
+          "keys": 120,
+          "repeated": 119,
+          "wallMs": 6233.842912,
+          "latencyMs": {
+            "median": 7.400000002235174,
+            "p95": 18,
+            "max": 24.399999998509884
+          },
+          "mainThreadMs": {
+            "TaskDuration": 926.084,
+            "ScriptDuration": 370.69399999999996,
+            "LayoutDuration": 78.986,
+            "RecalcStyleDuration": 5.743
+          },
+          "counts": {
+            "layout": 183,
+            "style": 64
+          }
+        }
+      ],
+      "saves": [
+        {
+          "phase": "typing",
+          "ms": 17,
+          "status": 200,
+          "bytes": 101056,
+          "at": 11615.099999997765
+        },
+        {
+          "phase": "typing",
+          "ms": 15.800000000745058,
+          "status": 200,
+          "bytes": 101131,
+          "at": 16613.699999999255
+        },
+        {
+          "phase": "backspace",
+          "ms": 20.199999999254942,
+          "status": 200,
+          "bytes": 101023,
+          "at": 21618.199999999255
+        },
+        {
+          "phase": "settle",
+          "ms": 11.400000002235174,
+          "status": 200,
+          "bytes": 101011,
+          "at": 26609.800000000745
+        }
+      ],
+      "recovery": [
+        {
+          "phase": "typing",
+          "ms": 0.30000000074505806,
+          "bytes": 101309,
+          "at": 11337.5
+        },
+        {
+          "phase": "backspace",
+          "ms": 1.199999999254942,
+          "bytes": 101287,
+          "at": 21337.5
+        },
+        {
+          "phase": "backspace",
+          "ms": 0.3999999985098839,
+          "bytes": 101269,
+          "at": 23247.89999999851
+        }
+      ],
+      "longTasks": [],
+      "sameDoc": true,
+      "persistedBodyVerified": true,
+      "errors": [],
+      "originalRevisionLabel": "d30f985433",
+      "buildId": "release",
+      "bundleIdentityOrigin": "from-preserved-preview-output-after-runs"
+    },
+    {
+      "name": "baseline-release-short-2",
+      "url": "http://127.0.0.1:4186",
+      "browser": "154.0.8037.57",
+      "profile": false,
+      "fixture": "short",
+      "requestedPages": null,
+      "layout": "page",
+      "navigator": "on",
+      "spellcheck": "on",
+      "autoSaveSeconds": 5,
+      "fixtureHash": "04d73702e26f097cbfe34c402be02e38f8995d88f45b9d100d727879ea30533a",
+      "target": 6004,
+      "pages": 11,
+      "blocks": 217,
+      "docSize": 11725,
+      "sceneCount": "8",
+      "spellMarks": 25,
+      "editorClass": "tiptap ProseMirror screenplay-content",
+      "phases": [
+        {
+          "name": "typing",
+          "docDelta": 120,
+          "keys": 120,
+          "repeated": 0,
+          "wallMs": 8288.721449,
+          "latencyMs": {
+            "median": 7.100000001490116,
+            "p95": 18.300000000745058,
+            "max": 26.900000002235174
+          },
+          "mainThreadMs": {
+            "TaskDuration": 1007.5639999999999,
+            "ScriptDuration": 423.406,
+            "LayoutDuration": 78.054,
+            "RecalcStyleDuration": 6.505999999999999
+          },
+          "counts": {
+            "layout": 188,
+            "style": 69
+          }
+        },
+        {
+          "name": "backspace",
+          "docDelta": -120,
+          "keys": 120,
+          "repeated": 119,
+          "wallMs": 6226.949016000002,
+          "latencyMs": {
+            "median": 7.199999999254942,
+            "p95": 17.699999999254942,
+            "max": 31.900000002235174
+          },
+          "mainThreadMs": {
+            "TaskDuration": 956.565,
+            "ScriptDuration": 380.32400000000007,
+            "LayoutDuration": 79.10499999999999,
+            "RecalcStyleDuration": 5.792999999999999
+          },
+          "counts": {
+            "layout": 183,
+            "style": 64
+          }
+        }
+      ],
+      "saves": [
+        {
+          "phase": "typing",
+          "ms": 13.199999999254942,
+          "status": 200,
+          "bytes": 101057,
+          "at": 11419.300000000745
+        },
+        {
+          "phase": "typing",
+          "ms": 13.400000002235174,
+          "status": 200,
+          "bytes": 101131,
+          "at": 16419.400000002235
+        },
+        {
+          "phase": "backspace",
+          "ms": 24.200000002980232,
+          "status": 200,
+          "bytes": 101021,
+          "at": 21430.20000000298
+        },
+        {
+          "phase": "settle",
+          "ms": 14.199999999254942,
+          "status": 200,
+          "bytes": 101011,
+          "at": 26423.800000000745
+        }
+      ],
+      "recovery": [
+        {
+          "phase": "typing",
+          "ms": 0.29999999701976776,
+          "bytes": 101310,
+          "at": 11135.5
+        },
+        {
+          "phase": "backspace",
+          "ms": 0.30000000074505806,
+          "bytes": 101286,
+          "at": 21137.800000000745
+        },
+        {
+          "phase": "backspace",
+          "ms": 0.19999999925494194,
+          "bytes": 101269,
+          "at": 22978.60000000149
+        }
+      ],
+      "longTasks": [],
+      "sameDoc": true,
+      "persistedBodyVerified": true,
+      "errors": [],
+      "originalRevisionLabel": "d30f985433",
+      "buildId": "release",
+      "bundleIdentityOrigin": "from-preserved-preview-output-after-runs"
+    },
+    {
+      "name": "ablation-nav-off",
+      "url": "http://127.0.0.1:4187",
+      "browser": "154.0.8037.57",
+      "profile": false,
+      "fixture": "150",
+      "requestedPages": 150,
+      "layout": "page",
+      "navigator": "off",
+      "spellcheck": "on",
+      "autoSaveSeconds": 5,
+      "fixtureHash": "f70382ee8f3e656af819ff8537d6d168f7f35c077002c52fce7f2c3e6da7da27",
+      "target": 84026,
+      "pages": 150,
+      "blocks": 3110,
+      "docSize": 168013,
+      "spellMarks": 304,
+      "pageClass": "page tags-hidden notes-hidden show-element-numbers",
+      "navigatorVisible": false,
+      "editorClass": "tiptap ProseMirror screenplay-content",
+      "phases": [
+        {
+          "name": "typing",
+          "docDelta": 120,
+          "keys": 120,
+          "repeated": 0,
+          "wallMs": 10362.859907999999,
+          "latencyMs": {
+            "median": 24.799999997019768,
+            "p95": 35.100000001490116,
+            "max": 67.80000000074506
+          },
+          "mainThreadMs": {
+            "TaskDuration": 3620.828,
+            "ScriptDuration": 1810.0890000000002,
+            "LayoutDuration": 617.11,
+            "RecalcStyleDuration": 8.347
+          },
+          "counts": {
+            "layout": 189,
+            "style": 67
+          }
+        },
+        {
+          "name": "backspace",
+          "docDelta": -120,
+          "keys": 120,
+          "repeated": 119,
+          "wallMs": 8160.521510000002,
+          "latencyMs": {
+            "median": 23.600000001490116,
+            "p95": 31.799999997019768,
+            "max": 78.60000000149012
+          },
+          "mainThreadMs": {
+            "TaskDuration": 3437.8779999999997,
+            "ScriptDuration": 1666.586,
+            "LayoutDuration": 623.3279999999999,
+            "RecalcStyleDuration": 7.785
+          },
+          "counts": {
+            "layout": 185,
+            "style": 63
+          }
+        }
+      ],
+      "saves": [
+        {
+          "phase": "typing",
+          "ms": 109.60000000149012,
+          "status": 200,
+          "bytes": 1412174,
+          "at": 11571.800000000745
+        },
+        {
+          "phase": "typing",
+          "ms": 146.10000000149012,
+          "status": 200,
+          "bytes": 1412243,
+          "at": 16620
+        },
+        {
+          "phase": "backspace",
+          "ms": 106.70000000298023,
+          "status": 200,
+          "bytes": 1412227,
+          "at": 21561.300000000745
+        },
+        {
+          "phase": "backspace",
+          "ms": 110.5,
+          "status": 200,
+          "bytes": 1412143,
+          "at": 26566.5
+        }
+      ],
+      "recovery": [
+        {
+          "phase": "typing",
+          "ms": 22.600000001490116,
+          "bytes": 1412427,
+          "at": 11288
+        },
+        {
+          "phase": "typing",
+          "ms": 19.5,
+          "bytes": 1412519,
+          "at": 19205.599999997765
+        },
+        {
+          "phase": "backspace",
+          "ms": 19.199999999254942,
+          "bytes": 1412486,
+          "at": 21299.199999999255
+        }
+      ],
+      "longTasks": [
+        {
+          "phase": "typing",
+          "ms": 53
+        },
+        {
+          "phase": "typing",
+          "ms": 73
+        }
+      ],
+      "sameDoc": true,
+      "persistedBodyVerified": true,
+      "errors": [],
+      "originalRevisionLabel": "7714d63e48",
+      "buildId": "main",
+      "bundleIdentityOrigin": "from-preserved-preview-output-after-runs"
+    },
+    {
+      "name": "ablation-spell-off",
+      "url": "http://127.0.0.1:4187",
+      "browser": "154.0.8037.57",
+      "profile": false,
+      "fixture": "150",
+      "requestedPages": 150,
+      "layout": "page",
+      "navigator": "on",
+      "spellcheck": "off",
+      "autoSaveSeconds": 5,
+      "fixtureHash": "51018cd5a00324b5e441eacccb75765d55d030d9a066927d40cd92206b327c0b",
+      "target": 84026,
+      "pages": 150,
+      "blocks": 3110,
+      "docSize": 168013,
+      "sceneCount": "115",
+      "spellMarks": 0,
+      "pageClass": "page tags-hidden notes-hidden show-element-numbers",
+      "navigatorVisible": true,
+      "editorClass": "tiptap ProseMirror screenplay-content",
+      "phases": [
+        {
+          "name": "typing",
+          "docDelta": 120,
+          "keys": 120,
+          "repeated": 0,
+          "wallMs": 9979.266028999999,
+          "latencyMs": {
+            "median": 22.699999999254942,
+            "p95": 33.600000001490116,
+            "max": 170
+          },
+          "mainThreadMs": {
+            "TaskDuration": 3659.3469999999998,
+            "ScriptDuration": 1686.5159999999998,
+            "LayoutDuration": 395.292,
+            "RecalcStyleDuration": 2.006
+          },
+          "counts": {
+            "layout": 134,
+            "style": 13
+          }
+        },
+        {
+          "name": "backspace",
+          "docDelta": -120,
+          "keys": 120,
+          "repeated": 119,
+          "wallMs": 7682.245419000003,
+          "latencyMs": {
+            "median": 23.5,
+            "p95": 31.100000001490116,
+            "max": 62
+          },
+          "mainThreadMs": {
+            "TaskDuration": 3435.039,
+            "ScriptDuration": 1522.6820000000002,
+            "LayoutDuration": 425.74500000000006,
+            "RecalcStyleDuration": 1.5040000000000002
+          },
+          "counts": {
+            "layout": 130,
+            "style": 10
+          }
+        }
+      ],
+      "saves": [
+        {
+          "phase": "typing",
+          "ms": 115.80000000074506,
+          "status": 200,
+          "bytes": 1412178,
+          "at": 11484.5
+        },
+        {
+          "phase": "typing",
+          "ms": 114.59999999776483,
+          "status": 200,
+          "bytes": 1412250,
+          "at": 16492.39999999851
+        },
+        {
+          "phase": "backspace",
+          "ms": 88.30000000074506,
+          "status": 200,
+          "bytes": 1412216,
+          "at": 21466.300000000745
+        },
+        {
+          "phase": "backspace",
+          "ms": 119.59999999776483,
+          "status": 200,
+          "bytes": 1412144,
+          "at": 26488.39999999851
+        }
+      ],
+      "recovery": [
+        {
+          "phase": "typing",
+          "ms": 19.800000000745058,
+          "bytes": 1412432,
+          "at": 11250.5
+        },
+        {
+          "phase": "typing",
+          "ms": 18.600000001490116,
+          "bytes": 1412520,
+          "at": 18649.800000000745
+        },
+        {
+          "phase": "backspace",
+          "ms": 19.199999999254942,
+          "bytes": 1412475,
+          "at": 21235.39999999851
+        },
+        {
+          "phase": "backspace",
+          "ms": 19,
+          "bytes": 1412400,
+          "at": 26356.699999999255
+        }
+      ],
+      "longTasks": [
+        {
+          "phase": "typing",
+          "ms": 67
+        },
+        {
+          "phase": "typing",
+          "ms": 69
+        },
+        {
+          "phase": "backspace",
+          "ms": 55
+        }
+      ],
+      "sameDoc": true,
+      "persistedBodyVerified": true,
+      "errors": [],
+      "originalRevisionLabel": "7714d63e48",
+      "buildId": "main",
+      "bundleIdentityOrigin": "from-preserved-preview-output-after-runs"
+    },
+    {
+      "name": "ablation-speed",
+      "url": "http://127.0.0.1:4187",
+      "browser": "154.0.8037.57",
+      "profile": false,
+      "fixture": "150",
+      "requestedPages": 150,
+      "layout": "speed",
+      "navigator": "on",
+      "spellcheck": "on",
+      "autoSaveSeconds": 5,
+      "fixtureHash": "f70382ee8f3e656af819ff8537d6d168f7f35c077002c52fce7f2c3e6da7da27",
+      "target": 84026,
+      "pages": 150,
+      "renderedPageGaps": 0,
+      "blocks": 3110,
+      "docSize": 168013,
+      "sceneCount": "115",
+      "spellMarks": 304,
+      "pageClass": "page speed-view tags-hidden notes-hidden show-element-numbers",
+      "navigatorVisible": true,
+      "editorClass": "tiptap ProseMirror screenplay-content",
+      "phases": [
+        {
+          "name": "typing",
+          "docDelta": 120,
+          "keys": 120,
+          "repeated": 0,
+          "wallMs": 10521.879215,
+          "latencyMs": {
+            "median": 28.800000000745058,
+            "p95": 41,
+            "max": 75.30000000074506
+          },
+          "mainThreadMs": {
+            "TaskDuration": 4317.596,
+            "ScriptDuration": 2058.3399999999997,
+            "LayoutDuration": 598.386,
+            "RecalcStyleDuration": 9.229
+          },
+          "counts": {
+            "layout": 189,
+            "style": 70
+          }
+        },
+        {
+          "name": "backspace",
+          "docDelta": -120,
+          "keys": 120,
+          "repeated": 119,
+          "wallMs": 8194.92626,
+          "latencyMs": {
+            "median": 27.700000002980232,
+            "p95": 40,
+            "max": 46.899999998509884
+          },
+          "mainThreadMs": {
+            "TaskDuration": 3990.3650000000007,
+            "ScriptDuration": 1851.7550000000003,
+            "LayoutDuration": 555.4590000000001,
+            "RecalcStyleDuration": 12.014000000000003
+          },
+          "counts": {
+            "layout": 184,
+            "style": 65
+          }
+        }
+      ],
+      "saves": [
+        {
+          "phase": "typing",
+          "ms": 114.19999999925494,
+          "status": 200,
+          "bytes": 1412174,
+          "at": 11506.699999999255
+        },
+        {
+          "phase": "typing",
+          "ms": 122,
+          "status": 200,
+          "bytes": 1412242,
+          "at": 16500.5
+        },
+        {
+          "phase": "backspace",
+          "ms": 83,
+          "status": 200,
+          "bytes": 1412231,
+          "at": 21472.300000000745
+        },
+        {
+          "phase": "backspace",
+          "ms": 122.20000000298023,
+          "status": 200,
+          "bytes": 1412143,
+          "at": 26499.60000000149
+        }
+      ],
+      "recovery": [
+        {
+          "phase": "typing",
+          "ms": 20.199999999254942,
+          "bytes": 1412427,
+          "at": 11206.89999999851
+        },
+        {
+          "phase": "typing",
+          "ms": 22.399999998509884,
+          "bytes": 1412519,
+          "at": 19188.199999999255
+        },
+        {
+          "phase": "backspace",
+          "ms": 19.800000000745058,
+          "bytes": 1412490,
+          "at": 21220.300000000745
+        }
+      ],
+      "longTasks": [
+        {
+          "phase": "typing",
+          "ms": 51
+        },
+        {
+          "phase": "typing",
+          "ms": 62
+        },
+        {
+          "phase": "typing",
+          "ms": 57
+        },
+        {
+          "phase": "backspace",
+          "ms": 60
+        }
+      ],
+      "sameDoc": true,
+      "persistedBodyVerified": true,
+      "errors": [],
+      "originalRevisionLabel": "7714d63e48",
+      "buildId": "main",
+      "bundleIdentityOrigin": "from-preserved-preview-output-after-runs"
+    },
+    {
+      "name": "compare-candidate-150-1",
+      "url": "http://127.0.0.1:4188",
+      "browser": "154.0.8037.57",
+      "profile": false,
+      "fixture": "150",
+      "requestedPages": 150,
+      "layout": "page",
+      "navigator": "on",
+      "spellcheck": "on",
+      "autoSaveSeconds": 5,
+      "fixtureHash": "f70382ee8f3e656af819ff8537d6d168f7f35c077002c52fce7f2c3e6da7da27",
+      "target": 84026,
+      "pages": 150,
+      "renderedPageGaps": 149,
+      "blocks": 3110,
+      "docSize": 168013,
+      "sceneCount": "115",
+      "spellMarks": 304,
+      "pageClass": "page tags-hidden notes-hidden show-element-numbers",
+      "navigatorVisible": true,
+      "editorClass": "tiptap ProseMirror screenplay-content",
+      "phases": [
+        {
+          "name": "typing",
+          "docDelta": 120,
+          "keys": 120,
+          "repeated": 0,
+          "wallMs": 10470.102515999999,
+          "latencyMs": {
+            "median": 27.199999999254942,
+            "p95": 48.19999999925494,
+            "max": 114.40000000223517
+          },
+          "mainThreadMs": {
+            "TaskDuration": 4236.655,
+            "ScriptDuration": 1919.884,
+            "LayoutDuration": 584.564,
+            "RecalcStyleDuration": 9.136
+          },
+          "counts": {
+            "layout": 189,
+            "style": 70
+          }
+        },
+        {
+          "name": "backspace",
+          "docDelta": -120,
+          "keys": 120,
+          "repeated": 119,
+          "wallMs": 8381.416007,
+          "latencyMs": {
+            "median": 28.599999997764826,
+            "p95": 42.600000001490116,
+            "max": 115.5
+          },
+          "mainThreadMs": {
+            "TaskDuration": 4091.5170000000007,
+            "ScriptDuration": 1842.942,
+            "LayoutDuration": 609.4920000000001,
+            "RecalcStyleDuration": 7.982000000000001
+          },
+          "counts": {
+            "layout": 186,
+            "style": 66
+          }
+        }
+      ],
+      "saves": [
+        {
+          "phase": "typing",
+          "ms": 112.80000000074506,
+          "status": 200,
+          "bytes": 1412168,
+          "at": 11671.199999999255
+        },
+        {
+          "phase": "typing",
+          "ms": 112.79999999701977,
+          "status": 200,
+          "bytes": 1412236,
+          "at": 16667.39999999851
+        },
+        {
+          "phase": "backspace",
+          "ms": 106.80000000074506,
+          "status": 200,
+          "bytes": 1412237,
+          "at": 21659
+        },
+        {
+          "phase": "backspace",
+          "ms": 174.79999999701977,
+          "status": 200,
+          "bytes": 1412148,
+          "at": 26737.89999999851
+        },
+        {
+          "phase": "settle",
+          "ms": 95.69999999925494,
+          "status": 200,
+          "bytes": 1412143,
+          "at": 31648.300000000745
+        }
+      ],
+      "recovery": [
+        {
+          "phase": "typing",
+          "ms": 20,
+          "bytes": 1412422,
+          "at": 11435.800000000745
+        },
+        {
+          "phase": "typing",
+          "ms": 21.299999997019768,
+          "bytes": 1412519,
+          "at": 19758.89999999851
+        },
+        {
+          "phase": "backspace",
+          "ms": 20.199999999254942,
+          "bytes": 1412496,
+          "at": 21392.699999999255
+        },
+        {
+          "phase": "backspace",
+          "ms": 5.800000000745058,
+          "bytes": 1412399,
+          "at": 28143.699999999255
+        }
+      ],
+      "longTasks": [
+        {
+          "phase": "typing",
+          "ms": 70
+        },
+        {
+          "phase": "typing",
+          "ms": 57
+        },
+        {
+          "phase": "typing",
+          "ms": 55
+        },
+        {
+          "phase": "backspace",
+          "ms": 67
+        }
+      ],
+      "sameDoc": true,
+      "persistedBodyVerified": true,
+      "errors": [],
+      "originalRevisionLabel": "candidate-map-prototype",
+      "buildId": "candidate",
+      "bundleIdentityOrigin": "from-preserved-preview-output-after-runs"
+    },
+    {
+      "name": "compare-main-150-3",
+      "url": "http://127.0.0.1:4187",
+      "browser": "154.0.8037.57",
+      "profile": false,
+      "fixture": "150",
+      "requestedPages": 150,
+      "layout": "page",
+      "navigator": "on",
+      "spellcheck": "on",
+      "autoSaveSeconds": 5,
+      "fixtureHash": "f70382ee8f3e656af819ff8537d6d168f7f35c077002c52fce7f2c3e6da7da27",
+      "target": 84026,
+      "pages": 150,
+      "renderedPageGaps": 149,
+      "blocks": 3110,
+      "docSize": 168013,
+      "sceneCount": "115",
+      "spellMarks": 304,
+      "pageClass": "page tags-hidden notes-hidden show-element-numbers",
+      "navigatorVisible": true,
+      "editorClass": "tiptap ProseMirror screenplay-content",
+      "phases": [
+        {
+          "name": "typing",
+          "docDelta": 120,
+          "keys": 120,
+          "repeated": 0,
+          "wallMs": 10549.231482,
+          "latencyMs": {
+            "median": 28.700000002980232,
+            "p95": 46.399999998509884,
+            "max": 109.19999999925494
+          },
+          "mainThreadMs": {
+            "TaskDuration": 4404.0689999999995,
+            "ScriptDuration": 2066.387,
+            "LayoutDuration": 596.02,
+            "RecalcStyleDuration": 9.429
+          },
+          "counts": {
+            "layout": 189,
+            "style": 70
+          }
+        },
+        {
+          "name": "backspace",
+          "docDelta": -120,
+          "keys": 120,
+          "repeated": 119,
+          "wallMs": 8612.067926,
+          "latencyMs": {
+            "median": 31.400000002235174,
+            "p95": 55,
+            "max": 97.39999999850988
+          },
+          "mainThreadMs": {
+            "TaskDuration": 4469.618,
+            "ScriptDuration": 2023.469,
+            "LayoutDuration": 663.975,
+            "RecalcStyleDuration": 8.498999999999999
+          },
+          "counts": {
+            "layout": 186,
+            "style": 66
+          }
+        }
+      ],
+      "saves": [
+        {
+          "phase": "typing",
+          "ms": 134.20000000298023,
+          "status": 200,
+          "bytes": 1412175,
+          "at": 11506.800000000745
+        },
+        {
+          "phase": "typing",
+          "ms": 121.40000000223517,
+          "status": 200,
+          "bytes": 1412242,
+          "at": 16476.5
+        },
+        {
+          "phase": "backspace",
+          "ms": 110.39999999850988,
+          "status": 200,
+          "bytes": 1412232,
+          "at": 21455.39999999851
+        },
+        {
+          "phase": "backspace",
+          "ms": 103.5,
+          "status": 200,
+          "bytes": 1412146,
+          "at": 26447.199999999255
+        },
+        {
+          "phase": "settle",
+          "ms": 91.70000000298023,
+          "status": 200,
+          "bytes": 1412143,
+          "at": 31435.800000000745
+        }
+      ],
+      "recovery": [
+        {
+          "phase": "typing",
+          "ms": 3.199999999254942,
+          "bytes": 1412428,
+          "at": 11165.5
+        },
+        {
+          "phase": "typing",
+          "ms": 20.199999999254942,
+          "bytes": 1412519,
+          "at": 19176.89999999851
+        },
+        {
+          "phase": "backspace",
+          "ms": 19.100000001490116,
+          "bytes": 1412491,
+          "at": 21189.300000000745
+        },
+        {
+          "phase": "backspace",
+          "ms": 2.900000002235174,
+          "bytes": 1412399,
+          "at": 27765.800000000745
+        }
+      ],
+      "longTasks": [
+        {
+          "phase": "typing",
+          "ms": 60
+        },
+        {
+          "phase": "typing",
+          "ms": 55
+        },
+        {
+          "phase": "typing",
+          "ms": 75
+        },
+        {
+          "phase": "typing",
+          "ms": 70
+        },
+        {
+          "phase": "backspace",
+          "ms": 64
+        },
+        {
+          "phase": "backspace",
+          "ms": 52
+        }
+      ],
+      "sameDoc": true,
+      "persistedBodyVerified": true,
+      "errors": [],
+      "originalRevisionLabel": "main-map-prototype",
+      "buildId": "main",
+      "bundleIdentityOrigin": "from-preserved-preview-output-after-runs"
+    },
+    {
+      "name": "compare-main-150-4",
+      "url": "http://127.0.0.1:4187",
+      "browser": "154.0.8037.57",
+      "profile": false,
+      "fixture": "150",
+      "requestedPages": 150,
+      "layout": "page",
+      "navigator": "on",
+      "spellcheck": "on",
+      "autoSaveSeconds": 5,
+      "fixtureHash": "f70382ee8f3e656af819ff8537d6d168f7f35c077002c52fce7f2c3e6da7da27",
+      "target": 84026,
+      "pages": 150,
+      "renderedPageGaps": 149,
+      "blocks": 3110,
+      "docSize": 168013,
+      "sceneCount": "115",
+      "spellMarks": 304,
+      "pageClass": "page tags-hidden notes-hidden show-element-numbers",
+      "navigatorVisible": true,
+      "editorClass": "tiptap ProseMirror screenplay-content",
+      "phases": [
+        {
+          "name": "typing",
+          "docDelta": 120,
+          "keys": 120,
+          "repeated": 0,
+          "wallMs": 10869.220786,
+          "latencyMs": {
+            "median": 28.300000000745058,
+            "p95": 46.100000001490116,
+            "max": 120.30000000074506
+          },
+          "mainThreadMs": {
+            "TaskDuration": 4642.728,
+            "ScriptDuration": 2152.069,
+            "LayoutDuration": 695.305,
+            "RecalcStyleDuration": 9.843
+          },
+          "counts": {
+            "layout": 190,
+            "style": 70
+          }
+        },
+        {
+          "name": "backspace",
+          "docDelta": -120,
+          "keys": 120,
+          "repeated": 119,
+          "wallMs": 8273.917908,
+          "latencyMs": {
+            "median": 26.700000002980232,
+            "p95": 44.19999999925494,
+            "max": 109
+          },
+          "mainThreadMs": {
+            "TaskDuration": 3896.505,
+            "ScriptDuration": 1797.861,
+            "LayoutDuration": 553.1160000000001,
+            "RecalcStyleDuration": 7.538000000000001
+          },
+          "counts": {
+            "layout": 186,
+            "style": 66
+          }
+        }
+      ],
+      "saves": [
+        {
+          "phase": "typing",
+          "ms": 102.89999999850988,
+          "status": 200,
+          "bytes": 1412171,
+          "at": 11388.5
+        },
+        {
+          "phase": "typing",
+          "ms": 167.5,
+          "status": 200,
+          "bytes": 1412237,
+          "at": 16512.60000000149
+        },
+        {
+          "phase": "backspace",
+          "ms": 119.40000000223517,
+          "status": 200,
+          "bytes": 1412239,
+          "at": 21420.900000002235
+        },
+        {
+          "phase": "backspace",
+          "ms": 148.40000000223517,
+          "status": 200,
+          "bytes": 1412148,
+          "at": 26449.400000002235
+        },
+        {
+          "phase": "settle",
+          "ms": 110.80000000074506,
+          "status": 200,
+          "bytes": 1412143,
+          "at": 31395.800000000745
+        }
+      ],
+      "recovery": [
+        {
+          "phase": "typing",
+          "ms": 19.5,
+          "bytes": 1412425,
+          "at": 11162.10000000149
+        },
+        {
+          "phase": "typing",
+          "ms": 3.300000000745058,
+          "bytes": 1412519,
+          "at": 19619.5
+        },
+        {
+          "phase": "backspace",
+          "ms": 2.699999999254942,
+          "bytes": 1412498,
+          "at": 21142.5
+        },
+        {
+          "phase": "backspace",
+          "ms": 3.199999999254942,
+          "bytes": 1412399,
+          "at": 27912.10000000149
+        }
+      ],
+      "longTasks": [
+        {
+          "phase": "typing",
+          "ms": 83
+        },
+        {
+          "phase": "typing",
+          "ms": 64
+        },
+        {
+          "phase": "typing",
+          "ms": 66
+        },
+        {
+          "phase": "typing",
+          "ms": 78
+        },
+        {
+          "phase": "typing",
+          "ms": 126
+        },
+        {
+          "phase": "backspace",
+          "ms": 80
+        },
+        {
+          "phase": "settle",
+          "ms": 60
+        }
+      ],
+      "sameDoc": true,
+      "persistedBodyVerified": true,
+      "errors": [],
+      "originalRevisionLabel": "main-map-prototype",
+      "buildId": "main",
+      "bundleIdentityOrigin": "from-preserved-preview-output-after-runs"
+    },
+    {
+      "name": "compare-candidate-150-2",
+      "url": "http://127.0.0.1:4188",
+      "browser": "154.0.8037.57",
+      "profile": false,
+      "fixture": "150",
+      "requestedPages": 150,
+      "layout": "page",
+      "navigator": "on",
+      "spellcheck": "on",
+      "autoSaveSeconds": 5,
+      "fixtureHash": "f70382ee8f3e656af819ff8537d6d168f7f35c077002c52fce7f2c3e6da7da27",
+      "target": 84026,
+      "pages": 150,
+      "renderedPageGaps": 149,
+      "blocks": 3110,
+      "docSize": 168013,
+      "sceneCount": "115",
+      "spellMarks": 304,
+      "pageClass": "page tags-hidden notes-hidden show-element-numbers",
+      "navigatorVisible": true,
+      "editorClass": "tiptap ProseMirror screenplay-content",
+      "phases": [
+        {
+          "name": "typing",
+          "docDelta": 120,
+          "keys": 120,
+          "repeated": 0,
+          "wallMs": 10284.607291999999,
+          "latencyMs": {
+            "median": 26.400000002235174,
+            "p95": 38.30000000074506,
+            "max": 84.89999999850988
+          },
+          "mainThreadMs": {
+            "TaskDuration": 4059.2319999999995,
+            "ScriptDuration": 1801.817,
+            "LayoutDuration": 575.658,
+            "RecalcStyleDuration": 9.143
+          },
+          "counts": {
+            "layout": 189,
+            "style": 70
+          }
+        },
+        {
+          "name": "backspace",
+          "docDelta": -120,
+          "keys": 120,
+          "repeated": 119,
+          "wallMs": 8125.852080000001,
+          "latencyMs": {
+            "median": 27.5,
+            "p95": 38.19999999925494,
+            "max": 83.10000000149012
+          },
+          "mainThreadMs": {
+            "TaskDuration": 3948.2029999999995,
+            "ScriptDuration": 1752.922,
+            "LayoutDuration": 586.7750000000001,
+            "RecalcStyleDuration": 8.405999999999999
+          },
+          "counts": {
+            "layout": 185,
+            "style": 65
+          }
+        }
+      ],
+      "saves": [
+        {
+          "phase": "typing",
+          "ms": 111.60000000149012,
+          "status": 200,
+          "bytes": 1412173,
+          "at": 11739.699999999255
+        },
+        {
+          "phase": "typing",
+          "ms": 133.19999999925494,
+          "status": 200,
+          "bytes": 1412243,
+          "at": 16759.199999999255
+        },
+        {
+          "phase": "backspace",
+          "ms": 87.10000000149012,
+          "status": 200,
+          "bytes": 1412227,
+          "at": 21700.800000000745
+        },
+        {
+          "phase": "backspace",
+          "ms": 160.10000000149012,
+          "status": 200,
+          "bytes": 1412143,
+          "at": 26778.300000000745
+        }
+      ],
+      "recovery": [
+        {
+          "phase": "typing",
+          "ms": 19.699999999254942,
+          "bytes": 1412426,
+          "at": 11438.5
+        },
+        {
+          "phase": "typing",
+          "ms": 19.399999998509884,
+          "bytes": 1412519,
+          "at": 19337.599999997765
+        },
+        {
+          "phase": "backspace",
+          "ms": 3.599999997764826,
+          "bytes": 1412486,
+          "at": 21446.099999997765
+        }
+      ],
+      "longTasks": [
+        {
+          "phase": "typing",
+          "ms": 54
+        },
+        {
+          "phase": "typing",
+          "ms": 62
+        },
+        {
+          "phase": "typing",
+          "ms": 70
+        },
+        {
+          "phase": "backspace",
+          "ms": 50
+        },
+        {
+          "phase": "backspace",
+          "ms": 82
+        }
+      ],
+      "sameDoc": true,
+      "persistedBodyVerified": true,
+      "errors": [],
+      "originalRevisionLabel": "candidate-map-prototype",
+      "buildId": "candidate",
+      "bundleIdentityOrigin": "from-preserved-preview-output-after-runs"
+    },
+    {
+      "name": "final-main-150-off-5",
+      "url": "http://127.0.0.1:4187",
+      "bundlePath": "/assets/index-k9-Qpy4M.js",
+      "bundleHash": "106f24bd9a441c55d60f09c2a52d31ae2d5776ab3f32e9e6ba78c127910b3e34",
+      "browser": "154.0.8037.57",
+      "profile": false,
+      "fixture": "150",
+      "requestedPages": 150,
+      "layout": "page",
+      "navigator": "on",
+      "spellcheck": "on",
+      "autoSaveSeconds": 5,
+      "fixtureHash": "f70382ee8f3e656af819ff8537d6d168f7f35c077002c52fce7f2c3e6da7da27",
+      "target": 84026,
+      "pages": 150,
+      "renderedPageGaps": 149,
+      "blocks": 3110,
+      "docSize": 168013,
+      "sceneCount": "115",
+      "spellMarks": 304,
+      "pageClass": "page tags-hidden notes-hidden show-element-numbers",
+      "navigatorVisible": true,
+      "editorClass": "tiptap ProseMirror screenplay-content",
+      "phases": [
+        {
+          "name": "typing",
+          "docDelta": 120,
+          "keys": 120,
+          "repeated": 0,
+          "wallMs": 10682.724553000002,
+          "latencyMs": {
+            "median": 28.5,
+            "p95": 43.400000002235174,
+            "max": 115.60000000149012
+          },
+          "mainThreadMs": {
+            "TaskDuration": 4533.874999999999,
+            "ScriptDuration": 2094.207,
+            "LayoutDuration": 622.0590000000001,
+            "RecalcStyleDuration": 9.355
+          },
+          "counts": {
+            "layout": 189,
+            "style": 70
+          }
+        },
+        {
+          "name": "backspace",
+          "docDelta": -120,
+          "keys": 120,
+          "repeated": 119,
+          "wallMs": 8226.212242999998,
+          "latencyMs": {
+            "median": 26.900000002235174,
+            "p95": 36.5,
+            "max": 101.89999999850988
+          },
+          "mainThreadMs": {
+            "TaskDuration": 3879.212,
+            "ScriptDuration": 1820.8070000000002,
+            "LayoutDuration": 539.646,
+            "RecalcStyleDuration": 8.065000000000001
+          },
+          "counts": {
+            "layout": 185,
+            "style": 65
+          }
+        }
+      ],
+      "saves": [
+        {
+          "phase": "typing",
+          "ms": 158.19999999925494,
+          "status": 200,
+          "bytes": 1412173,
+          "at": 11708.60000000149
+        },
+        {
+          "phase": "typing",
+          "ms": 153.60000000149012,
+          "status": 200,
+          "bytes": 1412241,
+          "at": 16741.60000000149
+        },
+        {
+          "phase": "backspace",
+          "ms": 128.60000000149012,
+          "status": 200,
+          "bytes": 1412233,
+          "at": 21705.800000000745
+        },
+        {
+          "phase": "backspace",
+          "ms": 100.30000000074506,
+          "status": 200,
+          "bytes": 1412144,
+          "at": 26649
+        },
+        {
+          "phase": "settle",
+          "ms": 87.70000000298023,
+          "status": 200,
+          "bytes": 1412143,
+          "at": 31632.400000002235
+        }
+      ],
+      "recovery": [
+        {
+          "phase": "typing",
+          "ms": 19.199999999254942,
+          "bytes": 1412426,
+          "at": 11362.60000000149
+        },
+        {
+          "phase": "typing",
+          "ms": 20.800000000745058,
+          "bytes": 1412519,
+          "at": 19628.300000000745
+        },
+        {
+          "phase": "backspace",
+          "ms": 3.699999999254942,
+          "bytes": 1412493,
+          "at": 21363.699999999255
+        },
+        {
+          "phase": "backspace",
+          "ms": 21.800000000745058,
+          "bytes": 1412399,
+          "at": 27867.900000002235
+        }
+      ],
+      "longTasks": [
+        {
+          "phase": "typing",
+          "ms": 56
+        },
+        {
+          "phase": "typing",
+          "ms": 75
+        },
+        {
+          "phase": "typing",
+          "ms": 77
+        },
+        {
+          "phase": "typing",
+          "ms": 81
+        },
+        {
+          "phase": "backspace",
+          "ms": 72
+        },
+        {
+          "phase": "backspace",
+          "ms": 50
+        }
+      ],
+      "sameDoc": true,
+      "persistedBodyVerified": true,
+      "errors": [],
+      "originalRevisionLabel": "main-pagination-map-base-7714d63",
+      "buildId": "main",
+      "bundleIdentityOrigin": "recorded-by-runner"
+    },
+    {
+      "name": "final-candidate-150-off-3",
+      "url": "http://127.0.0.1:4188",
+      "bundlePath": "/assets/index-xAa4TMuF.js",
+      "bundleHash": "8c707bbed84f4894a42df519641edcc373ed8bb6319f2fda7dac40546d1d027b",
+      "browser": "154.0.8037.57",
+      "profile": false,
+      "fixture": "150",
+      "requestedPages": 150,
+      "layout": "page",
+      "navigator": "on",
+      "spellcheck": "on",
+      "autoSaveSeconds": 5,
+      "fixtureHash": "f70382ee8f3e656af819ff8537d6d168f7f35c077002c52fce7f2c3e6da7da27",
+      "target": 84026,
+      "pages": 150,
+      "renderedPageGaps": 149,
+      "blocks": 3110,
+      "docSize": 168013,
+      "sceneCount": "115",
+      "spellMarks": 304,
+      "pageClass": "page tags-hidden notes-hidden show-element-numbers",
+      "navigatorVisible": true,
+      "editorClass": "tiptap ProseMirror screenplay-content",
+      "phases": [
+        {
+          "name": "typing",
+          "docDelta": 120,
+          "keys": 120,
+          "repeated": 0,
+          "wallMs": 10729.023651,
+          "latencyMs": {
+            "median": 29.400000002235174,
+            "p95": 43.600000001490116,
+            "max": 103.09999999776483
+          },
+          "mainThreadMs": {
+            "TaskDuration": 4575.356,
+            "ScriptDuration": 2107.806,
+            "LayoutDuration": 597.375,
+            "RecalcStyleDuration": 9.727
+          },
+          "counts": {
+            "layout": 190,
+            "style": 70
+          }
+        },
+        {
+          "name": "backspace",
+          "docDelta": -120,
+          "keys": 120,
+          "repeated": 119,
+          "wallMs": 8490.107830999998,
+          "latencyMs": {
+            "median": 30.5,
+            "p95": 55,
+            "max": 97.80000000074506
+          },
+          "mainThreadMs": {
+            "TaskDuration": 4300.039,
+            "ScriptDuration": 1953.4950000000001,
+            "LayoutDuration": 637.2260000000001,
+            "RecalcStyleDuration": 8.648
+          },
+          "counts": {
+            "layout": 186,
+            "style": 66
+          }
+        }
+      ],
+      "saves": [
+        {
+          "phase": "typing",
+          "ms": 146.89999999850988,
+          "status": 200,
+          "bytes": 1412173,
+          "at": 11639.29999999702
+        },
+        {
+          "phase": "typing",
+          "ms": 149.19999999925494,
+          "status": 200,
+          "bytes": 1412239,
+          "at": 16633.699999999255
+        },
+        {
+          "phase": "backspace",
+          "ms": 95.60000000149012,
+          "status": 200,
+          "bytes": 1412235,
+          "at": 21579.199999999255
+        },
+        {
+          "phase": "backspace",
+          "ms": 101.70000000298023,
+          "status": 200,
+          "bytes": 1412148,
+          "at": 26596.5
+        },
+        {
+          "phase": "settle",
+          "ms": 97.60000000149012,
+          "status": 200,
+          "bytes": 1412143,
+          "at": 31583.39999999851
+        }
+      ],
+      "recovery": [
+        {
+          "phase": "typing",
+          "ms": 12.399999998509884,
+          "bytes": 1412427,
+          "at": 11327.79999999702
+        },
+        {
+          "phase": "typing",
+          "ms": 3.300000000745058,
+          "bytes": 1412519,
+          "at": 19520.199999999255
+        },
+        {
+          "phase": "backspace",
+          "ms": 3.300000000745058,
+          "bytes": 1412494,
+          "at": 21299.5
+        },
+        {
+          "phase": "backspace",
+          "ms": 10.900000002235174,
+          "bytes": 1412399,
+          "at": 28066.199999999255
+        }
+      ],
+      "longTasks": [
+        {
+          "phase": "typing",
+          "ms": 59
+        },
+        {
+          "phase": "typing",
+          "ms": 91
+        },
+        {
+          "phase": "typing",
+          "ms": 72
+        },
+        {
+          "phase": "typing",
+          "ms": 55
+        },
+        {
+          "phase": "backspace",
+          "ms": 53
+        },
+        {
+          "phase": "backspace",
+          "ms": 71
+        }
+      ],
+      "sameDoc": true,
+      "persistedBodyVerified": true,
+      "errors": [],
+      "originalRevisionLabel": "candidate-pagination-map-base-7714d63",
+      "buildId": "candidate",
+      "bundleIdentityOrigin": "recorded-by-runner"
+    },
+    {
+      "name": "final-candidate-short-off-1",
+      "url": "http://127.0.0.1:4188",
+      "bundlePath": "/assets/index-xAa4TMuF.js",
+      "bundleHash": "8c707bbed84f4894a42df519641edcc373ed8bb6319f2fda7dac40546d1d027b",
+      "browser": "154.0.8037.57",
+      "profile": false,
+      "fixture": "short",
+      "requestedPages": null,
+      "layout": "page",
+      "navigator": "on",
+      "spellcheck": "on",
+      "autoSaveSeconds": 5,
+      "fixtureHash": "04d73702e26f097cbfe34c402be02e38f8995d88f45b9d100d727879ea30533a",
+      "target": 6004,
+      "pages": 11,
+      "renderedPageGaps": 10,
+      "blocks": 217,
+      "docSize": 11725,
+      "sceneCount": "8",
+      "spellMarks": 25,
+      "pageClass": "page tags-hidden notes-hidden show-element-numbers",
+      "navigatorVisible": true,
+      "editorClass": "tiptap ProseMirror screenplay-content",
+      "phases": [
+        {
+          "name": "typing",
+          "docDelta": 120,
+          "keys": 120,
+          "repeated": 0,
+          "wallMs": 8315.615865999998,
+          "latencyMs": {
+            "median": 7.099999997764826,
+            "p95": 17.799999997019768,
+            "max": 36.79999999701977
+          },
+          "mainThreadMs": {
+            "TaskDuration": 1080.096,
+            "ScriptDuration": 448.534,
+            "LayoutDuration": 82.743,
+            "RecalcStyleDuration": 9.519
+          },
+          "counts": {
+            "layout": 188,
+            "style": 69
+          }
+        },
+        {
+          "name": "backspace",
+          "docDelta": -120,
+          "keys": 120,
+          "repeated": 119,
+          "wallMs": 6263.729589999999,
+          "latencyMs": {
+            "median": 7.299999997019768,
+            "p95": 17.600000001490116,
+            "max": 19.199999999254942
+          },
+          "mainThreadMs": {
+            "TaskDuration": 915.203,
+            "ScriptDuration": 371.5930000000001,
+            "LayoutDuration": 79.276,
+            "RecalcStyleDuration": 5.8740000000000006
+          },
+          "counts": {
+            "layout": 183,
+            "style": 64
+          }
+        }
+      ],
+      "saves": [
+        {
+          "phase": "typing",
+          "ms": 15.600000001490116,
+          "status": 200,
+          "bytes": 101218,
+          "at": 11372
+        },
+        {
+          "phase": "typing",
+          "ms": 21.900000002235174,
+          "status": 200,
+          "bytes": 101291,
+          "at": 16379.5
+        },
+        {
+          "phase": "backspace",
+          "ms": 13.400000002235174,
+          "status": 200,
+          "bytes": 101181,
+          "at": 21374.699999999255
+        },
+        {
+          "phase": "settle",
+          "ms": 12.899999998509884,
+          "status": 200,
+          "bytes": 101171,
+          "at": 26369.39999999851
+        }
+      ],
+      "recovery": [
+        {
+          "phase": "typing",
+          "ms": 1.9000000022351742,
+          "bytes": 101473,
+          "at": 11176
+        },
+        {
+          "phase": "backspace",
+          "ms": 0.19999999925494194,
+          "bytes": 101444,
+          "at": 21172.89999999851
+        },
+        {
+          "phase": "backspace",
+          "ms": 0.30000000074505806,
+          "bytes": 101429,
+          "at": 22953.39999999851
+        }
+      ],
+      "longTasks": [],
+      "sameDoc": true,
+      "persistedBodyVerified": true,
+      "errors": [],
+      "originalRevisionLabel": "candidate-pagination-map-base-7714d63",
+      "buildId": "candidate",
+      "bundleIdentityOrigin": "recorded-by-runner"
+    },
+    {
+      "name": "final-main-short-off-3",
+      "url": "http://127.0.0.1:4187",
+      "bundlePath": "/assets/index-k9-Qpy4M.js",
+      "bundleHash": "106f24bd9a441c55d60f09c2a52d31ae2d5776ab3f32e9e6ba78c127910b3e34",
+      "browser": "154.0.8037.57",
+      "profile": false,
+      "fixture": "short",
+      "requestedPages": null,
+      "layout": "page",
+      "navigator": "on",
+      "spellcheck": "on",
+      "autoSaveSeconds": 5,
+      "fixtureHash": "04d73702e26f097cbfe34c402be02e38f8995d88f45b9d100d727879ea30533a",
+      "target": 6004,
+      "pages": 11,
+      "renderedPageGaps": 10,
+      "blocks": 217,
+      "docSize": 11725,
+      "sceneCount": "8",
+      "spellMarks": 25,
+      "pageClass": "page tags-hidden notes-hidden show-element-numbers",
+      "navigatorVisible": true,
+      "editorClass": "tiptap ProseMirror screenplay-content",
+      "phases": [
+        {
+          "name": "typing",
+          "docDelta": 120,
+          "keys": 120,
+          "repeated": 0,
+          "wallMs": 8324.071505,
+          "latencyMs": {
+            "median": 7.399999998509884,
+            "p95": 18.400000002235174,
+            "max": 29.899999998509884
+          },
+          "mainThreadMs": {
+            "TaskDuration": 1059.08,
+            "ScriptDuration": 435.24,
+            "LayoutDuration": 84.2,
+            "RecalcStyleDuration": 7.16
+          },
+          "counts": {
+            "layout": 188,
+            "style": 69
+          }
+        },
+        {
+          "name": "backspace",
+          "docDelta": -120,
+          "keys": 120,
+          "repeated": 119,
+          "wallMs": 6237.740097000002,
+          "latencyMs": {
+            "median": 7.5,
+            "p95": 18.900000002235174,
+            "max": 20
+          },
+          "mainThreadMs": {
+            "TaskDuration": 918.7829999999999,
+            "ScriptDuration": 378.97600000000006,
+            "LayoutDuration": 74.55700000000002,
+            "RecalcStyleDuration": 5.65
+          },
+          "counts": {
+            "layout": 183,
+            "style": 64
+          }
+        }
+      ],
+      "saves": [
+        {
+          "phase": "typing",
+          "ms": 14.199999999254942,
+          "status": 200,
+          "bytes": 101217,
+          "at": 11449.199999999255
+        },
+        {
+          "phase": "typing",
+          "ms": 14.199999999254942,
+          "status": 200,
+          "bytes": 101291,
+          "at": 16449.099999997765
+        },
+        {
+          "phase": "backspace",
+          "ms": 18,
+          "status": 200,
+          "bytes": 101182,
+          "at": 21453.199999999255
+        },
+        {
+          "phase": "settle",
+          "ms": 13.5,
+          "status": 200,
+          "bytes": 101171,
+          "at": 26449
+        }
+      ],
+      "recovery": [
+        {
+          "phase": "typing",
+          "ms": 0.19999999925494194,
+          "bytes": 101472,
+          "at": 11235.699999999255
+        },
+        {
+          "phase": "backspace",
+          "ms": 0.30000000074505806,
+          "bytes": 101445,
+          "at": 21235.199999999255
+        },
+        {
+          "phase": "backspace",
+          "ms": 0.4000000022351742,
+          "bytes": 101429,
+          "at": 23044
+        }
+      ],
+      "longTasks": [],
+      "sameDoc": true,
+      "persistedBodyVerified": true,
+      "errors": [],
+      "originalRevisionLabel": "main-pagination-map-base-7714d63",
+      "buildId": "main",
+      "bundleIdentityOrigin": "recorded-by-runner"
+    },
+    {
+      "name": "final-main-150-profile-1",
+      "url": "http://127.0.0.1:4187",
+      "bundlePath": "/assets/index-k9-Qpy4M.js",
+      "bundleHash": "106f24bd9a441c55d60f09c2a52d31ae2d5776ab3f32e9e6ba78c127910b3e34",
+      "browser": "154.0.8037.57",
+      "profile": true,
+      "fixture": "150",
+      "requestedPages": 150,
+      "layout": "page",
+      "navigator": "on",
+      "spellcheck": "on",
+      "autoSaveSeconds": 5,
+      "fixtureHash": "f70382ee8f3e656af819ff8537d6d168f7f35c077002c52fce7f2c3e6da7da27",
+      "target": 84026,
+      "pages": 150,
+      "renderedPageGaps": 149,
+      "blocks": 3110,
+      "docSize": 168013,
+      "sceneCount": "115",
+      "spellMarks": 304,
+      "pageClass": "page tags-hidden notes-hidden show-element-numbers",
+      "navigatorVisible": true,
+      "editorClass": "tiptap ProseMirror screenplay-content",
+      "phases": [
+        {
+          "name": "typing",
+          "docDelta": 120,
+          "keys": 120,
+          "repeated": 0,
+          "wallMs": 10638.883360999998,
+          "latencyMs": {
+            "median": 30,
+            "p95": 42.100000001490116,
+            "max": 129.19999999925494
+          },
+          "mainThreadMs": {
+            "TaskDuration": 4511.596,
+            "ScriptDuration": 2121.056,
+            "LayoutDuration": 587.735,
+            "RecalcStyleDuration": 10.94
+          },
+          "counts": {
+            "layout": 189,
+            "style": 70
+          }
+        },
+        {
+          "name": "backspace",
+          "docDelta": -120,
+          "keys": 120,
+          "repeated": 119,
+          "wallMs": 8385.964552000001,
+          "latencyMs": {
+            "median": 28.800000000745058,
+            "p95": 48.30000000074506,
+            "max": 121.29999999701977
+          },
+          "mainThreadMs": {
+            "TaskDuration": 4188.3009999999995,
+            "ScriptDuration": 2007.285,
+            "LayoutDuration": 565.0369999999999,
+            "RecalcStyleDuration": 7.808000000000001
+          },
+          "counts": {
+            "layout": 185,
+            "style": 65
+          }
+        }
+      ],
+      "saves": [
+        {
+          "phase": "typing",
+          "ms": 133.19999999925494,
+          "status": 200,
+          "bytes": 1412173,
+          "at": 11479
+        },
+        {
+          "phase": "typing",
+          "ms": 126.59999999776483,
+          "status": 200,
+          "bytes": 1412240,
+          "at": 16485.89999999851
+        },
+        {
+          "phase": "backspace",
+          "ms": 108.19999999925494,
+          "status": 200,
+          "bytes": 1412232,
+          "at": 21482.699999999255
+        },
+        {
+          "phase": "backspace",
+          "ms": 144.60000000149012,
+          "status": 200,
+          "bytes": 1412144,
+          "at": 26513.800000000745
+        },
+        {
+          "phase": "settle",
+          "ms": 102.90000000223517,
+          "status": 200,
+          "bytes": 1412143,
+          "at": 31444.89999999851
+        }
+      ],
+      "recovery": [
+        {
+          "phase": "typing",
+          "ms": 2.900000002235174,
+          "bytes": 1412426,
+          "at": 11141.60000000149
+        },
+        {
+          "phase": "typing",
+          "ms": 19.399999998509884,
+          "bytes": 1412519,
+          "at": 19320.39999999851
+        },
+        {
+          "phase": "backspace",
+          "ms": 16.5,
+          "bytes": 1412492,
+          "at": 21158.10000000149
+        },
+        {
+          "phase": "backspace",
+          "ms": 19,
+          "bytes": 1412399,
+          "at": 27718.199999999255
+        }
+      ],
+      "longTasks": [
+        {
+          "phase": "typing",
+          "ms": 75
+        },
+        {
+          "phase": "typing",
+          "ms": 51
+        },
+        {
+          "phase": "typing",
+          "ms": 52
+        },
+        {
+          "phase": "typing",
+          "ms": 59
+        },
+        {
+          "phase": "backspace",
+          "ms": 64
+        },
+        {
+          "phase": "backspace",
+          "ms": 69
+        }
+      ],
+      "sameDoc": true,
+      "persistedBodyVerified": true,
+      "errors": [],
+      "originalRevisionLabel": "main-pagination-map-base-7714d63",
+      "buildId": "main",
+      "bundleIdentityOrigin": "recorded-by-runner"
+    },
+    {
+      "name": "final-candidate-150-profile-1",
+      "url": "http://127.0.0.1:4188",
+      "bundlePath": "/assets/index-xAa4TMuF.js",
+      "bundleHash": "8c707bbed84f4894a42df519641edcc373ed8bb6319f2fda7dac40546d1d027b",
+      "browser": "154.0.8037.57",
+      "profile": true,
+      "fixture": "150",
+      "requestedPages": 150,
+      "layout": "page",
+      "navigator": "on",
+      "spellcheck": "on",
+      "autoSaveSeconds": 5,
+      "fixtureHash": "f70382ee8f3e656af819ff8537d6d168f7f35c077002c52fce7f2c3e6da7da27",
+      "target": 84026,
+      "pages": 150,
+      "renderedPageGaps": 149,
+      "blocks": 3110,
+      "docSize": 168013,
+      "sceneCount": "115",
+      "spellMarks": 304,
+      "pageClass": "page tags-hidden notes-hidden show-element-numbers",
+      "navigatorVisible": true,
+      "editorClass": "tiptap ProseMirror screenplay-content",
+      "phases": [
+        {
+          "name": "typing",
+          "docDelta": 120,
+          "keys": 120,
+          "repeated": 0,
+          "wallMs": 10815.508851999999,
+          "latencyMs": {
+            "median": 29.900000002235174,
+            "p95": 50.899999998509884,
+            "max": 103.5
+          },
+          "mainThreadMs": {
+            "TaskDuration": 4674.364,
+            "ScriptDuration": 2050.291,
+            "LayoutDuration": 681.991,
+            "RecalcStyleDuration": 10.583
+          },
+          "counts": {
+            "layout": 190,
+            "style": 70
+          }
+        },
+        {
+          "name": "backspace",
+          "docDelta": -120,
+          "keys": 120,
+          "repeated": 119,
+          "wallMs": 8120.527935999999,
+          "latencyMs": {
+            "median": 26.900000002235174,
+            "p95": 50.69999999925494,
+            "max": 76.69999999925494
+          },
+          "mainThreadMs": {
+            "TaskDuration": 3922.711,
+            "ScriptDuration": 1694.6309999999999,
+            "LayoutDuration": 565.904,
+            "RecalcStyleDuration": 13.893
+          },
+          "counts": {
+            "layout": 186,
+            "style": 66
+          }
+        }
+      ],
+      "saves": [
+        {
+          "phase": "typing",
+          "ms": 156.39999999850988,
+          "status": 200,
+          "bytes": 1412169,
+          "at": 11563.900000002235
+        },
+        {
+          "phase": "typing",
+          "ms": 99.19999999925494,
+          "status": 200,
+          "bytes": 1412236,
+          "at": 16504.60000000149
+        },
+        {
+          "phase": "backspace",
+          "ms": 94.80000000074506,
+          "status": 200,
+          "bytes": 1412240,
+          "at": 21512
+        },
+        {
+          "phase": "backspace",
+          "ms": 125.5,
+          "status": 200,
+          "bytes": 1412147,
+          "at": 26533.5
+        },
+        {
+          "phase": "settle",
+          "ms": 92.20000000298023,
+          "status": 200,
+          "bytes": 1412143,
+          "at": 31500.400000002235
+        }
+      ],
+      "recovery": [
+        {
+          "phase": "typing",
+          "ms": 3.5,
+          "bytes": 1412423,
+          "at": 11214
+        },
+        {
+          "phase": "typing",
+          "ms": 23.099999997764826,
+          "bytes": 1412519,
+          "at": 19782.699999999255
+        },
+        {
+          "phase": "backspace",
+          "ms": 4.199999999254942,
+          "bytes": 1412500,
+          "at": 21199.800000000745
+        },
+        {
+          "phase": "backspace",
+          "ms": 7.300000000745058,
+          "bytes": 1412399,
+          "at": 27925.5
+        }
+      ],
+      "longTasks": [
+        {
+          "phase": "typing",
+          "ms": 65
+        },
+        {
+          "phase": "typing",
+          "ms": 75
+        },
+        {
+          "phase": "typing",
+          "ms": 58
+        }
+      ],
+      "sameDoc": true,
+      "persistedBodyVerified": true,
+      "errors": [],
+      "originalRevisionLabel": "candidate-pagination-map-base-7714d63",
+      "buildId": "candidate",
+      "bundleIdentityOrigin": "recorded-by-runner"
+    }
+  ],
+  "notes": [
+    "Source tag v2.14.2 and main built with identical Vite production --minify false options, not downloaded release binaries.",
+    "Earlier runs predate bundle hashing; their preserved preview directories were hashed afterward.",
+    "Candidate is the base plus the recorded pagination.ts patch/source hashes; revision labels in original runs were descriptive aliases.",
+    "Primary comparisons exclude CPU-profiled runs."
+  ]
+}
