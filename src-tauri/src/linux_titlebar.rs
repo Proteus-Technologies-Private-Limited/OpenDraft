@@ -28,7 +28,7 @@ pub fn enable_header_buttons(window: &impl IsA<gtk::Window>) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tauri::tao::{
+    use tauri_runtime_wry::tao::{
         event_loop::EventLoopBuilder,
         platform::unix::{EventLoopBuilderExtUnix, WindowExtUnix},
         window::WindowBuilder,

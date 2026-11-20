@@ -2965,7 +2965,8 @@ async fn open_new_window(app: tauri::AppHandle) -> Result<(), String> {
     {
         builder = builder.activity_name(label.replace("main-", "WindowActivity"));
     }
-    let _window = builder.build()
+    let _window = builder
+        .build()
         .map_err(|e| format!("Failed to create window: {}", e))?;
     // This async command runs on a worker; only its GTK access needs dispatch.
     #[cfg(target_os = "linux")]

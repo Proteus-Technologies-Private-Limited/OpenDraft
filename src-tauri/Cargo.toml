@@ -63,6 +63,11 @@ percent-encoding = "2"
 # Match the GTK version already used by Tauri; title-bar routing is Linux-only.
 [target.'cfg(target_os = "linux")'.dependencies]
 gtk = "0.18"
+
+# Use the same runtime (and its Tao re-export) as the application in native tests.
+[target.'cfg(target_os = "linux")'.dev-dependencies]
+tauri-runtime-wry = { version = "2.11", default-features = false }
+
 # Installed-font lookup for the PDF exporter's fallback (system_fonts.rs).
 # Desktop only: mobile has no font directories to scan and the dependency would
 # only add to the Android/iOS builds. ttf-parser is already in the tree via
