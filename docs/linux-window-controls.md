@@ -7,9 +7,12 @@ double-click can still maximize the window, matching the issue's workaround.
 
 OpenDraft now puts that wrapper's input window below its children. The guard
 requires both the event box and its header-bar child; a direct header, another
-custom title bar, or X11 server-side decorations are left alone. The page-start
-hook covers both the initial window and windows created later. GTK access is
-dispatched to the main thread. No window sizing, startup delays, decorations,
+custom title bar, or X11 server-side decorations are left alone. Setup applies the fix immediately to the initial native windows, before the
+splash transition, and to each window built by New Window. It does not depend
+on any page loading or committing. Only the asynchronous New Window command
+dispatches its GTK access to the main thread; startup already runs there.
+Linux file-association launches use the initial window via CLI arguments. The
+separate warm `RunEvent::Opened` path is currently macOS/iOS-only. No window sizing, startup delays, decorations,
 GPU settings or platform selection are changed.
 
 ## Verification
@@ -30,15 +33,28 @@ candidate binary. The shim is a testing tool, not shipped app code.
 | --- | --- |
 | ![Unmaximized window after clicking maximize](screenshots/issue-271/baseline-click.png) | ![Window maximized by its button](screenshots/issue-271/routing-correction.png) |
 
-The native GTK regression test covers the Tao wrapper, repeated application,
-server-side decorations, a direct GTK header and unrelated custom decorations.
-The Linux title-bar workflow compiles the actual Linux application library and
-runs that test on a virtual display:
+The native regression tests create **real Tao windows** using Tauri's pinned
+Tao, before creating any webview. The Wayland case checks both initial and later
+windows, asserts the actual EventBox/HeaderBar structure, and checks input
+ordering after applying the fix. A changed upstream structure fails explicitly
+instead of allowing the shape guard to silently skip. A separate X11 process
+checks that its native decorations remain unchanged.
+
+Both display tests are `#[ignore]`, so ordinary headless `cargo test --lib`
+runs skip them. The main `test.yml` workflow opts in on pull requests and pushes
+to main. Its combined Linux/Android job uses Ubuntu 22.04, matching the Linux
+release build, and reuses one frontend build for both native targets. It starts
+a headless Weston Wayland compositor, then runs X11 separately under Xvfb:
 
 ```sh
 cd src-tauri
-xvfb-run -a cargo test --locked --lib linux_titlebar::tests -- --test-threads=1
+../test-script/check-linux-titlebar.sh
 ```
+
+The script needs Weston 9 (Ubuntu 22.04), Xvfb, a session bus, and the normal
+Tauri Linux build dependencies. A display/compositor setup failure fails CI;
+it is not silently skipped in this explicit run. No GPU or physical device is
+needed.
 
 KDE/KWin, the reporter's theme and hardware, scaling combinations, and every
 Wayland compositor have not been tested. A reporter retest remains useful.

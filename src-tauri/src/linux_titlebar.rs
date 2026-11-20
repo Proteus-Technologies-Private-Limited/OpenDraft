@@ -1,4 +1,6 @@
-//! GTK input routing for Tao 0.35's Wayland client-side title bar (#271).
+//! GTK input routing for Tao 0.35.3's Wayland client-side title bar (#271).
+//! Checked against `tao-0.35.3/src/platform_impl/linux/wayland/header.rs`,
+//! `WlHeader::setup`: `event_box.set_above_child(true)`. Revisit on a Tao bump.
 use gtk::prelude::*;
 
 /// Keep the wrapper below its header's input windows, so native buttons receive
@@ -26,39 +28,71 @@ pub fn enable_header_buttons(window: &impl IsA<gtk::Window>) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tauri::tao::{
+        event_loop::EventLoopBuilder,
+        platform::unix::{EventLoopBuilderExtUnix, WindowExtUnix},
+        window::WindowBuilder,
+    };
 
-    // One GTK thread for all cases. Run under xvfb-run in CI; no window manager
-    // or physical device is needed to inspect native input-window ordering.
+    // Explicit display tests: a normal headless `cargo test --lib` skips them.
+    // Run separately so each Tao event loop owns its process's GTK thread.
     #[test]
-    fn only_tao_header_wrapper_changes() {
-        gtk::init().expect("GTK display required: run with xvfb-run");
-        let window = gtk::Window::new(gtk::WindowType::Toplevel);
-        enable_header_buttons(&window); // X11/server-side decorations.
-        assert!(window.titlebar().is_none());
+    #[ignore = "requires a Wayland compositor; test.yml runs this explicitly"]
+    fn real_tao_wayland_titlebars() {
+        let event_loop = EventLoopBuilder::<()>::new().with_any_thread(true).build();
+        // Both startup and later windows must work with no webview/page load.
+        for title in ["Initial window", "New window"] {
+            let window = WindowBuilder::new()
+                .with_title(title)
+                .with_visible(false)
+                .build(&event_loop)
+                .expect("create real Tao window");
+            let native = window.gtk_window();
+            assert_eq!(native.display().type_().name(), "GdkWaylandDisplay");
+            let wrapper = native
+                .titlebar()
+                .expect("Tao Wayland title bar")
+                .downcast::<gtk::EventBox>()
+                .expect("Tao changed the title-bar wrapper; revisit workaround");
+            let header = wrapper
+                .child()
+                .expect("Tao header child")
+                .downcast::<gtk::HeaderBar>()
+                .expect("Tao changed the header; revisit workaround");
+            enable_header_buttons(native);
+            assert!(
+                !wrapper.is_above_child(),
+                "native buttons must receive input"
+            );
+            assert!(header.shows_close_button());
+            enable_header_buttons(native);
+            assert!(!wrapper.is_above_child(), "repeated setup is safe");
+            assert_eq!(native.titlebar(), Some(wrapper.upcast()));
+        }
 
-        let header = gtk::HeaderBar::new();
-        window.set_titlebar(Some(&header));
-        enable_header_buttons(&window); // A direct GTK header needs no patch.
-        assert_eq!(window.titlebar(), Some(header.upcast()));
-
-        let unrelated = gtk::EventBox::new();
-        unrelated.set_above_child(true);
-        unrelated.add(&gtk::Label::new(Some("Other decoration")));
-        window.set_titlebar(Some(&unrelated));
-        enable_header_buttons(&window);
-        assert!(unrelated.is_above_child());
-
+        // A custom decoration without Tao's structure must stay untouched.
+        let custom = gtk::Window::new(gtk::WindowType::Toplevel);
         let wrapper = gtk::EventBox::new();
-        let header = gtk::HeaderBar::new();
-        header.set_show_close_button(true);
-        wrapper.add(&header);
-        wrapper.set_above_child(true); // Exact Tao 0.35 Wayland structure.
-        window.set_titlebar(Some(&wrapper));
-        enable_header_buttons(&window);
-        assert!(!wrapper.is_above_child());
-        assert!(header.shows_close_button());
-        enable_header_buttons(&window); // Safe on subsequent page loads.
-        assert!(!wrapper.is_above_child());
-        window.close();
+        wrapper.set_above_child(true);
+        wrapper.add(&gtk::Label::new(Some("Other decoration")));
+        custom.set_titlebar(Some(&wrapper));
+        enable_header_buttons(&custom);
+        assert!(wrapper.is_above_child());
+        custom.close();
+    }
+
+    #[test]
+    #[ignore = "requires X11; test.yml runs this explicitly under Xvfb"]
+    fn real_tao_x11_decorations() {
+        let event_loop = EventLoopBuilder::<()>::new().with_any_thread(true).build();
+        let window = WindowBuilder::new()
+            .with_visible(false)
+            .build(&event_loop)
+            .expect("create real Tao X11 window");
+        let native = window.gtk_window();
+        assert_eq!(native.display().type_().name(), "GdkX11Display");
+        let titlebar = native.titlebar();
+        enable_header_buttons(native);
+        assert_eq!(native.titlebar(), titlebar);
     }
 }
