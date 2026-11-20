@@ -1,4 +1,6 @@
 mod safe_file;
+#[cfg(target_os = "linux")]
+mod linux_titlebar;
 #[cfg(target_os = "macos")]
 mod macos_file;
 use std::sync::Mutex;
@@ -2963,8 +2965,17 @@ async fn open_new_window(app: tauri::AppHandle) -> Result<(), String> {
     {
         builder = builder.activity_name(label.replace("main-", "WindowActivity"));
     }
-    builder.build()
+    let _window = builder
+        .build()
         .map_err(|e| format!("Failed to create window: {}", e))?;
+    // This async command runs on a worker; only its GTK access needs dispatch.
+    #[cfg(target_os = "linux")]
+    {
+        let target = _window.clone();
+        if let Err(error) = _window.run_on_main_thread(move || prepare_linux_titlebar(&target)) {
+            eprintln!("[window] Could not initialize Linux title bar: {error}");
+        }
+    }
     #[cfg(target_os = "ios")]
     bind_window_scene(label.clone());
     // Refresh window list in the Window menu
@@ -2973,6 +2984,15 @@ async fn open_new_window(app: tauri::AppHandle) -> Result<(), String> {
         rebuild_window_menu(&app, &menu);
     }
     Ok(())
+}
+
+/// Called on the UI thread immediately after a native window is built.
+#[cfg(target_os = "linux")]
+fn prepare_linux_titlebar(window: &tauri::WebviewWindow) {
+    match window.gtk_window() {
+        Ok(native) => linux_titlebar::enable_header_buttons(&native),
+        Err(error) => eprintln!("[window] Could not access Linux title bar: {error}"),
+    }
 }
 
 /// Kernel drivers whose Mesa stack hands WebKitGTK working DMA-BUFs.
@@ -3191,6 +3211,14 @@ pub fn run() {
         });
 
     let builder = builder.setup(|app| {
+            // Native decorations exist now, before the splash transition and
+            // independently of whether any web content commits successfully.
+            // This also covers Linux file-association launches via CLI args.
+            #[cfg(target_os = "linux")]
+            for window in app.webview_windows().values() {
+                prepare_linux_titlebar(window);
+            }
+
             // Ensure user data directory exists
             let app_data_dir = app
                 .path()

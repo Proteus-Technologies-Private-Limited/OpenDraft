@@ -78,11 +78,20 @@ jobs:
   # it catches what a release would catch in the Rust itself, and nothing about
   # Kotlin, R8 or packaging — those still first run at release time.
   android-rust:
-    name: Android (Rust type check)
-    runs-on: ubuntu-latest
+    name: Linux title bars + Android Rust
+    timeout-minutes: 45
+    # Match the Linux release build, including its GTK version.
+    runs-on: ubuntu-22.04
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install Linux native build and display-test dependencies
+        # Bound mirror/apt-lock stalls before starting the native checks.
+        timeout-minutes: 10
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf weston xvfb
 
       # aarch64 alone. All four ABIs share this source, and the cfg is per-OS
       # rather than per-architecture, so the other three would re-check the
@@ -125,6 +134,13 @@ jobs:
       # the Rust does not type-check without a real frontend/dist next to it.
       - name: Build the frontend
         run: cd frontend && npm ci && npm run build
+
+      # Reuse the same frontend dist for native Linux tests and Android checks.
+      # A real Wayland compositor makes Tao construct its own WlHeader; Xvfb
+      # alone would exercise X11 and never test the problematic wrapper.
+      - name: Check real Tao title bars before any page load
+        working-directory: src-tauri
+        run: ../test-script/check-linux-titlebar.sh
 
       - name: Type-check the Android build
         run: |

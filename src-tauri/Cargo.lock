@@ -2954,6 +2954,7 @@ version = "2.14.2"
 dependencies = [
  "cc",
  "fontdb",
+ "gtk",
  "jni",
  "percent-encoding",
  "reqwest 0.12.28",
@@ -2966,6 +2967,7 @@ dependencies = [
  "tauri-plugin-fs",
  "tauri-plugin-opener",
  "tauri-plugin-sql",
+ "tauri-runtime-wry",
  "ttf-parser",
 ]
 
