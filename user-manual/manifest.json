@@ -1,17 +1,17 @@
 {
-  "version": "2e7aeb968b3f6799",
+  "version": "82e21cad9cbbe2a6",
   "pages": [
     {
       "slug": "index.html",
       "title": "Home",
       "section": "Getting Started",
-      "hash": "11b580791359774d"
+      "hash": "5f7f12de851ff7de"
     },
     {
       "slug": "getting-started.html",
       "title": "Getting Started",
       "section": "Getting Started",
-      "hash": "55f14f879af4794a"
+      "hash": "dab16606b6a30be8"
     },
     {
       "slug": "installation.html",
@@ -29,7 +29,7 @@
       "slug": "formatting.html",
       "title": "Formatting",
       "section": "Writing",
-      "hash": "1c3df907a2135231"
+      "hash": "5082687b689a2f85"
     },
     {
       "slug": "title-page.html",

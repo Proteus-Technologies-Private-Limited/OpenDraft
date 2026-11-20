@@ -1,7 +1,10 @@
 Arrange your workspace your way, write side by side with your pages or cards, and draft in one continuous scroll.
 
 YOUR WORKSPACE, YOUR WAY
-Put the Navigator and every panel in the left, right or bottom dock, choose what sits on the toolbar and status bar, and save layouts you can switch between in one click.
+Put the Navigator and every panel in the left, right or bottom dock, choose what sits on the toolbar and status bar and in what order, and save layouts you can switch between in one click. Whatever doesn't fit in the window is one click away, just above the status bar.
+
+ONE ZOOM CONTROL
+Zoom with buttons, a slider or both, and fit the page to the width of the window in one click. Keep it on the status bar or move it to the toolbar.
 
 SPLIT SCREEN
 Keep the printed page, your index cards, the outline or the beat board open beside the script.

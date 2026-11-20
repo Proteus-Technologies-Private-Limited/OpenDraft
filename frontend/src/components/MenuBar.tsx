@@ -4526,6 +4526,13 @@ const MenuBar: React.FC<MenuBarProps> = ({
               <div className="about-section-title">What's New in 2.14.1</div>
               <div className="about-changelog">
               {/* i18n-ignore-start: release notes stay English in phase 1 */}
+              <div className="about-subsection-title">v2.14.2</div>
+              <ul className="about-list">
+                <li><strong>A Footer That Follows Your Layout</strong> &mdash; The status bar&rsquo;s lines &mdash; the script&rsquo;s name, save state, current element, acts, running time, words, revision colour, writing goal and page &mdash; are now items you place like any control: take one off, put it back, or move it to the start, centre or end in <em>View &rarr; Menu &amp; Toolbar &rarr; Customise toolbar&hellip;</em>. At every size of window or screen the footer shows what you placed, where you placed it, in your order, for as long as it fits. What does not fit opens above the footer from the arrow at its end, wrapping onto more lines, instead of being cut off at the edge. On a phone or a narrow window the script&rsquo;s name and save state shorten to fit.</li>
+                <li><strong>One Zoom Control</strong> &mdash; <em>Zoom Buttons</em> and <em>Zoom Slider</em> are now one <em>Zoom</em> control for either bar: buttons, a slider or both, with the percentage and <em>Fit width</em>. The footer&rsquo;s zoom follows that choice, which it ignored before. It sits at the end of the footer; a layout that had both keeps the footer&rsquo;s, and the toolbar has room for something else. Put it back on the toolbar from the same dialog if you prefer it there.</li>
+                <li><strong>Icons on a Phone&rsquo;s Toolbar</strong> &mdash; One row on a phone has no room for names, so the toolbar shows icons there whatever labels you chose on a larger screen, and the dialog says so instead of offering the choice.</li>
+                <li><strong>Also Fixed</strong> &mdash; An add-on&rsquo;s panel appears as soon as the add-on is switched on, without reopening the script. Resizing the window across the width where panels dock keeps the writing pad open with its draft.</li>
+              </ul>
               <div className="about-subsection-title">v2.14.1</div>
               <ul className="about-list">
                 <li><strong>Menu Names Back on Phones</strong> &mdash; 2.14.0 showed only icons in the menu bar on phones, in both Compact and Comfortable. File, Edit, Format, View, Tools and Help are named again, and the bar scrolls sideways when they do not all fit, as before. A foldable opened like a book still shows icons only on the half beside the hinge, where there is no room for the names.</li>
