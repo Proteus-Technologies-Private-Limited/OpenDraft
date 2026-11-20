@@ -2,7 +2,7 @@
 FROM node:20-slim AS frontend-builder
 
 WORKDIR /frontend
-COPY frontend/package.json frontend/package-lock.json ./
+COPY frontend/package.json frontend/package-lock.json frontend/.npmrc ./
 RUN npm ci
 COPY frontend/ ./
 # Frontend tests check the collab server's code too (suggestionGuard.test.ts

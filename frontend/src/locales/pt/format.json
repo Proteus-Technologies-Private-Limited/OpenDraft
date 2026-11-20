@@ -249,5 +249,21 @@
     "textColor": "Cor do texto",
     "highlight": "Destaque",
     "highlightColor": "Cor de destaque"
+  },
+  "lineSpacing": {
+    "title": "Espaçamento entre linhas",
+    "help": "Abre o espaço entre as linhas do roteiro. A página na tela, a contagem de páginas e os arquivos PDF, Word e Final Draft acompanham. O padrão é seis linhas por polegada, o espaçamento com que o Final Draft imprime um roteiro.",
+    "preset": {
+      "standard": "Padrão",
+      "slightlyOpen": "Um pouco mais aberto",
+      "open": "Aberto"
+    },
+    "fine": "Ajuste fino",
+    "value": "{{points}} pt por linha ({{value}}×)",
+    "pages": "Contagem de páginas: {{pages}}",
+    "pagesChange": "Contagem de páginas: {{from}} → {{to}}",
+    "scope": "Vale só para este roteiro e vai junto com ele. As linhas em branco entre elementos e a estimativa de duração não mudam.",
+    "reset": "Voltar ao padrão",
+    "failed": "Não foi possível aplicar o espaçamento entre linhas. O roteiro mantém o espaçamento atual."
   }
 }

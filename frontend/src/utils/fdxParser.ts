@@ -6,6 +6,7 @@ import { buildTitlePageBlocks, type TitlePageFields } from './titlePageBlocks';
 import { DEFAULT_PAGE_LAYOUT } from '../stores/editorStore';
 import { parseFDXRevisions, type FDXRevisionImport } from './fdxRevisions';
 import { fdxParagraphAnnotations } from './formatAnnotations';
+import { importedLineSpacing, type ImportedLineSpacing } from './lineSpacing';
 
 interface TipTapMark {
   type: string;
@@ -239,6 +240,29 @@ export interface FDXParseResult {
   beatColumns: FDXBeatColumn[];
   /** The file's revisions, mapped to OpenDraft's colours; null when it has none. */
   revisions: FDXRevisionImport | null;
+  /**
+   * Line spacing from the element settings' `Spacing`, as a script-wide value
+   * and per-element multipliers (utils/lineSpacing); null when the whole
+   * script is single-spaced, which is nearly every file.
+   */
+  lineSpacing: ImportedLineSpacing | null;
+}
+
+/** One `<ElementSettings>`: its Type and its ParagraphSpec's `Spacing`. */
+export interface FDXElementSpacing { type: string; spacing: string | null }
+
+/**
+ * The line spacing an .fdx's element settings describe (utils/lineSpacing), or
+ * null for a single-spaced file. Built-in elements only, the first definition
+ * of each winning, as Final Draft reads them.
+ */
+export function lineSpacingFromElementSettings(settings: readonly FDXElementSpacing[]): ImportedLineSpacing | null {
+  const spacings: Record<string, string | null> = {};
+  for (const { type, spacing } of settings) {
+    const resolved = resolveFdxType(type);
+    if (resolved?.kind === 'builtin' && !(resolved.id in spacings)) spacings[resolved.id] = spacing;
+  }
+  return importedLineSpacing(spacings);
 }
 
 export function parseFDX(xmlString: string): TipTapNode {
@@ -277,6 +301,20 @@ export function parseFDXFull(xmlString: string): FDXParseResult {
     family: fontSpec?.getAttribute('Font') || '',
     size: fontSpec?.getAttribute('Size') || '',
   };
+
+  // Each built-in element's `Spacing`, keyed by OpenDraft element id. A
+  // malformed file loses its line spacing, never its script.
+  let lineSpacing: ImportedLineSpacing | null = null;
+  try {
+    const settings: FDXElementSpacing[] = [];
+    xmlDoc.querySelectorAll('ElementSettings').forEach((el) => {
+      const spec = el.querySelector('ParagraphSpec');
+      if (spec) settings.push({ type: el.getAttribute('Type') || '', spacing: spec.getAttribute('Spacing') });
+    });
+    lineSpacing = lineSpacingFromElementSettings(settings);
+  } catch (err) {
+    console.warn('[fdx] could not read the line spacing; the script opens single-spaced', err);
+  }
 
   // Read before the paragraphs: every revised run points into this list.
   let revisions: FDXRevisionImport | null = null;
@@ -369,7 +407,7 @@ export function parseFDXFull(xmlString: string): FDXParseResult {
   // Use 'FinalDraft > Content' to skip the TitlePage > Content element
   const contentEl = xmlDoc.querySelector('FinalDraft > Content');
   if (!contentEl) {
-    return { doc: { type: 'doc', content: [{ type: 'action', content: [] }] }, pageLayout, documentFont, castList: [], characterHighlighting: [], tagCategories: [], tagItems: [], beats: [], beatColumns: [], revisions };
+    return { doc: { type: 'doc', content: [{ type: 'action', content: [] }] }, pageLayout, documentFont, castList: [], characterHighlighting: [], tagCategories: [], tagItems: [], beats: [], beatColumns: [], revisions, lineSpacing };
   }
 
   // Iterate direct children (Paragraph and DualDialogue elements)
@@ -685,6 +723,7 @@ export function parseFDXFull(xmlString: string): FDXParseResult {
     beats,
     beatColumns,
     revisions,
+    lineSpacing,
   };
 }
 

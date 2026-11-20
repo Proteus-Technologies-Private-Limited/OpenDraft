@@ -1,5 +1,5 @@
 import { readSourceFidelity } from '../utils/sourceFidelity';
-import React, { useEffect, useLayoutEffect, useCallback, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useLayoutEffect, useCallback, useRef, useState, useMemo, useSyncExternalStore } from 'react';
 import { panelResize } from '../utils/panelResize';
 import { ModalOverlay } from './ModalOverlay';
 import { useTranslation, Trans } from 'react-i18next';
@@ -51,9 +51,10 @@ import Subscript from '@tiptap/extension-subscript';
 import Superscript from '@tiptap/extension-superscript';
 import { PastedHighlight } from '../editor/extensions/PastedHighlight';
 import { useFormattingTemplateStore, subscribeActiveTemplate } from '../stores/formattingTemplateStore';
-import { generateTemplateCss, generatePlaceholderLocaleCss, injectTemplateCss } from '../utils/templateCss';
+import { generateTemplateCss, generatePlaceholderLocaleCss, generateLineSpacingCss, injectTemplateCss } from '../utils/templateCss';
 import { docHasAnyText } from '../utils/docText';
 import { getCurrentElementRule, getLockedFormatting } from '../utils/effectiveFormatting';
+import { fontScaleOf } from '../utils/fontScale';
 import { createPaginationPlugin, getPageMetrics, activeTemplateHints } from '../editor/pagination';
 import type { FootnotePageAssignment } from '../editor/pagination';
 import type { EndnotePage } from '../utils/footnotes';
@@ -73,11 +74,29 @@ import MenuBar from './MenuBar';
 import Toolbar from './Toolbar';
 import SceneNavigator from './SceneNavigator';
 import IndexCards from './IndexCards';
+import StoryMap from './StoryMap';
+import PagePreviewPane from './PagePreviewPane';
 import BeatBoard from './BeatBoard';
 import OutlineView from './OutlineView';
 import ScriptStatistics from './ScriptStatistics';
 import TableReadPanel from './TableReadPanel';
 import FoldablePanelDock from './FoldablePanelDock';
+import WorkspaceDock, { type DockPanelDef, type NavigatorRender } from './WorkspaceDock';
+import { useCompactViewport } from '../hooks/useWorkspaceDocks';
+/** Add-on panels come and go at runtime (an add-on switched on, or removed), and
+ *  the dock decides from their count whether to show the Add-ons panel. */
+const subscribeAddOnPanels = (listener: () => void) => pluginRegistry.subscribe(listener);
+const addOnPanelCount = () => {
+  try {
+    return pluginRegistry.getPanels('right-sidebar').length;
+  } catch (error) {
+    console.error('[workspace] could not read the add-on panels:', error);
+    return 0;
+  }
+};
+import LayoutDialog from './LayoutDialog';
+import { panelOpenIn } from '../utils/panelActions';
+import { BUILT_IN_PANELS, movePanelToNewGroup, visibleGroups } from '../utils/workspaceLayout';
 import { useFoldState } from '../hooks/useFoldState';
 import { useFoldWritingPadDock } from '../hooks/useFoldWritingPadDock';
 import { FOLD_CHANGE_EVENT, FOLD_WILL_CHANGE_EVENT, isFoldableDevice } from '../utils/foldPosture';
@@ -552,7 +571,7 @@ function sameOverlays(a: OverlayInfo[], b: OverlayInfo[]): boolean {
 }
 
 const ScreenplayEditor: React.FC = () => {
-  const { t: tl, i18n: i18nInstance } = useTranslation(['editor', 'common']);
+  const { t: tl, i18n: i18nInstance } = useTranslation(['editor', 'common', 'story']);
   const { projectId: urlProjectId, scriptId: urlScriptId, commitHash: urlCommitHash, collabToken: urlCollabToken } = useParams<{ projectId?: string; scriptId?: string; commitHash?: string; collabToken?: string }>();
   const navigate = useNavigate();
   const goBack = useGoBack();
@@ -572,7 +591,9 @@ const ScreenplayEditor: React.FC = () => {
     setActiveElement, setScenes, setPageCount, setCurrentPage,
     zoomLevel, setZoomLevel, fontFamily, fontSize, pageLayout, tagsVisible, notesVisible,
     viewLayout,
-    beatBoardOpen, statisticsOpen,
+    beatBoardOpen, statisticsOpen, indexCardsOpen,
+    splitScreenOpen, toggleSplitScreen, splitScreenMode, splitScreenPane,
+    storyMapOpen, toggleStoryMap,
     outlineOpen,
     navigatorOpen, toggleNavigator, scriptNotesOpen, toggleScriptNotes,
     characterProfilesOpen, tagsPanelOpen, locationDatabaseOpen, dialogueTunerOpen,
@@ -624,6 +645,26 @@ const ScreenplayEditor: React.FC = () => {
   // ── Panel resize state ──
   const [navWidth, setNavWidth] = useState(240);
   const [rightPanelWidth, setRightPanelWidth] = useState(300);
+  /** Height of the bottom dock when it holds more than Table Read. */
+  const [bottomDockHeight, setBottomDockHeight] = useState(260);
+  const handleBottomResizePointerDown = useCallback((e: React.PointerEvent) => {
+    e.preventDefault();
+    const startY = e.clientY;
+    const startHeight = bottomDockHeight;
+    const move = (ev: PointerEvent) => {
+      setBottomDockHeight(Math.max(120, Math.min(Math.round(window.innerHeight * 0.7), startHeight - (ev.clientY - startY))));
+    };
+    const up = () => {
+      document.removeEventListener('pointermove', move);
+      document.removeEventListener('pointerup', up);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+    document.addEventListener('pointermove', move);
+    document.addEventListener('pointerup', up);
+    document.body.style.cursor = 'row-resize';
+    document.body.style.userSelect = 'none';
+  }, [bottomDockHeight]);
 
   const resizingRef = useRef<'left' | 'right' | null>(null);
   const resizeStartXRef = useRef(0);
@@ -667,11 +708,26 @@ const ScreenplayEditor: React.FC = () => {
   ).dockNavigator;
   const foldNavigationClass = foldOpen ? (foldNavigatorDocked ? ' fold-nav-docked' : ' fold-nav-overlay') : '';
   const effectiveNavWidth = foldOpen ? (foldNavigatorDocked ? FOLD_NAV_WIDTH : 300) : navWidth;
+  // Layout › Panels places the panels in docks on a wide window. At 1100px
+  // and below the Navigator (and at 900px the right-hand panels) become
+  // overlays that slide in and out (screenplay.css), so narrower windows, a
+  // foldable's postures and phones keep that arrangement, slide included.
+  // useWorkspaceDocks.ts holds the breakpoint, shared with the places that offer the layouts.
+  const compactViewport = useCompactViewport();
+  // Re-render when an add-on registers or removes a panel: only the dock knows
+  // whether the Add-ons panel is open, and PluginPanelTabs (which listens too)
+  // is not mounted until it is.
+  const addOnPanels = useSyncExternalStore(subscribeAddOnPanels, addOnPanelCount, addOnPanelCount);
+  const dockLayout = !isHistoryMode && !foldDock && !compactViewport;
+  const workspaceLayout = useEditorStore((s) => s.workspaceLayout);
   // The saved drag width must not override the fixed foldable column width,
   // including the min-width and the floating menu's positioning hint.
   useEffect(() => {
-    useEditorStore.getState().setNavPanelWidth(navigatorOpen ? effectiveNavWidth : 0);
-  }, [effectiveNavWidth, navigatorOpen]);
+    // In the docks the Navigator may be anywhere; what matters to the floating
+    // menu is whether something takes room on the left.
+    const left = dockLayout ? (startDockVisible ? navWidth : 0) : (navigatorOpen ? effectiveNavWidth : 0);
+    if (useEditorStore.getState().navPanelWidth !== left) useEditorStore.getState().setNavPanelWidth(left);
+  });
 
   // Yjs document & provider — stable across renders while collab is active
   const ydocRef = useRef<Y.Doc | null>(null);
@@ -1088,8 +1144,14 @@ const ScreenplayEditor: React.FC = () => {
   pageLayoutRef.current = pageLayout;
   // Phone view: the same pages, reflowed to the screen (see ViewLayout).
   const phoneView = viewLayout === 'phone' || (foldState.foldable && foldState.fold === 'book');
+  // Speed view: the page's sheet with the page breaks taken out, for drafting.
+  const speedView = viewLayout === 'speed';
   const phoneViewRef = useRef(phoneView);
   phoneViewRef.current = phoneView;
+  // Speed view draws no gap between pages, so the overlay must not subtract
+  // one: measureOverlays reads both refs while computing the page anchors.
+  const speedViewRef = useRef(speedView);
+  speedViewRef.current = speedView;
 
   // ── Touch gestures (must be after editorMainRef) ──
   const isTouch = useIsTouchDevice();
@@ -1254,6 +1316,13 @@ const ScreenplayEditor: React.FC = () => {
   zoomLevelRef.current = zoomLevel;
 
   const [overlays, setOverlays] = useState<OverlayInfo[]>([]);
+  /**
+   * The page Go to Page just asked for. The scroll handler consumes it before
+   * its own heuristic so the status bar names the page the writer jumped to,
+   * even when that page's break cannot reach the top (Speed has no page gap to
+   * scroll through).
+   */
+  const pendingCurrentPageRef = useRef<number | null>(null);
 
   const {
     openFileOpen, setOpenFileOpen, saveAsOpen, setSaveAsOpen,
@@ -1815,7 +1884,10 @@ const ScreenplayEditor: React.FC = () => {
         ? (elRect.bottom - pageRect.top) / scale - separatorHeight - (internal ? contdHeight : dualContdHeight)
         : phoneViewRef.current
         ? (elRect.top - pageRect.top) / scale - PHONE_PAGE_GAP_PX
-        : (elRect.top - pageRect.top) / scale - m.sepHeightPx - contdHeight;
+        : speedViewRef.current
+          // No page gap to step over in the one continuous sheet.
+          ? (elRect.top - pageRect.top) / scale
+          : (elRect.top - pageRect.top) / scale - m.sepHeightPx - contdHeight;
       newOverlays.push({
         top: overlayTop,
         pageNumber: brk.pageNumber,
@@ -2460,11 +2532,13 @@ const ScreenplayEditor: React.FC = () => {
     // most writers are using.
     if (template.id === '__industry_standard__') {
       const titlePageCss = generateTemplateCss(template, pageLayout, { titlePageOnly: true });
-      const combined = [titlePageCss, generatePlaceholderLocaleCss(template), overrideCss].filter(Boolean).join('\n');
+      // Line spacing is emitted here too: the static stylesheet has none, and
+      // pagination counts it whichever template is in use.
+      const combined = [titlePageCss, generatePlaceholderLocaleCss(template), generateLineSpacingCss(template), overrideCss].filter(Boolean).join('\n');
       injectTemplateCss(combined || null);
       return () => { injectTemplateCss(null); };
     }
-    const css = [generateTemplateCss(template, pageLayout), generatePlaceholderLocaleCss(template)].filter(Boolean).join('\n');
+    const css = [generateTemplateCss(template, pageLayout), generatePlaceholderLocaleCss(template), generateLineSpacingCss(template)].filter(Boolean).join('\n');
     injectTemplateCss(overrideCss ? `${css}\n${overrideCss}` : css);
 
     return () => { injectTemplateCss(null); };
@@ -4377,12 +4451,24 @@ const ScreenplayEditor: React.FC = () => {
   // scale before mixing with rect deltas.
   const handleScroll = useCallback(() => {
     if (!editorMainRef.current || !pageRef.current) return;
+    if (pendingCurrentPageRef.current !== null) {
+      setCurrentPage(pendingCurrentPageRef.current);
+      pendingCurrentPageRef.current = null;
+      return;
+    }
     const containerTop = editorMainRef.current.getBoundingClientRect().top;
     const pageTop = pageRef.current.getBoundingClientRect().top;
     const scale = (zoomLevelRef.current || 100) / 100;
     let page = 1;
     for (const ov of overlays) {
       if (pageTop + ov.top * scale - containerTop < 50) page = ov.pageNumber;
+    }
+    // At the end of the document the last page is on screen even when its
+    // break cannot reach the top: Speed has no page gap to scroll through, so
+    // a short last page can stay 30-60px below the top at the maximum scroll.
+    const el = editorMainRef.current;
+    if (overlays.length > 0 && el.scrollTop + el.clientHeight >= el.scrollHeight - 2) {
+      page = overlays[overlays.length - 1].pageNumber;
     }
     setCurrentPage(page);
   }, [overlays, setCurrentPage]);
@@ -4411,21 +4497,34 @@ const ScreenplayEditor: React.FC = () => {
   const handleGoToPage = useCallback((page: number) => {
     if (!editorMainRef.current || !pageRef.current) return;
     if (page <= 1) {
+      pendingCurrentPageRef.current = null;
+      setCurrentPage(1);
       editorMainRef.current.scrollTo({ top: 0, behavior: 'auto' });
       return;
     }
     const ov = overlays.find(o => o.pageNumber === page);
     if (ov) {
+      // Name the page now, and let the first scroll event consume the request
+      // instead of recomputing it from the 50px threshold.
+      pendingCurrentPageRef.current = page;
+      setCurrentPage(page);
       const pageRect = pageRef.current.getBoundingClientRect();
       const containerRect = editorMainRef.current.getBoundingClientRect();
       const scale = (zoomLevelRef.current || 100) / 100;
+      // Speed view has no page gap to step over: the break's element is
+      // already a point in the one continuous sheet.
+      if (speedView) {
+        const scrollTo = editorMainRef.current.scrollTop + (pageRect.top + ov.top * scale - containerRect.top);
+        editorMainRef.current.scrollTo({ top: Math.max(0, scrollTo), behavior: 'auto' });
+        return;
+      }
       const layout = pageLayoutRef.current;
       const bottomMarginPx = (layout.bottomMargin / 72) * 96;
       const pageTopOffset = ov.top + bottomMarginPx + 40; // 40 = page-sep-gap
       const scrollTo = editorMainRef.current.scrollTop + (pageRect.top + pageTopOffset * scale - containerRect.top);
       editorMainRef.current.scrollTo({ top: scrollTo, behavior: 'auto' });
     }
-  }, [overlays]);
+  }, [overlays, speedView, setCurrentPage]);
 
   // Wire up the picker trigger
   showPickerRef.current = useCallback((defaultType: ElementType, availableTypes?: ElementType[]) => {
@@ -5709,6 +5808,55 @@ const ScreenplayEditor: React.FC = () => {
   const handleDocumentSaved = useCallback((json: string) => { lastSavedJsonRef.current = json; }, []);
   const openJoinCollab = useCallback(() => setJoinCollabOpen(true), []);
   const navStyle = useMemo(() => ({ width: effectiveNavWidth, minWidth: effectiveNavWidth }), [effectiveNavWidth]);
+  // ── Workspace docks (Layout › Panels) ──
+  // Each panel's open switch and how it draws in a dock. The Navigator's five
+  // panels share navigatorOpen and draw through renderDockNavigator.
+  const panelWidthStyle = (w: number | undefined): React.CSSProperties =>
+    (w === undefined ? { width: '100%', minWidth: 0 } : { width: w, minWidth: w });
+  const openFlags = {
+    navigatorOpen, scriptNotesOpen, characterProfilesOpen, tagsPanelOpen, locationDatabaseOpen,
+    dialogueTunerOpen, suggestions: suggestionsPanelOpen, tableRead: tableReadOpen && !statisticsOpen && !beatBoardOpen,
+  };
+  const dockPanels: Record<string, DockPanelDef> = {};
+  if (dockLayout) {
+    for (const panel of BUILT_IN_PANELS) dockPanels[panel] = { open: panelOpenIn(panel, openFlags), render: () => null };
+    dockPanels.notes.render = (w) => <ScriptNotes editor={editor} style={panelWidthStyle(w)} />;
+    dockPanels.characters.render = (w) => <CharacterProfiles editor={editor} projectId={currentProject?.id || ''} style={panelWidthStyle(w)} />;
+    dockPanels.tags.render = (w) => <TagsPanel editor={editor} style={panelWidthStyle(w)} />;
+    dockPanels['location-db'].render = (w) => <LocationDatabase editor={editor} style={panelWidthStyle(w)} />;
+    dockPanels.tuner.render = (w) => <DialogueTuner editor={editor} style={panelWidthStyle(w)} />;
+    dockPanels.suggestions.render = (w) => <SuggestionsPanel editor={editor} style={panelWidthStyle(w)} />;
+    dockPanels['add-ons'] = {
+      // The strip collapses to its tabs on its own; it shows when an add-on has a panel.
+      open: addOnPanels > 0,
+      render: (w) => <PluginPanelTabs editor={editor} width={w ?? rightPanelWidth} onResizeKeyboard={setRightPanelWidth}
+        onActiveChange={setFoldPlugin} onResizePointerDown={(e) => handleResizePointerDown('right', e)} />,
+    };
+    dockPanels['table-read'].render = () => (editor ? <TableReadPanel editor={editor} /> : null);
+  }
+  const renderDockNavigator = ({ tabs, activeTab, onTabChange, bare, width }: NavigatorRender) => (
+    <SceneNavigator editor={editor} scrollContainer={editorMainEl} tabs={tabs} activeTab={activeTab}
+      onTabChange={onTabChange} bare={bare}
+      style={width === undefined ? { width: '100%', minWidth: 0 } : { width, minWidth: width }} />
+  );
+  // A panel left out of the layout but opened anyway (its toolbar button, the
+  // View menu) shows at the end of the right dock rather than nowhere.
+  let renderLayout = workspaceLayout;
+  if (dockLayout) {
+    for (const panel of workspaceLayout.hidden) {
+      if (dockPanels[panel]?.open) renderLayout = movePanelToNewGroup(renderLayout, panel, 'end');
+    }
+  }
+  // The add-on strip shows whenever an add-on has a panel, so it alone does
+  // not count as an open dock (it brings its own resize handle).
+  const dockHasContent = (dock: 'start' | 'end' | 'bottom') =>
+    dockLayout && visibleGroups(renderLayout, dock, (panel) => panel !== 'add-ons' && !!dockPanels[panel]?.open).length > 0;
+  const startDockVisible = dockHasContent('start');
+  const endDockVisible = dockHasContent('end');
+  const bottomDockVisible = dockHasContent('bottom')
+    // Table Read alone sizes itself, as it always has.
+    && renderLayout.docks.bottom.some((id) => renderLayout.groups[id]?.panels.some((p) => p !== 'table-read' && dockPanels[p]?.open));
+
 
   // Show loading screen while collab session is being set up
   if (collabLoading) {
@@ -5875,25 +6023,45 @@ const ScreenplayEditor: React.FC = () => {
       <div className="fold-panel-home" ref={scribbleHome} />
       {!isHistoryMode && <MenuBar editor={editor} onDocumentSaved={handleDocumentSaved} onCollaborate={handleCollaborate} onJoinCollab={openJoinCollab} isCollabActive={collabMode} isCollabGuest={collabMode && !isCollabHost} canEditDocumentFormat={!collabMode || collabRole === 'editor'} />}
       {!isHistoryMode && <Toolbar editor={editor} />}
+      {!isHistoryMode && <LayoutDialog />}
       <div className={`editor-layout${foldDock ? ' fold-layout' : ''}${foldNavigationClass}`} style={{ '--fold-nav-width': `${FOLD_NAV_WIDTH}px` } as React.CSSProperties}>
-        {!isHistoryMode && <SceneNavigator editor={editor} scrollContainer={editorMainEl} style={navStyle} />}
-        {!isHistoryMode && navigatorOpen && (
-          <div className="panel-resize-handle" role="separator" aria-orientation="vertical" tabIndex={0}
-            aria-label={tg('menu:pluginPanels.resize')} aria-valuenow={navWidth} aria-valuemin={160} aria-valuemax={500}
-            onKeyDown={event => {
-              const next = panelResize(navWidth, event.key, 'left', getComputedStyle(event.currentTarget).direction === 'rtl');
-              if (next !== null) { event.preventDefault(); setNavWidth(next); }
-            }}
-            onPointerDown={(e) => handleResizePointerDown('left', e)} style={{ touchAction: 'none' }} />
+        {dockLayout ? (
+          <>
+            <WorkspaceDock dock="start" layout={renderLayout} panels={dockPanels} renderNavigator={renderDockNavigator} width={navWidth} />
+            {startDockVisible && (
+              <div className="panel-resize-handle" role="separator" aria-orientation="vertical" tabIndex={0}
+                aria-label={tg('menu:pluginPanels.resize')} aria-valuenow={navWidth} aria-valuemin={160} aria-valuemax={500}
+                onKeyDown={event => {
+                  const next = panelResize(navWidth, event.key, 'left', getComputedStyle(event.currentTarget).direction === 'rtl');
+                  if (next !== null) { event.preventDefault(); setNavWidth(Math.max(160, Math.min(500, next))); }
+                }}
+                onPointerDown={(e) => handleResizePointerDown('left', e)} style={{ touchAction: 'none' }} />
+            )}
+          </>
+        ) : (
+          <>
+            {!isHistoryMode && <SceneNavigator editor={editor} scrollContainer={editorMainEl} style={navStyle} />}
+            {!isHistoryMode && navigatorOpen && (
+              <div className="panel-resize-handle" role="separator" aria-orientation="vertical" tabIndex={0}
+                aria-label={tg('menu:pluginPanels.resize')} aria-valuenow={navWidth} aria-valuemin={160} aria-valuemax={500}
+                onKeyDown={event => {
+                  const next = panelResize(navWidth, event.key, 'left', getComputedStyle(event.currentTarget).direction === 'rtl');
+                  if (next !== null) { event.preventDefault(); setNavWidth(next); }
+                }}
+                onPointerDown={(e) => handleResizePointerDown('left', e)} style={{ touchAction: 'none' }} />
+            )}
+          </>
         )}
         <div className="editor-center">
-          {!isHistoryMode && <IndexCards editor={editor} scrollContainer={editorMainEl} />}
+          <div className={`editor-main-area${splitScreenOpen && !outlineOpen && !statisticsOpen && !beatBoardOpen && !isHistoryMode ? ` split-screen split-${splitScreenMode}` : ''}`}>
           {!isHistoryMode && outlineOpen && editor ? (
             <OutlineView editor={editor} />
           ) : !isHistoryMode && statisticsOpen && editor ? (
             <ScriptStatistics editor={editor} />
           ) : !isHistoryMode && beatBoardOpen ? (
             <BeatBoard editor={editor} />
+          ) : !isHistoryMode && indexCardsOpen && !splitScreenOpen && editor ? (
+            <IndexCards editor={editor} />
           ) : (
             <div className={`editor-main${phoneView ? ' phone-layout' : ''}`} ref={attachEditorMain} onDragOver={handleEditorDragOver} onDragLeave={handleEditorDragLeave} onDrop={handleEditorDrop}>
               <div
@@ -5941,7 +6109,7 @@ const ScreenplayEditor: React.FC = () => {
                     A paragraph in another language carries its own `lang`, as it always has. */}
                 <div
                   lang="en"
-                  className={`page${phoneView ? ' phone-view' : ''}${!tagsVisible ? ' tags-hidden' : ''}${!notesVisible ? ' notes-hidden' : ''}${isHistoryMode ? ' history-readonly' : ''}${sceneNumbersVisible ? ' show-scene-numbers' : ''}${elementNumbersVisible ? ' show-element-numbers' : ''}${includeTitlePageInOutput ? '' : ' print-skip-title-page'}${showRevisionColors ? ' show-revision-colors' : ''}`}
+                  className={`page${phoneView ? ' phone-view' : ''}${speedView ? ' speed-view' : ''}${!tagsVisible ? ' tags-hidden' : ''}${!notesVisible ? ' notes-hidden' : ''}${isHistoryMode ? ' history-readonly' : ''}${sceneNumbersVisible ? ' show-scene-numbers' : ''}${elementNumbersVisible ? ' show-element-numbers' : ''}${includeTitlePageInOutput ? '' : ' print-skip-title-page'}${showRevisionColors ? ' show-revision-colors' : ''}`}
                   ref={pageRef}
                   style={{
                     fontFamily: fontStack(fontFamily),
@@ -5952,7 +6120,10 @@ const ScreenplayEditor: React.FC = () => {
                     // measured from them.
                     ...(phoneView ? {} : {
                       width: `${pageLayout.pageWidth}in`,
-                      minHeight: `${lastPageEnd + endnoteExtraHeight + (pageLayout.bottomMargin / 72) * 96}px`,
+                      // Speed view is one continuous sheet: its height is the
+                      // script's, not a page's, or it would end in a blank
+                      // page-sized tail below the last line.
+                      minHeight: speedView ? 0 : `${lastPageEnd + endnoteExtraHeight + (pageLayout.bottomMargin / 72) * 96}px`,
                       paddingTop: `${pageLayout.topMargin}pt`,
                       paddingBottom: `${pageLayout.bottomMargin}pt`,
                       paddingLeft: `${pageLayout.leftMargin}in`,
@@ -5969,7 +6140,8 @@ const ScreenplayEditor: React.FC = () => {
                     // actually render in the font the document is set in.
                     ...{
                       '--screenplay-font': fontStack(fontFamily),
-                      '--screenplay-font-size': `${fontSize}pt`,
+                      '--screenplay-font-size': `${pageLayout.fontSize ?? fontSize}pt`,
+                      '--script-scale': String(fontScaleOf(pageLayout)),
                     } as React.CSSProperties,
                   }}
                 >
@@ -5991,7 +6163,7 @@ const ScreenplayEditor: React.FC = () => {
                   ))}
 
                   {/* Page break separators — absolutely positioned, full page width */}
-                  {!phoneView && overlays.map((ov) => {
+                  {!phoneView && !speedView && overlays.map((ov) => {
                     // `ov.pageNumber` counts script pages, ignoring the title page;
                     // the band shows the PRINTED number, which the starting-number
                     // offset can shift.
@@ -6037,7 +6209,7 @@ const ScreenplayEditor: React.FC = () => {
                       title page precedes it, so without this the very first header
                       would have nowhere to render — invisible on screen even though
                       it printed. */}
-                  {!phoneView && (() => {
+                  {!phoneView && !speedView && (() => {
                     if (overlays.some((o) => o.isTitlePage)) return null; // the title-page break carries it
                     const printed = printedPageNumber(1, headerFooter.startingPageNumber);
                     if (printed < headerFooter.headerStartPage) return null;
@@ -6051,7 +6223,7 @@ const ScreenplayEditor: React.FC = () => {
                   })()}
 
                   {/* Last page footer — no page break follows the last page, so render its footer separately */}
-                  {!phoneView && (() => {
+                  {!phoneView && !speedView && (() => {
                     const lastPage = overlays.length > 0
                       ? overlays[overlays.length - 1].pageNumber
                       : 1;
@@ -6075,7 +6247,7 @@ const ScreenplayEditor: React.FC = () => {
                     );
                   })()}
 
-                  {!phoneView && footnotePlan && endnotePages.length > 0 && (
+                  {!phoneView && !speedView && footnotePlan && endnotePages.length > 0 && (
                     <EndnotePages
                       plan={footnotePlan}
                       pages={endnotePages}
@@ -6120,43 +6292,108 @@ const ScreenplayEditor: React.FC = () => {
               </div>
             </div>
           )}
+          {splitScreenOpen && !outlineOpen && !statisticsOpen && !beatBoardOpen && !isHistoryMode && editor && (
+            <div className={`split-pane split-pane-${splitScreenPane}`}>
+              {splitScreenPane === 'index-cards' && (
+                <IndexCards editor={editor} variant="split" onRequestClose={toggleSplitScreen} />
+              )}
+              {splitScreenPane === 'outline' && (
+                <>
+                  <button className="split-pane-close" onClick={toggleSplitScreen} title={tl('story:splitScreen.close')} aria-label={tl('story:splitScreen.close')}>&times;</button>
+                  <OutlineView editor={editor} />
+                </>
+              )}
+              {splitScreenPane === 'beat-board' && (
+                <>
+                  <button className="split-pane-close" onClick={toggleSplitScreen} title={tl('story:splitScreen.close')} aria-label={tl('story:splitScreen.close')}>&times;</button>
+                  <BeatBoard editor={editor} embedded />
+                </>
+              )}
+              {splitScreenPane === 'page-view' && (
+                <PagePreviewPane editor={editor} onRequestClose={toggleSplitScreen} />
+              )}
+            </div>
+          )}
+          </div>
+          {/* The scenes as one strip under the script; the same component is
+              the timeline inside the Index Cards view. */}
+          {!isHistoryMode && storyMapOpen && editor && !outlineOpen && !statisticsOpen && !beatBoardOpen && !indexCardsOpen && (
+            <StoryMap editor={editor} onRequestClose={toggleStoryMap} scrollContainer={editorMainRef.current} />
+          )}
           {/* Table Read docks over the bottom of the script it is reading. */}
           {storyTimelineOpen && editor && (
             <StoryTimeline editor={editor} docked={foldDock} onClose={() => useEditorStore.getState().setStoryTimelineOpen(false)} />
           )}
           <div className="fold-panel-home" ref={tableReadHome} />
+          {dockLayout && bottomDockVisible && (
+            <div className="panel-resize-handle panel-resize-handle-row" role="separator" aria-orientation="horizontal" tabIndex={0}
+              aria-label={tg('menu:pluginPanels.resize')} aria-valuenow={bottomDockHeight} aria-valuemin={120}
+              onKeyDown={event => {
+                const step = event.key === 'ArrowUp' ? 20 : event.key === 'ArrowDown' ? -20 : 0;
+                if (!step) return;
+                event.preventDefault();
+                setBottomDockHeight((h) => Math.max(120, Math.min(Math.round(window.innerHeight * 0.7), h + step)));
+              }}
+              onPointerDown={handleBottomResizePointerDown} style={{ touchAction: 'none' }} />
+          )}
+          {dockLayout && <WorkspaceDock dock="bottom" layout={renderLayout} panels={dockPanels} renderNavigator={renderDockNavigator} height={bottomDockHeight} />}
         </div>
-        {!isHistoryMode && rightPanelVisible && (
-          <div className="panel-resize-handle" role="separator" aria-orientation="vertical" tabIndex={0}
-            aria-label={tg('menu:pluginPanels.resize')} aria-valuenow={rightPanelWidth} aria-valuemin={200} aria-valuemax={600}
-            onKeyDown={event => {
-              const next = panelResize(rightPanelWidth, event.key, 'right', getComputedStyle(event.currentTarget).direction === 'rtl');
-              if (next !== null) { event.preventDefault(); setRightPanelWidth(Math.max(200, Math.min(600, next))); }
-            }}
-            onPointerDown={(e) => handleResizePointerDown('right', e)} style={{ touchAction: 'none' }} />
-        )}
-        <FoldablePanelDock active={!isHistoryMode && foldDock} panels={[
-          ...(!isHistoryMode ? [
-            { id: 'notes', label: tg('menu:view.notesPanel'), open: scriptNotesOpen, content: <ScriptNotes editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} /> },
-            { id: 'characters', label: tg('menu:view.characters'), open: characterProfilesOpen, content: <CharacterProfiles editor={editor} projectId={currentProject?.id || ''} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} /> },
-            { id: 'tags', label: tg('menu:view.tags'), open: tagsPanelOpen, content: <TagsPanel editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} /> },
-            { id: 'locations', label: tg('menu:view.locations'), open: locationDatabaseOpen, content: <LocationDatabase editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} /> },
-            { id: 'tuner', label: tg('menu:view.dialogueTuner'), open: dialogueTunerOpen, content: <DialogueTuner editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} /> },
-            { id: 'suggestions', label: tg('menu:view.suggestions'), open: suggestionsPanelOpen, content: <SuggestionsPanel editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} /> },
-            { id: 'plugin', label: foldPlugin?.label ?? tg('menu:pluginPanels.tabs'), open: !!foldPlugin, activationKey: foldPlugin?.activation, keepHomeWhenClosed: true,
-              content: <PluginPanelTabs editor={editor} width={rightPanelWidth} onResizeKeyboard={setRightPanelWidth} onActiveChange={setFoldPlugin} onResizePointerDown={(e) => handleResizePointerDown('right', e)} /> },
-            { id: 'table-read', label: tg('menu:tools.tableRead'), open: tableReadOpen && !statisticsOpen && !beatBoardOpen, home: tableReadHome,
-              content: tableReadOpen && editor && !statisticsOpen && !beatBoardOpen ? <TableReadPanel editor={editor} /> : null },
-          ] : []),
+        {dockLayout ? (
+          <>
+            {endDockVisible && (
+              <div className="panel-resize-handle" role="separator" aria-orientation="vertical" tabIndex={0}
+                aria-label={tg('menu:pluginPanels.resize')} aria-valuenow={rightPanelWidth} aria-valuemin={200} aria-valuemax={600}
+                onKeyDown={event => {
+                  const next = panelResize(rightPanelWidth, event.key, 'right', getComputedStyle(event.currentTarget).direction === 'rtl');
+                  if (next !== null) { event.preventDefault(); setRightPanelWidth(Math.max(200, Math.min(600, next))); }
+                }}
+                onPointerDown={(e) => handleResizePointerDown('right', e)} style={{ touchAction: 'none' }} />
+            )}
+            <WorkspaceDock dock="end" layout={renderLayout} panels={dockPanels} renderNavigator={renderDockNavigator} width={rightPanelWidth} />
+            {/* The writing pad floats; it is not a dock panel. The same key as the
+                overlay branch's dock below keeps the pad mounted, with its draft,
+                when a resize crosses the 1100px line between the two. */}
+            <FoldablePanelDock key="fold-panels" active={false} panels={[
           { id: 'handwriting', label: tg('editor:scribble.title'), open: scribbleOpen, dock: scribbleDocked, activationKey: scribbleActivation,
             home: scribbleHome, keepHomeWhenClosed: true,
             content: scribbleOpen && editor ? <ScribbleInput editor={editor} docked={scribbleDocked} viewportConstrained={padPosture && !padCanDock} onClose={() => setScribbleOpen(false)} /> : null },
-        ]} />
+            ]} />
+          </>
+        ) : (
+          <>
+          {!isHistoryMode && rightPanelVisible && (
+            <div className="panel-resize-handle" role="separator" aria-orientation="vertical" tabIndex={0}
+              aria-label={tg('menu:pluginPanels.resize')} aria-valuenow={rightPanelWidth} aria-valuemin={200} aria-valuemax={600}
+              onKeyDown={event => {
+                const next = panelResize(rightPanelWidth, event.key, 'right', getComputedStyle(event.currentTarget).direction === 'rtl');
+                if (next !== null) { event.preventDefault(); setRightPanelWidth(Math.max(200, Math.min(600, next))); }
+              }}
+              onPointerDown={(e) => handleResizePointerDown('right', e)} style={{ touchAction: 'none' }} />
+          )}
+          <FoldablePanelDock key="fold-panels" active={!isHistoryMode && foldDock} panels={[
+            ...(!isHistoryMode ? [
+              { id: 'notes', label: tg('menu:view.notesPanel'), open: scriptNotesOpen, content: <ScriptNotes editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} /> },
+              { id: 'characters', label: tg('menu:view.characters'), open: characterProfilesOpen, content: <CharacterProfiles editor={editor} projectId={currentProject?.id || ''} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} /> },
+              { id: 'tags', label: tg('menu:view.tags'), open: tagsPanelOpen, content: <TagsPanel editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} /> },
+              { id: 'locations', label: tg('menu:view.locations'), open: locationDatabaseOpen, content: <LocationDatabase editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} /> },
+              { id: 'tuner', label: tg('menu:view.dialogueTuner'), open: dialogueTunerOpen, content: <DialogueTuner editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} /> },
+              { id: 'suggestions', label: tg('menu:view.suggestions'), open: suggestionsPanelOpen, content: <SuggestionsPanel editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} /> },
+              { id: 'plugin', label: foldPlugin?.label ?? tg('menu:pluginPanels.tabs'), open: !!foldPlugin, activationKey: foldPlugin?.activation, keepHomeWhenClosed: true,
+                content: <PluginPanelTabs editor={editor} width={rightPanelWidth} onResizeKeyboard={setRightPanelWidth} onActiveChange={setFoldPlugin} onResizePointerDown={(e) => handleResizePointerDown('right', e)} /> },
+              { id: 'table-read', label: tg('menu:tools.tableRead'), open: tableReadOpen && !statisticsOpen && !beatBoardOpen, home: tableReadHome,
+                content: tableReadOpen && editor && !statisticsOpen && !beatBoardOpen ? <TableReadPanel editor={editor} /> : null },
+            ] : []),
+            { id: 'handwriting', label: tg('editor:scribble.title'), open: scribbleOpen, dock: scribbleDocked, activationKey: scribbleActivation,
+              home: scribbleHome, keepHomeWhenClosed: true,
+              content: scribbleOpen && editor ? <ScribbleInput editor={editor} docked={scribbleDocked} viewportConstrained={padPosture && !padCanDock} onClose={() => setScribbleOpen(false)} /> : null },
+          ]} />
+          </>
+        )}
 
       </div>
       {!isHistoryMode && (
         <div className="status-bar-row" style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-          <StatusBar editor={editor} />
+          <StatusBar editor={editor} editorMain={editorMainEl} />
           {pluginRegistry.getPanels('status-bar').map((p) => (
             <p.component key={p.id} />
           ))}

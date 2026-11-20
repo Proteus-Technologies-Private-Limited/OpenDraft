@@ -383,7 +383,6 @@
     },
     "title": "Conta e segurança",
     "description": "Gerencie sua senha, dispositivos, verificação em duas etapas e a exclusão da conta.",
-    "open": "Abrir configurações da conta",
     "twoFactor": "Verificação em duas etapas",
     "twoFactorHint": "Quando ativada, entrar a partir de um novo dispositivo exige um código de 6 dígitos enviado por e-mail. Quando desativada, você só receberá um e-mail de aviso para poder identificar logins não autorizados.",
     "smtpMissing": "O e-mail não está configurado neste servidor, então os códigos de verificação não podem ser enviados. A verificação em duas etapas fica indisponível até que o SMTP seja configurado.",
@@ -400,6 +399,24 @@
   "page": {
     "back": "Voltar",
     "title": "Configurações do sistema"
+  },
+  "nav": {
+    "label": "Seções das configurações",
+    "search": "Pesquisar configurações",
+    "noMatch": "Nenhuma configuração corresponde a “{{query}}”.",
+    "general": "Geral",
+    "generalDesc": "O idioma e como o editor se comporta enquanto você escreve.",
+    "saving": "Salvamento e backups",
+    "savingDesc": "Quando seu trabalho é salvo, onde ficam os novos projetos e as cópias de backup.",
+    "writing": "Ferramentas de escrita",
+    "writingDesc": "Sugestões do SmartType, macros e vozes da leitura de mesa.",
+    "export": "Impressão e exportação",
+    "exportDesc": "Como seu roteiro é impresso e exportado.",
+    "account": "Conta e colaboração",
+    "accountDesc": "Login, segurança e padrões dos convites de colaboração.",
+    "advanced": "Avançado",
+    "advancedDesc": "Endereços de servidor, para instalações próprias.",
+    "advancedNote": "Só altere isto se você usa seu próprio servidor OpenDraft."
   },
   "language": {
     "title": "Idioma",

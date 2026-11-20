@@ -28,7 +28,10 @@ import { insertMacro } from './macroActions';
 import { addScriptNoteAtSelection } from '../utils/addScriptNote';
 import { FOCUS_MODE_SHORTCUT } from '../editor/extensions/FocusMode';
 import { showToast } from './Toast';
+import { APP_COMMAND_EVENT, type AppCommand } from '../utils/appCommands';
+import { WORKSPACE_PRESET_IDS } from '../utils/workspaceLayout';
 import { useFoldState } from '../hooks/useFoldState';
+import { useWorkspaceDocksAvailable } from '../hooks/useWorkspaceDocks';
 import { statusColumnX, useFoldedMenuPosition } from '../hooks/useFoldedMenuPosition';
 import { formatFileFailure } from '../services/fileDiagnostics';
 import { useTranslation, Trans } from 'react-i18next';
@@ -71,6 +74,7 @@ import {
 import { trackChangesPluginKey } from '../editor/trackChanges';
 import PageSetupDialog from './PageSetupDialog';
 import TemplateSelectDialog from './TemplateSelectDialog';
+import LineSpacingDialog from './LineSpacingDialog';
 import ScriptFormatPreferencesDialog from './ScriptFormatPreferencesDialog';
 import ScriptFormatPickerDialog from './ScriptFormatPickerDialog';
 import { useFormattingTemplateStore, ensureTemplatesLoaded } from '../stores/formattingTemplateStore';
@@ -224,6 +228,8 @@ import {
   FaExpandArrowsAlt,
   FaEyeSlash,
   FaListUl,
+  FaMap,
+  FaClone,
   FaToggleOn,
   FaLock,
   FaFileSignature,
@@ -232,6 +238,7 @@ import {
   FaMoon,
   FaRegFileAlt,
   FaStepForward,
+  FaBolt,
   FaEraser,
   FaUnlock,
   FaSlidersH,
@@ -244,6 +251,8 @@ import {
   FaLayerGroup,
   FaUserEdit,
   FaTrashAlt,
+  FaTextHeight,
+  FaThLarge,
 } from 'react-icons/fa';
 import { REVISION_COLORS, nextRevisionColor } from '../editor/revisionColors';
 import RevisionSettingsDialog from './RevisionSettingsDialog';
@@ -399,6 +408,14 @@ const MenuBar: React.FC<MenuBarProps> = ({
     toggleIndexCards,
     beatBoardOpen,
     toggleBeatBoard,
+    storyMapOpen,
+    toggleStoryMap,
+    splitScreenOpen,
+    toggleSplitScreen,
+    splitScreenMode,
+    setSplitScreenMode,
+    splitScreenPane,
+    setSplitScreenPane,
     outlineOpen,
     toggleOutline,
     scriptNotesOpen,
@@ -470,6 +487,14 @@ const MenuBar: React.FC<MenuBarProps> = ({
     'toggleIndexCards',
     'beatBoardOpen',
     'toggleBeatBoard',
+    'storyMapOpen',
+    'toggleStoryMap',
+    'splitScreenOpen',
+    'toggleSplitScreen',
+    'splitScreenMode',
+    'setSplitScreenMode',
+    'splitScreenPane',
+    'setSplitScreenPane',
     'outlineOpen',
     'toggleOutline',
     'scriptNotesOpen',
@@ -639,6 +664,11 @@ const MenuBar: React.FC<MenuBarProps> = ({
   }, [editor, serializeForOrigin, buildSaveContent, onDocumentSaved]);
 
   // ── Save current editor content to backend ──
+  const {
+    workspacePreset, applyWorkspacePreset, savedWorkspaceLayouts, setLayoutDialog,
+  } = useEditorFields('workspacePreset', 'applyWorkspacePreset', 'savedWorkspaceLayouts', 'setLayoutDialog');
+  const workspaceDocksAvailable = useWorkspaceDocksAvailable();
+
   const handleSave = useCallback(async () => {
     if (!editor) return;
 
@@ -721,6 +751,10 @@ const MenuBar: React.FC<MenuBarProps> = ({
   );
   const goToSettings = useCallback(
     () => { void leaveEditor(() => navigate('/settings')); },
+    [leaveEditor, navigate],
+  );
+  const goToBackupSettings = useCallback(
+    () => { void leaveEditor(() => navigate('/settings#saving')); },
     [leaveEditor, navigate],
   );
   const goToMacroSettings = useCallback(
@@ -1045,6 +1079,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
   // ── Page Setup ──
   const [pageSetupOpen, setPageSetupOpen] = useState(false);
   const [templateSelectOpen, setTemplateSelectOpen] = useState(false);
+  const [lineSpacingOpen, setLineSpacingOpen] = useState(false);
 
   // ── Script-format preferences (multi-select) and per-script picker ──
   // `formatPrefsOpen` controls the multi-select preferences dialog. When `firstRun`
@@ -2373,6 +2408,31 @@ const MenuBar: React.FC<MenuBarProps> = ({
     setPdfExportOpen(true);
   }, [editor]);
 
+  // The bars' file buttons run the menu handlers (PR #217), so those actions
+  // still go through the unsaved-changes guard, the file origin, the library
+  // and the collaboration-guest check the menu items have.
+  useEffect(() => {
+    const onCommand = (event: Event) => {
+      const command = (event as CustomEvent<AppCommand>).detail;
+      try {
+        switch (command) {
+          case 'new-script': if (!isCollabGuest) handleNewScreenplay(); break;
+          case 'import-script': if (!isCollabGuest) confirmOrRun(handleImport); break;
+          case 'save-script': if (!isCollabGuest) void handleSave(); break;
+          case 'export-pdf': handleExportPDF(); break;
+          case 'reports': setReportsOpen(true); break;
+          case 'title-page': useEditorStore.getState().setTitlePageEditorOpen(true); break;
+          default: console.warn('[MenuBar] unknown app command', command);
+        }
+      } catch (err) {
+        console.error('[MenuBar] app command failed', command, err);
+        showToast(err instanceof Error ? err.message : String(err), 'error');
+      }
+    };
+    window.addEventListener(APP_COMMAND_EVENT, onCommand);
+    return () => window.removeEventListener(APP_COMMAND_EVENT, onCommand);
+  }, [isCollabGuest, handleNewScreenplay, confirmOrRun, handleImport, handleSave, handleExportPDF]);
+
   const handleExportPDFWithChoice = useCallback(async (choice: PdfExportChoice) => {
     if (!editor) return;
     setPdfExportOpen(false);
@@ -3144,7 +3204,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
               ...(supportsRevealBackup() ? [
                 { icon: <FaFolderOpen />, label: t('menu:file.openBackupFolder'), action: handleOpenBackupFolder },
               ] : []),
-              { icon: <FaCog />, label: t('menu:file.backupSettings'), action: goToSettings },
+              { icon: <FaCog />, label: t('menu:file.backupSettings'), action: goToBackupSettings },
             ],
           },
         ] : []),
@@ -3434,6 +3494,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
         { icon: <FaFileAlt />, label: t('menu:format.titlePage'), action: () => useEditorStore.getState().setTitlePageEditorOpen(true) },
         { icon: <FaStream />, label: t('menu:format.genrePacing'), title: t('menu:format.genresForThisScriptAndThe'), action: () => useEditorStore.getState().setScriptProfileOpen(true) },
         { icon: <FaFileAlt />, label: t('menu:format.formattingTemplate', { name: activeTemplate.name }), action: () => setTemplateSelectOpen(true), disabled: !canEditDocumentFormat },
+        { icon: <FaTextHeight />, label: t('menu:format.lineSpacing'), title: t('menu:format.lineSpacingTip'), action: () => setLineSpacingOpen(true), disabled: !canEditDocumentFormat },
         { icon: <FaFileAlt />, label: t('menu:format.scriptFormatPreferences'), action: () => setFormatPrefsOpen({ firstRun: false, afterSave: null }) },
       ],
     },
@@ -3448,6 +3509,24 @@ const MenuBar: React.FC<MenuBarProps> = ({
             { icon: <FaTh />, ...check(indexCardsOpen, t('menu:view.indexCards')), action: toggleIndexCards },
             { icon: <FaStream />, ...check(beatBoardOpen, t('menu:view.beatBoard')), action: toggleBeatBoard },
             { icon: <FaListUl />, ...check(outlineOpen, t('menu:view.outline')), action: toggleOutline },
+            { icon: <FaMap />, ...check(storyMapOpen, t('menu:view.storyMap')), title: t('menu:view.storyMapTip'), action: toggleStoryMap },
+            {
+              icon: <FaClone />, ...check(splitScreenOpen, t('menu:view.splitScreen')), children: [
+                { ...check(splitScreenMode === 'side-by-side' && splitScreenOpen, t('menu:view.sideBySide'), true), action: () => setSplitScreenMode('side-by-side') },
+                { ...check(splitScreenMode === 'stacked' && splitScreenOpen, t('menu:view.stacked'), true), action: () => setSplitScreenMode('stacked') },
+                { separator: true, label: '' },
+                { ...check(!splitScreenOpen, t('menu:view.onePane'), true), action: () => { if (splitScreenOpen) toggleSplitScreen(); } },
+                { separator: true, label: '' },
+                {
+                  label: t('menu:view.secondPane'), children: [
+                    { icon: <FaFileAlt />, ...check(splitScreenPane === 'page-view' && splitScreenOpen, t('menu:view.pageView'), true), action: () => setSplitScreenPane('page-view') },
+                    { icon: <FaTh />, ...check(splitScreenPane === 'index-cards' && splitScreenOpen, t('menu:view.indexCards'), true), action: () => setSplitScreenPane('index-cards') },
+                    { icon: <FaListUl />, ...check(splitScreenPane === 'outline' && splitScreenOpen, t('menu:view.outline'), true), action: () => setSplitScreenPane('outline') },
+                    { icon: <FaStream />, ...check(splitScreenPane === 'beat-board' && splitScreenOpen, t('menu:view.beatBoard'), true), action: () => setSplitScreenPane('beat-board') },
+                  ],
+                },
+              ],
+            },
             { icon: <FaProjectDiagram />, label: t('menu:view.storyTimeline'), title: t('menu:view.plotlinesAcrossTheScenesByScreen'), action: () => {
               // The timeline edits scene headings, so the script has to be on
               // screen under it, not the Beat Board or Statistics.
@@ -3480,6 +3559,22 @@ const MenuBar: React.FC<MenuBarProps> = ({
           children: [
             { icon: <FaRegFileAlt />, ...check(viewLayout === 'page', t('menu:view.page'), true), action: () => setViewLayout('page') },
             { icon: <FaMobileAlt />, ...check(viewLayout === 'phone', t('menu:view.phone'), true), action: () => setViewLayout('phone') },
+            { icon: <FaBolt />, ...check(viewLayout === 'speed', t('menu:view.speed'), true), action: () => setViewLayout('speed') },
+            // Where the panels go (Layout › Panels): the built-in layouts and the writer's own.
+            // Only where the docks exist; on a phone or narrow window they change nothing.
+            ...(workspaceDocksAvailable ? [
+              { separator: true, label: '' },
+              ...WORKSPACE_PRESET_IDS.map((id) => ({
+                icon: <FaThLarge />, ...check(workspacePreset === id, t(`toolbar:layout.presets.${id}`), true),
+                action: () => applyWorkspacePreset(id),
+              })),
+              ...savedWorkspaceLayouts.map((saved) => ({
+                icon: <FaThLarge />, ...check(workspacePreset === saved.id, saved.label, true),
+                action: () => applyWorkspacePreset(saved.id),
+              })),
+              { separator: true, label: '' },
+              { icon: <FaThLarge />, label: t('toolbar:layout.editLayouts'), action: () => setLayoutDialog('panels') },
+            ] : []),
           ],
         },
         { separator: true, label: '' },
@@ -3515,6 +3610,8 @@ const MenuBar: React.FC<MenuBarProps> = ({
                 setShowHiddenModeIntro(true);
               }
             }},
+            { separator: true, label: '' },
+            { icon: <FaSlidersH />, label: t('toolbar:layout.customiseBars'), action: () => setLayoutDialog('toolbar') },
           ],
         },
         {
@@ -4113,6 +4210,10 @@ const MenuBar: React.FC<MenuBarProps> = ({
   // the controls on the other half. Measured rather than set at a breakpoint:
   // the room depends on the device, and the labels' width on the language.
   // The width the labels needed is kept, so they come back once it is there.
+  // On phones and narrow windows the stylesheet already makes the bar scroll
+  // sideways with its labels showing; overflow there is by design, so the
+  // labels stay. Only book posture, where scrolling is a last resort beside
+  // the hinge, drops them.
   const [menuIconsOnly, setMenuIconsOnly] = useState(false);
   const labelledMenuWidth = useRef(0);
   useLayoutEffect(() => {
@@ -4128,7 +4229,12 @@ const MenuBar: React.FC<MenuBarProps> = ({
     };
     const fit = () => {
       try {
-        if (!bar.classList.contains('menu-bar--icons')) {
+        const overflowX = getComputedStyle(bar).overflowX;
+        const scrollsByDesign = (overflowX === 'auto' || overflowX === 'scroll')
+          && !document.documentElement.classList.contains('fold-book');
+        if (scrollsByDesign) {
+          apply(false);
+        } else if (!bar.classList.contains('menu-bar--icons')) {
           labelledMenuWidth.current = bar.scrollWidth;
           apply(bar.scrollWidth > bar.clientWidth + 1);
         } else {
@@ -4146,7 +4252,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
     const observer = new ResizeObserver(fit);
     observer.observe(bar);
     return () => observer.disconnect();
-  }, [toolbarMode, menuI18n.language, menus.length]);
+  }, [toolbarMode, menuI18n.language, menus.length, foldState.fold]);
 
   const menuBarClass = `${toolbarMode === 'comfortable' ? 'menu-bar chrome-comfortable' : 'menu-bar'}${menuIconsOnly ? ' menu-bar--icons' : ''}`;
 
@@ -4343,6 +4449,9 @@ const MenuBar: React.FC<MenuBarProps> = ({
     {templateSelectOpen && canEditDocumentFormat && (
       <TemplateSelectDialog editor={editor} onClose={() => setTemplateSelectOpen(false)} />
     )}
+    {lineSpacingOpen && canEditDocumentFormat && (
+      <LineSpacingDialog editor={editor} onClose={() => setLineSpacingOpen(false)} />
+    )}
     {formatPrefsOpen && (
       <ScriptFormatPreferencesDialog
         firstRun={formatPrefsOpen.firstRun}
@@ -4409,14 +4518,40 @@ const MenuBar: React.FC<MenuBarProps> = ({
           <div className="dialog-body about-body">
             <div className="about-title">Open Draft</div>{/* i18n-ignore: product name */}
             {/* i18n-ignore: release.sh rewrites these two literals each release */}
-            <div className="about-version">Version 2.13.0</div>
+            <div className="about-version">Version 2.14.2</div>
             <div className="about-tagline">{t('menu:about.tagline')}</div>
 
             <div className="about-whats-new">
               {/* i18n-ignore: release.sh rewrites this literal each release */}
-              <div className="about-section-title">What's New in 2.13.0</div>
+              <div className="about-section-title">What's New in 2.14.2</div>
               <div className="about-changelog">
               {/* i18n-ignore-start: release notes stay English in phase 1 */}
+              <div className="about-subsection-title">v2.14.2</div>
+              <ul className="about-list">
+                <li><strong>A Footer That Follows Your Layout</strong> &mdash; The status bar&rsquo;s lines &mdash; the script&rsquo;s name, save state, current element, acts, running time, words, revision colour, writing goal and page &mdash; are now items you place like any control: take one off, put it back, or move it to the start, centre or end in <em>View &rarr; Menu &amp; Toolbar &rarr; Customise toolbar&hellip;</em>. At every size of window or screen the footer shows what you placed, where you placed it, in your order, for as long as it fits. What does not fit opens above the footer from the arrow at its end, wrapping onto more lines, instead of being cut off at the edge. On a phone or a narrow window the script&rsquo;s name and save state shorten to fit.</li>
+                <li><strong>One Zoom Control</strong> &mdash; <em>Zoom Buttons</em> and <em>Zoom Slider</em> are now one <em>Zoom</em> control for either bar: buttons, a slider or both, with the percentage and <em>Fit width</em>. The footer&rsquo;s zoom follows that choice, which it ignored before. It sits at the end of the footer; a layout that had both keeps the footer&rsquo;s, and the toolbar has room for something else. Put it back on the toolbar from the same dialog if you prefer it there.</li>
+                <li><strong>Icons on a Phone&rsquo;s Toolbar</strong> &mdash; One row on a phone has no room for names, so the toolbar shows icons there whatever labels you chose on a larger screen, and the dialog says so instead of offering the choice.</li>
+                <li><strong>Also Fixed</strong> &mdash; An add-on&rsquo;s panel appears as soon as the add-on is switched on, without reopening the script. Resizing the window across the width where panels dock keeps the writing pad open with its draft.</li>
+              </ul>
+              <div className="about-subsection-title">v2.14.1</div>
+              <ul className="about-list">
+                <li><strong>Menu Names Back on Phones</strong> &mdash; 2.14.0 showed only icons in the menu bar on phones, in both Compact and Comfortable. File, Edit, Format, View, Tools and Help are named again, and the bar scrolls sideways when they do not all fit, as before. A foldable opened like a book still shows icons only on the half beside the hinge, where there is no room for the names.</li>
+                <li><strong>Layout Choices Only Where They Apply</strong> &mdash; Panel layouts arrange the left, right and bottom docks, which a window only has when it is wider than 1100 pixels. On phones, narrower windows and foldables the panels open over the script instead, so a layout changed nothing there. <em>View &rarr; Layout</em>, the Views drop-down, the toolbar&rsquo;s right-click menu and the Layout dialog no longer offer them on those screens. The toolbar and footer can still be customised everywhere.</li>
+              </ul>
+              <div className="about-subsection-title">v2.14.0</div>
+              <ul className="about-list">
+                <li><strong>Arrange the Workspace Your Way</strong> &mdash; Every Navigator tab and tool panel can now sit in the left, right or bottom dock, as tabs or stacked, or be left out. The toolbar and the status bar take any control, shown as an icon, a name or both. Arrange it all by dragging in <em>View &rarr; Layout &rarr; Edit layouts&hellip;</em> (or right-click the toolbar), save the result as a named layout, and switch layouts in one click. <em>Today&rsquo;s layout</em> keeps things as they were (#273).</li>
+                <li><strong>Split Screen</strong> &mdash; <em>View &rarr; Split Screen</em> puts the Page View, Index Cards, Outline or Beat Board beside the script, side by side or stacked. The Page View draws whole pages as they will print, and a card in the second pane jumps the script to its scene.</li>
+                <li><strong>Speed View for Drafting</strong> &mdash; <em>View &rarr; Layout &rarr; Speed</em> keeps your page, margins and font but drops the page breaks, for one continuous scroll. Page numbers, <em>Go to Page</em> and every export are unchanged, and Speed remembers its own zoom.</li>
+                <li><strong>Story Map and Index Cards</strong> &mdash; <em>View &rarr; Panels &rarr; Story Map</em> shows the scenes as a strip under the script, sized by pages or by screen time; click one to go there. Index Cards now fill the editor with the whole grid, with the same strip along the bottom, and clicking a card&rsquo;s heading takes you to that scene.</li>
+                <li><strong>A Handier Navigator</strong> &mdash; Edit a synopsis right in the list (<kbd>Enter</kbd> saves, <kbd>Esc</kbd> cancels), pick a scene colour from its number, open or close each scene&rsquo;s synopsis or all of them, and see the page every scene starts on. Headings follow your format&rsquo;s capitals, and the <em>Aa</em> button shows them in the script&rsquo;s font. The status bar has a zoom slider, an editable percentage and <em>Fit width</em> (#273).</li>
+                <li><strong>Line Spacing</strong> &mdash; <em>Format &rarr; Line Spacing&hellip;</em> opens the script up a little or a lot, with a preview and the change in page count before you apply it. The screen, the PDF, Word and Final Draft exports all follow it. The Multi-Cam Sitcom format&rsquo;s double-spaced dialogue now reaches the screen and exports too, so the PDF has the same number of pages as the editor (#273).</li>
+                <li><strong>Changing the Script&rsquo;s Font Size</strong> &mdash; Select the whole script and pick a size, and that becomes the script&rsquo;s size: pages re-flow on the same paper, and the PDF breaks its pages exactly where the editor does (#270).</li>
+                <li><strong>PDFs in Every Language</strong> &mdash; Polish and other accented letters print in the same typeface as the rest of the line, in Courier and Arial scripts alike, instead of switching font mid-word. Vietnamese now prints in full, Khmer, Lao, Myanmar, Ethiopic, Cherokee and Tibetan print for the first time, and a script in Chinese makes a PDF of kilobytes rather than megabytes (#269).</li>
+                <li><strong>Settings, Sorted</strong> &mdash; Settings now has seven sections in a sidebar &mdash; General, Saving &amp; Backups, Writing Tools, Print &amp; Export, Account &amp; Sharing, Add-ons and Advanced &mdash; and a search box that finds the one you want. Server addresses moved to Advanced, since most writers never need them.</li>
+                <li><strong>Foldables and Phones</strong> &mdash; Held open like a book, the menu bar and status bar fit on the script&rsquo;s side of the hinge, with the menus showing icons only when their names do not fit. On a phone held sideways, the writing pad keeps its <em>Insert</em> button in reach (#231).<NotOnApple> On Android, the keyboard stays closed once you close it, the writing pad stays above the keyboard, and Table Read with the system voice keeps reading in the background, with play, pause and skip in its notification.</NotOnApple></li>
+                <li><strong>Also Fixed</strong> &mdash; Table Read stays on the line you chose when you or a collaborator edit the script above it. A default invite length of 30 minutes no longer turns into one hour after a restart. Long scripts scroll more smoothly in the Linux app (#229). In the PDF import preview, the selected row stays visible when you move with <kbd>Ctrl</kbd>/<kbd>&#8984;</kbd> and the arrow keys.<NotOnApple> On Android, picking a file far too large to be a script, such as a video, now says so instead of closing the app.</NotOnApple></li>
+              </ul>
               <div className="about-subsection-title">v2.13.0</div>
               <ul className="about-list">
                 <li><strong>Foldable Phones</strong> &mdash; When OpenDraft can see a phone&rsquo;s fold, it lays itself out for each way you hold it. Folded, the script fills the cover screen under a compact toolbar; where the cover keeps its clock in a column down one edge, the menu button sits at the foot of that column, covering nothing, and can be dragged out and back. Opened like a book, the page fits the width with the Navigator and your panels beside it in one column of tabs, and the writing pad shares those tabs without losing its draft. Half-open like a laptop, panels move below the script. Layout choices made folded and open are remembered separately, and <em>Help &rarr; Diagnostics</em> reports what OpenDraft sees of the fold (#231).</li>

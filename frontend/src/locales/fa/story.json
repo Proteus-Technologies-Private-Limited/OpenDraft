@@ -10,7 +10,19 @@
     "customColor": "رنگ دلخواه",
     "pageSingular": "{{n}} صفحه",
     "pagePlural": "{{n}} صفحه",
-    "autoWithDuration": "خودکار ({{duration}})"
+    "autoWithDuration": "خودکار ({{duration}})",
+    "colors": {
+      "violet": "بنفش",
+      "indigo": "نیلی",
+      "blue": "آبی",
+      "green": "سبز",
+      "yellow": "زرد",
+      "orange": "نارنجی",
+      "red": "قرمز",
+      "black": "مشکی",
+      "white": "سفید",
+      "none": "بدون رنگ"
+    }
   },
   "scriptProfile": {
     "title": "ژانر و ریتم",
@@ -153,7 +165,10 @@
     "dragToReorder": "برای تغییر ترتیب بکشید",
     "goToScene": "برای رفتن به سکانس کلیک کنید",
     "synopsisPlaceholder": "افزودن خلاصه...",
-    "expandSynopsis": "باز کردن خلاصه"
+    "expandSynopsis": "باز کردن خلاصه",
+    "timeline": "خط زمانی",
+    "showTimeline": "نمایش خط زمانی صحنه‌ها",
+    "hideTimeline": "پنهان کردن خط زمانی صحنه‌ها"
   },
   "outline": {
     "title": "طرح کلی",
@@ -359,9 +374,6 @@
     "pageSingular": "{{n}} صفحه",
     "pagePlural": "{{n}} صفحه",
     "pageAndDuration": "{{pages}} · {{duration}}",
-    "noSynopsis": "خلاصه‌ای برای این سکانس در دسترس نیست.",
-    "editSynopsis": "ویرایش",
-    "addSynopsis": "+ افزودن",
     "noPages": "هنوز صفحه‌ای نیست. برای دیدن پیش‌نمایش صفحه‌ها نوشتن را شروع کنید.",
     "pageLabel": "صفحهٔ {{label}}",
     "sectionCount_one": "{{count}} بخش",
@@ -381,7 +393,24 @@
     "noLocations": "هنوز لوکیشنی نیست. عنوان‌هایی مثل «INT. COFFEE SHOP - DAY» اینجا نمایش داده می‌شوند.",
     "renameLocation": "تغییر نام لوکیشن",
     "skippedHeadings_one": "{{count}} عنوان سکانس که شکست خط داشت نادیده گرفته شد",
-    "skippedHeadings_other": "{{count}} عنوان سکانس که شکست خط داشتند نادیده گرفته شدند"
+    "skippedHeadings_other": "{{count}} عنوان سکانس که شکست خط داشتند نادیده گرفته شدند",
+    "showAllSynopses": "نمایش همهٔ خلاصه‌ها",
+    "hideAllSynopses": "پنهان کردن همهٔ خلاصه‌ها",
+    "expandScene": "نمایش خلاصه",
+    "collapseScene": "پنهان کردن خلاصه",
+    "changeColor": "رنگ سکانس",
+    "changeColorFor": "رنگ سکانس {{number}}",
+    "headingFontScript": "نمایش عنوان‌ها با قلم فیلم‌نامه",
+    "headingFontInterface": "نمایش عنوان‌ها با قلم رابط کاربری",
+    "startsOnPage": "از صفحهٔ {{label}} شروع می‌شود",
+    "synopsisFor": "خلاصهٔ {{heading}}",
+    "synopsisEditHint": "Enter ذخیره می‌کند · Shift+Enter خط تازه می‌افزاید · Esc لغو می‌کند",
+    "clickToEditSynopsis": "برای ویرایش خلاصه کلیک کنید",
+    "clickToAddSynopsis": "افزودن خلاصه…",
+    "moreSceneOptions": "بیشتر…",
+    "moreSceneOptionsTitle": "خلاصه، رنگ و مدت سکانس",
+    "sceneNotFound": "آن سکانس دیگر در فیلمنامه نیست.",
+    "sceneSaveFailed": "سکانس ذخیره نشد. دوباره تلاش کنید."
   },
   "beatBoard": {
     "title": "تخته بیت‌ها",
@@ -531,5 +560,24 @@
     "linked": "پیوندشده",
     "removeTitle": "برداشتن شخصیت",
     "removeConfirm": "«{{name}}» از فهرست شخصیت‌ها برداشته شود؟"
+  },
+  "storyMap": {
+    "title": "نقشه داستان",
+    "measureIn": "اندازه‌گیری نقشه بر اساس",
+    "pages": "صفحه‌ها",
+    "pagesTip": "اندازه صحنه‌ها بر اساس طول صفحه",
+    "time": "زمان",
+    "timeTip": "اندازه صحنه‌ها بر اساس زمان تخمینی روی پرده",
+    "pagesTotal": "{{pages}} صفحه",
+    "pagesShort": "{{pages}}ص",
+    "noLength": "هنوز طولی ندارد",
+    "close": "بستن {{title}}",
+    "empty": "هنوز صحنه‌ای نیست. یک عنوان صحنه (INT. یا EXT.) بنویسید تا اینجا نمایش داده شود."
+  },
+  "splitScreen": {
+    "pageView": "نمای صفحه",
+    "closePageView": "بستن نمای صفحه",
+    "noPages": "هنوز صفحه‌ای نیست. شروع به نوشتن کنید تا صفحه‌ها اینجا نمایش داده شوند.",
+    "close": "بستن صفحه تقسیم‌شده"
   }
 }

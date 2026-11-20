@@ -54,6 +54,17 @@ function parseForceBreakBefore(raw: unknown): string[] | undefined {
   }
 }
 
+/** Read the `line_spacing` column: a positive number, or absent (standard). */
+function parseLineSpacing(raw: unknown): number | undefined {
+  const n = typeof raw === 'number' ? raw : typeof raw === 'string' ? Number.parseFloat(raw) : NaN;
+  return Number.isFinite(n) && n > 0 ? n : undefined;
+}
+
+/** Line spacing for storage; NULL for standard or anything unreadable. */
+function serializeLineSpacing(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 && value !== 1 ? value : null;
+}
+
 /** Serialize forced page-break element ids for storage; NULL when empty. */
 function serializeForceBreakBefore(ids: unknown): string | null {
   if (!Array.isArray(ids) || ids.length === 0) return null;
@@ -1036,6 +1047,7 @@ export async function createLocalStorage() {
         mode: r.mode,
         rules: JSON.parse(r.rules),
         forceBreakBefore: parseForceBreakBefore(r.force_break_before),
+        ...(parseLineSpacing(r.line_spacing) !== undefined ? { lineSpacing: parseLineSpacing(r.line_spacing) } : {}),
         createdAt: r.created_at,
         updatedAt: r.updated_at,
       }));
@@ -1043,8 +1055,8 @@ export async function createLocalStorage() {
 
     async createFormattingTemplate(template: any): Promise<void> {
       await db.execute(
-        `INSERT INTO formatting_templates (id, name, description, mode, rules, force_break_before, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        `INSERT INTO formatting_templates (id, name, description, mode, rules, force_break_before, line_spacing, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
         [
           template.id,
           template.name,
@@ -1052,6 +1064,7 @@ export async function createLocalStorage() {
           template.mode,
           JSON.stringify(template.rules),
           serializeForceBreakBefore(template.forceBreakBefore),
+          serializeLineSpacing(template.lineSpacing),
           template.createdAt,
           template.updatedAt,
         ],
@@ -1060,13 +1073,14 @@ export async function createLocalStorage() {
 
     async updateFormattingTemplate(id: string, template: any): Promise<void> {
       await db.execute(
-        `UPDATE formatting_templates SET name = $1, description = $2, mode = $3, rules = $4, force_break_before = $5, updated_at = $6 WHERE id = $7`,
+        `UPDATE formatting_templates SET name = $1, description = $2, mode = $3, rules = $4, force_break_before = $5, line_spacing = $6, updated_at = $7 WHERE id = $8`,
         [
           template.name,
           template.description,
           template.mode,
           JSON.stringify(template.rules),
           serializeForceBreakBefore(template.forceBreakBefore),
+          serializeLineSpacing(template.lineSpacing),
           template.updatedAt,
           id,
         ],

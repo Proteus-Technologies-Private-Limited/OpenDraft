@@ -53,7 +53,7 @@ export default function SmartTypeSettingsSection() {
 
   return (
     <section className="settings-section" id="smarttype" aria-labelledby="smarttype-title">
-      <h2 className="settings-section-title" id="smarttype-title">{t('smartType.title')}</h2>
+      <h3 className="settings-section-title" id="smarttype-title">{t('smartType.title')}</h3>
       <p className="settings-section-desc">
         {t('smartType.description')}
       </p>

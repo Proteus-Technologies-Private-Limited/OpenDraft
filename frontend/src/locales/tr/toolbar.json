@@ -33,7 +33,12 @@
       "lockedTitle": "Öneri vermek için katıldınız: yazar düzenlemelerinizi kabul eder veya reddeder",
       "title": "Düzenlemeleriniz öneri olarak kaydedilir. Doğrudan düzenlemeye dönmek için tıklayın.",
       "label": "Öneri modu"
-    }
+    },
+    "zoomFitWidth": "Genişliğe sığdır",
+    "zoomFitWidthTitle": "Sayfa pencerenin genişliğini dolduracak şekilde yakınlaştır",
+    "footerControls": "Durum çubuğu denetimleri",
+    "showFooterControls": "Durum çubuğu denetimlerini göster",
+    "hideFooterControls": "Durum çubuğu denetimlerini gizle"
   },
   "resetToDefault": "Varsayılana sıfırla",
   "richText": {
@@ -103,5 +108,338 @@
     "elementType": "Öğe türü",
     "elementTypeTitlePage": "Kapak sayfası öğeleri Kapak sayfası düzenleyicisinde belirlenir; biçimlendirmeleri şablonda bulunur",
     "titlePage": "Kapak sayfası"
+  },
+  "layout": {
+    "title": "Düzen",
+    "tabs": {
+      "panels": "Paneller",
+      "toolbar": "Araç çubuğu ve durum çubuğu"
+    },
+    "quickSwitch": "Hızlı düzen değiştirme",
+    "close": "Kapat",
+    "done": "Bitti",
+    "customiseBars": "Araç çubuğunu özelleştir…",
+    "editLayouts": "Düzenleri düzenle…",
+    "presets": {
+      "classic": "Klasik",
+      "nav-end": "Gezgin sağda",
+      "nav-bottom": "Gezgin altta",
+      "split": "Bölünmüş gezgin",
+      "custom": "Özel"
+    },
+    "presetHints": {
+      "classic": "Alıştığınız düzen",
+      "nav-end": "Gezginin tamamı sağda",
+      "nav-bottom": "Gezgin sayfanın altında",
+      "split": "Panelleri ayrı ayrı yerleşir",
+      "saved": "Bu cihaza kaydedildi"
+    },
+    "docks": {
+      "left": "Sol",
+      "right": "Sağ",
+      "bottom": "Alt",
+      "hidden": "Yerleştirilmedi"
+    },
+    "dockTitle": {
+      "left": "Sol bölme",
+      "right": "Sağ bölme",
+      "bottom": "Alt bölme"
+    },
+    "panelsTab": {
+      "presetsHeading": "Hazır düzenler",
+      "savedHeading": "Kaydedilenler",
+      "saveAs": "Geçerli düzeni farklı kaydet…",
+      "nameLabel": "Bu düzenin adı",
+      "save": "Kaydet",
+      "cancel": "İptal",
+      "deleteNamed": "{{name}} düzenini sil",
+      "hintGroup": "Grubun tamamını, örneğin tüm Gezgini taşımak için grubun başlığını sürükleyin.",
+      "hintPanel": "Yalnızca o paneli taşımak için panelin sekmesini sürükleyin.",
+      "writingArea": "Yazma alanı",
+      "writingAreaHint": "Senaryo, Fişler, Beat panosu ve Ana hat, Görünümler menüsünden seçilerek burada sırayla açılır. Paneller bunun çevresinde yer alır.",
+      "dropNewGroup": "Yeni grup için buraya bırakın",
+      "dropGroup": "Grubu buraya bırakın",
+      "emptyDock": "Boş. Buraya bir panel ya da grup sürükleyin.",
+      "newGroup": "+ Yeni grup",
+      "notPlacedHint": "Buradaki paneller Görünüm › Paneller menüsünde yer almaz. Geri getirmek için birini bir bölmeye sürükleyin.",
+      "groupsArrange": "Gruplar",
+      "arrangeRows": "Üst üste",
+      "arrangeColumns": "Yan yana",
+      "selected": "Seçili",
+      "noSelection": "Seçeneklerini görmek için bir panel ya da grup seçin. Sürükleyebildiğiniz her şeyi burada klavyeyle veya dokunmatik ekranda da ayarlayabilirsiniz.",
+      "opensIn": "Açıldığı yer",
+      "group": "Grup",
+      "ownGroup": "Tek başına (yeni grup)",
+      "pullOut": "Gruptan çıkar",
+      "dontPlace": "Yerleştirme",
+      "groupName": "Grup adı",
+      "showAs": "Panelleri göster",
+      "tabs": "Sekmeler",
+      "stacked": "Üst üste",
+      "panelsInGroup": "Bu gruptaki paneller",
+      "moveUp": "{{name}} panelini yukarı taşı",
+      "moveDown": "{{name}} panelini aşağı taşı",
+      "ungroup": "Grubu çöz",
+      "toolbarButton": "Araç çubuğu düğmesi",
+      "toolbarButtonHint": "{{name}} panelini, nereye yerleştirilmiş olursa olsun açar.",
+      "navigatorTag": "Gezgin",
+      "addOnTag": "Eklenti",
+      "reset": "Klasik düzene sıfırla",
+      "dragGroup": "{{name}} grubunu taşı",
+      "dragPanel": "{{name}} panelini taşı",
+      "moveGroupTo": "{{name}} grubunun açıldığı yer",
+      "navigatorGroupName": "Gezgin",
+      "tabCount_one": "{{count}} sekme",
+      "tabCount_other": "{{count}} sekme",
+      "footerNote": "Bu cihaza kaydedilir. Telefonlarda paneller sayfa olarak açılır.",
+      "legendNavigator": "Gezgin panelleri",
+      "groupCount_one": "{{count}} grup",
+      "groupCount_other": "{{count}} grup",
+      "status": "{{preset}} · Gezgin panelleri: {{places}}"
+    },
+    "toolbarTab": {
+      "presetsHeading": "Hazır çubuklar",
+      "saveAs": "Farklı kaydet…",
+      "nameLabel": "Bu çubukların adı",
+      "toolbarShows": "Araç çubuğunda gösterilenler",
+      "footerShows": "Durum çubuğunda gösterilenler",
+      "preview": "Canlı önizleme",
+      "previewHint": "Buradaki her şey çalışır. Eklemek için bir denetimi çubuklardan birine bırakın.",
+      "onToolbar": "Araç çubuğu",
+      "onFooter": "Durum çubuğu",
+      "available": "Kullanılabilir",
+      "availableHint": "Bir çubuğa sürükleyin ya da düğmelerle ekleyin. Kaldırmak için bir denetimi buraya bırakın.",
+      "startSide": "Başlangıç tarafı",
+      "endSide": "Bitiş tarafı",
+      "dropStart": "Başlangıç tarafına bırak",
+      "dropEnd": "Bitiş tarafına bırak",
+      "count_one": "{{count}} denetim",
+      "count_other": "{{count}} denetim",
+      "addToToolbar": "{{name}} öğesini araç çubuğuna ekle",
+      "addToFooter": "{{name}} öğesini durum çubuğuna ekle",
+      "removeNamed": "{{name}} öğesini kaldır",
+      "moveLeft": "{{name}} öğesini başa doğru taşı",
+      "moveRight": "{{name}} öğesini sona doğru taşı",
+      "showAs": "Gösterim",
+      "defaultMode": "Varsayılan ({{mode}})",
+      "placeOn": "Yerleşeceği yer",
+      "notPlaced": "Yerleştirilmedi",
+      "side": "Çubuğun tarafı",
+      "start": "Başlangıç",
+      "end": "Bitiş",
+      "zoomControl": "Yakınlaştırma denetimi",
+      "zoomButtons": "Düğmeler",
+      "zoomSlider": "Kaydırıcı",
+      "zoomBoth": "Düğmeli kaydırıcı",
+      "zoomHint": "%50 ile %300 arasında, 10’ar adımla. ⌘ + ve ⌘ − de çalışmaya devam eder.",
+      "switcherStyle": "Seçici biçimi",
+      "menu": "Menü",
+      "buttons": "Düğmeler",
+      "layoutsOffered": "Sunduğu düzenler",
+      "editEntry": "Sonda “Düzenleri düzenle…” olsun",
+      "noHeadingHint": "“Başlıksız” yalnızca açılır listeyi gösterir, çünkü değeri zaten ne olduğunu söyler.",
+      "reset": "Varsayılana sıfırla",
+      "foldNote": "Sığmayan denetimler, başlangıç tarafının sonundan başlayarak “…” menüsüne katlanır.",
+      "keepOne": "Araç çubuğunda en az bir denetim kalır.",
+      "groups": {
+        "writing": "Yazma",
+        "document": "Belge",
+        "view": "Görünüm ve düzen",
+        "panels": "Paneller",
+        "plugins": "Eklentiler",
+        "status": "Durum"
+      },
+      "where": {
+        "top": "Araç çubuğunda ({{side}})",
+        "bottom": "Durum çubuğunda ({{side}})",
+        "none": "Yerleştirilmedi"
+      },
+      "removeFrom": {
+        "top": "Araç çubuğundan kaldır",
+        "bottom": "Durum çubuğundan kaldır"
+      },
+      "centerSide": "Orta",
+      "dropCenter": "Ortaya bırak",
+      "center": "Orta",
+      "footerOnly": "Durum satırları yalnızca durum çubuğuna konur.",
+      "narrowFooterNote": "Telefonda ya da dar bir pencerede durum çubuğu durum satırını korur. Denetimleri, ortası ve revizyon rengi, ucundaki okla üstünde bir sırada açılır.",
+      "phoneIconsNote": "Telefonda araç çubuğu yalnızca simgeleri gösterir: tek sırada adlara yer yoktur."
+    },
+    "modes": {
+      "icon": "Simge",
+      "text": "Metin",
+      "both": "Simge + metin",
+      "none": "Başlıksız"
+    },
+    "toolbarPresets": {
+      "default": "Varsayılan",
+      "writing": "Yazma",
+      "review": "İnceleme",
+      "everything": "Tümü"
+    },
+    "toolbarPresetHints": {
+      "default": "İki çubuk da her zamanki hâliyle.",
+      "writing": "Yalnızca taslak yazarken kullanılan denetimler; yakınlaştırma durum çubuğunda.",
+      "review": "Dosyalar, görünümler, notlar ve düzen seçici.",
+      "everything": "Tüm yerleşik denetimler."
+    },
+    "items": {
+      "undoRedo": {
+        "label": "Geri al ve yinele",
+        "description": "Son değişiklikleri geri alın ve yineleyin."
+      },
+      "element": {
+        "label": "Öğe",
+        "description": "Senaryo öğesi menüsü."
+      },
+      "font": {
+        "label": "Yazı tipi",
+        "description": "Seçimin yazı tipi."
+      },
+      "fontSize": {
+        "label": "Yazı boyutu",
+        "description": "Seçimin boyutu."
+      },
+      "format": {
+        "label": "Metin stili",
+        "description": "Kalın, italik, altı çizili, renkler ve dil."
+      },
+      "align": {
+        "label": "Hizalama",
+        "description": "Sola, ortaya, sağa ve iki yana hizalı metin."
+      },
+      "search": {
+        "label": "Bul ve sayfaya git",
+        "description": "Senaryoda arama yapın veya bir sayfaya atlayın."
+      },
+      "notes": {
+        "label": "Notlar ve etiketler",
+        "description": "Senaryo notları ve yapım etiketleri."
+      },
+      "document": {
+        "label": "Dosya işlemleri",
+        "description": "Senaryoyu oluşturun, içe aktarın, kaydedin ve dışa aktarın."
+      },
+      "titlePage": {
+        "label": "Kapak sayfası",
+        "description": "Kapak sayfası düzenleyicisini açar."
+      },
+      "production": {
+        "label": "Sahne numaraları ve raporlar",
+        "description": "Sahne numaralarını gösterir veya Raporlar’ı açar."
+      },
+      "views": {
+        "label": "Görünümler",
+        "description": "Sayfa düzeni, tam ekran görünüm, paneller ve çalışma alanı düzeni tek bir menüde."
+      },
+      "layout": {
+        "label": "Düzen",
+        "description": "Çalışma alanı düzenleri arasında tek tıkla geçiş yapın."
+      },
+      "theme": {
+        "label": "Açık / Koyu",
+        "description": "Açık ve koyu tema arasında geçiş yapar."
+      },
+      "zoom": {
+        "label": "Yakınlaştırma",
+        "description": "Uzaklaştır, yakınlaştırma düzeyi ve yakınlaştır, bir kaydırıcı ya da ikisi birden ve Genişliğe sığdır."
+      },
+      "navigator": {
+        "label": "Gezgin",
+        "description": "Tüm Gezgin panellerini, nereye yerleştirilmiş olurlarsa olsunlar gösterir veya gizler."
+      },
+      "panel": {
+        "description": "{{panel}} panelini, nereye yerleştirilmiş olursa olsun açar."
+      },
+      "plugin": {
+        "description": "Bir eklentiden gelen denetim."
+      },
+      "statusTitle": {
+        "label": "Senaryo adı",
+        "description": "Senaryonun başlığı, projesi ve kaydetmenin ayrıca yazdığı dosya."
+      },
+      "statusSave": {
+        "label": "Kayıt durumu",
+        "description": "Kaydedildi, Kaydediliyor… ya da Kaydedilmemiş değişiklikler."
+      },
+      "statusElement": {
+        "label": "Geçerli öğe",
+        "description": "İmlecin bulunduğu öğe, örneğin Aksiyon ya da Diyalog."
+      },
+      "statusActs": {
+        "label": "Perdeler",
+        "description": "Perde araları olduğunda senaryonun kaç perdesi olduğu."
+      },
+      "statusRuntime": {
+        "label": "Süre",
+        "description": "Tahmini ekran süresi. Tür ve tempoyu seçmek için tıklayın."
+      },
+      "statusWords": {
+        "label": "Sözcük sayısı",
+        "description": "Tüm senaryodaki sözcükler."
+      },
+      "statusRevision": {
+        "label": "Revizyon rengi",
+        "description": "Revizyonlar işaretlenirken revizyon rengi."
+      },
+      "statusProgress": {
+        "label": "Yazma hedefi",
+        "description": "Bugünkü hedefe ilerleme ya da bir sprintin geri sayımı. Yazma Hedefleri için tıklayın."
+      },
+      "statusPage": {
+        "label": "Sayfa",
+        "description": "İmlecin bulunduğu sayfa ve toplam sayfa sayısı."
+      }
+    },
+    "labels": {
+      "undo": "Geri al",
+      "redo": "Yinele",
+      "element": "Öğe",
+      "font": "Yazı tipi",
+      "fontSize": "Boyut",
+      "bold": "Kalın",
+      "italic": "İtalik",
+      "underline": "Altı çizili",
+      "strikethrough": "Üstü çizili",
+      "subscript": "Alt simge",
+      "superscript": "Üst simge",
+      "textColor": "Yazı rengi",
+      "highlight": "Vurgu",
+      "alignLeft": "Sol",
+      "alignCenter": "Orta",
+      "alignRight": "Sağ",
+      "justify": "İki yana yasla",
+      "find": "Bul",
+      "goToPage": "Sayfaya git",
+      "notes": "Notlar",
+      "tags": "Etiketler",
+      "new": "Yeni",
+      "import": "İçe aktar",
+      "save": "Kaydet",
+      "exportPdf": "PDF olarak dışa aktar",
+      "titlePage": "Kapak sayfası",
+      "sceneNumbers": "Sahne numaraları",
+      "reports": "Raporlar",
+      "light": "Açık",
+      "dark": "Koyu",
+      "switchToLight": "Açık temaya geç",
+      "switchToDark": "Koyu temaya geç",
+      "navigator": "Gezgin",
+      "zoomOut": "Uzaklaştır",
+      "zoomIn": "Yakınlaştır"
+    },
+    "views": {
+      "script": "Senaryo",
+      "view": "Görünüm"
+    },
+    "panels": {
+      "locationDb": "Mekân veritabanı"
+    },
+    "dnd": {
+      "pickedUp": "{{name}} alındı. Taşımak için ok tuşlarını, bırakmak için Boşluk tuşunu, iptal etmek için Esc tuşunu kullanın.",
+      "over": "{{name}} şunun üzerinde: {{target}}.",
+      "dropped": "{{name}} şuraya bırakıldı: {{target}}.",
+      "cancelled": "{{name}} taşıma işlemi iptal edildi."
+    }
   }
 }

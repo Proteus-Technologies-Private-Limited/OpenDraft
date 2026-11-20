@@ -10,7 +10,19 @@
     "customColor": "Custom color",
     "pageSingular": "{{n}} page",
     "pagePlural": "{{n}} pages",
-    "autoWithDuration": "Auto ({{duration}})"
+    "autoWithDuration": "Auto ({{duration}})",
+    "colors": {
+      "violet": "Violet",
+      "indigo": "Indigo",
+      "blue": "Blue",
+      "green": "Green",
+      "yellow": "Yellow",
+      "orange": "Orange",
+      "red": "Red",
+      "black": "Black",
+      "white": "White",
+      "none": "No color"
+    }
   },
   "scriptProfile": {
     "title": "Genre & Pacing",
@@ -153,7 +165,10 @@
     "dragToReorder": "Drag to reorder",
     "goToScene": "Click to navigate to scene",
     "synopsisPlaceholder": "Add synopsis...",
-    "expandSynopsis": "Expand synopsis"
+    "expandSynopsis": "Expand synopsis",
+    "timeline": "Timeline",
+    "showTimeline": "Show the scene timeline",
+    "hideTimeline": "Hide the scene timeline"
   },
   "outline": {
     "title": "Outline",
@@ -359,9 +374,6 @@
     "pageSingular": "{{n}} page",
     "pagePlural": "{{n}} pages",
     "pageAndDuration": "{{pages}} · {{duration}}",
-    "noSynopsis": "No synopsis for this scene available.",
-    "editSynopsis": "Edit",
-    "addSynopsis": "+ Add",
     "noPages": "No pages yet. Start writing to see page previews.",
     "pageLabel": "Page {{label}}",
     "sectionCount_one": "{{count}} section",
@@ -381,7 +393,24 @@
     "noLocations": "No locations yet. Scene headings like “INT. COFFEE SHOP - DAY” will appear here.",
     "renameLocation": "Rename Location",
     "skippedHeadings_one": "Skipped {{count}} scene heading containing a line break",
-    "skippedHeadings_other": "Skipped {{count}} scene headings containing a line break"
+    "skippedHeadings_other": "Skipped {{count}} scene headings containing a line break",
+    "showAllSynopses": "Show all synopses",
+    "hideAllSynopses": "Hide all synopses",
+    "expandScene": "Show synopsis",
+    "collapseScene": "Hide synopsis",
+    "changeColor": "Scene color",
+    "changeColorFor": "Scene {{number}} color",
+    "headingFontScript": "Show headings in the script font",
+    "headingFontInterface": "Show headings in the interface font",
+    "startsOnPage": "Starts on page {{label}}",
+    "synopsisFor": "Synopsis for {{heading}}",
+    "synopsisEditHint": "Enter saves · Shift+Enter adds a line · Esc cancels",
+    "clickToEditSynopsis": "Click to edit the synopsis",
+    "clickToAddSynopsis": "Add a synopsis…",
+    "moreSceneOptions": "More…",
+    "moreSceneOptionsTitle": "Synopsis, color and scene duration",
+    "sceneNotFound": "That scene is no longer in the script.",
+    "sceneSaveFailed": "The scene could not be saved. Try again."
   },
   "beatBoard": {
     "title": "Beat Board",
@@ -531,5 +560,24 @@
     "linked": "Linked",
     "removeTitle": "Remove Character",
     "removeConfirm": "Remove “{{name}}” from the character list?"
+  },
+  "storyMap": {
+    "title": "Story Map",
+    "measureIn": "Measure the map in",
+    "pages": "Pages",
+    "pagesTip": "Size the scenes by page length",
+    "time": "Time",
+    "timeTip": "Size the scenes by estimated screen time",
+    "pagesTotal": "{{pages}} pages",
+    "pagesShort": "{{pages}}p",
+    "noLength": "No length yet",
+    "close": "Close {{title}}",
+    "empty": "No scenes yet. Write a scene heading (INT. or EXT.) and it appears here."
+  },
+  "splitScreen": {
+    "pageView": "Page View",
+    "closePageView": "Close Page View",
+    "noPages": "No pages yet. Start writing and the pages appear here.",
+    "close": "Close split screen"
   }
 }

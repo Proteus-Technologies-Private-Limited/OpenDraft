@@ -284,7 +284,9 @@
     "lineAfterTableTip": "İmleci bu AV tablosunun altındaki sıradan bir senaryo satırına getirin; yoksa bir tane eklenir",
     "lineBeforeTableTip": "İmleci bu AV tablosunun üstündeki sıradan bir senaryo satırına getirin; yoksa bir tane eklenir",
     "avRowHint": "Önce imleci bir AV senaryosunun Görüntü veya Ses hücresine getirin",
-    "formattingTemplate": "Biçimlendirme şablonu ({{name}})..."
+    "formattingTemplate": "Biçimlendirme şablonu ({{name}})...",
+    "lineSpacing": "Satır Aralığı…",
+    "lineSpacingTip": "Satırlar arasındaki boşluğu açın ve uygulamadan önce sayfa sayısını görün"
   },
   "view": {
     "view": "Görünüm",
@@ -324,7 +326,16 @@
     "hidden": "Gizli",
     "zoomIn": "Yakınlaştır",
     "zoomOut": "Uzaklaştır",
-    "zoom": "Yakınlaştırma (%{{level}})"
+    "zoom": "Yakınlaştırma (%{{level}})",
+    "storyMap": "Hikâye haritası",
+    "storyMapTip": "Sahneler tek şeritte, sayfa uzunluğuna veya ekran süresine göre",
+    "speed": "Hız",
+    "splitScreen": "Bölünmüş ekran",
+    "sideBySide": "Yan yana",
+    "stacked": "Üst üste",
+    "onePane": "Tek bölme",
+    "secondPane": "İkinci bölme",
+    "pageView": "Sayfa görünümü"
   },
   "tools": {
     "tools": "Araçlar",

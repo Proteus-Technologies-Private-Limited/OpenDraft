@@ -284,7 +284,9 @@
     "lineAfterTableTip": "Put the cursor on an ordinary script line below this AV table, adding one if it is not there yet",
     "lineBeforeTableTip": "Put the cursor on an ordinary script line above this AV table, adding one if it is not there yet",
     "avRowHint": "Put the cursor in an AV script’s Video or Audio cell first",
-    "formattingTemplate": "Formatting Template ({{name}})..."
+    "formattingTemplate": "Formatting Template ({{name}})...",
+    "lineSpacing": "Line Spacing…",
+    "lineSpacingTip": "Open up the space between lines, and see the page count before you apply it"
   },
   "view": {
     "view": "View",
@@ -324,7 +326,16 @@
     "hidden": "Hidden",
     "zoomIn": "Zoom In",
     "zoomOut": "Zoom Out",
-    "zoom": "Zoom ({{level}}%)"
+    "zoom": "Zoom ({{level}}%)",
+    "storyMap": "Story Map",
+    "storyMapTip": "The scenes as one strip, by page length or screen time",
+    "speed": "Speed",
+    "splitScreen": "Split Screen",
+    "sideBySide": "Side by Side",
+    "stacked": "Stacked",
+    "onePane": "One Pane",
+    "secondPane": "Second Pane",
+    "pageView": "Page View"
   },
   "tools": {
     "tools": "Tools",

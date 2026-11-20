@@ -1,6 +1,6 @@
 [package]
 name = "opendraft"
-version = "2.13.0"
+version = "2.14.2"
 description = "OpenDraft - Professional Screenwriting Application"
 authors = ["OpenDraft"]
 edition = "2021"
@@ -63,6 +63,14 @@ percent-encoding = "2"
 # Match the GTK version already used by Tauri; title-bar routing is Linux-only.
 [target.'cfg(target_os = "linux")'.dependencies]
 gtk = "0.18"
+# Installed-font lookup for the PDF exporter's fallback (system_fonts.rs).
+# Desktop only: mobile has no font directories to scan and the dependency would
+# only add to the Android/iOS builds. ttf-parser is already in the tree via
+# fontdb; it is named here so the cmap can be read without relying on a
+# re-export.
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+fontdb = { version = "0.23", default-features = false, features = ["std", "fs", "memmap", "fontconfig"] }
+ttf-parser = { version = "0.25", default-features = false, features = ["std"] }
 
 [target.'cfg(target_os = "android")'.dependencies]
 jni = "0.21"

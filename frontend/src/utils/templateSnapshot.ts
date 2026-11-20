@@ -229,6 +229,14 @@ export function parseTemplateSnapshot(
         ))
     )
       return null;
+    // Script-wide line spacing (utils/lineSpacing). Accepted up to 4 rather
+    // than the 2 this version offers, so a script from a later version that
+    // allows more still opens here — it is clamped at layout, not refused.
+    if (
+      value.lineSpacing !== undefined &&
+      (!finite(value.lineSpacing) || value.lineSpacing <= 0 || value.lineSpacing > 4)
+    )
+      return null;
     if (
       value.pageTimeSeconds !== undefined &&
       (!finite(value.pageTimeSeconds) || value.pageTimeSeconds <= 0)

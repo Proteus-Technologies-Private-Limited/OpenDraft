@@ -1,16 +1,25 @@
-Script Health, spellcheck in several languages, and a quicker editor.
+Arrange your workspace your way, write side by side with your pages or cards, and draft in one continuous scroll.
 
-SCRIPT HEALTH
-A quick check finds empty scene headings, unfinished dialogue and notes you haven't dealt with. It runs on your Mac and needs no account.
+YOUR WORKSPACE, YOUR WAY
+Put the Navigator and every panel in the left, right or bottom dock, choose what sits on the toolbar and status bar and in what order, and save layouts you can switch between in one click. Whatever doesn't fit in the window is one click away, just above the status bar.
 
-SPELLCHECK IN SEVERAL LANGUAGES
-Writing in more than one language? Tick every dictionary you need and they all check at once.
+ONE ZOOM CONTROL
+Zoom with buttons, a slider or both, and fit the page to the width of the window in one click. Keep it on the status bar or move it to the toolbar.
 
-EASIER WITH A KEYBOARD OR SCREEN READER
-Menus, panels and dialogs can all be worked from the keyboard, and notifications are read aloud.
+SPLIT SCREEN
+Keep the printed page, your index cards, the outline or the beat board open beside the script.
 
-FASTER IN LONG SCRIPTS
-Typing stays quick however long the script gets.
+SPEED VIEW
+Write in one continuous scroll without page breaks. Your page count and exports stay exactly the same.
 
-ALSO FIXED
-Printing without the title page leaves it out again, and resizing the window keeps your place and your zoom.
+STORY MAP
+See your whole story as a strip of scenes, sized by pages or screen time, and jump to any scene.
+
+A HANDIER NAVIGATOR
+Edit synopses right in the list, colour scenes, and see the page each scene starts on.
+
+LINE SPACING AND FONT SIZE
+Open up the spacing or change the script's font size, and the pages and PDF follow.
+
+ALSO IMPROVED
+Settings are sorted into sections with search, PDFs print accented letters and more languages correctly, and Table Read keeps its place while you edit.

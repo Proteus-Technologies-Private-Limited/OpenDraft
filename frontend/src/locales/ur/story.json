@@ -10,7 +10,19 @@
     "customColor": "حسبِ ضرورت رنگ",
     "pageSingular": "{{n}} صفحہ",
     "pagePlural": "{{n}} صفحات",
-    "autoWithDuration": "خودکار ({{duration}})"
+    "autoWithDuration": "خودکار ({{duration}})",
+    "colors": {
+      "violet": "بنفشی",
+      "indigo": "انڈیگو",
+      "blue": "نیلا",
+      "green": "سبز",
+      "yellow": "پیلا",
+      "orange": "نارنجی",
+      "red": "سرخ",
+      "black": "سیاہ",
+      "white": "سفید",
+      "none": "کوئی رنگ نہیں"
+    }
   },
   "scriptProfile": {
     "title": "صنف اور رفتار",
@@ -153,7 +165,10 @@
     "dragToReorder": "ترتیب بدلنے کے لیے گھسیٹیں",
     "goToScene": "سین پر جانے کے لیے کلک کریں",
     "synopsisPlaceholder": "خلاصہ شامل کریں...",
-    "expandSynopsis": "خلاصہ پھیلائیں"
+    "expandSynopsis": "خلاصہ پھیلائیں",
+    "timeline": "ٹائم لائن",
+    "showTimeline": "منظر ٹائم لائن دکھائیں",
+    "hideTimeline": "منظر ٹائم لائن چھپائیں"
   },
   "outline": {
     "title": "خاکہ",
@@ -359,9 +374,6 @@
     "pageSingular": "{{n}} صفحہ",
     "pagePlural": "{{n}} صفحات",
     "pageAndDuration": "{{pages}} · {{duration}}",
-    "noSynopsis": "اس سین کا کوئی خلاصہ دستیاب نہیں۔",
-    "editSynopsis": "ترمیم",
-    "addSynopsis": "+ شامل کریں",
     "noPages": "ابھی کوئی صفحہ نہیں۔ صفحات کا پیش منظر دیکھنے کے لیے لکھنا شروع کریں۔",
     "pageLabel": "صفحہ {{label}}",
     "sectionCount_one": "{{count}} سیکشن",
@@ -381,7 +393,24 @@
     "noLocations": "ابھی کوئی لوکیشن نہیں۔ “INT. COFFEE SHOP - DAY” جیسی سین ہیڈنگز یہاں نظر آئیں گی۔",
     "renameLocation": "لوکیشن کا نام بدلیں",
     "skippedHeadings_one": "لائن بریک والی {{count}} سین ہیڈنگ چھوڑ دی گئی",
-    "skippedHeadings_other": "لائن بریک والی {{count}} سین ہیڈنگز چھوڑ دی گئیں"
+    "skippedHeadings_other": "لائن بریک والی {{count}} سین ہیڈنگز چھوڑ دی گئیں",
+    "showAllSynopses": "تمام خلاصے دکھائیں",
+    "hideAllSynopses": "تمام خلاصے چھپائیں",
+    "expandScene": "خلاصہ دکھائیں",
+    "collapseScene": "خلاصہ چھپائیں",
+    "changeColor": "سین کا رنگ",
+    "changeColorFor": "سین {{number}} کا رنگ",
+    "headingFontScript": "ہیڈنگز اسکرپٹ کے فونٹ میں دکھائیں",
+    "headingFontInterface": "ہیڈنگز انٹرفیس کے فونٹ میں دکھائیں",
+    "startsOnPage": "صفحہ {{label}} سے شروع ہوتا ہے",
+    "synopsisFor": "{{heading}} کا خلاصہ",
+    "synopsisEditHint": "Enter محفوظ کرتا ہے · Shift+Enter نئی لائن جوڑتا ہے · Esc منسوخ کرتا ہے",
+    "clickToEditSynopsis": "خلاصے میں ترمیم کے لیے کلک کریں",
+    "clickToAddSynopsis": "خلاصہ شامل کریں…",
+    "moreSceneOptions": "مزید…",
+    "moreSceneOptionsTitle": "خلاصہ، رنگ اور سین کا دورانیہ",
+    "sceneNotFound": "وہ سین اب اسکرپٹ میں نہیں ہے۔",
+    "sceneSaveFailed": "سین محفوظ نہیں ہو سکا۔ دوبارہ کوشش کریں۔"
   },
   "beatBoard": {
     "title": "بیٹ بورڈ",
@@ -531,5 +560,24 @@
     "linked": "منسلک",
     "removeTitle": "کردار ہٹائیں",
     "removeConfirm": "“{{name}}” کو کرداروں کی فہرست سے ہٹا دیں؟"
+  },
+  "storyMap": {
+    "title": "اسٹوری میپ",
+    "measureIn": "میپ کی پیمائش",
+    "pages": "صفحات",
+    "pagesTip": "مناظر کو صفحات کی لمبائی کے مطابق بڑا چھوٹا کریں",
+    "time": "وقت",
+    "timeTip": "مناظر کو متوقع اسکرین ٹائم کے مطابق بڑا چھوٹا کریں",
+    "pagesTotal": "{{pages}} صفحات",
+    "pagesShort": "{{pages}}ص",
+    "noLength": "ابھی لمبائی نہیں",
+    "close": "{{title}} بند کریں",
+    "empty": "ابھی کوئی منظر نہیں۔ سین ہیڈنگ (INT. یا EXT.) لکھیں تو وہ یہاں نظر آئے گی۔"
+  },
+  "splitScreen": {
+    "pageView": "صفحہ منظر",
+    "closePageView": "صفحہ منظر بند کریں",
+    "noPages": "ابھی کوئی صفحہ نہیں۔ لکھنا شروع کریں تو صفحات یہاں نظر آئیں گے۔",
+    "close": "اسپلٹ اسکرین بند کریں"
   }
 }

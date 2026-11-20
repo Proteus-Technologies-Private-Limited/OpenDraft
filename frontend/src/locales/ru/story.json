@@ -10,7 +10,19 @@
     "customColor": "Свой цвет",
     "pageSingular": "{{n}} стр.",
     "pagePlural": "{{n}} стр.",
-    "autoWithDuration": "Авто ({{duration}})"
+    "autoWithDuration": "Авто ({{duration}})",
+    "colors": {
+      "violet": "Фиолетовый",
+      "indigo": "Индиго",
+      "blue": "Синий",
+      "green": "Зелёный",
+      "yellow": "Жёлтый",
+      "orange": "Оранжевый",
+      "red": "Красный",
+      "black": "Чёрный",
+      "white": "Белый",
+      "none": "Без цвета"
+    }
   },
   "scriptProfile": {
     "title": "Жанр и темп",
@@ -161,7 +173,10 @@
     "dragToReorder": "Перетащите, чтобы изменить порядок",
     "goToScene": "Нажмите, чтобы перейти к сцене",
     "synopsisPlaceholder": "Добавить синопсис...",
-    "expandSynopsis": "Развернуть синопсис"
+    "expandSynopsis": "Развернуть синопсис",
+    "timeline": "Хронология",
+    "showTimeline": "Показать хронологию сцен",
+    "hideTimeline": "Скрыть хронологию сцен"
   },
   "outline": {
     "title": "План",
@@ -377,9 +392,6 @@
     "pageSingular": "{{n}} стр.",
     "pagePlural": "{{n}} стр.",
     "pageAndDuration": "{{pages}} · {{duration}}",
-    "noSynopsis": "Синопсиса для этой сцены нет.",
-    "editSynopsis": "Изменить",
-    "addSynopsis": "+ Добавить",
     "noPages": "Страниц пока нет. Начните писать, чтобы увидеть предпросмотр страниц.",
     "pageLabel": "Страница {{label}}",
     "sectionCount_one": "{{count}} раздел",
@@ -405,7 +417,24 @@
     "skippedHeadings_one": "Пропущен {{count}} заголовок сцены с переносом строки",
     "skippedHeadings_few": "Пропущено {{count}} заголовка сцен с переносом строки",
     "skippedHeadings_many": "Пропущено {{count}} заголовков сцен с переносом строки",
-    "skippedHeadings_other": "Пропущено {{count}} заголовка сцен с переносом строки"
+    "skippedHeadings_other": "Пропущено {{count}} заголовка сцен с переносом строки",
+    "showAllSynopses": "Показать все синопсисы",
+    "hideAllSynopses": "Скрыть все синопсисы",
+    "expandScene": "Показать синопсис",
+    "collapseScene": "Скрыть синопсис",
+    "changeColor": "Цвет сцены",
+    "changeColorFor": "Цвет сцены {{number}}",
+    "headingFontScript": "Показывать заголовки шрифтом сценария",
+    "headingFontInterface": "Показывать заголовки шрифтом интерфейса",
+    "startsOnPage": "Начинается на странице {{label}}",
+    "synopsisFor": "Синопсис: {{heading}}",
+    "synopsisEditHint": "Enter — сохранить · Shift+Enter — новая строка · Esc — отмена",
+    "clickToEditSynopsis": "Нажмите, чтобы изменить синопсис",
+    "clickToAddSynopsis": "Добавить синопсис…",
+    "moreSceneOptions": "Ещё…",
+    "moreSceneOptionsTitle": "Синопсис, цвет и длительность сцены",
+    "sceneNotFound": "Этой сцены больше нет в сценарии.",
+    "sceneSaveFailed": "Не удалось сохранить сцену. Повторите попытку."
   },
   "beatBoard": {
     "title": "Доска битов",
@@ -567,5 +596,24 @@
     "linked": "Связано",
     "removeTitle": "Удалить персонажа",
     "removeConfirm": "Удалить «{{name}}» из списка персонажей?"
+  },
+  "storyMap": {
+    "title": "Карта истории",
+    "measureIn": "Измерять карту в",
+    "pages": "Страницах",
+    "pagesTip": "Размер сцен по длине в страницах",
+    "time": "Времени",
+    "timeTip": "Размер сцен по расчётному экранному времени",
+    "pagesTotal": "{{pages}} стр.",
+    "pagesShort": "{{pages}} с.",
+    "noLength": "Длины пока нет",
+    "close": "Закрыть {{title}}",
+    "empty": "Сцен пока нет. Напишите заголовок сцены (INT. или EXT.), и она появится здесь."
+  },
+  "splitScreen": {
+    "pageView": "Вид страницы",
+    "closePageView": "Закрыть вид страницы",
+    "noPages": "Страниц пока нет. Начните писать, и страницы появятся здесь.",
+    "close": "Закрыть разделённый экран"
   }
 }

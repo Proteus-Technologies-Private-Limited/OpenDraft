@@ -156,6 +156,8 @@ async function migrate(db: Database): Promise<void> {
       rules         TEXT NOT NULL,
       -- JSON array of element ids that must start on a new page (may be NULL)
       force_break_before TEXT DEFAULT NULL,
+      -- Script-wide line spacing (1 = standard; NULL = standard)
+      line_spacing  REAL DEFAULT NULL,
       created_at    TEXT NOT NULL,
       updated_at    TEXT NOT NULL
     );
@@ -344,6 +346,10 @@ async function migrateFromOldSchema(db: Database): Promise<void> {
   const tplColNames = new Set(tplCols.map((c: any) => c.name));
   if (!tplColNames.has('force_break_before')) {
     await db.execute(`ALTER TABLE formatting_templates ADD COLUMN force_break_before TEXT DEFAULT NULL`);
+  }
+  // ...and a script-wide line spacing (utils/lineSpacing). NULL is standard.
+  if (!tplColNames.has('line_spacing')) {
+    await db.execute(`ALTER TABLE formatting_templates ADD COLUMN line_spacing REAL DEFAULT NULL`);
   }
 }
 

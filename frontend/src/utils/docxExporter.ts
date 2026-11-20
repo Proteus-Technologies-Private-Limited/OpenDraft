@@ -47,6 +47,7 @@ import { resolveHeaderFooter, printedPageNumber } from '../stores/editorStore';
 import type { PageLayout, HeaderFooterContent } from '../stores/editorStore';
 import { getForceBreakIds, jsonStartsOwnPage } from './pageBreaks';
 import { getSpaceBefore, DEFAULT_SPACE_BEFORE } from './elementSpacing';
+import { getLineSpacing } from './lineSpacing';
 import { sanitizeExportFilename } from './exportFilename';
 import { findTitlePageRegion, titlePageAttrsCarryData } from './titlePageRegion';
 import { extractAvBodies } from './avDocument';
@@ -396,6 +397,8 @@ function buildElementParagraph(
   revisionMarks: RevisionSettings | null = null,
   dualColumn?: { width: number; first: boolean },
   highlightOpts: DocxHighlightOptions = {},
+  /** The paragraph's line pitch (utils/lineSpacing); 12pt at standard spacing. */
+  lineHeightPt: number = LINE_HEIGHT_PT,
 ): Paragraph {
   const typeName = node.type || 'general';
   const padding = DUAL_PADDING[typeName] ?? [0.3, 0.1];
@@ -477,7 +480,9 @@ function buildElementParagraph(
     ...(dualColumn ? { keepNext: ['character', 'parenthetical'].includes(typeName) } : {}),
     spacing: {
       before: sb * TWIPS_PER_POINT,
-      line: LINE_HEIGHT_PT * TWIPS_PER_POINT,
+      // Exact, so Word draws the pitch the editor and the PDF draw. Line
+      // spacing is in eighths of a line, which is 30 twips: always whole.
+      line: Math.round(lineHeightPt * TWIPS_PER_POINT),
       lineRule: LineRuleType.EXACT,
     },
     children,
@@ -788,6 +793,9 @@ export async function exportDocx(
   // Blank lines before each element, from the same template the editor
   // paginates with — resolved once so the whole document uses one answer.
   const spaceBeforeLines = getSpaceBefore();
+  // How far apart each element's lines are drawn — the template's line
+  // spacing, which the editor's pagination reads too.
+  const lineSpacing = getLineSpacing();
 
   // Tables live alongside paragraphs: an AV body is written as a real Word
   // table so Word repeats its header row and keeps each shot whole.
@@ -873,6 +881,7 @@ export async function exportDocx(
         revisionMarks,
         undefined,
         highlightOpts,
+        LINE_HEIGHT_PT * lineSpacing.multiplierOf(bodyNodes[i] as { type?: string; attrs?: Record<string, unknown> }),
       ),
     );
   }

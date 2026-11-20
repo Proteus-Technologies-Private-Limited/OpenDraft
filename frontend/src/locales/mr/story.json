@@ -10,7 +10,19 @@
     "customColor": "सानुकूल रंग",
     "pageSingular": "{{n}} पृष्ठ",
     "pagePlural": "{{n}} पृष्ठे",
-    "autoWithDuration": "आपोआप ({{duration}})"
+    "autoWithDuration": "आपोआप ({{duration}})",
+    "colors": {
+      "violet": "जांभळा",
+      "indigo": "पारवा",
+      "blue": "निळा",
+      "green": "हिरवा",
+      "yellow": "पिवळा",
+      "orange": "नारिंगी",
+      "red": "लाल",
+      "black": "काळा",
+      "white": "पांढरा",
+      "none": "रंग नाही"
+    }
   },
   "scriptProfile": {
     "title": "शैली आणि गती",
@@ -153,7 +165,10 @@
     "dragToReorder": "क्रम बदलण्यासाठी ड्रॅग करा",
     "goToScene": "सीनवर जाण्यासाठी क्लिक करा",
     "synopsisPlaceholder": "सारांश जोडा...",
-    "expandSynopsis": "सारांश विस्तृत करा"
+    "expandSynopsis": "सारांश विस्तृत करा",
+    "timeline": "टाइमलाइन",
+    "showTimeline": "दृश्य टाइमलाइन दाखवा",
+    "hideTimeline": "दृश्य टाइमलाइन लपवा"
   },
   "outline": {
     "title": "रूपरेषा",
@@ -359,9 +374,6 @@
     "pageSingular": "{{n}} पृष्ठ",
     "pagePlural": "{{n}} पृष्ठे",
     "pageAndDuration": "{{pages}} · {{duration}}",
-    "noSynopsis": "या सीनसाठी सारांश उपलब्ध नाही.",
-    "editSynopsis": "संपादित करा",
-    "addSynopsis": "+ जोडा",
     "noPages": "अद्याप पृष्ठे नाहीत. पृष्ठ पूर्वावलोकन पाहण्यासाठी लिहायला सुरुवात करा.",
     "pageLabel": "पृष्ठ {{label}}",
     "sectionCount_one": "{{count}} विभाग",
@@ -381,7 +393,24 @@
     "noLocations": "अद्याप लोकेशन नाहीत. “INT. COFFEE SHOP - DAY” सारखे सीन हेडिंग येथे दिसतील.",
     "renameLocation": "लोकेशनचे नाव बदला",
     "skippedHeadings_one": "ओळ खंड असलेले {{count}} सीन हेडिंग वगळले",
-    "skippedHeadings_other": "ओळ खंड असलेले {{count}} सीन हेडिंग वगळले"
+    "skippedHeadings_other": "ओळ खंड असलेले {{count}} सीन हेडिंग वगळले",
+    "showAllSynopses": "सर्व सारांश दाखवा",
+    "hideAllSynopses": "सर्व सारांश लपवा",
+    "expandScene": "सारांश दाखवा",
+    "collapseScene": "सारांश लपवा",
+    "changeColor": "सीनचा रंग",
+    "changeColorFor": "सीन {{number}} चा रंग",
+    "headingFontScript": "हेडिंग स्क्रिप्टच्या फॉन्टमध्ये दाखवा",
+    "headingFontInterface": "हेडिंग इंटरफेसच्या फॉन्टमध्ये दाखवा",
+    "startsOnPage": "पृष्ठ {{label}} पासून सुरू होतो",
+    "synopsisFor": "{{heading}} चा सारांश",
+    "synopsisEditHint": "Enter सेव्ह करते · Shift+Enter नवीन ओळ जोडते · Esc रद्द करते",
+    "clickToEditSynopsis": "सारांश संपादित करण्यासाठी क्लिक करा",
+    "clickToAddSynopsis": "सारांश जोडा…",
+    "moreSceneOptions": "अधिक…",
+    "moreSceneOptionsTitle": "सारांश, रंग आणि सीनचा कालावधी",
+    "sceneNotFound": "तो सीन आता स्क्रिप्टमध्ये नाही.",
+    "sceneSaveFailed": "सीन सेव्ह करता आला नाही. पुन्हा प्रयत्न करा."
   },
   "beatBoard": {
     "title": "बीट बोर्ड",
@@ -531,5 +560,24 @@
     "linked": "जोडलेले",
     "removeTitle": "पात्र काढा",
     "removeConfirm": "“{{name}}” पात्र यादीतून काढायचे?"
+  },
+  "storyMap": {
+    "title": "कथा नकाशा",
+    "measureIn": "नकाशाचे मोजमाप",
+    "pages": "पृष्ठे",
+    "pagesTip": "दृश्यांचा आकार पृष्ठ लांबीनुसार",
+    "time": "वेळ",
+    "timeTip": "दृश्यांचा आकार अंदाजे स्क्रीन वेळेनुसार",
+    "pagesTotal": "{{pages}} पृष्ठे",
+    "pagesShort": "{{pages}}पृ",
+    "noLength": "अद्याप लांबी नाही",
+    "close": "{{title}} बंद करा",
+    "empty": "अद्याप दृश्ये नाहीत. दृश्य शीर्षक (INT. किंवा EXT.) लिहा, ते इथे दिसेल."
+  },
+  "splitScreen": {
+    "pageView": "पृष्ठ दृश्य",
+    "closePageView": "पृष्ठ दृश्य बंद करा",
+    "noPages": "अद्याप पृष्ठे नाहीत. लिहायला सुरुवात करा, पृष्ठे इथे दिसतील.",
+    "close": "स्प्लिट स्क्रीन बंद करा"
   }
 }

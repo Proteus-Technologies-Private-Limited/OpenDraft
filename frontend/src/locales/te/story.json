@@ -10,7 +10,19 @@
     "customColor": "అనుకూల రంగు",
     "pageSingular": "{{n}} పేజీ",
     "pagePlural": "{{n}} పేజీలు",
-    "autoWithDuration": "ఆటో ({{duration}})"
+    "autoWithDuration": "ఆటో ({{duration}})",
+    "colors": {
+      "violet": "ఊదా",
+      "indigo": "ముదురు నీలం",
+      "blue": "నీలం",
+      "green": "ఆకుపచ్చ",
+      "yellow": "పసుపు",
+      "orange": "నారింజ",
+      "red": "ఎరుపు",
+      "black": "నలుపు",
+      "white": "తెలుపు",
+      "none": "రంగు లేదు"
+    }
   },
   "scriptProfile": {
     "title": "జానర్ & వేగం",
@@ -153,7 +165,10 @@
     "dragToReorder": "క్రమం మార్చడానికి లాగండి",
     "goToScene": "సీన్‌కు వెళ్లడానికి క్లిక్ చేయండి",
     "synopsisPlaceholder": "సినాప్సిస్ జోడించండి...",
-    "expandSynopsis": "సినాప్సిస్‌ను విస్తరించు"
+    "expandSynopsis": "సినాప్సిస్‌ను విస్తరించు",
+    "timeline": "టైమ్‌లైన్",
+    "showTimeline": "సన్నివేశ టైమ్‌లైన్ చూపండి",
+    "hideTimeline": "సన్నివేశ టైమ్‌లైన్ దాచండి"
   },
   "outline": {
     "title": "అవుట్‌లైన్",
@@ -359,9 +374,6 @@
     "pageSingular": "{{n}} పేజీ",
     "pagePlural": "{{n}} పేజీలు",
     "pageAndDuration": "{{pages}} · {{duration}}",
-    "noSynopsis": "ఈ సీన్‌కు సినాప్సిస్ అందుబాటులో లేదు.",
-    "editSynopsis": "సవరించు",
-    "addSynopsis": "+ జోడించు",
     "noPages": "ఇంకా పేజీలు లేవు. పేజీ ప్రివ్యూలు చూడటానికి రాయడం ప్రారంభించండి.",
     "pageLabel": "పేజీ {{label}}",
     "sectionCount_one": "{{count}} సెక్షన్",
@@ -381,7 +393,24 @@
     "noLocations": "ఇంకా లొకేషన్‌లు లేవు. “INT. COFFEE SHOP - DAY” వంటి సీన్ హెడ్డింగ్‌లు ఇక్కడ కనిపిస్తాయి.",
     "renameLocation": "లొకేషన్ పేరు మార్చు",
     "skippedHeadings_one": "లైన్ బ్రేక్ ఉన్న {{count}} సీన్ హెడ్డింగ్‌ను వదిలేశాం",
-    "skippedHeadings_other": "లైన్ బ్రేక్ ఉన్న {{count}} సీన్ హెడ్డింగ్‌లను వదిలేశాం"
+    "skippedHeadings_other": "లైన్ బ్రేక్ ఉన్న {{count}} సీన్ హెడ్డింగ్‌లను వదిలేశాం",
+    "showAllSynopses": "అన్ని సినాప్సిస్‌లను చూపు",
+    "hideAllSynopses": "అన్ని సినాప్సిస్‌లను దాచు",
+    "expandScene": "సినాప్సిస్ చూపు",
+    "collapseScene": "సినాప్సిస్ దాచు",
+    "changeColor": "సీన్ రంగు",
+    "changeColorFor": "సీన్ {{number}} రంగు",
+    "headingFontScript": "హెడ్డింగ్‌లను స్క్రిప్ట్ ఫాంట్‌లో చూపు",
+    "headingFontInterface": "హెడ్డింగ్‌లను ఇంటర్‌ఫేస్ ఫాంట్‌లో చూపు",
+    "startsOnPage": "పేజీ {{label}}లో ప్రారంభమవుతుంది",
+    "synopsisFor": "{{heading}} సినాప్సిస్",
+    "synopsisEditHint": "Enter సేవ్ చేస్తుంది · Shift+Enter కొత్త లైన్ జోడిస్తుంది · Esc రద్దు చేస్తుంది",
+    "clickToEditSynopsis": "సినాప్సిస్‌ను సవరించడానికి క్లిక్ చేయండి",
+    "clickToAddSynopsis": "సినాప్సిస్ జోడించండి…",
+    "moreSceneOptions": "మరిన్ని…",
+    "moreSceneOptionsTitle": "సినాప్సిస్, రంగు మరియు సీన్ నిడివి",
+    "sceneNotFound": "ఆ సీన్ ఇక స్క్రిప్ట్‌లో లేదు.",
+    "sceneSaveFailed": "సీన్‌ను సేవ్ చేయలేకపోయాం. మళ్లీ ప్రయత్నించండి."
   },
   "beatBoard": {
     "title": "బీట్ బోర్డ్",
@@ -531,5 +560,24 @@
     "linked": "లింక్ అయింది",
     "removeTitle": "క్యారెక్టర్‌ను తీసివేయి",
     "removeConfirm": "క్యారెక్టర్ జాబితా నుండి “{{name}}”ను తీసివేయాలా?"
+  },
+  "storyMap": {
+    "title": "స్టోరీ మ్యాప్",
+    "measureIn": "మ్యాప్‌ను కొలిచేది",
+    "pages": "పేజీలు",
+    "pagesTip": "సన్నివేశాలను పేజీ నిడివి ప్రకారం చూపండి",
+    "time": "సమయం",
+    "timeTip": "సన్నివేశాలను అంచనా స్క్రీన్ సమయం ప్రకారం చూపండి",
+    "pagesTotal": "{{pages}} పేజీలు",
+    "pagesShort": "{{pages}}పే",
+    "noLength": "నిడివి ఇంకా లేదు",
+    "close": "{{title}} మూసివేయి",
+    "empty": "సన్నివేశాలు ఇంకా లేవు. సీన్ హెడ్డింగ్ (INT. లేదా EXT.) రాస్తే అది ఇక్కడ కనిపిస్తుంది."
+  },
+  "splitScreen": {
+    "pageView": "పేజీ వీక్షణ",
+    "closePageView": "పేజీ వీక్షణను మూసివేయి",
+    "noPages": "పేజీలు ఇంకా లేవు. రాయడం మొదలుపెడితే పేజీలు ఇక్కడ కనిపిస్తాయి.",
+    "close": "స్ప్లిట్ స్క్రీన్ మూసివేయి"
   }
 }

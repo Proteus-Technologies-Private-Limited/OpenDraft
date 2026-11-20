@@ -6,6 +6,7 @@ import { CUSTOM_TYPE_TO_FDX } from './fdxParser';
 import { jsonBlockText } from './nodeText';
 import { sanitizeExportFilename } from './exportFilename';
 import { isNonPrintingType } from './nonPrinting';
+import { getLineSpacing, fdxSpacing } from './lineSpacing';
 import { noteBlockText } from './noteContent';
 import type { FootnotePlan } from './footnotes';
 import { DEFAULT_TITLE_PAGE_CREDIT } from './titlePageBlocks';
@@ -163,7 +164,14 @@ function stripHtml(html: string): string {
  * a script's typeface — writing it only on the runs would leave the file
  * claiming Courier while its text says otherwise.
  */
-function buildElementSettings(lm: number, ri: number, font: string, size: string): string {
+function buildElementSettings(
+  lm: number,
+  ri: number,
+  font: string,
+  size: string,
+  /** Each element's line spacing, as Final Draft's `Spacing` (1 = single). */
+  spacing: (elementId: string) => string = () => '1',
+): string {
   // lm = left margin (Action LeftIndent), ri = Action RightIndent
   const f = (n: number) => n.toFixed(2);
   // Offsets from the standard Action indent (1.25/7.25) for each element type
@@ -175,67 +183,67 @@ function buildElementSettings(lm: number, ri: number, font: string, size: string
   return `
   <ElementSettings Type="Scene Heading">
     <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="${esc(font)}" RevisionID="0" Size="${esc(size)}" Style="AllCaps"/>
-    <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="${f(lm)}" RightIndent="${f(ri)}" SpaceBefore="24" Spacing="1" StartsNewPage="No"/>
+    <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="${f(lm)}" RightIndent="${f(ri)}" SpaceBefore="24" Spacing="${spacing('sceneHeading')}" StartsNewPage="No"/>
     <Behavior PaginateAs="Scene Heading" ReturnKey="Action" Shortcut="1"/>
   </ElementSettings>
   <ElementSettings Type="Action">
     <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="${esc(font)}" RevisionID="0" Size="${esc(size)}" Style=""/>
-    <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="${f(lm)}" RightIndent="${f(ri)}" SpaceBefore="12" Spacing="1" StartsNewPage="No"/>
+    <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="${f(lm)}" RightIndent="${f(ri)}" SpaceBefore="12" Spacing="${spacing('action')}" StartsNewPage="No"/>
     <Behavior PaginateAs="Action" ReturnKey="Action" Shortcut="2"/>
   </ElementSettings>
   <ElementSettings Type="Character">
     <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="${esc(font)}" RevisionID="0" Size="${esc(size)}" Style="AllCaps"/>
-    <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="${f(character_l)}" RightIndent="${f(ri)}" SpaceBefore="12" Spacing="1" StartsNewPage="No"/>
+    <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="${f(character_l)}" RightIndent="${f(ri)}" SpaceBefore="12" Spacing="${spacing('character')}" StartsNewPage="No"/>
     <Behavior PaginateAs="Character" ReturnKey="Dialogue" Shortcut="3"/>
   </ElementSettings>
   <ElementSettings Type="Parenthetical">
     <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="${esc(font)}" RevisionID="0" Size="${esc(size)}" Style=""/>
-    <ParagraphSpec Alignment="Left" FirstIndent="-0.10" Leading="Regular" LeftIndent="${f(parenthetical_l)}" RightIndent="${f(parenthetical_r)}" SpaceBefore="0" Spacing="1" StartsNewPage="No"/>
+    <ParagraphSpec Alignment="Left" FirstIndent="-0.10" Leading="Regular" LeftIndent="${f(parenthetical_l)}" RightIndent="${f(parenthetical_r)}" SpaceBefore="0" Spacing="${spacing('parenthetical')}" StartsNewPage="No"/>
     <Behavior PaginateAs="Parenthetical" ReturnKey="Dialogue" Shortcut="4"/>
   </ElementSettings>
   <ElementSettings Type="Dialogue">
     <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="${esc(font)}" RevisionID="0" Size="${esc(size)}" Style=""/>
-    <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="${f(dialogue_l)}" RightIndent="${f(dialogue_r)}" SpaceBefore="0" Spacing="1" StartsNewPage="No"/>
+    <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="${f(dialogue_l)}" RightIndent="${f(dialogue_r)}" SpaceBefore="0" Spacing="${spacing('dialogue')}" StartsNewPage="No"/>
     <Behavior PaginateAs="Dialogue" ReturnKey="Action" Shortcut="5"/>
   </ElementSettings>
   <ElementSettings Type="Transition">
     <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="${esc(font)}" RevisionID="0" Size="${esc(size)}" Style="AllCaps"/>
-    <ParagraphSpec Alignment="Right" FirstIndent="0.00" Leading="Regular" LeftIndent="${f(transition_l)}" RightIndent="${f(transition_r)}" SpaceBefore="12" Spacing="1" StartsNewPage="No"/>
+    <ParagraphSpec Alignment="Right" FirstIndent="0.00" Leading="Regular" LeftIndent="${f(transition_l)}" RightIndent="${f(transition_r)}" SpaceBefore="12" Spacing="${spacing('transition')}" StartsNewPage="No"/>
     <Behavior PaginateAs="Transition" ReturnKey="Scene Heading" Shortcut="6"/>
   </ElementSettings>
   <ElementSettings Type="Shot">
     <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="${esc(font)}" RevisionID="0" Size="${esc(size)}" Style="AllCaps"/>
-    <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="${f(lm)}" RightIndent="${f(ri)}" SpaceBefore="12" Spacing="1" StartsNewPage="No"/>
+    <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="${f(lm)}" RightIndent="${f(ri)}" SpaceBefore="12" Spacing="${spacing('shot')}" StartsNewPage="No"/>
     <Behavior PaginateAs="Scene Heading" ReturnKey="Action" Shortcut="7"/>
   </ElementSettings>
   <ElementSettings Type="General">
     <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="${esc(font)}" RevisionID="0" Size="${esc(size)}" Style=""/>
-    <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="${f(lm)}" RightIndent="${f(ri)}" SpaceBefore="0" Spacing="1" StartsNewPage="No"/>
+    <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="${f(lm)}" RightIndent="${f(ri)}" SpaceBefore="0" Spacing="${spacing('general')}" StartsNewPage="No"/>
     <Behavior PaginateAs="General" ReturnKey="General" Shortcut="0"/>
   </ElementSettings>
   <ElementSettings Type="Cast List">
     <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="${esc(font)}" RevisionID="0" Size="${esc(size)}" Style="AllCaps"/>
-    <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="${f(castList_l)}" RightIndent="${f(castList_r)}" SpaceBefore="0" Spacing="1" StartsNewPage="No"/>
+    <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="${f(castList_l)}" RightIndent="${f(castList_r)}" SpaceBefore="0" Spacing="${spacing('castList')}" StartsNewPage="No"/>
     <Behavior PaginateAs="Action" ReturnKey="Action" Shortcut="8"/>
   </ElementSettings>
   <ElementSettings Type="Lyrics">
     <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="${esc(font)}" RevisionID="0" Size="${esc(size)}" Style="Italic"/>
-    <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="${f(dialogue_l)}" RightIndent="${f(dialogue_r)}" SpaceBefore="0" Spacing="1" StartsNewPage="No"/>
+    <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="${f(dialogue_l)}" RightIndent="${f(dialogue_r)}" SpaceBefore="0" Spacing="${spacing('lyrics')}" StartsNewPage="No"/>
     <Behavior PaginateAs="Dialogue" ReturnKey="Action" Shortcut="0"/>
   </ElementSettings>
   <ElementSettings Type="New Act">
     <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="${esc(font)}" RevisionID="0" Size="${esc(size)}" Style="Bold+Underline+AllCaps"/>
-    <ParagraphSpec Alignment="Center" FirstIndent="0.00" Leading="Regular" LeftIndent="${f(lm)}" RightIndent="${f(ri)}" SpaceBefore="24" Spacing="1" StartsNewPage="Yes"/>
+    <ParagraphSpec Alignment="Center" FirstIndent="0.00" Leading="Regular" LeftIndent="${f(lm)}" RightIndent="${f(ri)}" SpaceBefore="24" Spacing="${spacing('newAct')}" StartsNewPage="Yes"/>
     <Behavior PaginateAs="Action" ReturnKey="Scene Heading" Shortcut="0"/>
   </ElementSettings>
   <ElementSettings Type="End of Act">
     <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="${esc(font)}" RevisionID="0" Size="${esc(size)}" Style="Bold+AllCaps"/>
-    <ParagraphSpec Alignment="Center" FirstIndent="0.00" Leading="Regular" LeftIndent="${f(lm)}" RightIndent="${f(ri)}" SpaceBefore="24" Spacing="1" StartsNewPage="No"/>
+    <ParagraphSpec Alignment="Center" FirstIndent="0.00" Leading="Regular" LeftIndent="${f(lm)}" RightIndent="${f(ri)}" SpaceBefore="24" Spacing="${spacing('endOfAct')}" StartsNewPage="No"/>
     <Behavior PaginateAs="Action" ReturnKey="New Act" Shortcut="0"/>
   </ElementSettings>
   <ElementSettings Type="Show/Episode">
     <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="${esc(font)}" RevisionID="0" Size="${esc(size)}" Style="Bold+AllCaps"/>
-    <ParagraphSpec Alignment="Center" FirstIndent="0.00" Leading="Regular" LeftIndent="${f(lm)}" RightIndent="${f(ri)}" SpaceBefore="12" Spacing="1" StartsNewPage="No"/>
+    <ParagraphSpec Alignment="Center" FirstIndent="0.00" Leading="Regular" LeftIndent="${f(lm)}" RightIndent="${f(ri)}" SpaceBefore="12" Spacing="${spacing('showEpisode')}" StartsNewPage="No"/>
     <Behavior PaginateAs="Action" ReturnKey="Action" Shortcut="0"/>
   </ElementSettings>
   <ElementSettings Type="Outline 1">
@@ -398,7 +406,11 @@ export function exportFDX(doc: JSONContent, _title: string = 'Untitled', charact
   // Element settings — use actual margins so re-import round-trips correctly
   const leftIndent = pageLayout?.leftMargin ?? 1.25;
   const rightIndent = pageLayout ? (pageLayout.pageWidth - pageLayout.rightMargin) : 7.25;
-  lines.push(buildElementSettings(leftIndent, rightIndent, docFont, docFontSize));
+  // Line spacing (utils/lineSpacing) is Final Draft's own `Spacing`, so a
+  // script opened up here opens up there — and comes back the same way.
+  const lineSpacing = getLineSpacing();
+  lines.push(buildElementSettings(leftIndent, rightIndent, docFont, docFontSize,
+    (elementId) => fdxSpacing(lineSpacing.multiplierOf({ type: elementId }))));
   lines.push('');
 
   // Header and footer — the document's own settings, not a fixed page number.

@@ -1,16 +1,25 @@
-Made for iPhone Duo, plus Script Health and spellcheck in several languages.
+Arrange your workspace your way, write side by side with your pages or cards, and draft in one continuous scroll.
 
-MADE FOR IPHONE DUO
-OpenDraft now arranges itself for each way you hold your iPhone Duo. Folded, your script fills the cover screen. Open it like a book and the script takes one page, with your panels on the other. Prop it half open like a laptop and your panels sit below the script. The layouts you pick folded and open are remembered separately.
+YOUR WORKSPACE, YOUR WAY
+Choose what sits on the toolbar and the status bar, and in what order. Whatever doesn't fit on the screen is one tap away, just above the status bar. On a larger screen, put the Navigator and every panel where you want them and save layouts you can switch between in one tap.
 
-SCRIPT HEALTH
-A quick check finds empty scene headings, unfinished dialogue and notes you haven't dealt with. It runs on your device and needs no account.
+ONE ZOOM CONTROL
+Zoom with buttons, a slider or both, and fit the page to the width of the screen in one tap. Keep it on the status bar or move it to the toolbar.
 
-SPELLCHECK IN SEVERAL LANGUAGES
-Writing in more than one language? Tick every dictionary you need and they all check at once.
+SPLIT SCREEN
+Keep the printed page, your index cards, the outline or the beat board open beside the script.
 
-EASIER WITH A KEYBOARD OR SCREEN READER
-Menus, panels and dialogs can all be worked from the keyboard, and notifications are read aloud.
+SPEED VIEW
+Write in one continuous scroll without page breaks. Your page count and exports stay exactly the same.
+
+STORY MAP
+See your whole story as a strip of scenes, sized by pages or screen time, and jump to any scene.
+
+A HANDIER NAVIGATOR
+Edit synopses right in the list, colour scenes, and see the page each scene starts on.
+
+LINE SPACING AND FONT SIZE
+Open up the spacing or change the script's font size, and the pages and PDF follow.
 
 ALSO IMPROVED
-Long scripts stay quick while you type, and printing without the title page leaves it out again.
+Settings are easier to find, PDFs print accented letters and more languages correctly, foldable layouts fit better, and Table Read keeps its place while you edit.

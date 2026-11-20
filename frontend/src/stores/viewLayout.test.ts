@@ -48,6 +48,50 @@ describe('viewLayout', () => {
     expect(saved()).toMatchObject({ viewLayout: 'page' });
   });
 
+  it('remembers the speed view', async () => {
+    localStorage.setItem(VIEW_STATE_KEY, JSON.stringify({ viewLayout: 'speed' }));
+    const store = await freshStore(false);
+    expect(store.getState().viewLayout).toBe('speed');
+  });
+
+  it('writes the speed choice to the view state', async () => {
+    const store = await freshStore(false);
+    store.getState().setViewLayout('speed');
+    expect(saved()).toMatchObject({ viewLayout: 'speed' });
+  });
+
+  it('opens the speed view at its own zoom, or the page zoom when it has none', async () => {
+    localStorage.setItem(VIEW_STATE_KEY, JSON.stringify({ zoomLevel: 75, phoneZoomLevel: 130, speedZoomLevel: 90 }));
+    let store = await freshStore(false);
+    store.getState().setViewLayout('speed');
+    expect(store.getState().zoomLevel).toBe(90);
+
+    localStorage.setItem(VIEW_STATE_KEY, JSON.stringify({ zoomLevel: 75, phoneZoomLevel: 130 }));
+    store = await freshStore(false);
+    store.getState().setViewLayout('speed');
+    expect(store.getState().zoomLevel).toBe(75);
+  });
+
+  it('saves the speed zoom apart from the page and phone zooms', async () => {
+    localStorage.setItem(VIEW_STATE_KEY, JSON.stringify({ zoomLevel: 80, phoneZoomLevel: 130 }));
+    const store = await freshStore(false);
+    store.getState().setViewLayout('speed');
+    store.getState().setZoomLevel(95);
+    expect(saved()).toMatchObject({ speedZoomLevel: 95, zoomLevel: 80, phoneZoomLevel: 130 });
+
+    store.getState().setViewLayout('page');
+    expect(store.getState().zoomLevel).toBe(80);
+    store.getState().setViewLayout('speed');
+    expect(store.getState().zoomLevel).toBe(95);
+  });
+
+  it('keeps a saved speed view when the device changes', async () => {
+    localStorage.setItem(VIEW_STATE_KEY, JSON.stringify({ viewLayout: 'speed' }));
+    const store = await freshStore(true);
+    store.getState().followDevice(true);
+    expect(store.getState().viewLayout).toBe('speed');
+  });
+
   it('opens the phone view at full-size text, whatever the page view was fitted to', async () => {
     // The page view on a phone is fitted to the screen, so its stored zoom is ~50.
     localStorage.setItem(VIEW_STATE_KEY, JSON.stringify({ zoomLevel: 50 }));

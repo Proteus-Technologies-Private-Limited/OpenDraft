@@ -170,7 +170,9 @@
     "overrideOff": "Todo el formato está bloqueado: los usuarios no pueden cambiar ningún estilo de este elemento.",
     "preview": "Vista previa",
     "sampleText": "Texto de ejemplo...",
-    "selectElement": "Selecciona un elemento de la lista para editar su formato."
+    "selectElement": "Selecciona un elemento de la lista para editar su formato.",
+    "lineSpacing": "Interlineado",
+    "lineSpacingHint": "Amplía las líneas de todos los elementos. Un elemento que el formato ya espacia, como el diálogo a doble espacio, se amplía en la misma proporción. El número de páginas corresponde al guion abierto."
   },
   "select": {
     "title": "Formato de guion / plantilla",

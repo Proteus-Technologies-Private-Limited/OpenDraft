@@ -100,7 +100,7 @@ const SaveSettingsSection: React.FC = () => {
 
   return (
     <section className="settings-section">
-      <h2 className="settings-section-title">{t('saving.title')}</h2>
+      <h3 className="settings-section-title">{t('saving.title')}</h3>
       <p className="settings-section-desc">
         <Trans ns="settings" i18nKey="saving.description" components={{ strong: <strong /> }} />
       </p>
@@ -154,7 +154,7 @@ const SaveSettingsSection: React.FC = () => {
 
       {desktop && (
         <>
-          <h3 className="settings-subsection-title" style={{ margin: '18px 0 6px', fontSize: 14 }}>{t('saving.projectFolders')}</h3>
+          <h4 className="settings-subsection-title" style={{ margin: '18px 0 6px', fontSize: 14 }}>{t('saving.projectFolders')}</h4>
           <p className="settings-section-desc">
             {t('saving.projectFoldersDesc')}
           </p>

@@ -66,7 +66,7 @@ const MacroSettingsSection: React.FC = () => {
 
   return (
     <section className="settings-section" id="macros" ref={sectionRef}>
-      <h2 className="settings-section-title">{t('macros.title')}</h2>
+      <h3 className="settings-section-title">{t('macros.title')}</h3>
       <p className="settings-section-desc">
         {t('macros.description')}
       </p>

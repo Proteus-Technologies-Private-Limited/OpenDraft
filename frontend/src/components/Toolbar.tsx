@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useState, useCallback, useRef, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Editor } from '@tiptap/react';
 import type { Mark } from '@tiptap/pm/model';
@@ -16,7 +16,6 @@ import {
   FaUndo,
   FaRedo,
   FaSearchPlus,
-  FaSearchMinus,
   FaSearch,
   FaStickyNote,
   FaTags,
@@ -26,6 +25,20 @@ import {
   FaHashtag,
   FaPlus,
   FaTrashAlt,
+  FaFile,
+  FaFolderOpen,
+  FaSave,
+  FaFilePdf,
+  FaFileAlt,
+  FaListOl,
+  FaTable,
+  FaSun,
+  FaMoon,
+  FaCompass,
+  FaSlidersH,
+  FaParagraph,
+  FaFont,
+  FaTextHeight,
 } from 'react-icons/fa';
 import { useEditorStore, useEditorFields } from '../stores/editorStore';
 import { useEditorSelector } from '../hooks/useEditorTransactions';
@@ -51,11 +64,30 @@ import { isInAvCell, isInAvRow, avCellSideAt } from '../editor/extensions/AvBloc
 import { avCellElementRules, scriptBodyElementRules } from '../utils/avCellElements';
 import Select from './Select';
 import { useFoldState } from '../hooks/useFoldState';
+import { useWorkspaceDocksAvailable } from '../hooks/useWorkspaceDocks';
+import { usePhoneScreen } from '../hooks/usePhoneScreen';
 import { PHONE_DEVICE_CHANGE_EVENT } from '../utils/phoneDevice';
 import { FOLD_CHANGE_EVENT } from '../utils/foldPosture';
 import { formatShortcut } from '../utils/shortcuts';
 import { elementShortcutSpec } from '../utils/elementShortcuts';
 import { elementLabel, elementDescription } from '../editor/elementLabels';
+import { pluginRegistry } from '../plugins/registry';
+import { requestAppCommand } from '../utils/appCommands';
+import {
+  TOOLBAR_PANEL_PREFIX,
+  TOOLBAR_PLUGIN_PREFIX,
+  effectiveLabel,
+  splitBySide,
+  toolbarItemDefinition,
+  effectiveZoomStyle,
+  type ToolbarBar,
+  type ToolbarLabelMode,
+} from '../utils/toolbarLayout';
+import { togglePanel, usePanelOpen } from '../utils/panelActions';
+import { panelIcon, usePanelLabel } from './toolbar/toolbarMeta';
+import ZoomControl from './toolbar/ZoomControl';
+import LayoutSwitcher from './toolbar/LayoutSwitcher';
+import ViewsMenu from './toolbar/ViewsMenu';
 
 interface ToolbarProps {
   editor: Editor | null;
@@ -66,6 +98,12 @@ const shortcutFor = (id: string): string | undefined => {
   const spec = elementShortcutSpec(id);
   return spec ? formatShortcut(spec) : undefined;
 };
+
+/** Whether the selection is the whole script — Select All, or every position. */
+function selectionCoversScript(state: import('@tiptap/pm/state').EditorState): boolean {
+  const { from, to } = state.selection;
+  return from <= 1 && to >= state.doc.content.size - 1;
+}
 
 const FONT_SIZES = [8, 9, 10, 11, 12, 13, 14, 16, 18, 20, 24, 28, 32, 36, 48, 60, 72, 96];
 
@@ -95,20 +133,119 @@ function selectCaret(ed: Editor | null) {
   };
 }
 
-// Priority groups — higher number = hidden first when toolbar shrinks.
-// Priority 1 = zoom-out (just the minus button area)
-// Priority 2 = zoom/goto/search
-// Priority 3 = alignment buttons
-// Priority 4 = font style & colors (bold/italic/underline/strike/sub/super + colors + language)
-// Priority 5 = font face & size
-const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
+/** A button's face: its icon, its name, or both, as the writer chose. */
+function face(mode: ToolbarLabelMode, icon: React.ReactNode, text: string): React.ReactNode {
+  return (
+    <>
+      {mode !== 'text' && icon}
+      {(mode === 'text' || mode === 'both') && <span className="toolbar-btn-label">{text}</span>}
+    </>
+  );
+}
+
+/** The heading before a drop-down; drop-downs alone may show none. */
+function heading(mode: ToolbarLabelMode, icon: React.ReactNode, text: string): React.ReactNode {
+  if (mode === 'none') return null;
+  return <span className="toolbar-heading" aria-hidden="true">{face(mode, icon, text)}</span>;
+}
+
+/** A button that opens one workspace panel wherever the layout puts it. */
+function PanelButton({ panel, mode, onDone }: { panel: string; mode: ToolbarLabelMode; onDone?: () => void }) {
+  const open = usePanelOpen(panel);
+  const panelLabel = usePanelLabel();
+  const label = panelLabel(panel);
+  return (
+    <div className="toolbar-group">
+      <button
+        type="button"
+        className={`toolbar-btn${open ? ' active' : ''}`}
+        aria-pressed={open}
+        title={label}
+        aria-label={mode === 'icon' ? label : undefined}
+        onClick={() => { togglePanel(panel); onDone?.(); }}
+      >
+        {face(mode, panelIcon(panel), label)}
+      </button>
+    </div>
+  );
+}
+
+/** Right-click on either bar: customise it. */
+function BarContextMenu({ at, onClose }: { at: { x: number; y: number }; onClose: () => void }) {
+  const { t } = useTranslation('toolbar');
+  const setLayoutDialog = useEditorStore((s) => s.setLayoutDialog);
+  const docksAvailable = useWorkspaceDocksAvailable();
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const onDown = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) onClose(); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    ref.current?.querySelector<HTMLButtonElement>('button')?.focus();
+    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
+  }, [onClose]);
+  return (
+    <div ref={ref} className="toolbar-context-menu" style={{ left: at.x, top: at.y }} role="menu" aria-label={t('layout.customiseBars')}
+      onContextMenu={(e) => e.stopPropagation()}>
+      <button type="button" className="toolbar-context-item" role="menuitem" onClick={() => { onClose(); setLayoutDialog('toolbar'); }}>
+        <FaSlidersH /> {t('layout.customiseBars')}
+      </button>
+      {/* Panel layouts only where the docks exist (useWorkspaceDocks). */}
+      {docksAvailable && (
+        <button type="button" className="toolbar-context-item" role="menuitem" onClick={() => { onClose(); setLayoutDialog('panels'); }}>
+          <FaCompass /> {t('layout.editLayouts')}
+        </button>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Right-click a bar for Customise. Inputs and drop-downs keep their own menu
+ * (paste into the zoom box, for instance).
+ */
+function useBarContextMenu() {
+  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
+  const onContextMenu = useCallback((e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('input, textarea, select, [contenteditable="true"]')) return;
+    e.preventDefault();
+    setMenu({ x: Math.min(e.clientX, window.innerWidth - 240), y: Math.min(e.clientY, window.innerHeight - 100) });
+  }, []);
+  const close = useCallback(() => setMenu(null), []);
+  const element = menu ? <BarContextMenu at={menu} onClose={close} /> : null;
+  return { onContextMenu, element };
+}
+
+interface ControlBarProps {
+  editor: Editor | null;
+  bar: ToolbarBar;
+  /**
+   * The footer's controls between two status lines (StatusBar.tsx), in order.
+   * The toolbar draws its own bar's controls on all three sides.
+   */
+  items?: string[];
+  /**
+   * Footer controls that did not fit the strip (StatusBar.tsx): drawn unseen
+   * at their full width, to be measured again, while the row shows them.
+   */
+  hidden?: ReadonlySet<string>;
+  /** The script pane, for the zoom's Fit width. */
+  editorMain?: HTMLElement | null;
+}
+
+/**
+ * The controls of one bar, in the writer's order (toolbarLayout.ts). The
+ * toolbar folds what does not fit into its "…" menu; the footer shows what it
+ * has been given.
+ */
+const ControlBar: React.FC<ControlBarProps> = ({ editor, bar, items, hidden, editorMain = null }) => {
   const foldState = useFoldState();
+  const docksAvailable = useWorkspaceDocksAvailable();
   const { t } = useTranslation(['toolbar', 'common']);
   const {
     activeElement,
     setActiveElement,
-    zoomLevel,
-    setZoomLevel,
     zoomPanelOpen,
     setZoomPanelOpen,
     fontFamily,
@@ -123,11 +260,18 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
     setEditingTagId,
     toolbarMode: savedToolbarMode,
     focusMode,
+    toolbarLayout,
+    setLayoutDialog,
+    navigatorOpen,
+    toggleNavigator,
+    appearance,
+    setAppearance,
+    sceneNumbersVisible,
+    setSceneNumbersVisible,
+    pageLayout,
   } = useEditorFields(
     'activeElement',
     'setActiveElement',
-    'zoomLevel',
-    'setZoomLevel',
     'zoomPanelOpen',
     'setZoomPanelOpen',
     'fontFamily',
@@ -142,7 +286,23 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
     'setEditingTagId',
     'toolbarMode',
     'focusMode',
+    'toolbarLayout',
+    'setLayoutDialog',
+    'navigatorOpen',
+    'toggleNavigator',
+    'appearance',
+    'setAppearance',
+    'sceneNumbersVisible',
+    'setSceneNumbersVisible',
+    'pageLayout',
   );
+  const isTop = bar === 'top';
+  const phone = usePhoneScreen();
+  /** The label a control shows here: a phone's toolbar has room for icons only. */
+  const labelOf = useCallback((id: string): ToolbarLabelMode => {
+    const mode = effectiveLabel(id, bar, toolbarLayout);
+    return isTop && phone && (mode === 'text' || mode === 'both') ? 'icon' : mode;
+  }, [bar, toolbarLayout, isTop, phone]);
   // Focus Mode hides the toolbar like Hidden does, keeping the saved choice.
   const toolbarMode = focusMode ? 'hidden' : savedToolbarMode;
 
@@ -166,9 +326,21 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
   // Track the font/size of the text at current cursor position. Empty string
   // / null indicates the selection spans more than one value ("mixed").
   const [cursorFont, setCursorFont] = useState<string>(fontFamily);
-  const [cursorSize, setCursorSize] = useState<number | null>(fontSize);
+  // The size the whole script is set at: the layout's, saved with the script,
+  // else the page default. Text without its own size mark is drawn at it.
+  const scriptSize = pageLayout.fontSize ?? fontSize;
+  const [cursorSize, setCursorSize] = useState<number | null>(scriptSize);
   // Fonts found in document that aren't in the registry
   const [extraFonts, setExtraFonts] = useState<string[]>([]);
+
+  // The controls this bar draws. Formatting detection below is only needed
+  // when one of them shows the caret's font or locks.
+  const { start: startItems, center: centerItems, end: endItems } = useMemo(() => {
+    if (items) return { start: items, center: [] as string[], end: [] as string[] };
+    return splitBySide(toolbarLayout.bars[bar], toolbarLayout.options);
+  }, [toolbarLayout, bar, items]);
+  const allItems = useMemo(() => [...startItems, ...centerItems, ...endItems], [startItems, centerItems, endItems]);
+  const needsFormatting = allItems.some((id) => id === 'font' || id === 'font-size' || id === 'format' || id === 'align');
 
   const detectFormatting = useCallback(() => {
     if (!editor) return;
@@ -191,9 +363,9 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
       }
       if (detectedSize) {
         const parsed = parseInt(detectedSize, 10);
-        setCursorSize(!isNaN(parsed) ? parsed : (rule?.fontSize ?? fontSize));
+        setCursorSize(!isNaN(parsed) ? parsed : (rule?.fontSize ?? scriptSize));
       } else {
-        setCursorSize(rule?.fontSize ?? fontSize);
+        setCursorSize(rule?.fontSize ?? scriptSize);
       }
       return;
     }
@@ -226,9 +398,9 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
       setCursorFont(effectiveFont);
       if (detectedSize) {
         const parsed = parseInt(detectedSize, 10);
-        setCursorSize(!isNaN(parsed) ? parsed : (rule?.fontSize ?? fontSize));
+        setCursorSize(!isNaN(parsed) ? parsed : (rule?.fontSize ?? scriptSize));
       } else {
-        setCursorSize(rule?.fontSize ?? fontSize);
+        setCursorSize(rule?.fontSize ?? scriptSize);
       }
       return;
     }
@@ -250,15 +422,15 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
       const single = [...sizes][0] || '';
       if (single) {
         const parsed = parseInt(single, 10);
-        setCursorSize(!isNaN(parsed) ? parsed : (rule?.fontSize ?? fontSize));
+        setCursorSize(!isNaN(parsed) ? parsed : (rule?.fontSize ?? scriptSize));
       } else {
-        setCursorSize(rule?.fontSize ?? fontSize);
+        setCursorSize(rule?.fontSize ?? scriptSize);
       }
     }
-  }, [editor, fontFamily, fontSize, activeTemplate, isEnforceMode]);
+  }, [editor, fontFamily, scriptSize, activeTemplate, isEnforceMode]);
 
   useEffect(() => {
-    if (!editor) return;
+    if (!editor || !needsFormatting) return;
     editor.on('selectionUpdate', detectFormatting);
     editor.on('transaction', detectFormatting);
     // Run once on mount / editor ready
@@ -267,11 +439,13 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
       editor.off('selectionUpdate', detectFormatting);
       editor.off('transaction', detectFormatting);
     };
-  }, [editor, detectFormatting]);
+  }, [editor, detectFormatting, needsFormatting]);
 
-  // Collect all unique fonts used in the document (for extra fonts display)
+  // Collect all unique fonts used in the document (for extra fonts display).
+  // One bar does this: the font picker is on at most one of them.
+  const collectsFonts = allItems.includes('font');
   useEffect(() => {
-    if (!editor) return;
+    if (!editor || !collectsFonts) return;
     const collectFonts = () => {
       const found = new Set<string>();
       editor.state.doc.descendants((node) => {
@@ -301,9 +475,9 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
     collectFonts();
     editor.on('update', collectFonts);
     return () => { editor.off('update', collectFonts); };
-  }, [editor]);
+  }, [editor, collectsFonts]);
 
-  const handleElementChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  const handleElementChange = (e: { target: { value: string } }) => {
     const type = e.target.value;
     if (!editor) return;
     setActiveElement(type as ElementType);
@@ -346,39 +520,12 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
   /** Which column the caret is in — the element list differs between them. */
   const avCellSide = caret?.avCellSide ?? 'video';
   /** The same question one level out, for the row controls. */
-  const isInsideAvRow = caret?.inAvRow ?? false;
+  const isInsideAvRow = (caret?.inAvRow ?? false) && isTop;
   const isActive = (format: CaretMark) => caret?.marks[format] ?? false;
 
-  // Editable zoom input
-  const [zoomInput, setZoomInput] = useState(String(zoomLevel));
-  const [zoomEditing, setZoomEditing] = useState(false);
-  const zoomInputRef = useRef<HTMLInputElement>(null);
-  const zoomReturnTo = useRef<HTMLElement | null>(null);
-  useLayoutEffect(() => {
-    if (zoomEditing || !zoomReturnTo.current) return;
-    const parent = zoomReturnTo.current;
-    zoomReturnTo.current = null;
-    const target = parent.querySelector<HTMLButtonElement>('.zoom-label');
-    if (document.activeElement === document.body && target?.getClientRects().length) target.focus();
-  }, [zoomEditing]);
-  useEffect(() => { if (!zoomEditing) setZoomInput(String(zoomLevel)); }, [zoomLevel, zoomEditing]);
-  const commitZoom = useCallback(() => {
-    const val = parseInt(zoomInput, 10);
-    if (!isNaN(val) && val >= 50 && val <= 300) setZoomLevel(val);
-    else setZoomInput(String(zoomLevel));
-    setZoomEditing(false);
-  }, [zoomInput, zoomLevel, setZoomLevel]);
-  const onZoomKeyDown = useCallback((event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (event.nativeEvent.isComposing || (event.key !== 'Enter' && event.key !== 'Escape')) return;
-    event.preventDefault();
-    zoomReturnTo.current = event.currentTarget.parentElement;
-    if (event.key === 'Enter') commitZoom();
-    else { setZoomInput(String(zoomLevel)); setZoomEditing(false); }
-  }, [commitZoom, zoomLevel]);
-
-  // ── Responsive overflow ──────────────────────────────────────────────
+  // ── Responsive overflow (toolbar only) ──────────────────────────────
   const toolbarRef = useRef<HTMLDivElement>(null);
-  const [hiddenPriorities, setHiddenPriorities] = useState<Set<string>>(new Set());
+  const [hiddenItems, setHiddenItems] = useState<Set<string>>(new Set());
   const [overflowOpen, setOverflowOpen] = useState(false);
   const overflowRef = useRef<HTMLDivElement>(null);
 
@@ -394,12 +541,24 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
     return () => document.removeEventListener('mousedown', handler);
   }, [overflowOpen]);
 
-  // Hide order: "1" first, then "2" (matches "2" and "2b"), "3", "4", "5",
-  // and "6" (Notes & Tags) last of all. On a phone 3–5 are already off the bar,
-  // so 6 follows Search & Go To: a 375px iPhone (Display Zoom, SE, mini) has
-  // no room for them beside the element picker, and the zoom button they
-  // pushed off the edge is the one control with nowhere else to go.
-  const HIDE_ORDER = ['1', '2', '3', '4', '5', '6'];
+  const zoomOnBar = isTop && allItems.includes('zoom');
+
+  /**
+   * Which controls give way first when the bar runs out of room: zoom first
+   * (the narrow layout has its own zoom button), then the start side from its
+   * far end back, then the end side, and Notes & Tags last of all. Undo/redo
+   * and the element picker never fold.
+   */
+  const hideOrder = useMemo(() => {
+    const folds = (id: string) => id !== 'zoom' && id !== 'notes' && !toolbarItemDefinition(id)?.fixed;
+    const order: string[] = [];
+    if (zoomOnBar) order.push('zoom');
+    order.push(...[...startItems].reverse().filter(folds));
+    order.push(...[...centerItems].reverse().filter(folds));
+    order.push(...[...endItems].reverse().filter(folds));
+    if (allItems.includes('notes')) order.push('notes');
+    return order;
+  }, [startItems, centerItems, endItems, allItems, zoomOnBar]);
 
   /**
    * True while the narrow-layout single zoom button is on screen.  Below the
@@ -414,43 +573,51 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
 
   // The AV row group is the one toolbar content that comes and goes with the
   // cursor rather than with the window, so it is the one the ResizeObserver
-  // below cannot see.
+  // below cannot see. A plugin registering a control changes it too.
   useEffect(() => { remeasureRef.current(); }, [isInsideAvRow]);
+  useEffect(() => pluginRegistry.subscribe(() => remeasureRef.current()), []);
 
-  // Measure toolbar overflow and determine which priority groups to hide
+  // Measure toolbar overflow and decide which controls fold into the menu
   useEffect(() => {
     const toolbar = toolbarRef.current;
-    if (!toolbar) return;
+    if (!toolbar || !isTop) return;
 
     const measure = () => {
       const containerWidth = toolbar.clientWidth;
-      const groups = toolbar.querySelectorAll<HTMLElement>('[data-priority]');
-      if (groups.length === 0) return;
+      const blocks = toolbar.querySelectorAll<HTMLElement>('[data-priority]');
+      if (blocks.length === 0) { setHiddenItems(prev => (prev.size ? new Set() : prev)); return; }
 
       const mobileZoom = toolbar.querySelector<HTMLElement>('.zoom-mobile-group');
       setMobileZoomVisible(!!mobileZoom && mobileZoom.offsetWidth > 0);
 
-      // Show all groups to measure natural widths
-      groups.forEach(g => g.style.display = '');
+      // Show all blocks to measure natural widths
+      blocks.forEach(g => g.style.display = '');
 
       const OVERFLOW_BTN_WIDTH = 36;
-      const allItems: { el: HTMLElement; key: string }[] = [];
+      const gap = parseFloat(getComputedStyle(toolbar).columnGap) || 2;
+      const placed: { el: HTMLElement; key: string }[] = [];
       const newHidden = new Set<string>();
+
+      // Width as the flex row spends it: offsetWidth leaves out margins and
+      // the bar's gap, which made the estimate too small (PR #217).
+      const outerWidth = (el: HTMLElement) => {
+        const cs = getComputedStyle(el);
+        return el.offsetWidth + (parseFloat(cs.marginLeft) || 0) + (parseFloat(cs.marginRight) || 0) + gap;
+      };
 
       let totalWidth = 0;
       for (const child of toolbar.children) {
         const el = child as HTMLElement;
+        // The flexible spacer takes whatever room is left; it is not content.
+        if (el.classList.contains('toolbar-spacer')) continue;
         const w = el.offsetWidth;
         if (el.dataset.priority) {
           // CSS-hidden items (e.g. toolbar-desktop-only on mobile) have 0 width —
           // mark them as hidden so they appear in the overflow menu.
-          if (w === 0) {
-            newHidden.add(el.dataset.priority);
-          } else {
-            allItems.push({ el, key: el.dataset.priority });
-          }
+          if (w === 0) newHidden.add(el.dataset.priority);
+          else placed.push({ el, key: el.dataset.priority });
         }
-        totalWidth += w + 2;
+        totalWidth += outerWidth(el);
       }
 
       // A foldable held as a book wraps the toolbar onto two rows on the
@@ -473,38 +640,34 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
           return toolbar.clientWidth - padRight - lastRight >= OVERFLOW_BTN_WIDTH + 4;
         };
         const fits = () => toolbar.scrollHeight <= toolbar.clientHeight + 1 && roomForOverflow();
-        for (const prefix of HIDE_ORDER) {
+        for (const id of hideOrder) {
           if (fits()) break;
-          for (const { el, key } of allItems.filter(p => p.key.startsWith(prefix))) {
+          for (const { el, key } of placed.filter(p => p.key === id)) {
             newHidden.add(key);
             el.style.display = 'none';
           }
         }
       } else if (totalWidth > containerWidth) {
         let currentTotal = totalWidth + OVERFLOW_BTN_WIDTH;
-
-        for (const prefix of HIDE_ORDER) {
+        for (const id of hideOrder) {
           if (currentTotal <= containerWidth) break;
-          // Notes & Tags go only when the bar really does not fit. The estimate
-          // above is generous (2px per item, room for a "…" that may already be
-          // counted), which costs nothing for the groups before this one but
-          // folded these away on a 402px iPhone where they fit. The groups
-          // hidden so far are already display:none, so the bar's own overflow
-          // is the truth — plus the "…" button if it has yet to appear.
-          if (prefix === '6') {
+          // Notes & Tags go only when the bar really does not fit: the
+          // estimate is generous, and a 402px iPhone lost them where they fit.
+          // The controls hidden so far are already display:none, so the bar's
+          // own overflow is the truth — plus the "…" if it has yet to appear.
+          if (id === 'notes') {
             const reserve = toolbar.querySelector('.toolbar-overflow-wrap') ? 0 : OVERFLOW_BTN_WIDTH;
             if (toolbar.scrollWidth + reserve <= toolbar.clientWidth) break;
           }
-          const matching = allItems.filter(p => p.key.startsWith(prefix));
-          for (const { el, key } of matching) {
+          for (const { el, key } of placed.filter(p => p.key === id)) {
             newHidden.add(key);
-            currentTotal -= el.offsetWidth + 2;
+            currentTotal -= outerWidth(el);
             el.style.display = 'none';
           }
         }
       }
 
-      setHiddenPriorities(prev => {
+      setHiddenItems(prev => {
         if (prev.size !== newHidden.size) return newHidden;
         for (const p of newHidden) { if (!prev.has(p)) return newHidden; }
         return prev;
@@ -517,10 +680,6 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
       cancelAnimationFrame(rafId);
       rafId = requestAnimationFrame(measure);
     };
-    // The AV row group appears and disappears with the cursor, which changes
-    // the toolbar's contents without changing its width — the ResizeObserver
-    // below would never hear about it, leaving the overflow menu sized for the
-    // other layout.
     remeasureRef.current = remeasure;
     const ro = new ResizeObserver((entries) => {
       const entry = entries[0];
@@ -536,9 +695,8 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
     window.addEventListener(PHONE_DEVICE_CHANGE_EVENT, remeasure);
     // A fold changes the chrome (Compact on the open screen, two rows held as
     // a book) after the width the observer saw, and on the iPhone Duo the
-    // settled layout came a beat later still: the toolbar was left measured
-    // for the previous posture, its last items under the status column. So
-    // measure again after a fold, and once more when it has settled.
+    // settled layout came a beat later still. So measure again after a fold,
+    // and once more when it has settled.
     let settleTimer: ReturnType<typeof setTimeout> | undefined;
     const remeasureAfterFold = () => {
       remeasure();
@@ -548,14 +706,9 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
     window.addEventListener(FOLD_CHANGE_EVENT, remeasureAfterFold);
 
     // Crossing the mobile breakpoint changes which groups the stylesheet hides,
-    // and on iPad that can happen without the toolbar's own width changing —
-    // rotating the device, or a Split View divider drag that lands on the same
-    // pane width the toolbar already had.  The width-guard above would swallow
-    // those, leaving the overflow menu describing the previous layout.
-    // Legacy WebKit (Safari < 14, i.e. macOS 10.15 and earlier) ships a
-    // MediaQueryList without addEventListener — only the deprecated
-    // addListener/removeListener pair.  Calling the modern API there throws
-    // during mount and takes the whole app down, so feature-detect both.
+    // and on iPad that can happen without the toolbar's own width changing.
+    // Legacy WebKit (Safari < 14) ships a MediaQueryList without
+    // addEventListener — only addListener/removeListener — so detect both.
     const breakpoint = window.matchMedia?.('(max-width: 768px)');
     if (breakpoint) {
       if (typeof breakpoint.addEventListener === 'function') {
@@ -580,7 +733,8 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
       }
       cancelAnimationFrame(rafId);
     };
-  }, [toolbarMode, foldState.foldable, foldState.size, foldState.fold]);
+    // The layout's labels change widths without changing the item list.
+  }, [isTop, hideOrder, toolbarLayout, toolbarMode, foldState.foldable, foldState.size, foldState.fold, docksAvailable]);
 
   // ── Notes handler (shared between inline and overflow) ──
   const handleNotesClick = useCallback((e: React.PointerEvent | React.MouseEvent) => {
@@ -649,148 +803,180 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
     }
   }, [editor, tagsPanelOpen, toggleTagsPanel, setPendingTagSelection, setEditingTagId]);
 
-  // ── Shared renderers for toolbar groups (used both inline and in overflow) ──
+  // ── One renderer per control. `mode` is the label the writer chose. ──
 
-  const renderFontFaceSize = useCallback((inOverflow = false) => (
-    <React.Fragment key="font-face-size">
-      <div className="toolbar-group" style={locked.fontFamily ? { opacity: 0.5, pointerEvents: 'none' } : undefined}>
-        <FontPicker
-          value={cursorFont}
-          extraFonts={extraFonts}
-          onManageFonts={() => useEditorStore.getState().setFontsDialogOpen(true)}
-          onChange={(val) => {
-            if (locked.fontFamily) return;
-            loadFontByName(val);
-            // Picking a font styles the selection — it must not rewrite the
-            // document's own font, or every local change would redefine what
-            // unstyled text elsewhere renders as (and what this picker reports
-            // for it).  Choosing the document font clears the mark instead, so
-            // the text goes back to following the page.
-            if (val === fontFamily) {
-              editor?.chain().focus(undefined, { scrollIntoView: false }).setMark('textStyle', { fontFamily: null }).removeEmptyTextStyle().run();
-            } else {
-              editor?.chain().focus(undefined, { scrollIntoView: false }).setMark('textStyle', { fontFamily: val }).run();
-            }
-            if (inOverflow) setOverflowOpen(false);
-          }}
-        />
-      </div>
-      <div className="toolbar-group">
-        <Select
-          className="font-size-selector"
-          value={cursorSize ?? ''}
-          disabled={locked.fontSize}
-          onChange={(e) => {
-            if (locked.fontSize) return;
-            if (e.target.value === '') return; // user clicked the mixed placeholder — no-op
-            const val = Number(e.target.value);
-            // Selection-scoped, like the font picker above.
-            if (val === fontSize) {
-              editor?.chain().focus(undefined, { scrollIntoView: false }).setMark('textStyle', { fontSize: null }).removeEmptyTextStyle().run();
-            } else {
-              editor?.chain().focus(undefined, { scrollIntoView: false }).setFontSize(`${val}pt`).run();
-            }
-            if (inOverflow) setOverflowOpen(false);
-          }}
-          title={t('toolbar.fontSize')}
-        >
-          {/* Mixed-selection placeholder. */}
-          {cursorSize === null && (
-            <option value="" disabled hidden>—</option>
-          )}
-          {(cursorSize !== null && !FONT_SIZES.includes(cursorSize)
-            ? [...FONT_SIZES, cursorSize].sort((a, b) => a - b)
-            : FONT_SIZES
-          ).map((s) => (
-            <option key={s} value={s}>
-              {t('toolbar.pt', { size: s })}
-            </option>
-          ))}
-        </Select>
-      </div>
-    </React.Fragment>
-  ), [cursorFont, cursorSize, extraFonts, editor, fontFamily, fontSize, locked, t]);
+  const closeOverflow = (inOverflow: boolean) => { if (inOverflow) setOverflowOpen(false); };
 
-  // showPopups: when false, only render buttons (no ColorPicker popups).
-  // This prevents the hidden inline copy from stealing popup state from the overflow copy.
-  const renderFontStyleColors = useCallback((inOverflow = false, showPopups = true) => (
-    <React.Fragment key="font-style-colors">
+  const renderUndoRedo = (mode: ToolbarLabelMode) => (
+    <div className="toolbar-group" key="undo-redo">
+      <button
+        className="toolbar-btn"
+        title={t('toolbar.undo', { shortcut: '⌘Z' })}
+        aria-label={mode === 'icon' ? t('layout.labels.undo') : undefined}
+        onClick={() => { try { editor?.chain().focus().undo().run(); } catch { /* nothing to undo */ } }}
+        disabled={!caret?.canUndo}
+      >
+        {face(mode, <FaUndo />, t('layout.labels.undo'))}
+      </button>
+      <button
+        className="toolbar-btn"
+        title={t('toolbar.redo', { shortcut: '⇧⌘Z' })}
+        aria-label={mode === 'icon' ? t('layout.labels.redo') : undefined}
+        onClick={() => { try { editor?.chain().focus().redo().run(); } catch { /* nothing to redo */ } }}
+        disabled={!caret?.canRedo}
+      >
+        {face(mode, <FaRedo />, t('layout.labels.redo'))}
+      </button>
+    </div>
+  );
+
+  const renderElement = (mode: ToolbarLabelMode) => (
+    <div className="toolbar-group" key="element">
+      {heading(mode, <FaParagraph />, t('layout.labels.element'))}
+      <Select
+        className="element-selector"
+        value={activeElement}
+        onChange={handleElementChange}
+        disabled={isInTitlePage}
+        title={isInTitlePage
+          ? t('toolbar.elementTypeTitlePage')
+          : t('toolbar.elementType')}
+      >
+        {/* The title page's fields have template rules but are not things a
+            paragraph converts into, so they never appear here — only as the
+            read-only label below when the cursor is actually in one. */}
+        {isInTitlePage && (
+          <option value={activeElement}>
+            {activeTemplate.rules[activeElement]?.label || t('toolbar.titlePage')}
+          </option>
+        )}
+        {/* Inside an AV cell the list is resolved by utils/avCellElements.ts;
+            outside a cell, the template is the authority. */}
+        {(isInsideAvCell
+          ? avCellElementRules(activeTemplate, avCellSide, String(activeElement))
+          : scriptBodyElementRules(activeTemplate, isTitlePageRuleId)
+        ).map((r) => (
+          <option key={r.id} value={r.id} title={elementDescription(r.id)} data-shortcut={shortcutFor(r.id)}>
+            {elementLabel(r.id, r.label)}
+          </option>
+        ))}
+      </Select>
+    </div>
+  );
+
+  const renderFont = (mode: ToolbarLabelMode, inOverflow: boolean) => (
+    <div className="toolbar-group" key="font" style={locked.fontFamily ? { opacity: 0.5, pointerEvents: 'none' } : undefined}>
+      {heading(mode, <FaFont />, t('layout.labels.font'))}
+      <FontPicker
+        value={cursorFont}
+        extraFonts={extraFonts}
+        onManageFonts={() => useEditorStore.getState().setFontsDialogOpen(true)}
+        onChange={(val) => {
+          if (locked.fontFamily) return;
+          loadFontByName(val);
+          // Picking a font styles the selection — it must not rewrite the
+          // document's own font. Choosing the document font clears the mark
+          // instead, so the text goes back to following the page.
+          if (val === fontFamily) {
+            editor?.chain().focus(undefined, { scrollIntoView: false }).setMark('textStyle', { fontFamily: null }).removeEmptyTextStyle().run();
+          } else {
+            editor?.chain().focus(undefined, { scrollIntoView: false }).setMark('textStyle', { fontFamily: val }).run();
+          }
+          closeOverflow(inOverflow);
+        }}
+      />
+    </div>
+  );
+
+  const renderFontSize = (mode: ToolbarLabelMode, inOverflow: boolean) => (
+    <div className="toolbar-group" key="font-size">
+      {heading(mode, <FaTextHeight />, t('layout.labels.fontSize'))}
+      <Select
+        className="font-size-selector"
+        value={cursorSize ?? ''}
+        disabled={locked.fontSize}
+        onChange={(e) => {
+          if (locked.fontSize) return;
+          if (e.target.value === '') return; // user clicked the mixed placeholder — no-op
+          const val = Number(e.target.value);
+          // The whole script chosen: set the script's size, which the page
+          // count and the PDF follow (#270). The per-run marks it replaces
+          // are cleared, so the one setting says what size the script is.
+          if (editor && selectionCoversScript(editor.state)) {
+            const next = { ...useEditorStore.getState().pageLayout };
+            if (val === 12) delete next.fontSize;
+            else next.fontSize = val;
+            useEditorStore.getState().setPageLayout(next);
+            editor.chain().focus(undefined, { scrollIntoView: false })
+              .setMark('textStyle', { fontSize: null }).removeEmptyTextStyle().run();
+            closeOverflow(inOverflow);
+            return;
+          }
+          // Otherwise selection-scoped, like the font picker.
+          if (val === scriptSize) {
+            editor?.chain().focus(undefined, { scrollIntoView: false }).setMark('textStyle', { fontSize: null }).removeEmptyTextStyle().run();
+          } else {
+            editor?.chain().focus(undefined, { scrollIntoView: false }).setFontSize(`${val}pt`).run();
+          }
+          closeOverflow(inOverflow);
+        }}
+        title={t('toolbar.fontSize')}
+      >
+        {/* Mixed-selection placeholder. */}
+        {cursorSize === null && (
+          <option value="" disabled hidden>—</option>
+        )}
+        {(cursorSize !== null && !FONT_SIZES.includes(cursorSize)
+          ? [...FONT_SIZES, cursorSize].sort((a, b) => a - b)
+          : FONT_SIZES
+        ).map((s) => (
+          <option key={s} value={s}>
+            {t('toolbar.pt', { size: s })}
+          </option>
+        ))}
+      </Select>
+    </div>
+  );
+
+  const markButton = (
+    mode: ToolbarLabelMode, mark: CaretMark, icon: React.ReactNode, title: string, name: string,
+    disabled: boolean, run: () => void,
+  ) => (
+    <button
+      className={`toolbar-btn ${isActive(mark) ? 'active' : ''}`}
+      aria-pressed={isActive(mark)}
+      title={title}
+      aria-label={mode === 'icon' ? name : undefined}
+      disabled={disabled}
+      onClick={() => { if (editor && !disabled) run(); }}
+    >
+      {face(mode, icon, name)}
+    </button>
+  );
+
+  // showPopups: when false, only render buttons (no ColorPicker popups), so a
+  // folded-away inline copy cannot steal the overflow copy's popup state.
+  const renderFormat = (mode: ToolbarLabelMode, inOverflow: boolean, showPopups: boolean) => (
+    <React.Fragment key="format">
       <div className="toolbar-group">
-        <button
-          className={`toolbar-btn ${isActive('bold') ? 'active' : ''}`}
-          aria-pressed={isActive('bold')}
-          title={t('toolbar.bold', { shortcut: '⌘B' })}
-          disabled={locked.bold}
-          onClick={() => {
-            if (!editor || locked.bold) return;
-            if (isOverrideMode) {
-              toggleBoldOverride(editor, getCurrentElementRule(editor, activeTemplate));
-            } else {
-              editor.chain().focus(undefined, { scrollIntoView: false }).toggleBold().run();
-            }
-          }}
-        >
-          <FaBold />
-        </button>
-        <button
-          className={`toolbar-btn ${isActive('italic') ? 'active' : ''}`}
-          aria-pressed={isActive('italic')}
-          title={t('toolbar.italic', { shortcut: '⌘I' })}
-          disabled={locked.italic}
-          onClick={() => {
-            if (!editor || locked.italic) return;
-            if (isOverrideMode) {
-              toggleItalicOverride(editor, getCurrentElementRule(editor, activeTemplate));
-            } else {
-              editor.chain().focus(undefined, { scrollIntoView: false }).toggleItalic().run();
-            }
-          }}
-        >
-          <FaItalic />
-        </button>
-        <button
-          className={`toolbar-btn ${isActive('underline') ? 'active' : ''}`}
-          aria-pressed={isActive('underline')}
-          title={t('toolbar.underline', { shortcut: '⌘U' })}
-          disabled={locked.underline}
-          onClick={() => {
-            if (!editor || locked.underline) return;
-            if (isOverrideMode) {
-              toggleUnderlineOverride(editor, getCurrentElementRule(editor, activeTemplate));
-            } else {
-              editor.chain().focus(undefined, { scrollIntoView: false }).toggleUnderline().run();
-            }
-          }}
-        >
-          <FaUnderline />
-        </button>
-        <button
-          className={`toolbar-btn ${isActive('strike') ? 'active' : ''}`}
-          aria-pressed={isActive('strike')}
-          title={t('toolbar.strikethrough')}
-          disabled={locked.strikethrough}
-          onClick={() => { if (!locked.strikethrough) editor?.chain().focus(undefined, { scrollIntoView: false }).toggleStrike().run(); }}
-        >
-          <FaStrikethrough />
-        </button>
-        <button
-          className={`toolbar-btn ${isActive('subscript') ? 'active' : ''}`}
-          aria-pressed={isActive('subscript')}
-          title={t('toolbar.subscript')}
-          disabled={locked.subscript}
-          onClick={() => { if (!locked.subscript) editor?.chain().focus(undefined, { scrollIntoView: false }).toggleSubscript().run(); }}
-        >
-          <FaSubscript />
-        </button>
-        <button
-          className={`toolbar-btn ${isActive('superscript') ? 'active' : ''}`}
-          aria-pressed={isActive('superscript')}
-          title={t('toolbar.superscript')}
-          disabled={locked.superscript}
-          onClick={() => { if (!locked.superscript) editor?.chain().focus(undefined, { scrollIntoView: false }).toggleSuperscript().run(); }}
-        >
-          <FaSuperscript />
-        </button>
+        {markButton(mode, 'bold', <FaBold />, t('toolbar.bold', { shortcut: '⌘B' }), t('layout.labels.bold'), locked.bold, () => {
+          if (isOverrideMode) toggleBoldOverride(editor!, getCurrentElementRule(editor!, activeTemplate));
+          else editor!.chain().focus(undefined, { scrollIntoView: false }).toggleBold().run();
+        })}
+        {markButton(mode, 'italic', <FaItalic />, t('toolbar.italic', { shortcut: '⌘I' }), t('layout.labels.italic'), locked.italic, () => {
+          if (isOverrideMode) toggleItalicOverride(editor!, getCurrentElementRule(editor!, activeTemplate));
+          else editor!.chain().focus(undefined, { scrollIntoView: false }).toggleItalic().run();
+        })}
+        {markButton(mode, 'underline', <FaUnderline />, t('toolbar.underline', { shortcut: '⌘U' }), t('layout.labels.underline'), locked.underline, () => {
+          if (isOverrideMode) toggleUnderlineOverride(editor!, getCurrentElementRule(editor!, activeTemplate));
+          else editor!.chain().focus(undefined, { scrollIntoView: false }).toggleUnderline().run();
+        })}
+        {markButton(mode, 'strike', <FaStrikethrough />, t('toolbar.strikethrough'), t('layout.labels.strikethrough'), locked.strikethrough,
+          () => { editor!.chain().focus(undefined, { scrollIntoView: false }).toggleStrike().run(); })}
+        {markButton(mode, 'subscript', <FaSubscript />, t('toolbar.subscript'), t('layout.labels.subscript'), locked.subscript,
+          () => { editor!.chain().focus(undefined, { scrollIntoView: false }).toggleSubscript().run(); })}
+        {markButton(mode, 'superscript', <FaSuperscript />, t('toolbar.superscript'), t('layout.labels.superscript'), locked.superscript,
+          () => { editor!.chain().focus(undefined, { scrollIntoView: false }).toggleSuperscript().run(); })}
       </div>
 
       <div className={inOverflow ? 'toolbar-overflow-sep' : 'toolbar-separator'} />
@@ -799,11 +985,12 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
         <button
           className="toolbar-btn"
           title={t('toolbar.textColor')}
+          aria-label={mode === 'icon' ? t('toolbar.textColor') : undefined}
           aria-haspopup="dialog" aria-expanded={textColorOpen}
           disabled={locked.textColor}
           onClick={() => { if (!locked.textColor) { setTextColorOpen(!textColorOpen); setBgColorOpen(false); } }}
         >
-          <FaPaintBrush style={{ color: currentTextColor }} />
+          {face(mode, <FaPaintBrush style={{ color: currentTextColor }} />, t('layout.labels.textColor'))}
         </button>
         {showPopups && textColorOpen && (
           <ColorPicker
@@ -825,11 +1012,12 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
         <button
           className="toolbar-btn"
           title={t('toolbar.highlightColor')}
+          aria-label={mode === 'icon' ? t('toolbar.highlightColor') : undefined}
           aria-haspopup="dialog" aria-expanded={bgColorOpen}
           disabled={locked.backgroundColor}
           onClick={() => { if (!locked.backgroundColor) { setBgColorOpen(!bgColorOpen); setTextColorOpen(false); } }}
         >
-          <FaHighlighter style={{ color: currentBgColor }} />
+          {face(mode, <FaHighlighter style={{ color: currentBgColor }} />, t('layout.labels.highlight'))}
         </button>
         {showPopups && bgColorOpen && (
           <ColorPicker
@@ -853,195 +1041,253 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
 
       <LanguageSelector editor={editor} activeElement={activeElement} />
     </React.Fragment>
-  ), [editor, caret, isOverrideMode, activeTemplate, activeElement, textColorOpen, bgColorOpen, currentTextColor, currentBgColor, locked, t]);
+  );
 
-  const renderAlignment = useCallback((_inOverflow = false) => (
-    <div className="toolbar-group" key="alignment">
-      <button
-        className={`toolbar-btn ${caret?.align === 'left' ? 'active' : ''}`}
-        aria-pressed={caret?.align === 'left'}
-        title={t('toolbar.alignLeft')}
-        onClick={() => editor?.chain().focus().setTextAlign('left').run()}
-        disabled={locked.textAlign}
-      >
-        <FaAlignLeft />
-      </button>
-      <button
-        className={`toolbar-btn ${caret?.align === 'center' ? 'active' : ''}`}
-        aria-pressed={caret?.align === 'center'}
-        title={t('toolbar.alignCenter')}
-        onClick={() => editor?.chain().focus().setTextAlign('center').run()}
-        disabled={locked.textAlign}
-      >
-        <FaAlignCenter />
-      </button>
-      <button
-        className={`toolbar-btn ${caret?.align === 'right' ? 'active' : ''}`}
-        aria-pressed={caret?.align === 'right'}
-        title={t('toolbar.alignRight')}
-        onClick={() => editor?.chain().focus().setTextAlign('right').run()}
-        disabled={locked.textAlign}
-      >
-        <FaAlignRight />
-      </button>
-      <button
-        className={`toolbar-btn ${caret?.align === 'justify' ? 'active' : ''}`}
-        aria-pressed={caret?.align === 'justify'}
-        title={t('toolbar.justify')}
-        onClick={() => editor?.chain().focus().setTextAlign('justify').run()}
-        disabled={locked.textAlign}
-      >
-        <FaAlignJustify />
-      </button>
+  const alignButton = (mode: ToolbarLabelMode, align: typeof ALIGNMENTS[number], icon: React.ReactNode, title: string, name: string) => (
+    <button
+      className={`toolbar-btn ${caret?.align === align ? 'active' : ''}`}
+      aria-pressed={caret?.align === align}
+      title={title}
+      aria-label={mode === 'icon' ? name : undefined}
+      onClick={() => editor?.chain().focus().setTextAlign(align).run()}
+      disabled={locked.textAlign}
+    >
+      {face(mode, icon, name)}
+    </button>
+  );
+
+  const renderAlignment = (mode: ToolbarLabelMode) => (
+    <div className="toolbar-group" key="align">
+      {alignButton(mode, 'left', <FaAlignLeft />, t('toolbar.alignLeft'), t('layout.labels.alignLeft'))}
+      {alignButton(mode, 'center', <FaAlignCenter />, t('toolbar.alignCenter'), t('layout.labels.alignCenter'))}
+      {alignButton(mode, 'right', <FaAlignRight />, t('toolbar.alignRight'), t('layout.labels.alignRight'))}
+      {alignButton(mode, 'justify', <FaAlignJustify />, t('toolbar.justify'), t('layout.labels.justify'))}
     </div>
-  ), [editor, caret, locked, t]);
+  );
 
-  const renderSearchGoto = useCallback((inOverflow = false) => (
-    <div className="toolbar-group" key="search-goto">
-      <button
-        className="toolbar-btn"
-        title={t('toolbar.findReplace', { shortcut: '⌘F' })}
-        onClick={() => { setSearchOpen(true); if (inOverflow) setOverflowOpen(false); }}
-      >
-        <FaSearch />
-      </button>
-      <button
-        className="toolbar-btn"
-        title={t('toolbar.goToPage', { shortcut: '⌘G' })}
-        onClick={() => { setGoToPageOpen(true); if (inOverflow) setOverflowOpen(false); }}
-      >
-        <FaHashtag />
-      </button>
+  const plainButton = (
+    key: string, mode: ToolbarLabelMode, icon: React.ReactNode, name: string, title: string,
+    onClick: () => void, extra: { active?: boolean; disabled?: boolean } = {},
+  ) => (
+    <button
+      key={key}
+      type="button"
+      className={`toolbar-btn${extra.active ? ' active' : ''}`}
+      aria-pressed={extra.active === undefined ? undefined : extra.active}
+      title={title}
+      aria-label={mode === 'icon' ? name : undefined}
+      disabled={extra.disabled}
+      onClick={onClick}
+    >
+      {face(mode, icon, name)}
+    </button>
+  );
+
+  const renderSearch = (mode: ToolbarLabelMode, inOverflow: boolean) => (
+    <div className="toolbar-group" key="search">
+      {plainButton('find', mode, <FaSearch />, t('layout.labels.find'), t('toolbar.findReplace', { shortcut: '⌘F' }),
+        () => { setSearchOpen(true); closeOverflow(inOverflow); })}
+      {plainButton('goto', mode, <FaHashtag />, t('layout.labels.goToPage'), t('toolbar.goToPage', { shortcut: '⌘G' }),
+        () => { setGoToPageOpen(true); closeOverflow(inOverflow); })}
     </div>
-  ), [setSearchOpen, setGoToPageOpen, t]);
+  );
 
-  const renderNotesTags = useCallback((inOverflow = false) => (
-    <div className="toolbar-group" key="notes-tags">
+  const renderNotes = (mode: ToolbarLabelMode, inOverflow: boolean) => (
+    <div className="toolbar-group" key="notes">
       <button
         className={`toolbar-btn${scriptNotesOpen ? ' active' : ''}`}
         aria-pressed={scriptNotesOpen}
         title={t('toolbar.scriptNotes')}
-        onPointerDown={(e) => { handleNotesClick(e); if (inOverflow) setOverflowOpen(false); }}
-        onClick={e => { if (e.detail === 0) { handleNotesClick(e); if (inOverflow) setOverflowOpen(false); } }}
+        aria-label={mode === 'icon' ? t('layout.labels.notes') : undefined}
+        onPointerDown={(e) => { handleNotesClick(e); closeOverflow(inOverflow); }}
+        onClick={e => { if (e.detail === 0) { handleNotesClick(e); closeOverflow(inOverflow); } }}
       >
-        <FaStickyNote />
+        {face(mode, <FaStickyNote />, t('layout.labels.notes'))}
       </button>
       <button
         className={`toolbar-btn${tagsPanelOpen ? ' active' : ''}`}
         aria-pressed={tagsPanelOpen}
         title={t('toolbar.productionTags')}
-        onPointerDown={(e) => { handleTagsClick(e); if (inOverflow) setOverflowOpen(false); }}
-        onClick={e => { if (e.detail === 0) { handleTagsClick(e); if (inOverflow) setOverflowOpen(false); } }}
+        aria-label={mode === 'icon' ? t('layout.labels.tags') : undefined}
+        onPointerDown={(e) => { handleTagsClick(e); closeOverflow(inOverflow); }}
+        onClick={e => { if (e.detail === 0) { handleTagsClick(e); closeOverflow(inOverflow); } }}
       >
-        <FaTags />
+        {face(mode, <FaTags />, t('layout.labels.tags'))}
       </button>
     </div>
-  ), [scriptNotesOpen, tagsPanelOpen, handleNotesClick, handleTagsClick, t]);
-
-  const renderZoom = useCallback((_inOverflow = false) => (
-    <div className="toolbar-group zoom-group" key="zoom">
-      <button
-        className="toolbar-btn"
-        title={t('toolbar.zoomOut')}
-        onClick={() => setZoomLevel(zoomLevel - 10)}
-        disabled={zoomLevel <= 50}
-      >
-        <FaSearchMinus />
-      </button>
-      {zoomEditing ? (
-        <input
-          ref={zoomInputRef}
-          className="zoom-input"
-          type="number"
-          min={50}
-          max={300}
-          step={10}
-          value={zoomInput}
-          onChange={(e) => setZoomInput(e.target.value)}
-          onBlur={commitZoom}
-          aria-label={t('toolbar.zoom')}
-          onKeyDown={onZoomKeyDown}
-          autoFocus
-        />
-      ) : (
-        <button type="button" aria-label={`${t('toolbar.zoom')}: ${zoomLevel}%`}
-          className="zoom-label"
-          onClick={() => { setZoomEditing(true); setTimeout(() => zoomInputRef.current?.select(), 0); }}
-          title={t('toolbar.editZoom')}
-        >
-          {zoomLevel}%
-        </button>
-      )}
-      <button
-        className="toolbar-btn"
-        title={t('toolbar.zoomIn')}
-        onClick={() => setZoomLevel(zoomLevel + 10)}
-        disabled={zoomLevel >= 300}
-      >
-        <FaSearchPlus />
-      </button>
-    </div>
-  ), [zoomLevel, zoomEditing, zoomInput, setZoomLevel, commitZoom, onZoomKeyDown, t]);
-
-  const renderZoomMin = useCallback((_inOverflow = false) => (
-    <div className="toolbar-group zoom-group" key="zoom-min">
-      <button
-        className="toolbar-btn"
-        title={t('toolbar.zoomOut')}
-        onClick={() => setZoomLevel(zoomLevel - 10)}
-        disabled={zoomLevel <= 50}
-      >
-        <FaSearchMinus />
-      </button>
-    </div>
-  ), [zoomLevel, setZoomLevel, t]);
-
-  // Check if a given prefix has any hidden items
-  const isHidden = useCallback((prefix: string) => {
-    for (const k of hiddenPriorities) { if (k.startsWith(prefix)) return true; }
-    return false;
-  }, [hiddenPriorities]);
-
-  /**
-   * Exact-key test, as against {@link isHidden}'s prefix test.
-   *
-   * The zoom controls carry priorities "1" and "2b", so a prefix test for "2"
-   * also matches "2b" — which made the narrow layout report Search & Go to as
-   * hidden (it is not; only the desktop zoom group is) and offer a second copy
-   * of it in the overflow menu.
-   */
-  const isHiddenExact = useCallback(
-    (key: string) => hiddenPriorities.has(key),
-    [hiddenPriorities],
   );
 
-  // Build overflow menu content from hidden priorities
-  const overflowContent = useMemo(() => {
-    if (hiddenPriorities.size === 0) return null;
-    const items: React.ReactNode[] = [];
-    const addSep = () => { if (items.length > 0) items.push(<div className="toolbar-overflow-sep" key={`sep-${items.length}`} />); };
+  const renderDocument = (mode: ToolbarLabelMode, inOverflow: boolean) => (
+    <div className="toolbar-group" key="document">
+      {plainButton('new', mode, <FaFile />, t('layout.labels.new'), t('layout.labels.new'),
+        () => { requestAppCommand('new-script'); closeOverflow(inOverflow); })}
+      {plainButton('import', mode, <FaFolderOpen />, t('layout.labels.import'), t('layout.labels.import'),
+        () => { requestAppCommand('import-script'); closeOverflow(inOverflow); })}
+      {plainButton('save', mode, <FaSave />, t('layout.labels.save'), t('layout.labels.save'),
+        () => { requestAppCommand('save-script'); closeOverflow(inOverflow); })}
+      {plainButton('pdf', mode, <FaFilePdf />, t('layout.labels.exportPdf'), t('layout.labels.exportPdf'),
+        () => { requestAppCommand('export-pdf'); closeOverflow(inOverflow); })}
+    </div>
+  );
 
-    // Show items in logical order (most important first within overflow)
-    if (isHiddenExact('5')) { addSep(); items.push(renderFontFaceSize(true)); }
-    if (isHiddenExact('4')) { addSep(); items.push(renderFontStyleColors(true)); }
-    if (isHiddenExact('3')) { addSep(); items.push(renderAlignment(true)); }
-    if (isHiddenExact('2')) { addSep(); items.push(renderSearchGoto(true)); }
-    if (isHiddenExact('6')) { addSep(); items.push(renderNotesTags(true)); }
-
-    // Zoom: skip entirely when the narrow layout's own zoom button is on screen.
-    if (!mobileZoomVisible) {
-      if (isHiddenExact('2b')) { addSep(); items.push(renderZoom(true)); }
-      else if (isHiddenExact('1')) { addSep(); items.push(renderZoomMin(true)); }
+  const renderItem = (id: string, inOverflow = false): React.ReactNode => {
+    const mode = labelOf(id);
+    const options = toolbarLayout.options[id] ?? {};
+    switch (id) {
+      case 'undo-redo': return renderUndoRedo(mode);
+      case 'element': return renderElement(mode);
+      case 'font': return renderFont(mode, inOverflow);
+      case 'font-size': return renderFontSize(mode, inOverflow);
+      // When the inline copy is folded away its colour popups must not stay
+      // mounted, or a hidden button would own the open picker.
+      case 'format': return renderFormat(mode, inOverflow, inOverflow || !hiddenItems.has('format'));
+      case 'align': return renderAlignment(mode);
+      case 'search': return renderSearch(mode, inOverflow);
+      case 'notes': return renderNotes(mode, inOverflow);
+      case 'document': return renderDocument(mode, inOverflow);
+      case 'title-page':
+        return <div className="toolbar-group" key="title-page">
+          {plainButton('title-page', mode, <FaFileAlt />, t('layout.labels.titlePage'), t('layout.labels.titlePage'),
+            () => { requestAppCommand('title-page'); closeOverflow(inOverflow); })}
+        </div>;
+      case 'production':
+        return <div className="toolbar-group" key="production">
+          {plainButton('scene-numbers', mode, <FaListOl />, t('layout.labels.sceneNumbers'), t('layout.labels.sceneNumbers'),
+            () => { setSceneNumbersVisible(!sceneNumbersVisible); closeOverflow(inOverflow); }, { active: sceneNumbersVisible })}
+          {plainButton('reports', mode, <FaTable />, t('layout.labels.reports'), t('layout.labels.reports'),
+            () => { requestAppCommand('reports'); closeOverflow(inOverflow); })}
+        </div>;
+      case 'views': return <ViewsMenu key="views" label={mode} inOverflow={inOverflow} />;
+      // The switcher moves the panel docks, which a phone or narrow window does not have.
+      case 'layout': return docksAvailable ? <LayoutSwitcher key="layout" label={mode} options={options} /> : null;
+      case 'theme': {
+        const dark = appearance !== 'light';
+        return <div className="toolbar-group" key="theme">
+          {plainButton('theme', mode, dark ? <FaSun /> : <FaMoon />,
+            dark ? t('layout.labels.light') : t('layout.labels.dark'),
+            dark ? t('layout.labels.switchToLight') : t('layout.labels.switchToDark'),
+            () => setAppearance(dark ? 'light' : 'dark'))}
+        </div>;
+      }
+      case 'zoom':
+        return <ZoomControl key="zoom" zoomStyle={effectiveZoomStyle(bar, options)} label={mode} editorMain={editorMain}
+          className={isTop && !inOverflow ? 'zoom-group' : 'footer-zoom'} />;
+      case 'navigator':
+        return <div className="toolbar-group" key="navigator">
+          {plainButton('navigator', mode, <FaCompass />, t('layout.labels.navigator'), t('layout.labels.navigator'),
+            () => { toggleNavigator(); closeOverflow(inOverflow); }, { active: navigatorOpen })}
+        </div>;
+      default: break;
     }
+    if (id.startsWith(TOOLBAR_PANEL_PREFIX)) {
+      return <PanelButton key={id} panel={id.slice(TOOLBAR_PANEL_PREFIX.length)} mode={mode} onDone={() => closeOverflow(inOverflow)} />;
+    }
+    if (id.startsWith(TOOLBAR_PLUGIN_PREFIX)) {
+      const entry = pluginRegistry.getPanels('toolbar').find((p) => `${TOOLBAR_PLUGIN_PREFIX}${p.id}` === id);
+      if (!entry) return null; // the add-on is off; its place is kept
+      const Component = entry.component;
+      return <div className="toolbar-group toolbar-plugin-item" key={id}><Component editor={editor} /></div>;
+    }
+    return null;
+  };
 
-    return items.length > 0 ? items : null;
-  }, [hiddenPriorities, isHiddenExact, mobileZoomVisible, renderZoomMin, renderZoom, renderSearchGoto, renderNotesTags, renderAlignment, renderFontStyleColors, renderFontFaceSize]);
-
-  // Derived from the menu's contents, not from the hidden set: a group can be
-  // hidden and still have nothing to offer here (zoom, when the narrow layout
-  // shows its own zoom button), and a "…" that opens an empty popup is worse
-  // than no "…" at all.
+  // Build the overflow menu from the controls the measurement folded away, in
+  // the order the writer arranged them.
+  const overflowContent = (() => {
+    if (!isTop || hiddenItems.size === 0) return null;
+    const nodes: React.ReactNode[] = [];
+    const addSep = () => { if (nodes.length > 0) nodes.push(<div className="toolbar-overflow-sep" key={`sep-${nodes.length}`} />); };
+    for (const id of allItems) {
+      if (!hiddenItems.has(id)) continue;
+      // Zoom: skip when the narrow layout's own zoom button is on screen.
+      if (id === 'zoom' && mobileZoomVisible) continue;
+      const node = renderItem(id, true);
+      if (node === null) continue;
+      addSep();
+      nodes.push(node);
+    }
+    if (nodes.length === 0) return null;
+    addSep();
+    nodes.push(
+      <button key="customise" type="button" className="toolbar-overflow-customise"
+        onClick={() => { setLayoutDialog('toolbar'); setOverflowOpen(false); }}>
+        <FaSlidersH /> {t('layout.customiseBars')}
+      </button>,
+    );
+    return nodes;
+  })();
+  // Derived from the menu's contents, not from the hidden set: a "…" that
+  // opens an empty popup is worse than no "…" at all.
   const hasOverflow = overflowContent !== null;
+
+  const contextMenu = useBarContextMenu();
+
+  const avRowControls = (
+    <>
+      <div className="toolbar-separator" />
+      <div className="toolbar-group av-row-group">
+        <button
+          className="toolbar-btn av-row-btn av-row-btn-add"
+          title={t('toolbar.addAvRow', { shortcut: '⌘↵' })}
+          onClick={() => editor?.chain().focus().insertAvRow('below').run()}
+          disabled={!editor}
+        >
+          <FaPlus />
+          <span className="toolbar-btn-label">{t('toolbar.row')}</span>
+        </button>
+        <button
+          className="toolbar-btn av-row-btn av-row-btn-delete"
+          title={t('toolbar.deleteAvRow')}
+          onClick={() => editor?.chain().focus().deleteAvRow().run()}
+          disabled={!editor}
+        >
+          <FaTrashAlt />
+        </button>
+      </div>
+    </>
+  );
+
+  /** One control in its block, with the separator that folds with it. */
+  const block = (id: string, index: number, list: string[]) => {
+    const def = toolbarItemDefinition(id);
+    const node = renderItem(id);
+    if (node === null) return null;
+    const classes = ['toolbar-priority-block'];
+    const mode = labelOf(id);
+    if (mode === 'text' || mode === 'both') classes.push('has-labels');
+    if (isTop && def?.desktopOnly) classes.push('toolbar-desktop-only');
+    if (isTop && id === 'zoom') classes.push('zoom-group');
+    if (def?.fixed) classes.push('toolbar-fixed-item');
+    const off = !isTop && !!hidden?.has(id);
+    if (off) classes.push('is-overflow');
+    return (
+      <React.Fragment key={id}>
+        <div className={classes.join(' ')} data-priority={isTop && !def?.fixed ? id : undefined} data-item={id}
+          aria-hidden={off || undefined} inert={off || undefined}>
+          {/* Inside the block so it folds with the control it separates. */}
+          {/* Font and its size read as one control, as they always have. */}
+          {index > 0 && !(id === 'font-size' && list[index - 1] === 'font') && <div className="toolbar-separator" />}
+          {node}
+        </div>
+        {/* AV row controls — the only route to a new row without a hardware
+            keyboard (issue #116), so they are never folded away or hidden on
+            mobile. Shown only inside an AV cell. */}
+        {id === 'element' && isInsideAvRow && avRowControls}
+      </React.Fragment>
+    );
+  };
+
+  if (!isTop) {
+    if (allItems.length === 0) return null;
+    // Every control here went up to the row: the box takes no room on the strip.
+    const allOff = !!hidden && allItems.every((id) => hidden.has(id));
+    return (
+      <div className={`footer-controls${allOff ? ' is-all-overflow' : ''}`} onContextMenu={contextMenu.onContextMenu}>
+        {allItems.map((id, index, list) => block(id, index, list))}
+        {contextMenu.element}
+      </div>
+    );
+  }
 
   if (toolbarMode === 'hidden' && (focusMode || !foldState.foldable || foldState.size !== 'phone')) return null;
 
@@ -1050,135 +1296,23 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
       className={`toolbar${(toolbarMode === 'comfortable' || (foldState.foldable && foldState.size === 'phone' && toolbarMode === 'hidden')) ? ' toolbar-comfortable' : ''}${isInsideAvRow ? ' toolbar-av' : ''}`}
       ref={toolbarRef}
       role="group" aria-label={t('common:accessibility.formattingControls')}
+      onContextMenu={contextMenu.onContextMenu}
     >
-      {/* Undo / Redo — always visible */}
-      <div className="toolbar-group">
-        <button
-          className="toolbar-btn"
-          title={t('toolbar.undo', { shortcut: '⌘Z' })}
-          onClick={() => { try { editor?.chain().focus().undo().run(); } catch {} }}
-          disabled={!caret?.canUndo}
-        >
-          <FaUndo />
-        </button>
-        <button
-          className="toolbar-btn"
-          title={t('toolbar.redo', { shortcut: '⇧⌘Z' })}
-          onClick={() => { try { editor?.chain().focus().redo().run(); } catch {} }}
-          disabled={!caret?.canRedo}
-        >
-          <FaRedo />
-        </button>
-      </div>
+      {startItems.map((id, index, list) => block(id, index, list))}
 
-      <div className="toolbar-separator" />
+      {/* The element picker can be removed; the AV row buttons still have to
+          be reachable while the caret is in a row. */}
+      {isInsideAvRow && !allItems.includes('element') && avRowControls}
 
-      {/* Element type selector — always visible */}
-      <div className="toolbar-group">
-        <Select
-          className="element-selector"
-          value={activeElement}
-          onChange={handleElementChange}
-          disabled={isInTitlePage}
-          title={isInTitlePage
-            ? t('toolbar.elementTypeTitlePage')
-            : t('toolbar.elementType')}
-        >
-          {/* The title page's fields have template rules but are not things a
-              paragraph converts into, so they never appear here — only as the
-              read-only label below when the cursor is actually in one. */}
-          {isInTitlePage && (
-            <option value={activeElement}>
-              {activeTemplate.rules[activeElement]?.label || t('toolbar.titlePage')}
-            </option>
-          )}
-          {/*
-            Inside an AV cell the list is resolved by utils/avCellElements.ts:
-            the four AV paragraph types always, plus whatever the template
-            admits to THIS column. The four are unconditional on purpose —
-            `avCell` holds them in every document whatever template is active,
-            and reading the list off the template alone left the dropdown empty
-            (and the body uneditable) for an AV body under a screenplay template
-            and for an AV document whose template did not come back with it,
-            such as a restored session. Outside a cell, the template is the
-            authority as before.
-          */}
-          {(isInsideAvCell
-            ? avCellElementRules(activeTemplate, avCellSide, String(activeElement))
-            : scriptBodyElementRules(activeTemplate, isTitlePageRuleId)
-          ).map((r) => (
-            <option key={r.id} value={r.id} title={elementDescription(r.id)} data-shortcut={shortcutFor(r.id)}>
-              {elementLabel(r.id, r.label)}
-            </option>
-          ))}
-        </Select>
-      </div>
+      {/* Spacer between the sides */}
+      <div className="toolbar-spacer" style={{ flex: 1 }} />
 
-      {/* AV row controls — the only route to a new row without a hardware
-          keyboard (issue #116), so they are never collapsed into the overflow
-          menu and never hidden on mobile. Shown only inside an AV cell, where
-          they are the actions the writer actually needs. */}
-      {isInsideAvRow && (
+      {centerItems.length > 0 && (
         <>
-          <div className="toolbar-separator" />
-          <div className="toolbar-group av-row-group">
-            <button
-              className="toolbar-btn av-row-btn av-row-btn-add"
-              title={t('toolbar.addAvRow', { shortcut: '⌘↵' })}
-              onClick={() => editor?.chain().focus().insertAvRow('below').run()}
-              disabled={!editor}
-            >
-              <FaPlus />
-              <span className="toolbar-btn-label">{t('toolbar.row')}</span>
-            </button>
-            <button
-              className="toolbar-btn av-row-btn av-row-btn-delete"
-              title={t('toolbar.deleteAvRow')}
-              onClick={() => editor?.chain().focus().deleteAvRow().run()}
-              disabled={!editor}
-            >
-              <FaTrashAlt />
-            </button>
-          </div>
+          {centerItems.map((id, index, list) => block(id, index, list))}
+          <div className="toolbar-spacer" style={{ flex: 1 }} />
         </>
       )}
-
-      <div className="toolbar-separator" />
-
-      {/* Priority 5: Font face & size — hidden on mobile, collapsible on desktop */}
-      <div className="toolbar-desktop-only toolbar-priority-block" data-priority="5">
-        {renderFontFaceSize()}
-        <div className="toolbar-separator" />
-      </div>
-
-      {/* Priority 4: Font style & colors — hidden on mobile, collapsible on desktop.
-          Suppress ColorPicker popups when hidden so they only render in the overflow copy. */}
-      <div className="toolbar-desktop-only toolbar-priority-block" data-priority="4">
-        {renderFontStyleColors(false, !isHidden('4'))}
-        <div className="toolbar-separator" />
-      </div>
-
-      {/* Priority 3: Alignment — hidden on mobile, collapsible on desktop */}
-      <div className="toolbar-desktop-only toolbar-priority-block" data-priority="3">
-        {renderAlignment()}
-        <div className="toolbar-separator" />
-      </div>
-
-      {/* Priority 2: Search & Go to — collapsible on desktop */}
-      <div className="toolbar-priority-block" data-priority="2">
-        {renderSearchGoto()}
-      </div>
-
-      <div className="toolbar-separator" />
-
-      {/* Priority 6: Notes & Tags — the last to fold into the overflow menu,
-          only when nothing else is left to give way (see HIDE_ORDER) */}
-      <div className="toolbar-priority-block" data-priority="6">
-        {renderNotesTags()}
-      </div>
-
-      {/* Spacer */}
-      <div style={{ flex: 1 }} />
 
       {/* Overflow 3-dot menu */}
       {hasOverflow && (
@@ -1205,65 +1339,44 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
         </div>
       )}
 
-      {/* Zoom — desktop: P1 hides zoom-out, P2 hides zoom label/in */}
-      <div className="toolbar-priority-block zoom-group" data-priority="1">
-        <button
-          className="toolbar-btn"
-          title={t('toolbar.zoomOut')}
-          onClick={() => setZoomLevel(zoomLevel - 10)}
-          disabled={zoomLevel <= 50}
-        >
-          <FaSearchMinus />
-        </button>
-      </div>
-      <div className="toolbar-priority-block zoom-group" data-priority="2b">
-        {zoomEditing ? (
-          <input
-            ref={zoomInputRef}
-            className="zoom-input"
-            type="number"
-            min={50}
-            max={300}
-            step={10}
-            value={zoomInput}
-            onChange={(e) => setZoomInput(e.target.value)}
-            onBlur={commitZoom}
-            aria-label={t('toolbar.zoom')}
-            onKeyDown={onZoomKeyDown}
-            autoFocus
-          />
-        ) : (
-          <button type="button" aria-label={`${t('toolbar.zoom')}: ${zoomLevel}%`}
-            className="zoom-label"
-            onClick={() => { setZoomEditing(true); setTimeout(() => zoomInputRef.current?.select(), 0); }}
-            title={t('toolbar.editZoom')}
-          >
-            {zoomLevel}%
-          </button>
-        )}
-        <button
-          className="toolbar-btn"
-          title={t('toolbar.zoomIn')}
-          onClick={() => setZoomLevel(zoomLevel + 10)}
-          disabled={zoomLevel >= 300}
-        >
-          <FaSearchPlus />
-        </button>
-      </div>
+      {endItems.map((id, index, list) => block(id, index, list))}
 
-      {/* Zoom — mobile: single button */}
-      <div className="toolbar-group zoom-mobile-group">
-        <button
-          className="toolbar-btn"
-          title={t('toolbar.zoom')}
-          aria-expanded={zoomPanelOpen} aria-controls={zoomPanelOpen ? 'zoom-panel' : undefined}
-          onClick={() => setZoomPanelOpen(!zoomPanelOpen)}
-        >
-          <FaSearchPlus />
-        </button>
-      </div>
+      {/* Zoom — mobile: single button, when zoom lives on the toolbar */}
+      {zoomOnBar && (
+        <div className="toolbar-group zoom-mobile-group">
+          <button
+            className="toolbar-btn"
+            title={t('toolbar.zoom')}
+            aria-expanded={zoomPanelOpen} aria-controls={zoomPanelOpen ? 'zoom-panel' : undefined}
+            onClick={() => setZoomPanelOpen(!zoomPanelOpen)}
+          >
+            <FaSearchPlus />
+          </button>
+        </div>
+      )}
+      {contextMenu.element}
     </div>
   );
 };
+
+const MemoControlBar = React.memo(ControlBar);
+
+/** The toolbar under the menu bar. */
+const Toolbar: React.FC<ToolbarProps> = ({ editor }) => <MemoControlBar editor={editor} bar="top" />;
+
+/**
+ * A run of controls the writer placed on the footer, between its status lines
+ * (StatusBar.tsx). Renders nothing, and runs nothing, for an empty run.
+ */
+export const FooterControls: React.FC<ToolbarProps & {
+  items: string[];
+  editorMain?: HTMLElement | null;
+  /** Those that did not fit the strip, which the row shows instead. */
+  hidden?: ReadonlySet<string>;
+}> = React.memo(({ editor, items, editorMain, hidden }) => {
+  if (items.length === 0) return null;
+  return <MemoControlBar editor={editor} bar="bottom" items={items} hidden={hidden} editorMain={editorMain} />;
+});
+FooterControls.displayName = 'FooterControls';
 
 export default React.memo(Toolbar);

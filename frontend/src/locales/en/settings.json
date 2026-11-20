@@ -372,7 +372,6 @@
     },
     "title": "Account & Security",
     "description": "Manage your password, devices, two-factor verification, and account deletion.",
-    "open": "Open Account Settings",
     "twoFactor": "Two-factor verification",
     "twoFactorHint": "When on, signing in from a new device requires a 6-digit code emailed to you. When off, you'll only get a heads-up email so you can spot unauthorized sign-ins.",
     "smtpMissing": "Email is not configured on this server, so verification codes can't be sent. Two-factor verification is unavailable until SMTP is set up.",
@@ -389,6 +388,24 @@
   "page": {
     "back": "Go back",
     "title": "System Settings"
+  },
+  "nav": {
+    "label": "Settings sections",
+    "search": "Search settings",
+    "noMatch": "No settings match “{{query}}”.",
+    "general": "General",
+    "generalDesc": "Language, and how the editor behaves while you write.",
+    "saving": "Saving & Backups",
+    "savingDesc": "When your work is saved, where new projects go, and backup copies.",
+    "writing": "Writing Tools",
+    "writingDesc": "SmartType suggestions, macros and Table Read voices.",
+    "export": "Print & Export",
+    "exportDesc": "How your script is printed and exported.",
+    "account": "Account & Sharing",
+    "accountDesc": "Signing in, security, and defaults for collaboration invites.",
+    "advanced": "Advanced",
+    "advancedDesc": "Server addresses, for self-hosted setups.",
+    "advancedNote": "Only change these if you run your own OpenDraft server."
   },
   "language": {
     "title": "Language",

@@ -6,6 +6,7 @@ import { resolveMoresContds, resolveHeaderFooter, printedPageNumber, resolveHFFi
 import type { PageLayout, HeaderFooterContent } from '../stores/editorStore';
 import { getForceBreakIds, startsOwnPage, elementIdOf, laysItselfOut } from './pageBreaks';
 import { getSpaceBefore } from './elementSpacing';
+import { getLineSpacing } from './lineSpacing';
 import { resolveImageUrl, loadImageData } from './imageAsset';
 import { jsonBlockRuns } from './nodeText';
 import { parseCssColor } from './inkColor';
@@ -22,7 +23,7 @@ import { extractAvBodies } from './avDocument';
 import { drawAvBody, avRowNodes, avFrameKey } from './avPdfTable';
 import { readColumnConfig } from '../editor/extensions/AvBlock';
 import {
-  embedUnicodeFonts, requiredUnicodeFaces, segmentByFace, unsupportedScripts,
+  embedUnicodeFonts, embedSystemFonts, requiredUnicodeFaces, segmentByFace, unsupportedScripts,
   type ProgressHandler, type StyledText, type UnicodeFallbacks,
 } from './pdfUnicodeFont';
 import { embedCustomFonts, type EmbeddedFace } from './pdfCustomFonts';
@@ -51,13 +52,35 @@ import { withElementNumbers, elementNumberOf } from './elementNumbers';
 import { noteBlockText } from './noteContent';
 import { composeTwoUp } from './pdfTwoUp';
 import { t } from '../i18n';
+import { fontScaleOf, scaledCpl } from './fontScale';
 
 // --- Constants matching pagination.ts ---
 
-const LINE_HEIGHT_PT = 12;
 const PTS_PER_INCH = 72;
 const FD_CPI = 10.33; // Final Draft Courier characters per inch
-const FD_CHAR_WIDTH_PT = PTS_PER_INCH / FD_CPI; // ≈6.97pt per character
+
+/**
+ * The grid the page is drawn on, which follows the script's font size (#270).
+ *
+ * At the standard 12pt these are Final Draft's: a 12pt line, a 12pt face and
+ * a ≈6.97pt cell. A script set at another size scales all three by size / 12,
+ * which is the same scale the editor paginates with (utils/fontScale), so the
+ * two agree on where every line and page ends. They are set once per export by
+ * `useFontScale`, before anything is measured, and put back afterwards; an
+ * export is one synchronous layout between its font loads, and the app runs one
+ * at a time.
+ */
+let FONT_PT = 12;
+let FONT_SCALE = 1;
+let LINE_HEIGHT_PT = 12;
+let FD_CHAR_WIDTH_PT = PTS_PER_INCH / FD_CPI; // ≈6.97pt per character at 12pt
+
+function setFontScale(scale: number): void {
+  FONT_SCALE = scale;
+  FONT_PT = 12 * scale;
+  LINE_HEIGHT_PT = 12 * scale;
+  FD_CHAR_WIDTH_PT = (PTS_PER_INCH / FD_CPI) * scale;
+}
 
 // Final Draft absolute indents from page edge (inches)
 const FD_INDENTS: Record<string, [number, number]> = {
@@ -73,6 +96,11 @@ const CHARS_PER_LINE: Record<string, number> = {};
 for (const [type, [l, r]] of Object.entries(FD_INDENTS)) {
   CHARS_PER_LINE[type] = Math.round((r - l) * FD_CPI);
 }
+/** Characters to a line for an element at the script's font size. */
+const charsPerLine = (typeName: string): number => {
+  const indents = FD_INDENTS[typeName];
+  return scaledCpl(CHARS_PER_LINE[typeName] || 62, FONT_SCALE, indents ? indents[1] - indents[0] : 6);
+};
 
 // Space before each element (in lines) now comes from the active formatting
 // template via getSpaceBefore() — see utils/elementSpacing.ts, which pagination
@@ -176,14 +204,16 @@ function applyTypeStyles(runs: TextRun[], typeName: string): TextRun[] {
  * can write it is never embedded and a Hindi AV script or a Cyrillic
  * simultaneous speech comes out of the exporter blank.
  */
-function collectNestedText(node: JSONContent, out: StyledText[]): void {
+function collectNestedText(node: JSONContent, out: StyledText[], documentFont?: string): void {
   const content = node.content ?? [];
   if (content.some((child) => child.type === 'text')) {
     const runs = applyTypeStyles(extractRuns(node), String(node.type ?? ''));
-    for (const run of runs) out.push({ text: run.text, bold: run.bold, italic: run.italic });
+    for (const run of runs) {
+      out.push({ text: run.text, bold: run.bold, italic: run.italic, sans: isSansFamily(run.fontFamily || documentFont) });
+    }
   }
   for (const child of content) {
-    if (child.type !== 'text') collectNestedText(child, out);
+    if (child.type !== 'text') collectNestedText(child, out, documentFont);
   }
 }
 
@@ -210,6 +240,11 @@ export function pdfFontFor(family: string | undefined): 'courier' | 'times' | 'h
     case 'serif': case 'cursive': return 'times';
     default: return 'helvetica';
   }
+}
+
+/** Whether a family is drawn in Helvetica — Arial and every other sans-serif. */
+function isSansFamily(family: string | undefined): boolean {
+  return pdfFontFor(family) === 'helvetica';
 }
 
 /**
@@ -300,7 +335,7 @@ function drawnPieces(
 
   const pieces = isOwnFont(family, fonts)
     ? [asBase(text)]
-    : segmentByFace(text, fonts.fallbacks).map((segment): DrawnPiece => (segment.fallback
+    : segmentByFace(text, fonts.fallbacks, { latinBase: base === 'courier', sansBase: base === 'helvetica' }).map((segment): DrawnPiece => (segment.fallback
       ? {
         text: segment.fallback.shaped ? segment.text : segment.fallback.shape(segment.text),
         face: segment.fallback.id,
@@ -339,7 +374,7 @@ function drawPlain(
  * renderElement is given it.
  */
 function drawElementNumber(pdf: jsPDF, label: string, leftPt: number, topY: number, fonts: FontContext): void {
-  pdf.setFontSize(12);
+  pdf.setFontSize(FONT_PT);
   const x = leftPt - 0.15 * PTS_PER_INCH - measurePlain(pdf, label, fonts);
   drawPlain(pdf, label, x, topY + LINE_HEIGHT_PT, fonts);
 }
@@ -461,6 +496,7 @@ function measurePieces(pdf: jsPDF, pieces: DrawnPiece[], bold: boolean, italic: 
 /** A highlight's box, measured from the baseline: one 12pt line. */
 const HIGHLIGHT_ASCENT_PT = 9.5;
 const HIGHLIGHT_HEIGHT_PT = 12;
+// ...and they grow with the script's font size, as the line does.
 
 /**
  * Render a line of TextRun segments at (x, y), using FD Courier character spacing.
@@ -498,7 +534,7 @@ function renderLine(
       const width = inkWidth;
       const prevFill = pdf.getFillColor();
       pdf.setFillColor(fill[0], fill[1], fill[2]);
-      pdf.rect(cursorX, y - HIGHLIGHT_ASCENT_PT, width, HIGHLIGHT_HEIGHT_PT, 'F');
+      pdf.rect(cursorX, y - HIGHLIGHT_ASCENT_PT * FONT_SCALE, width, HIGHLIGHT_HEIGHT_PT * FONT_SCALE, 'F');
       pdf.setFillColor(prevFill);
     }
     // Restored afterwards rather than assumed black: a caller may be drawing
@@ -512,13 +548,13 @@ function renderLine(
     }
     const nextX = drawPieces(pdf, pieces, cursorX, y, run.bold, run.italic);
     if (run.underline) {
-      const ulY = y + 1.5;
+      const ulY = y + 1.5 * FONT_SCALE;
       pdf.setLineWidth(0.5);
       pdf.line(cursorX, ulY, nextX, ulY);
     }
     if (run.strike) {
       // Through the middle of the lowercase letters.
-      const stY = y - 3.5;
+      const stY = y - 3.5 * FONT_SCALE;
       pdf.setLineWidth(0.5);
       pdf.line(cursorX, stY, cursorX + inkWidth, stY);
     }
@@ -531,9 +567,9 @@ function renderLine(
       // Raised, small, and advancing nothing: it overhangs into the space that
       // follows, which is what the editor's marker decoration does and what
       // keeps this line the same length in both. See utils/footnotes.
-      pdf.setFontSize(8);
-      drawPieces(pdf, drawnPieces(run.marker, undefined, fonts), cursorX, y - 3.5, false, false);
-      pdf.setFontSize(12);
+      pdf.setFontSize(8 * FONT_SCALE);
+      drawPieces(pdf, drawnPieces(run.marker, undefined, fonts), cursorX, y - 3.5 * FONT_SCALE, false, false);
+      pdf.setFontSize(FONT_PT);
     }
   }
 }
@@ -755,6 +791,15 @@ function fallbackWarning(fallbacks: UnicodeFallbacks): string | undefined {
  * never drift apart.
  */
 export async function renderPDF(doc: JSONContent, title: string, layout: PageLayout, options?: PDFExportOptions): Promise<RenderedPDF> {
+  setFontScale(fontScaleOf(layout));
+  try {
+    return await renderPDFAtScale(doc, title, layout, options);
+  } finally {
+    setFontScale(1);
+  }
+}
+
+async function renderPDFAtScale(doc: JSONContent, title: string, layout: PageLayout, options?: PDFExportOptions): Promise<RenderedPDF> {
   const filename = `${sanitizeExportFilename(title)}.pdf`;
 
   // Labels for numbered elements, on a copy. The very same document comes back
@@ -794,6 +839,12 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
   const usableBottomPt = pageHeightPt - bottomMarginPt;
   // "Mores & Continueds" config for page-break (MORE)/(CONT'D) markers.
   const mc = resolveMoresContds(layout);
+  // Line spacing (utils/lineSpacing): how far apart each element's lines are
+  // drawn, from the same template the editor paginates with.
+  const lineSpacing = getLineSpacing();
+  /** The pitch of an element's lines, in points — 12 at standard spacing. */
+  const lineHeightPtOf = (n: { typeName: string; attrs?: Record<string, unknown> }): number =>
+    LINE_HEIGHT_PT * lineSpacing.multiplierOf({ type: n.typeName, attrs: n.attrs });
 
   const encryption = pdfEncryption(options?.security);
   const pdf = new jsPDF({
@@ -810,7 +861,7 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
     : null;
 
   const documentFont = options?.documentFont;
-  pdf.setFontSize(12);
+  pdf.setFontSize(FONT_PT);
 
   // Character spacing adjustment: make jsPDF Courier match FD Courier (10.33 CPI).
   // Measured on Courier itself, since that is what it is applied to.
@@ -906,11 +957,14 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
       ? applyFootnoteMarkers(styled, refs, plan!.settings.markerStyle, plan!.markerWidth)
       : styled;
     const text = getPlainText(runs);
-    const cpl = CHARS_PER_LINE[typeName] || 62;
+    const cpl = charsPerLine(typeName);
     const pageLines = Math.floor((pageHeightPt - topMarginPt - bottomMarginPt) / LINE_HEIGHT_PT);
     const cueLines =
       (typeName === 'dialogue' || typeName === 'lyrics') && mc.dialogueBreakContd ? 1 : 0;
-    const oversized = SPLIT_PARAGRAPH_TYPES.has(typeName) && getTextLines(text, cpl) + cueLines > pageLines;
+    // Measured in 12pt lines, as the editor measures it: a paragraph drawn at
+    // double spacing fills a page with half as many lines of text.
+    const lineMul = lineSpacing.multiplierOf({ type: typeName, attrs: node.attrs as Record<string, unknown> | undefined });
+    const oversized = SPLIT_PARAGRAPH_TYPES.has(typeName) && getTextLines(text, cpl) * lineMul + cueLines > pageLines;
     if (oversized) {
       const fragments = paragraphFragments(text, cpl);
       fragments.forEach((fragment, part) => {
@@ -966,14 +1020,16 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
   // collected first, with the style it will be drawn in.
   const drawn: StyledText[] = [];
   for (const node of nodes) {
-    for (const run of node.runs) drawn.push({ text: run.text, bold: run.bold, italic: run.italic });
+    for (const run of node.runs) {
+      drawn.push({ text: run.text, bold: run.bold, italic: run.italic, sans: isSansFamily(run.fontFamily || documentFont) });
+    }
     // A dialogue block broken across a page repeats the character name.
-    if (node.typeName === 'character') drawn.push({ text: node.plainText });
+    if (node.typeName === 'character') drawn.push({ text: node.plainText, sans: isSansFamily(documentFont) });
     // A block that draws itself carries its text below the run list.
-    if (node.raw) collectNestedText(node.raw, drawn);
+    if (node.raw) collectNestedText(node.raw, drawn, documentFont);
   }
   for (const it of titleItems) {
-    if (it.kind === 'text') drawn.push({ text: it.text || '', bold: it.field === 'title' });
+    if (it.kind === 'text') drawn.push({ text: it.text || '', bold: it.field === 'title', sans: isSansFamily(it.font || documentFont) });
   }
   if (plan) {
     // Every string this export will draw has to be declared here or a face
@@ -1000,6 +1056,9 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
     ...[hContent, fContent].flatMap((c) => [{ text: c.left }, { text: c.center }, { text: c.right }]),
   );
 
+  // Page furniture, notes and the rest are drawn in the script's own face.
+  for (const item of drawn) if (item.sans === undefined) item.sans = isSansFamily(documentFont);
+
   // Fonts the writer installed themselves are embedded outright, so a script
   // set in one exports as that font rather than as the nearest built-in.
   const usedFamilies = new Set<string>();
@@ -1012,10 +1071,16 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
   const fonts: FontContext = {
     documentFont,
     courierSpace,
-    fallbacks: await embedUnicodeFonts(pdf, requiredUnicodeFaces(drawn), FD_CHAR_WIDTH_PT, {
-      unsupported: unsupportedScripts(drawn),
-      onProgress: options?.onFontProgress,
-    }),
+    // The bundled faces first, then — on the desktop app — an installed font
+    // for whatever they cannot write (symbols, emoji, rare scripts).
+    fallbacks: await embedSystemFonts(
+      pdf,
+      await embedUnicodeFonts(pdf, requiredUnicodeFaces(drawn), FD_CHAR_WIDTH_PT, {
+        unsupported: unsupportedScripts(drawn),
+        onProgress: options?.onFontProgress,
+      }),
+      drawn,
+    ),
     embedded: embedCustomFonts(pdf, usedFamilies),
     textColors: options?.textColors !== false,
   };
@@ -1074,7 +1139,7 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
         const align: 'left' | 'center' | 'right' =
           it.field === 'draft' ? 'left' : (it.field === 'contact' || it.field === 'copyright') ? 'right' : 'center';
         const lineH = isTitle ? (it.titleSize || 12) : LINE_HEIGHT_PT;
-        pdf.setFontSize(isTitle ? (it.titleSize || 12) : 12);
+        pdf.setFontSize(isTitle ? (it.titleSize || 12) : FONT_PT);
         const x = align === 'left' ? leftX : align === 'right' ? rightX : centerX;
         const lines = (it.text || '').split('\n');
         for (const line of lines) {
@@ -1094,7 +1159,7 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
           }
           y += lineH;
         }
-        pdf.setFontSize(12);
+        pdf.setFontSize(FONT_PT);
         // No inter-element gap. The title page is built as a fixed number of
         // 12pt lines (see buildTitlePageBlocks), and an extra 4pt per element
         // added up to a third of a page over ~50 of them — enough that the
@@ -1125,6 +1190,19 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
   /** Parts of a note still to be drawn, continuing onto the next page. */
   let pendingSlices: NoteSlice[] = [];
   const linesPerPage = Math.floor((pageHeightPt - topMarginPt - bottomMarginPt) / LINE_HEIGHT_PT);
+  /**
+   * The foot of the text area, for deciding what fits.
+   *
+   * The editor gives a page `linesPerPage` whole 12pt lines; the sheet usually
+   * has a sliver more (A4 holds 58.16). At standard spacing every element ends
+   * on a whole line, so the sliver never fits anything and the two agree. Line
+   * spacing ends elements on eighths of a line, and an element ending in the
+   * sliver would fit here and not on screen — so then the foot is the
+   * editor's. Left alone at standard spacing so those PDFs stay as they were.
+   */
+  const textBottomPt = lineSpacing.standard
+    ? usableBottomPt
+    : Math.min(usableBottomPt, topMarginPt + linesPerPage * LINE_HEIGHT_PT);
 
   function reserveLines(): number {
     if (!drawFootnotes) return 0;
@@ -1133,7 +1211,7 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
 
   /** Where the script has to stop on this page. */
   function bottomPt(): number {
-    return usableBottomPt - reserveLines() * LINE_HEIGHT_PT;
+    return textBottomPt - reserveLines() * LINE_HEIGHT_PT;
   }
 
   /**
@@ -1271,7 +1349,7 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
     if (node.typeName !== 'sceneHeading' || !options?.sceneNumbersVisible || !node.attrs?.sceneNumber) return;
     const sceneNum = String(node.attrs.sceneNumber);
     const y = topY + LINE_HEIGHT_PT; // baseline of first line
-    pdf.setFontSize(12);
+    pdf.setFontSize(FONT_PT);
     // Left side: just inside left margin
     const leftNumX = 1.0 * PTS_PER_INCH;
     drawPlain(pdf, sceneNum, leftNumX, y, fonts, { bold: true });
@@ -1577,13 +1655,17 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
     const indents = FD_INDENTS[typeName] || FD_INDENTS.general;
     const leftPt = indents[0] * PTS_PER_INCH;
     const rightPt = indents[1] * PTS_PER_INCH;
-    const maxChars = CHARS_PER_LINE[typeName] || 62;
+    const maxChars = charsPerLine(typeName);
     const forceUpper = UPPERCASE_TYPES.has(typeName);
 
     const spaceBeforePt = isFirstElement ? 0 : spaceBeforePtOf(node);
 
     const wrappedLines = node.fragmentWrapped ?? wrapForDrawing(node.runs, maxChars, forceUpper);
-    const elementHeightPt = wrappedLines.length * LINE_HEIGHT_PT;
+    const lineHeightPt = lineHeightPtOf(node);
+    /** Half the extra room line spacing adds, above each line — the screen
+     *  centres a line in its taller line box the same way. 0 at standard. */
+    const leadPt = (lineHeightPt - LINE_HEIGHT_PT) / 2;
+    const elementHeightPt = wrappedLines.length * lineHeightPt;
     const totalHeightPt = spaceBeforePt + elementHeightPt;
 
     /**
@@ -1598,21 +1680,25 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
      */
     interface BlockPart {
       nodeIndex: number; sbPt: number; wrapped: TextRun[][]; lines: number; heightPt: number;
+      /** The text alone, without the space before: `lines` at the element's pitch. */
+      textPt: number; lineHeightPt: number;
     }
     const measure = (at: number): BlockPart => {
       const n = nodes[at];
       const w = n.fragmentWrapped ?? wrapForDrawing(
-        n.runs, CHARS_PER_LINE[n.typeName] || 62, UPPERCASE_TYPES.has(n.typeName),
+        n.runs, charsPerLine(n.typeName), UPPERCASE_TYPES.has(n.typeName),
       );
       const sb = spaceBeforePtOf(n);
+      const lh = lineHeightPtOf(n);
       return {
         nodeIndex: at, sbPt: sb, wrapped: w, lines: w.length,
-        heightPt: sb + w.length * LINE_HEIGHT_PT,
+        heightPt: sb + w.length * lh, textPt: w.length * lh, lineHeightPt: lh,
       };
     };
     const parts: BlockPart[] = [{
       nodeIndex: i, sbPt: spaceBeforePt, wrapped: wrappedLines,
       lines: wrappedLines.length, heightPt: totalHeightPt,
+      textPt: elementHeightPt, lineHeightPt,
     }];
     /** Index in `parts` of the character name, when this block is a speech. */
     let speechAt = -1;
@@ -1652,7 +1738,7 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
       const own = oversizedSpeech || dNode.fragmentFrom !== undefined ? claimNotes(dNode) : [];
       if (
         speechAt < 0 && dNode.fragmentFrom !== undefined &&
-        currentY + (withSpaceBefore ? part.sbPt : 0) + part.lines * LINE_HEIGHT_PT > bottomPt() &&
+        currentY + (withSpaceBefore ? part.sbPt : 0) + part.textPt > bottomPt() &&
         currentY > topMarginPt
       ) {
         for (const entry of own) pageEntries = pageEntries.filter((e) => e !== entry);
@@ -1664,15 +1750,16 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
       if (withSpaceBefore) currentY += part.sbPt;
       renderElement(
         pdf, part.wrapped, dIndents[0] * PTS_PER_INCH, dIndents[1] * PTS_PER_INCH,
-        currentY, dNode.typeName, fonts, revisionMarkX,
+        currentY, dNode.typeName, fonts, revisionMarkX, part.lineHeightPt,
       );
+      const partLead = (part.lineHeightPt - LINE_HEIGHT_PT) / 2;
       const partNumber = elementNumberOf(dNode);
-      if (partNumber) drawElementNumber(pdf, partNumber, dIndents[0] * PTS_PER_INCH, currentY, fonts);
+      if (partNumber) drawElementNumber(pdf, partNumber, dIndents[0] * PTS_PER_INCH, currentY + partLead, fonts);
       // A heading kept with the one before it — the scene after an OMITTED —
       // is drawn here, and is numbered like any other.
-      drawSceneNumbers(dNode, currentY);
-      place(dNode.srcIndex, currentY, currentY + part.lines * LINE_HEIGHT_PT);
-      currentY += part.lines * LINE_HEIGHT_PT;
+      drawSceneNumbers(dNode, currentY + partLead);
+      place(dNode.srcIndex, currentY, currentY + part.textPt);
+      currentY += part.textPt;
     };
 
     /**
@@ -1715,7 +1802,7 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
       for (let p = speechAt + 1; p < parts.length; p++) {
         addEntries(parts[p]);
         const room = oversizedSpeech && plan
-          ? usableBottomPt - packFootnotePage(pendingSlices, fittedEntries, linesPerPage).reserve * LINE_HEIGHT_PT
+          ? textBottomPt - packFootnotePage(pendingSlices, fittedEntries, linesPerPage).reserve * LINE_HEIGHT_PT
             - currentY - (mc.dialogueBreakContd ? LINE_HEIGHT_PT : 0)
           : remaining;
         if (fittedPt + parts[p].heightPt > room) break;
@@ -1822,11 +1909,11 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
     }
 
     // Render the element
-    renderElement(pdf, wrappedLines, leftPt, rightPt, currentY, typeName, fonts, revisionMarkX);
+    renderElement(pdf, wrappedLines, leftPt, rightPt, currentY, typeName, fonts, revisionMarkX, lineHeightPt);
     const number = elementNumberOf(node);
-    if (number) drawElementNumber(pdf, number, leftPt, currentY, fonts);
+    if (number) drawElementNumber(pdf, number, leftPt, currentY + leadPt, fonts);
 
-    drawSceneNumbers(node, currentY);
+    drawSceneNumbers(node, currentY + leadPt);
 
     place(node.srcIndex, currentY, currentY + elementHeightPt);
     currentY += elementHeightPt;
@@ -2074,7 +2161,7 @@ function renderHFLine(
 
   // Page furniture is set in the script's own face, as Final Draft does — or
   // in the fallback, when a Cyrillic title reaches the header.
-  pdf.setFontSize(12);
+  pdf.setFontSize(FONT_PT);
 
   // Left
   const leftText = resolveFields(content.left, pageNum, totalPages, title, revisionColor);
@@ -2106,14 +2193,22 @@ function renderElement(
   fonts: FontContext,
   /** Where to draw a revised line's margin mark; null draws none. */
   revisionMarkX: RevisionMarker | null = null,
+  /** The element's line pitch (utils/lineSpacing); 12pt at standard spacing. */
+  lineHeightPt: number = LINE_HEIGHT_PT,
 ): void {
   const isCentered = CENTERED_TYPES.has(typeName);
   const isRightAligned = RIGHT_ALIGNED_TYPES.has(typeName);
   const maxWidthPt = rightPt - leftPt;
+  // Opened-up lines sit in the middle of their taller slot, as the editor's
+  // CSS line box centres them. At standard spacing this is 0.
+  const leadPt = (lineHeightPt - LINE_HEIGHT_PT) / 2;
 
   for (let lineIdx = 0; lineIdx < wrappedLines.length; lineIdx++) {
     const lineRuns = wrappedLines[lineIdx];
-    const y = startY + (lineIdx + 1) * LINE_HEIGHT_PT; // +1 because jsPDF text baseline
+    // +LINE_HEIGHT_PT because jsPDF draws at the text baseline. Summed in the
+    // brackets first so that at standard spacing the value is bit-for-bit
+    // `startY + (lineIdx + 1) * 12`, as it always was.
+    const y = startY + (leadPt + lineIdx * lineHeightPt + LINE_HEIGHT_PT);
 
     if (isCentered) {
       const totalWidth = measureLine(pdf, lineRuns, fonts);
@@ -2294,7 +2389,7 @@ function drawWatermark(
   }
 
   pdf.setTextColor(0, 0, 0);
-  pdf.setFontSize(12);
+  pdf.setFontSize(FONT_PT);
   api.restoreGraphicsState?.();
 }
 

@@ -236,6 +236,20 @@ function loadClampedInt(key: string, fallback: number, min: number, max: number)
   return Math.min(max, Math.max(min, n));
 }
 
+/**
+ * The default invite expiry, in hours. Not an integer: 30 minutes is stored as
+ * 0.5, which parseInt read back as 0 — so the choice showed in Settings but
+ * the Share dialog fell back to 1 hour after a restart.
+ */
+function loadInviteExpiryHours(): number {
+  try {
+    const n = Number(localStorage.getItem(STORAGE_KEY_EXPIRY));
+    return Number.isFinite(n) && n > 0 ? n : 1;
+  } catch {
+    return 1;
+  }
+}
+
 /** Stored spec, the shipped default when nothing is stored, '' when switched off. */
 function loadElementMenuShortcut(): string {
   try {
@@ -342,7 +356,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   authVerified: false,
   setAuthVerified: (verified) => set({ authVerified: verified }),
 
-  defaultInviteExpiry: parseInt(localStorage.getItem(STORAGE_KEY_EXPIRY) || '1', 10),
+  defaultInviteExpiry: loadInviteExpiryHours(),
   setDefaultInviteExpiry: (hours) => {
     localStorage.setItem(STORAGE_KEY_EXPIRY, String(hours));
     set({ defaultInviteExpiry: hours });

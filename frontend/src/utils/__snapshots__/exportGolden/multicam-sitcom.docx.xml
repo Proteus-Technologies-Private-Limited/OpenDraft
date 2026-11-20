@@ -74,7 +74,7 @@
 <w:p>
 <w:pPr>
 <w:pStyle w:val="dialogue"/>
-<w:spacing w:before="240" w:line="240" w:lineRule="exact"/>
+<w:spacing w:before="240" w:line="480" w:lineRule="exact"/>
 <w:ind w:left="1440" w:right="2160"/>
 <w:jc w:val="left"/>
 </w:pPr>
@@ -106,7 +106,7 @@
 <w:p>
 <w:pPr>
 <w:pStyle w:val="dialogue"/>
-<w:spacing w:before="240" w:line="240" w:lineRule="exact"/>
+<w:spacing w:before="240" w:line="480" w:lineRule="exact"/>
 <w:ind w:left="1440" w:right="2160"/>
 <w:jc w:val="left"/>
 </w:pPr>

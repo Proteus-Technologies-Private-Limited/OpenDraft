@@ -35,7 +35,12 @@
       "lockedTitle": "Vous avez rejoint le document pour faire des suggestions : l’auteur accepte ou refuse vos modifications",
       "title": "Vos modifications sont des suggestions. Cliquez pour modifier à nouveau directement.",
       "label": "Suggestion"
-    }
+    },
+    "zoomFitWidth": "Pleine largeur",
+    "zoomFitWidthTitle": "Zoomer pour que la page occupe toute la largeur de la fenêtre",
+    "footerControls": "Commandes de la barre d’état",
+    "showFooterControls": "Afficher les commandes de la barre d’état",
+    "hideFooterControls": "Masquer les commandes de la barre d’état"
   },
   "resetToDefault": "Rétablir les valeurs par défaut",
   "richText": {
@@ -105,5 +110,341 @@
     "elementType": "Type d’élément",
     "elementTypeTitlePage": "Les éléments de la page de titre se règlent dans l’éditeur de page de titre ; leur mise en forme est définie dans le modèle",
     "titlePage": "Page de titre"
+  },
+  "layout": {
+    "title": "Disposition",
+    "tabs": {
+      "panels": "Panneaux",
+      "toolbar": "Barre d’outils et barre d’état"
+    },
+    "quickSwitch": "Changement rapide de disposition",
+    "close": "Fermer",
+    "done": "Terminé",
+    "customiseBars": "Personnaliser la barre d’outils…",
+    "editLayouts": "Modifier les dispositions…",
+    "presets": {
+      "classic": "Classique",
+      "nav-end": "Navigateur à droite",
+      "nav-bottom": "Navigateur en bas",
+      "split": "Navigateur réparti",
+      "custom": "Personnalisée"
+    },
+    "presetHints": {
+      "classic": "La disposition habituelle",
+      "nav-end": "Tout le navigateur à droite",
+      "nav-bottom": "Le navigateur sous la page",
+      "split": "Ses panneaux répartis",
+      "saved": "Enregistrée sur cet appareil"
+    },
+    "docks": {
+      "left": "Gauche",
+      "right": "Droite",
+      "bottom": "Bas",
+      "hidden": "Non placé"
+    },
+    "dockTitle": {
+      "left": "Zone gauche",
+      "right": "Zone droite",
+      "bottom": "Zone du bas"
+    },
+    "panelsTab": {
+      "presetsHeading": "Dispositions prédéfinies",
+      "savedHeading": "Enregistrées",
+      "saveAs": "Enregistrer la disposition actuelle sous…",
+      "nameLabel": "Nom de cette disposition",
+      "save": "Enregistrer",
+      "cancel": "Annuler",
+      "deleteNamed": "Supprimer {{name}}",
+      "hintGroup": "Faites glisser l’en-tête d’un groupe pour déplacer tout le groupe, par exemple tout le navigateur.",
+      "hintPanel": "Faites glisser l’onglet d’un panneau pour ne déplacer que ce panneau.",
+      "writingArea": "Zone d’écriture",
+      "writingAreaHint": "Le scénario, les fiches, le tableau de beats et le séquencier s’y succèdent, depuis le menu Vues. Les panneaux s’organisent autour.",
+      "dropNewGroup": "Déposer ici pour créer un groupe",
+      "dropGroup": "Déposer le groupe ici",
+      "emptyDock": "Vide. Faites glisser un panneau ou un groupe ici.",
+      "newGroup": "+ Nouveau groupe",
+      "notPlacedHint": "Les panneaux placés ici ne figurent pas dans Affichage › Panneaux. Faites-en glisser un vers une zone pour le rétablir.",
+      "groupsArrange": "Groupes",
+      "arrangeRows": "Empilés",
+      "arrangeColumns": "Côte à côte",
+      "selected": "Sélection",
+      "noSelection": "Choisissez un panneau ou un groupe pour voir ses options. Tout ce que vous pouvez faire glisser se règle aussi ici, au clavier ou sur un écran tactile.",
+      "opensIn": "S’ouvre dans",
+      "group": "Groupe",
+      "ownGroup": "Seul (nouveau groupe)",
+      "pullOut": "Sortir du groupe",
+      "dontPlace": "Ne pas placer",
+      "groupName": "Nom du groupe",
+      "showAs": "Afficher les panneaux en",
+      "tabs": "Onglets",
+      "stacked": "Empilés",
+      "panelsInGroup": "Panneaux de ce groupe",
+      "moveUp": "Monter {{name}}",
+      "moveDown": "Descendre {{name}}",
+      "ungroup": "Dissocier",
+      "toolbarButton": "Bouton de la barre d’outils",
+      "toolbarButtonHint": "Ouvre {{name}}, où qu’il soit placé.",
+      "navigatorTag": "Navigateur",
+      "addOnTag": "Module",
+      "reset": "Revenir à Classique",
+      "dragGroup": "Déplacer le groupe {{name}}",
+      "dragPanel": "Déplacer {{name}}",
+      "moveGroupTo": "Où s’ouvre le groupe {{name}}",
+      "navigatorGroupName": "Navigateur",
+      "tabCount_one": "{{count}} onglet",
+      "tabCount_many": "{{count}} d’onglets",
+      "tabCount_other": "{{count}} onglets",
+      "footerNote": "Enregistré sur cet appareil. Sur les téléphones, les panneaux s’ouvrent en volets.",
+      "legendNavigator": "Panneaux du navigateur",
+      "groupCount_one": "{{count}} groupe",
+      "groupCount_many": "{{count}} de groupes",
+      "groupCount_other": "{{count}} groupes",
+      "status": "{{preset}} · Panneaux du navigateur : {{places}}"
+    },
+    "toolbarTab": {
+      "presetsHeading": "Barres prédéfinies",
+      "saveAs": "Enregistrer sous…",
+      "nameLabel": "Nom de ces barres",
+      "toolbarShows": "La barre d’outils affiche",
+      "footerShows": "La barre d’état affiche",
+      "preview": "Aperçu en direct",
+      "previewHint": "Tout fonctionne ici. Déposez une commande sur l’une ou l’autre barre pour l’ajouter.",
+      "onToolbar": "Barre d’outils",
+      "onFooter": "Barre d’état",
+      "available": "Disponibles",
+      "availableHint": "Faites glisser vers une barre ou ajoutez avec les boutons. Déposez une commande ici pour la retirer.",
+      "startSide": "Côté début",
+      "endSide": "Côté fin",
+      "dropStart": "Déposer côté début",
+      "dropEnd": "Déposer côté fin",
+      "count_one": "{{count}} commande",
+      "count_many": "{{count}} de commandes",
+      "count_other": "{{count}} commandes",
+      "addToToolbar": "Ajouter {{name}} à la barre d’outils",
+      "addToFooter": "Ajouter {{name}} à la barre d’état",
+      "removeNamed": "Retirer {{name}}",
+      "moveLeft": "Déplacer {{name}} vers le début",
+      "moveRight": "Déplacer {{name}} vers la fin",
+      "showAs": "Afficher en",
+      "defaultMode": "Par défaut ({{mode}})",
+      "placeOn": "Placer sur",
+      "notPlaced": "Non placé",
+      "side": "Côté de la barre",
+      "start": "Début",
+      "end": "Fin",
+      "zoomControl": "Commande de zoom",
+      "zoomButtons": "Boutons",
+      "zoomSlider": "Curseur",
+      "zoomBoth": "Curseur avec boutons",
+      "zoomHint": "De 50 % à 300 %, par pas de 10. ⌘ + et ⌘ − fonctionnent toujours.",
+      "switcherStyle": "Style du sélecteur",
+      "menu": "Menu déroulant",
+      "buttons": "Boutons",
+      "layoutsOffered": "Dispositions proposées",
+      "editEntry": "Terminer par « Modifier les dispositions… »",
+      "noHeadingHint": "« Sans intitulé » n’affiche que la liste déroulante, car sa valeur dit déjà ce qu’elle est.",
+      "reset": "Revenir à Par défaut",
+      "foldNote": "Les commandes qui ne tiennent pas passent dans le menu « … », en partant de la fin du côté début.",
+      "keepOne": "La barre d’outils garde au moins une commande.",
+      "groups": {
+        "writing": "Écriture",
+        "document": "Document",
+        "view": "Affichage et disposition",
+        "panels": "Panneaux",
+        "plugins": "Modules complémentaires",
+        "status": "État"
+      },
+      "where": {
+        "top": "Dans la barre d’outils ({{side}})",
+        "bottom": "Dans la barre d’état ({{side}})",
+        "none": "Non placé"
+      },
+      "removeFrom": {
+        "top": "Retirer de la barre d’outils",
+        "bottom": "Retirer de la barre d’état"
+      },
+      "centerSide": "Milieu",
+      "dropCenter": "Déposer au milieu",
+      "center": "Milieu",
+      "footerOnly": "Les lignes d’état vont uniquement dans la barre d’état.",
+      "narrowFooterNote": "Sur un téléphone ou une fenêtre étroite, la barre d’état garde sa ligne d’état. Ses commandes, son centre et la couleur de révision s’ouvrent dans une rangée au-dessus, avec la flèche à son extrémité.",
+      "phoneIconsNote": "Sur un téléphone, la barre d’outils n’affiche que des icônes : une seule rangée n’a pas la place pour les noms."
+    },
+    "modes": {
+      "icon": "Icône",
+      "text": "Texte",
+      "both": "Icône + texte",
+      "none": "Sans intitulé"
+    },
+    "toolbarPresets": {
+      "default": "Par défaut",
+      "writing": "Écriture",
+      "review": "Relecture",
+      "everything": "Tout"
+    },
+    "toolbarPresetHints": {
+      "default": "Les deux barres exactement comme elles l’ont toujours été.",
+      "writing": "Seulement les commandes utiles pendant l’écriture, avec le zoom dans la barre d’état.",
+      "review": "Fichiers, vues, notes et sélecteur de disposition.",
+      "everything": "Toutes les commandes intégrées."
+    },
+    "items": {
+      "undoRedo": {
+        "label": "Annuler et rétablir",
+        "description": "Annuler et rétablir les dernières modifications."
+      },
+      "element": {
+        "label": "Élément",
+        "description": "Le menu des éléments du scénario."
+      },
+      "font": {
+        "label": "Police",
+        "description": "La police de la sélection."
+      },
+      "fontSize": {
+        "label": "Taille de police",
+        "description": "La taille de la sélection."
+      },
+      "format": {
+        "label": "Style du texte",
+        "description": "Gras, italique, souligné, couleurs et langue."
+      },
+      "align": {
+        "label": "Alignement",
+        "description": "Texte à gauche, centré, à droite et justifié."
+      },
+      "search": {
+        "label": "Rechercher et aller à la page",
+        "description": "Rechercher dans le scénario ou aller à une page."
+      },
+      "notes": {
+        "label": "Notes et balises",
+        "description": "Notes du scénario et balises de production."
+      },
+      "document": {
+        "label": "Actions sur le fichier",
+        "description": "Créer, importer, enregistrer et exporter le scénario."
+      },
+      "titlePage": {
+        "label": "Page de titre",
+        "description": "Ouvrir l’éditeur de la page de titre."
+      },
+      "production": {
+        "label": "Numéros de scène et rapports",
+        "description": "Afficher les numéros de scène ou ouvrir les rapports."
+      },
+      "views": {
+        "label": "Vues",
+        "description": "La mise en page, le plein écran, les panneaux et la disposition de l’espace de travail dans un seul menu."
+      },
+      "layout": {
+        "label": "Disposition",
+        "description": "Passer d’une disposition de l’espace de travail à l’autre en un clic."
+      },
+      "theme": {
+        "label": "Clair / Sombre",
+        "description": "Basculer entre le thème clair et le thème sombre."
+      },
+      "zoom": {
+        "label": "Zoom",
+        "description": "Zoom arrière, niveau de zoom et zoom avant, un curseur ou les deux, et Pleine largeur."
+      },
+      "navigator": {
+        "label": "Navigateur",
+        "description": "Afficher ou masquer tous les panneaux du navigateur, où qu’ils soient placés."
+      },
+      "panel": {
+        "description": "Ouvrir {{panel}}, où qu’il soit placé."
+      },
+      "plugin": {
+        "description": "Une commande provenant d’un module complémentaire."
+      },
+      "statusTitle": {
+        "label": "Nom du scénario",
+        "description": "Le titre du scénario, son projet et le fichier dans lequel l’enregistrement écrit aussi."
+      },
+      "statusSave": {
+        "label": "État de l’enregistrement",
+        "description": "Enregistré, Enregistrement… ou Modifications non enregistrées."
+      },
+      "statusElement": {
+        "label": "Élément actuel",
+        "description": "L’élément où se trouve le curseur, comme Action ou Dialogue."
+      },
+      "statusActs": {
+        "label": "Actes",
+        "description": "Le nombre d’actes du scénario, dès qu’il a des coupures d’acte."
+      },
+      "statusRuntime": {
+        "label": "Durée",
+        "description": "La durée à l’écran estimée. Cliquez pour choisir le genre et le rythme."
+      },
+      "statusWords": {
+        "label": "Nombre de mots",
+        "description": "Les mots de tout le scénario."
+      },
+      "statusRevision": {
+        "label": "Couleur de révision",
+        "description": "La couleur de révision, pendant que les révisions sont marquées."
+      },
+      "statusProgress": {
+        "label": "Objectif d’écriture",
+        "description": "La progression vers l’objectif du jour, ou le compte à rebours d’un sprint. Cliquez pour ouvrir Objectifs d’écriture."
+      },
+      "statusPage": {
+        "label": "Page",
+        "description": "La page où se trouve le curseur, et leur nombre."
+      }
+    },
+    "labels": {
+      "undo": "Annuler",
+      "redo": "Rétablir",
+      "element": "Élément",
+      "font": "Police",
+      "fontSize": "Taille",
+      "bold": "Gras",
+      "italic": "Italique",
+      "underline": "Souligné",
+      "strikethrough": "Barré",
+      "subscript": "Indice",
+      "superscript": "Exposant",
+      "textColor": "Couleur du texte",
+      "highlight": "Surlignage",
+      "alignLeft": "Gauche",
+      "alignCenter": "Centrer",
+      "alignRight": "Droite",
+      "justify": "Justifier",
+      "find": "Rechercher",
+      "goToPage": "Aller à la page",
+      "notes": "Notes",
+      "tags": "Balises",
+      "new": "Nouveau",
+      "import": "Importer",
+      "save": "Enregistrer",
+      "exportPdf": "Exporter en PDF",
+      "titlePage": "Page de titre",
+      "sceneNumbers": "Numéros de scène",
+      "reports": "Rapports",
+      "light": "Clair",
+      "dark": "Sombre",
+      "switchToLight": "Passer au thème clair",
+      "switchToDark": "Passer au thème sombre",
+      "navigator": "Navigateur",
+      "zoomOut": "Zoom arrière",
+      "zoomIn": "Zoom avant"
+    },
+    "views": {
+      "script": "Scénario",
+      "view": "Affichage"
+    },
+    "panels": {
+      "locationDb": "Base de données des décors"
+    },
+    "dnd": {
+      "pickedUp": "{{name}} saisi. Utilisez les flèches pour le déplacer, Espace pour le déposer, Échap pour annuler.",
+      "over": "{{name}} est au-dessus de {{target}}.",
+      "dropped": "{{name}} déposé sur {{target}}.",
+      "cancelled": "Le déplacement de {{name}} a été annulé."
+    }
   }
 }

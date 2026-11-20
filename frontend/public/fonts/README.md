@@ -178,3 +178,47 @@ Two things to know about the result:
 
 Mark positioning is left to the font's default anchors, since GPOS is as
 unreachable as GSUB. Arabic screenplays are normally written without harakat.
+
+## Courier Prime (Latin Extended) and Cousine (Vietnamese)
+
+PDF export fallbacks for Latin text outside WinAnsi (#269). Courier Prime —
+the editor's own face — writes Polish, Czech, Turkish, Romanian and the rest of
+Latin Extended-A. Vietnamese needs more than it has (and than DejaVu Sans Mono
+has: 44 of the 90 letters with stacked marks), so a document that uses one of
+those letters is drawn in **Cousine** instead, which has all 90 and sits on the
+same 0.6em cell. Cousine is Apache 2.0 (Google Fonts, metric-compatible with
+Courier New); the files here are subsets (Latin, Latin Extended, Vietnamese,
+punctuation) made with:
+
+```sh
+python3 -m fontTools.subset Cousine-Regular.ttf --no-hinting --layout-features='' \
+  --unicodes="U+0020-007E,U+00A0-024F,U+0300-0304,U+0306-030C,U+0323,U+0326-0328,\
+U+1E00-1EFF,U+2013-2014,U+2018-201E,U+2020-2022,U+2026,U+2030,U+2039-203A,U+20AB,U+20AC,U+2122" \
+  --output-file=Cousine-Regular.ttf
+```
+
+## Liberation Sans (Latin Extended, for sans-serif scripts)
+
+PDF export face for a script set in Arial, Helvetica or another sans-serif that
+uses letters outside WinAnsi (#269): Polish ł, ą, ę…, Czech, Turkish, Romanian,
+Vietnamese. SIL Open Font License 1.1 (`LICENSE-Liberation.txt`), metric-
+compatible with Arial, so lines break where Helvetica's would. Subset from
+Liberation Fonts 2.1.5 with the same recipe as Cousine above:
+
+```sh
+python3 -m fontTools.subset LiberationSans-Regular.ttf --no-hinting --layout-features='' \
+  --unicodes="U+0020-007E,U+00A0-024F,U+0300-0304,U+0306-030C,U+0323,U+0326-0328,\
+U+1E00-1EFF,U+2013-2014,U+2018-201E,U+2020-2022,U+2026,U+2030,U+2039-203A,U+20AB,U+20AC,U+2122" \
+  --output-file=LiberationSans-Regular.ttf
+```
+
+## Noto Sans Khmer, Lao, Myanmar
+
+Bundled PDF export fallbacks, unmodified from Google Fonts (50–180 kB each),
+shaped with HarfBuzz like the Indic faces. Ethiopic, Cherokee and Tibetan are
+fetched at export time instead — see `REMOTE_NOTO` in `pdfUnicodeFont.ts`.
+Fetched and system fonts are cut down to the characters the document uses before
+they are embedded (`utils/fontSubset.ts`).
+
+`src/utils/pdfUnicodeFont.coverage.test.ts` holds a sentence per script and
+fails if a bundled font lacks a glyph for it.

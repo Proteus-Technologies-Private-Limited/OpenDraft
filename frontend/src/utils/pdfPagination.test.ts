@@ -365,6 +365,58 @@ describe('whole scripts paginate alike', () => {
     }
   }
   /**
+   * Line spacing (utils/lineSpacing): every element's lines drawn further
+   * apart, in eighths of a line. The editor counts fractional lines and the PDF
+   * advances its cursor in points; the two must still turn every page at the
+   * same element — the sitcom's double-spaced dialogue included, alone and
+   * opened up further on top.
+   */
+  const SPACINGS: Array<[string, { lineSpacing?: number; sitcom?: boolean }]> = [
+    ['slightly open (1.125)', { lineSpacing: 1.125 }],
+    ['open (1.25)', { lineSpacing: 1.25 }],
+    ['1.5', { lineSpacing: 1.5 }],
+    ['double (2)', { lineSpacing: 2 }],
+    ['sitcom dialogue (2)', { sitcom: true }],
+    ['sitcom dialogue, open (2.5)', { sitcom: true, lineSpacing: 1.25 }],
+  ];
+  for (const [name, opts] of SPACINGS) {
+    for (const [layoutName, layout] of [['A4', DEFAULT_PAGE_LAYOUT], ['US Letter', LAYOUTS['US Letter']]] as const) {
+      it(`line spacing ${name}, ${layoutName}`, async () => {
+        const std = INDUSTRY_STANDARD_TEMPLATE;
+        useFormattingTemplateStore.setState({
+          templates: [{
+            ...std,
+            id: 'line-spacing-test',
+            category: 'user',
+            ...(opts.lineSpacing ? { lineSpacing: opts.lineSpacing } : {}),
+            ...(opts.sitcom ? { lineHeightMultiplier: { dialogue: 2 } } : {}),
+          }],
+          activeTemplateId: 'line-spacing-test',
+        });
+        try {
+          for (const seed of [1, 2]) {
+            draws.length = 0; pageCount = 1; currentPage = 1;
+            const json = script(seed, 240);
+            const { disagree, editor, pdf } = await bothWays(json, layout);
+            expect(
+              disagree.slice(0, 3),
+              `seed ${seed}: editor ran to ${Math.max(...editor)} pages, the PDF to ${Math.max(...pdf)}`,
+            ).toEqual([]);
+            expect(Math.max(...pdf), `seed ${seed}`).toBe(Math.max(...editor));
+            // ...and the spacing really did open the script up.
+            const standard = computeBreaks(pmDoc(json), layout, {
+              ...activeTemplateHints(), lineSpacing: 1, lineHeightMultiplier: {},
+            }).pageCount;
+            expect(Math.max(...editor), `seed ${seed}`).toBeGreaterThan(standard);
+          }
+        } finally {
+          useFormattingTemplateStore.setState({ templates: [], activeTemplateId: null });
+        }
+      });
+    }
+  }
+
+  /**
    * Locked pages: each anchored block opens its page in both (see
    * utils/lockedPages). Lock a script where it falls, then grow some pages and
    * shrink others, and the two must still agree on every element.
@@ -547,6 +599,44 @@ it('paginates dual dialogue after fragmented action using original node indices'
   expect(
     preview.flatMap((p) => p.blocks).filter((b) => b.typeName === 'dualDialogue').length,
   ).toBeGreaterThan(1);
+});
+
+it.each([1.25, 2])('keeps oversized speeches aligned with the editor at line spacing %s', async (lineSpacing) => {
+  useFormattingTemplateStore.setState({
+    templates: [{ ...INDUSTRY_STANDARD_TEMPLATE, id: 'line-spacing-stress', category: 'user', lineSpacing }],
+    activeTemplateId: 'line-spacing-stress',
+  });
+  try {
+    for (let seed = 0; seed < 12; seed++) {
+      draws.length = 0;
+      pageCount = 1;
+      currentPage = 1;
+      const json = doc(
+        ...Array.from({ length: seed * 3 }, () => block('action', 'Filler action.')),
+        block('sceneHeading', 'INT. ROOM - DAY'),
+        block('character', 'SARAH'),
+        block('dialogue', Array.from({ length: 300 + seed * 17 }, (_, i) => `word${i}`).join(' ')),
+        block('action', 'After.'),
+      );
+      const source = pmDoc(json);
+      const result = computeBreaks(source, DEFAULT_PAGE_LAYOUT, activeTemplateHints());
+      await exportPDF(json, 'Stress', DEFAULT_PAGE_LAYOUT);
+      expect(pageCount, `seed ${seed}`).toBe(result.pageCount);
+      const index = source.childCount - 2;
+      const text = source.child(index).textContent;
+      for (const drawn of draws) {
+        const match = /word\d+/.exec(drawn.text);
+        if (!match) continue;
+        const offset = text.indexOf(match[0]);
+        const expected = result.breaks
+          .filter((b) => b.nodeIndex < index || (b.nodeIndex === index && (b.contentOffset ?? 0) <= offset))
+          .at(-1)?.pageNumber ?? 1;
+        expect(drawn.page, `seed ${seed}: ${match[0]}`).toBe(expected);
+      }
+    }
+  } finally {
+    useFormattingTemplateStore.setState({ templates: [], activeTemplateId: null });
+  }
 });
 
 it('keeps forty oversized speech stress scripts aligned with the editor', async () => {
@@ -766,3 +856,46 @@ it.each(Array.from({ length: 150 }, (_, trial) => trial))(
     expect(new Set(tokens).size).toBe(tokens.length);
   },
 );
+
+describe('a script set at another font size (#270)', () => {
+  const script = (): JSONContent => doc(
+    ...Array.from({ length: 30 }, (_, s) => [
+      tagged('sceneHeading', s * 4, 'INT. ROOM - DAY'),
+      tagged('action', s * 4 + 1, 'Maria looks out of the window while the wind tugs at the curtains all night long.'),
+      tagged('character', s * 4 + 2, 'MARIA'),
+      tagged('dialogue', s * 4 + 3, 'We should leave before the storm gets any worse than this.'),
+    ]).flat(),
+  );
+  const at = (fontSize: number): Layout => ({ ...DEFAULT_PAGE_LAYOUT, fontSize });
+  const editorPageCount = (layout: Layout) =>
+    computeBreaks(pmDoc(script()), layout, activeTemplateHints()).pageCount;
+
+  it('runs to fewer pages when smaller and more when larger, as the writer expects', () => {
+    const standard = editorPageCount(DEFAULT_PAGE_LAYOUT);
+    expect(editorPageCount(at(8))).toBeLessThan(standard);
+    expect(editorPageCount(at(18))).toBeGreaterThan(standard);
+    expect(editorPageCount(at(24))).toBeGreaterThan(editorPageCount(at(18)));
+  });
+
+  it('is the same script at 12pt as with no size set', () => {
+    expect(editorPageCount(at(12))).toBe(editorPageCount(DEFAULT_PAGE_LAYOUT));
+  });
+
+  it('holds fewer lines to a page when larger', () => {
+    expect(getPageMetrics(at(18)).linesPerPage).toBeLessThan(getPageMetrics(DEFAULT_PAGE_LAYOUT).linesPerPage);
+    expect(getPageMetrics(at(8)).linesPerPage).toBeGreaterThan(getPageMetrics(DEFAULT_PAGE_LAYOUT).linesPerPage);
+  });
+
+  it.each([8, 10, 14, 18, 24])('turns the page on the same element in the PDF at %ipt', async (size) => {
+    const { disagree, pdf } = await bothWays(script(), at(size));
+    expect(disagree).toEqual([]);
+    expect(Math.max(...pdf)).toBe(editorPageCount(at(size)));
+  });
+
+  it('puts the font size back after an export, so the next one is at 12pt', async () => {
+    await exportPDF(script(), 'Large', at(24));
+    draws.length = 0; pageCount = 1; currentPage = 1;
+    const { disagree } = await bothWays(script(), DEFAULT_PAGE_LAYOUT);
+    expect(disagree).toEqual([]);
+  });
+});

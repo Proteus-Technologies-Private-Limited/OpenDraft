@@ -47,12 +47,37 @@ import {
 import { shapingFont } from './textShaping';
 import { bindShapingFont } from './pdfShapedText';
 import { t } from '../i18n';
+import { systemFontForText } from './systemFonts';
+import { subsetFont } from './fontSubset';
 
 /**
  * The jsPDF font ids the fallbacks are registered under — and, because jsPDF
  * writes the id as the /BaseFont, the names a reader shows for them.
  */
 export const UNICODE_FONT_ID = 'DejaVuSansMono';
+/**
+ * The screenplay face itself, embedded for Latin text the Standard 14 cannot
+ * write — Polish, Czech, Turkish and the rest of Latin Extended (#269). It is
+ * the editor's own font and sits on the same 0.6em cell as Courier.
+ */
+export const LATIN_FONT_ID = 'CourierPrime';
+/**
+ * The monospace face that covers Vietnamese, which Courier Prime and DejaVu Sans
+ * Mono both only half do (DejaVu has 44 of the 90 precomposed letters with
+ * stacked marks — ế, ề, ộ…). Cousine is metric-compatible with Courier New, so
+ * it sits on the same 0.6em cell; it is used only for a document that needs it,
+ * and then for all of that document's Latin text.
+ */
+export const LATIN_WIDE_FONT_ID = 'Cousine';
+
+/**
+ * The proportional Latin face for a script set in Arial, Helvetica or any other
+ * sans-serif (#269). jsPDF's Helvetica cannot write ł, ą, ę…, and handing those
+ * lines to the monospace Courier Prime turned a sans-serif script into a
+ * mixture of two typefaces. Liberation Sans is metric-compatible with Arial, so
+ * line breaks stay where Helvetica would have put them.
+ */
+export const LATIN_SANS_FONT_ID = 'LiberationSans';
 export const DEVANAGARI_FONT_ID = 'NotoSansDevanagari';
 export const CJK_FONT_ID = 'NotoSansCJK';
 
@@ -101,6 +126,28 @@ interface FallbackSpec {
    */
   monospace: boolean;
   /**
+   * Set for the face that writes Latin text the built-ins cannot. Such a face
+   * also carries plain ASCII, and a run that needs it is drawn in it from its
+   * first letter to its last, rather than changing font at the first accent.
+   */
+  latin?: boolean;
+  /**
+   * Set for the proportional Latin face that stands in for Helvetica. It is
+   * never chosen by `specFor`: a run is routed to it only when it is drawn in a
+   * sans-serif base face (`StyledText.sans`), so a Courier script embeds
+   * Courier Prime and not both.
+   */
+  sans?: boolean;
+  /**
+   * Whether the face is cut down to the characters the document draws before it
+   * is embedded. Only worth doing — and only safe — for a face drawn glyph for
+   * glyph from the text as typed: the large fetched ones. A face whose text is
+   * rewritten after the document is collected (Arabic's joined forms, Indic
+   * reordering and shaping) or that draws page furniture nobody listed is
+   * embedded whole.
+   */
+  subsettable?: boolean;
+  /**
    * Whether the files ship inside the app.  A bundled face works offline and
    * always has; a remote one is fetched on first use and kept, because it is
    * megabytes rather than kilobytes and every user would otherwise install it
@@ -139,6 +186,58 @@ function indicFace(script: IndicScript, prefix: string, coverage: readonly Range
     }],
   };
 }
+
+/**
+ * A Noto face for a script that has no Indic reordering of its own: Khmer, Lao,
+ * Myanmar and Tibetan are shaped by HarfBuzz from the font's own tables, and
+ * Ethiopic and Cherokee need no shaping at all.
+ */
+function notoFace(opts: {
+  id: string;
+  label: () => string;
+  coverage: readonly Range[];
+  files: FontFiles;
+  /** ISO 15924 tag for HarfBuzz; leave out for a script that needs no shaping. */
+  shapeAs?: string;
+  remote?: boolean;
+  subsettable?: boolean;
+}): FallbackSpec {
+  return {
+    id: opts.id,
+    coverage: opts.coverage,
+    monospace: false,
+    remote: opts.remote,
+    subsettable: opts.subsettable,
+    shapeAs: opts.shapeAs,
+    variants: [{ key: opts.id, get label() { return opts.label(); }, files: opts.files }],
+  };
+}
+
+/** Zero-width space: Khmer, Lao and Myanmar mark word breaks with it. */
+const ZWSP: readonly Range[] = [[0x200b, 0x200b]];
+
+/**
+ * Where the larger Noto faces are fetched from, pinned the same way as CJK_FILES:
+ * Google's CDN for what the Fonts API serves, and a fixed commit of the Noto
+ * repository for Tibetan, which the API does not. A pinned URL keeps serving
+ * the exact file it named; a moving one could swap the font under a script.
+ */
+const NOTO_REPO = 'https://raw.githubusercontent.com/notofonts/notofonts.github.io/15f23a0fd72c87285f50e890af8cf64d82d588a3/fonts';
+const REMOTE_NOTO: Readonly<Record<string, FontFiles>> = {
+  Ethiopic: {
+    normal: 'https://fonts.gstatic.com/s/notosansethiopic/v50/7cHPv50vjIepfJVOZZgcpQ5B9FBTH9KGNfhSTgtoow1KVnIvyBoMSzUMacb-T35OK6Dj.ttf',
+    bold: 'https://fonts.gstatic.com/s/notosansethiopic/v50/7cHPv50vjIepfJVOZZgcpQ5B9FBTH9KGNfhSTgtoow1KVnIvyBoMSzUMacb-T36pLKDj.ttf',
+  },
+  Cherokee: {
+    normal: 'https://fonts.gstatic.com/s/notosanscherokee/v25/KFOPCm6Yu8uF-29fiz9vQF9YWK6Z8O10cHNA0cSkZCHYWi5PDkk.ttf',
+    bold: 'https://fonts.gstatic.com/s/notosanscherokee/v25/KFOPCm6Yu8uF-29fiz9vQF9YWK6Z8O10cHNA0cSkZCHYWslIDkk.ttf',
+  },
+  // Noto Serif Tibetan: the only Tibetan face Noto publishes.
+  Tibetan: {
+    normal: `${NOTO_REPO}/NotoSerifTibetan/hinted/ttf/NotoSerifTibetan-Regular.ttf`,
+    bold: `${NOTO_REPO}/NotoSerifTibetan/hinted/ttf/NotoSerifTibetan-Bold.ttf`,
+  },
+};
 
 const byName = (name: string): IndicScript => {
   const found = SCRIPTS.find((script) => script.name === name);
@@ -262,6 +361,112 @@ const FALLBACKS: readonly FallbackSpec[] = [
       },
     }],
   },
+  // South-East Asian scripts, bundled: each family is 50–180 kB.
+  notoFace({
+    id: 'NotoSansKhmer', shapeAs: 'Khmr',
+    label: () => t('messages:pdfFonts.khmer'),
+    coverage: [[0x1780, 0x17ff], [0x19e0, 0x19ff], ...JOINERS, ...ZWSP, ...SHARED],
+    files: { normal: '/fonts/NotoSansKhmer-Regular.ttf', bold: '/fonts/NotoSansKhmer-Bold.ttf' },
+  }),
+  notoFace({
+    id: 'NotoSansLao', shapeAs: 'Laoo',
+    label: () => t('messages:pdfFonts.lao'),
+    coverage: [[0x0e80, 0x0eff], ...ZWSP, ...SHARED],
+    files: { normal: '/fonts/NotoSansLao-Regular.ttf', bold: '/fonts/NotoSansLao-Bold.ttf' },
+  }),
+  notoFace({
+    id: 'NotoSansMyanmar', shapeAs: 'Mymr',
+    label: () => t('messages:pdfFonts.myanmar'),
+    coverage: [[0x1000, 0x109f], [0xa9e0, 0xa9fe], [0xaa60, 0xaa7f], ...JOINERS, ...ZWSP, ...SHARED],
+    files: { normal: '/fonts/NotoSansMyanmar-Regular.ttf', bold: '/fonts/NotoSansMyanmar-Bold.ttf' },
+  }),
+  // Larger, so fetched on first use and kept — see REMOTE_NOTO.
+  notoFace({
+    id: 'NotoSansEthiopic', remote: true, subsettable: true,
+    label: () => t('messages:pdfFonts.ethiopic'),
+    coverage: [[0x1200, 0x139f], [0x2d80, 0x2ddf], [0xab00, 0xab2f], ...SHARED],
+    files: REMOTE_NOTO.Ethiopic,
+  }),
+  notoFace({
+    id: 'NotoSansCherokee', remote: true, subsettable: true,
+    label: () => t('messages:pdfFonts.cherokee'),
+    coverage: [[0x13a0, 0x13ff], [0xab70, 0xabbf], ...SHARED],
+    files: REMOTE_NOTO.Cherokee,
+  }),
+  notoFace({
+    id: 'NotoSerifTibetan', shapeAs: 'Tibt', remote: true,
+    label: () => t('messages:pdfFonts.tibetan'),
+    coverage: [[0x0f00, 0x0fff], ...ZWSP, ...SHARED],
+    files: REMOTE_NOTO.Tibetan,
+  }),
+  {
+    // Ahead of DejaVu so that Latin Extended lands here: Courier Prime has the
+    // letters of every Latin-script European language and is what the editor
+    // shows. Its coverage is exactly what the font carries (it has no Greek and
+    // skips U+0138/U+0149), so a character outside it still reaches DejaVu.
+    id: LATIN_FONT_ID,
+    latin: true,
+    coverage: [[0x0020, 0x007e], [0x00a0, 0x0137], [0x0139, 0x0148], [0x014a, 0x017e],
+      [0x0192, 0x0192], [0x0218, 0x021b], [0x02c6, 0x02c7], [0x02d8, 0x02dd],
+      [0x2013, 0x2014], [0x2018, 0x201a], [0x201c, 0x201e], [0x2020, 0x2022],
+      [0x2026, 0x2026], [0x2030, 0x2030], [0x2039, 0x203a], [0x20ac, 0x20ac],
+      [0x2122, 0x2122]],
+    monospace: true,
+    variants: [{
+      key: LATIN_FONT_ID,
+      get label() { return t('messages:pdfFonts.latin'); },
+      files: {
+        normal: '/fonts/CourierPrime-Regular.ttf',
+        bold: '/fonts/CourierPrime-Bold.ttf',
+        italic: '/fonts/CourierPrime-Italic.ttf',
+        bolditalic: '/fonts/CourierPrime-BoldItalic.ttf',
+      },
+    }],
+  },
+  {
+    // After Courier Prime, which keeps everything it can write; this takes what
+    // it cannot — Vietnamese above all — and, once a document needs it, the
+    // whole document's Latin text (see requiredUnicodeFaces).
+    id: LATIN_WIDE_FONT_ID,
+    latin: true,
+    coverage: [[0x0020, 0x007e], [0x00a0, 0x0236], [0x0238, 0x024f], [0x0300, 0x0304],
+      [0x0306, 0x030c], [0x0323, 0x0323], [0x0326, 0x0328], [0x1e00, 0x1e9b],
+      [0x1e9e, 0x1e9e], [0x1ea0, 0x1ef9], [0x2013, 0x2014], [0x2018, 0x201e],
+      [0x2020, 0x2022], [0x2026, 0x2026], [0x2030, 0x2030], [0x2039, 0x203a],
+      [0x20ab, 0x20ac], [0x2122, 0x2122]],
+    monospace: true,
+    variants: [{
+      key: LATIN_WIDE_FONT_ID,
+      get label() { return t('messages:pdfFonts.latin'); },
+      files: {
+        normal: '/fonts/Cousine-Regular.ttf',
+        bold: '/fonts/Cousine-Bold.ttf',
+        italic: '/fonts/Cousine-Italic.ttf',
+        bolditalic: '/fonts/Cousine-BoldItalic.ttf',
+      },
+    }],
+  },
+  {
+    // Not reached by specFor — see FallbackSpec.sans. Same repertoire as Cousine.
+    id: LATIN_SANS_FONT_ID,
+    latin: false,
+    sans: true,
+    coverage: [[0x0020, 0x007e], [0x00a0, 0x024f], [0x0300, 0x0304], [0x0306, 0x030c],
+      [0x0323, 0x0323], [0x0326, 0x0328], [0x1e00, 0x1eff], [0x2013, 0x2014],
+      [0x2018, 0x201e], [0x2020, 0x2022], [0x2026, 0x2026], [0x2030, 0x2030],
+      [0x2039, 0x203a], [0x20ab, 0x20ac], [0x2122, 0x2122]],
+    monospace: false,
+    variants: [{
+      key: LATIN_SANS_FONT_ID,
+      get label() { return t('messages:pdfFonts.latin'); },
+      files: {
+        normal: '/fonts/LiberationSans-Regular.ttf',
+        bold: '/fonts/LiberationSans-Bold.ttf',
+        italic: '/fonts/LiberationSans-Italic.ttf',
+        bolditalic: '/fonts/LiberationSans-BoldItalic.ttf',
+      },
+    }],
+  },
   {
     id: UNICODE_FONT_ID,
     // The blocks the bundled subset was cut to — see public/fonts/README.md.
@@ -293,6 +498,7 @@ const FALLBACKS: readonly FallbackSpec[] = [
       [0xff00, 0xffef], ...SHARED],
     monospace: false,
     remote: true,
+    subsettable: true,
     variants: [
       {
         key: 'SC',
@@ -353,12 +559,6 @@ const UNSUPPORTED_SCRIPTS: readonly (readonly [Range, string])[] = [
   [[0x0700, 0x074f], 'Syriac'],
   [[0x0780, 0x07bf], 'Thaana'],
   [[0x07c0, 0x07ff], "N'Ko"],
-  [[0x0e80, 0x0eff], 'Lao'],
-  [[0x0f00, 0x0fff], 'Tibetan'],
-  [[0x1000, 0x109f], 'Myanmar'],
-  [[0x1200, 0x139f], 'Ethiopic'],
-  [[0x13a0, 0x13ff], 'Cherokee'],
-  [[0x1780, 0x17ff], 'Khmer'],
   [[0x1800, 0x18af], 'Mongolian'],
 ];
 
@@ -383,9 +583,21 @@ function isStandardEncodable(codePoint: number): boolean {
 function specFor(codePoint: number): FallbackSpec | null {
   if (isStandardEncodable(codePoint)) return null;
   for (const spec of FALLBACKS) {
-    if (inRanges(codePoint, spec.coverage)) return spec;
+    if (!spec.sans && inRanges(codePoint, spec.coverage)) return spec;
   }
   return null; // nothing bundled covers it — see unsupportedScripts()
+}
+
+/**
+ * Which face the exporter would draw a code point in, and where that face's
+ * files are — null for the built-in fonts, or when nothing covers it. For the
+ * script-coverage test (pdfUnicodeFont.coverage.test.ts), which checks the
+ * fonts really hold what the table says they do.
+ */
+export function describeFaceFor(codePoint: number): { id: string; remote: boolean; files: FontFiles[] } | null {
+  const spec = specFor(codePoint);
+  if (!spec) return null;
+  return { id: spec.id, remote: !!spec.remote, files: spec.variants.map((v) => v.files) };
 }
 
 /** Whether this text has to be drawn in a bundled font to come out right. */
@@ -401,6 +613,12 @@ export interface StyledText {
   text: string;
   bold?: boolean;
   italic?: boolean;
+  /**
+   * Drawn in a sans-serif base face (Helvetica). Latin text it cannot write is
+   * then embedded from the proportional Liberation Sans rather than Courier
+   * Prime — see LATIN_SANS_FONT_ID.
+   */
+  sans?: boolean;
 }
 
 export function styleKey(bold?: boolean, italic?: boolean): FontStyle {
@@ -413,6 +631,12 @@ export function styleKey(bold?: boolean, italic?: boolean): FontStyle {
 /** A face the document needs: which styles, and which family to draw it from. */
 export interface RequiredFace {
   styles: Set<FontStyle>;
+  /**
+   * Every code point the face may be asked to draw — what the document holds
+   * that it covers, in the cases it will be drawn in, plus the digits and
+   * punctuation of the page furniture. Only filled for a subsettable face.
+   */
+  chars?: Set<number>;
   /** The chosen variant's key — only CJK has a choice to make. */
   variant: string;
 }
@@ -442,13 +666,17 @@ export function requiredUnicodeFaces(drawn: StyledText[]): RequiredFaces {
   // Only the text that reached a face with a choice to make, so deciding which
   // CJK family a document is in does not mean re-walking all of it.
   const samples = new Map<string, string[]>();
+  const sansSpec = FALLBACKS.find((spec) => spec.sans);
 
   for (const item of drawn) {
     if (!item.text) continue;
     const style = styleKey(item.bold, item.italic);
     for (const char of item.text) {
-      const spec = specFor(char.codePointAt(0)!);
+      const codePoint = char.codePointAt(0)!;
+      let spec = specFor(codePoint);
       if (!spec) continue;
+      // A sans-serif run keeps its Latin letters in the sans face, not Courier's.
+      if (item.sans && sansSpec && spec.latin && inRanges(codePoint, sansSpec.coverage)) spec = sansSpec;
       let face = required.get(spec.id);
       if (!face) {
         required.set(spec.id, (face = { styles: new Set(), variant: spec.variants[0].key }));
@@ -457,6 +685,55 @@ export function requiredUnicodeFaces(drawn: StyledText[]): RequiredFaces {
       face.styles.add(style);
       samples.get(spec.id)?.push(char);
     }
+  }
+
+  // The Latin face stands in for Courier wherever the document is Courier (see
+  // segmentByFace), so it has to carry every style the document draws, not only
+  // the ones the accented words happen to be in.
+  // When the document needs the wider Latin face, it draws all the Latin text,
+  // so the narrower one is not embedded at all.
+  const wide = required.get(LATIN_WIDE_FONT_ID);
+  const narrow = required.get(LATIN_FONT_ID);
+  if (wide && narrow) {
+    for (const style of narrow.styles) wide.styles.add(style);
+    required.delete(LATIN_FONT_ID);
+  }
+  for (const id of [LATIN_FONT_ID, LATIN_WIDE_FONT_ID]) {
+    const latinFace = required.get(id);
+    if (!latinFace) continue;
+    for (const item of drawn) if (item.text) latinFace.styles.add(styleKey(item.bold, item.italic));
+  }
+
+  // The sans face is drawn whole wherever the base face is Helvetica (see
+  // segmentByFace), so like the Latin faces it needs every style that is used.
+  const sansFace = required.get(LATIN_SANS_FONT_ID);
+  if (sansFace) {
+    for (const item of drawn) if (item.text && item.sans) sansFace.styles.add(styleKey(item.bold, item.italic));
+  }
+
+  // For the faces that get cut down: every character they could be asked to
+  // draw. That is more than the untypable text alone — a line a face covers
+  // end to end is drawn in it, ASCII included — and the exporter changes the
+  // case of some elements after the document is collected, and writes page
+  // numbers nobody listed, so those are added rather than found.
+  for (const spec of FALLBACKS) {
+    const face = required.get(spec.id);
+    if (!face || !spec.subsettable) continue;
+    const chars = new Set<number>();
+    const add = (text: string) => {
+      for (const char of text) {
+        const codePoint = char.codePointAt(0)!;
+        if (inRanges(codePoint, spec.coverage)) chars.add(codePoint);
+      }
+    };
+    for (let c = 0x20; c <= 0x7e; c++) add(String.fromCodePoint(c));
+    for (const item of drawn) {
+      if (!item.text) continue;
+      add(item.text);
+      add(item.text.toUpperCase());
+      add(item.text.toLowerCase());
+    }
+    face.chars = chars;
   }
 
   for (const [id, chars] of samples) {
@@ -649,6 +926,10 @@ export interface UnicodeFont {
   charSpace: number;
   /** Whether widths come from the character count or have to be measured. */
   monospace: boolean;
+  /** Whether this is the Latin face a run is drawn in whole — see FallbackSpec.latin. */
+  latin: boolean;
+  /** Whether this is the proportional Latin face that stands in for Helvetica. */
+  sans: boolean;
   /** Whether this face can write the code point. */
   covers(codePoint: number): boolean;
   /** The text as this face needs it ordered, which for Latin scripts is as it is. */
@@ -676,12 +957,18 @@ export interface UnicodeFallbacks {
   readonly missing: readonly string[];
   /** Scripts no face covers at all, named — see unsupportedScripts(). */
   readonly unsupported: readonly string[];
+  /** The embedded Latin face, when the script needed one — see FallbackSpec.latin. */
+  readonly latin: UnicodeFont | null;
+  /** The embedded sans-serif Latin face, when a Helvetica run needed one. */
+  readonly sans: UnicodeFont | null;
+  /** Every embedded face, narrowest coverage first. */
+  readonly faces: readonly UnicodeFont[];
   /** The embedded face that has to write this code point, or null. */
   faceFor(codePoint: number): UnicodeFont | null;
 }
 
 export const NO_FALLBACKS: UnicodeFallbacks = {
-  none: true, missing: [], unsupported: [], faceFor: () => null,
+  none: true, missing: [], unsupported: [], latin: null, sans: null, faces: [], faceFor: () => null,
 };
 
 /**
@@ -700,6 +987,7 @@ async function embedOne(
   styles: Set<FontStyle>,
   fdCharWidthPt: number,
   onProgress?: ProgressHandler,
+  chars?: ReadonlySet<number>,
 ): Promise<UnicodeFont | null> {
   // Progress is only worth showing for a face coming over the network; a
   // bundled one is read faster than the message could be looked at.
@@ -713,7 +1001,11 @@ async function embedOne(
   const register = async (style: FontStyle) => {
     const url = variant.files[style];
     const own = url && style !== 'normal' ? await fetchFont(url, variant.label, report) : null;
-    const data = own || regular;
+    let data = own || regular;
+    if (spec.subsettable && chars && chars.size > 0) {
+      const cut = await subsetFont(fromBase64(data), chars);
+      if (cut) data = toBase64(cut);
+    }
     const vfsName = `${spec.id}-${style}.ttf`;
     pdf.addFileToVFS(vfsName, data);
     pdf.addFont(vfsName, spec.id, style);
@@ -744,6 +1036,8 @@ async function embedOne(
     id: spec.id,
     charSpace,
     monospace: spec.monospace,
+    latin: !!spec.latin,
+    sans: !!spec.sans,
     covers: (codePoint) => inRanges(codePoint, spec.coverage),
     shape: spec.shape ?? ((text) => text),
     shaped,
@@ -772,7 +1066,7 @@ export async function embedUnicodeFonts(
     const variant = spec.variants.find((candidate) => candidate.key === wanted.variant)
       ?? spec.variants[0];
     const face = await embedOne(
-      pdf, spec, variant, wanted.styles, fdCharWidthPt, options.onProgress,
+      pdf, spec, variant, wanted.styles, fdCharWidthPt, options.onProgress, wanted.chars,
     );
     if (face) faces.push(face);
     else missing.push(variant.label);
@@ -783,6 +1077,9 @@ export async function embedUnicodeFonts(
     none: false,
     missing,
     unsupported,
+    latin: faces.find((face) => face.latin) ?? null,
+    sans: faces.find((face) => face.sans) ?? null,
+    faces,
     faceFor(codePoint: number) {
       if (isStandardEncodable(codePoint)) return null;
       return faces.find((face) => face.covers(codePoint)) ?? null;
@@ -807,8 +1104,50 @@ export interface FaceSegment {
  * full stops included, one continuous run of DejaVu, and a Hindi one a
  * continuous run of Noto with its own word spacing.
  */
-export function segmentByFace(text: string, fallbacks: UnicodeFallbacks): FaceSegment[] {
+export function segmentByFace(
+  text: string,
+  fallbacks: UnicodeFallbacks,
+  opts: { latinBase?: boolean; sansBase?: boolean } = {},
+): FaceSegment[] {
+  // Latin text goes in one face from end to end. Splitting it at the first
+  // accent leaves "Za" in Courier and "żółć" in another font (#269). With
+  // `latinBase` the run's own face is Courier, which the embedded Courier Prime
+  // replaces throughout, so every line of the script looks alike.
+  // A sans-serif script gets the same treatment in its own typeface: every line
+  // in Liberation Sans, so Arial text does not turn to Courier at the first ł.
+  const sans = fallbacks.sans;
+  if (opts.sansBase && sans && text) {
+    let whole = true;
+    for (const char of text) {
+      if (!sans.covers(char.codePointAt(0)!)) { whole = false; break; }
+    }
+    if (whole) return [{ text, fallback: sans }];
+  }
+
+  const latin = fallbacks.latin;
+  // If the sans face could not be loaded, a Helvetica run still gets Courier
+  // Prime whole, as before: a consistent face beats a blank line.
+  if (latin && text && (opts.latinBase || needsUnicodeFont(text))) {
+    let whole = true;
+    for (const char of text) {
+      if (!latin.covers(char.codePointAt(0)!)) { whole = false; break; }
+    }
+    if (whole) return [{ text, fallback: latin }];
+  }
+
   if (fallbacks.none || !needsUnicodeFont(text)) return [{ text, fallback: null }];
+
+  // A line one embedded face can write from end to end is drawn in it. Handing
+  // the Latin words of "Mixed: łódź, Привет, café" to the document face and the
+  // rest to another is a font change in mid-sentence; where a face covers the
+  // whole line there is no reason to make it. A script whose face carries only
+  // its own letters (Devanagari, Thai…) cannot cover a Latin word, so those
+  // lines still split, and the Latin keeps to the cell as it always has.
+  const whole = fallbacks.faces.find((face) => {
+    for (const char of text) if (!face.covers(char.codePointAt(0)!)) return false;
+    return true;
+  });
+  if (whole) return [{ text, fallback: whole }];
 
   const segments: FaceSegment[] = [];
   let current: FaceSegment | null = null;
@@ -823,4 +1162,103 @@ export function segmentByFace(text: string, fallbacks: UnicodeFallbacks): FaceSe
   }
 
   return segments;
+}
+
+// ── Installed fonts, for what no bundled face covers ────────────────────────
+
+/** Characters that draw nothing, so no font is needed to write them. */
+function isInvisible(codePoint: number): boolean {
+  return (codePoint >= 0x200b && codePoint <= 0x200f)
+    || (codePoint >= 0x202a && codePoint <= 0x202e)
+    || (codePoint >= 0x2060 && codePoint <= 0x206f)
+    || (codePoint >= 0xfe00 && codePoint <= 0xfe0f)
+    || codePoint === 0xfeff;
+}
+
+/**
+ * The characters in `drawn` that no built-in or bundled face can write and that
+ * are not a script this module knows it cannot draw — symbols, arrows, dingbats,
+ * emoji, and scripts it has never heard of. The scripts in UNSUPPORTED_SCRIPTS
+ * are left out: they are right-to-left or vertical and need shaping an installed
+ * font cannot be given here, so drawing them unshaped would be wrong rather
+ * than merely absent.
+ */
+export function uncoveredCharacters(drawn: StyledText[]): string[] {
+  const found = new Set<string>();
+  for (const item of drawn) {
+    if (!item.text) continue;
+    for (const char of item.text) {
+      const codePoint = char.codePointAt(0)!;
+      if (isStandardEncodable(codePoint) || isInvisible(codePoint) || specFor(codePoint)) continue;
+      if (UNSUPPORTED_SCRIPTS.some(([range]) => inRanges(codePoint, [range]))) continue;
+      if (/\s/.test(char)) continue;
+      found.add(char);
+    }
+  }
+  return [...found];
+}
+
+/**
+ * Draw what the bundled faces cannot in a font the desktop app finds installed.
+ *
+ * Only the desktop app can ask (see utils/systemFonts); anywhere else this hands
+ * `base` back untouched. The font is embedded under its own id and covers
+ * exactly the characters it was asked for — the lookup already confirmed it
+ * has them — so nothing it was not asked about is routed to it.
+ */
+export async function embedSystemFonts(
+  pdf: jsPDF,
+  base: UnicodeFallbacks,
+  drawn: StyledText[],
+): Promise<UnicodeFallbacks> {
+  const chars = uncoveredCharacters(drawn);
+  if (chars.length === 0) return base;
+
+  let bytes: Uint8Array | null = null;
+  try {
+    bytes = await systemFontForText(chars.join(''), false, false);
+  } catch (err) {
+    console.warn('[pdfUnicodeFont] system font lookup failed', err);
+  }
+  if (!bytes) return base;
+
+  const id = 'SystemFallback';
+  try {
+    // An installed CJK or symbol font can run to many megabytes; the document
+    // needs a few glyphs of it.
+    const cut = await subsetFont(bytes, [...chars].map((c) => c.codePointAt(0)!));
+    const data = toBase64(cut ?? bytes);
+    for (const style of ['normal', 'bold', 'italic', 'bolditalic'] as const) {
+      const vfsName = `${id}-${style}.ttf`;
+      pdf.addFileToVFS(vfsName, data);
+      pdf.addFont(vfsName, id, style);
+    }
+  } catch (err) {
+    console.warn('[pdfUnicodeFont] could not embed the system font', err);
+    return base;
+  }
+
+  const covered = new Set(chars.map((c) => c.codePointAt(0)!));
+  const face: UnicodeFont = {
+    id,
+    charSpace: 0,
+    monospace: false,
+    latin: false,
+    sans: false,
+    covers: (codePoint) => covered.has(codePoint),
+    shape: (text) => text,
+    shaped: false,
+  };
+  const faces = [...base.faces, face];
+  return {
+    ...base,
+    none: false,
+    faces,
+    // Whatever this font took is no longer unsupported.
+    unsupported: base.unsupported.filter((name) => name !== 'an unsupported script'),
+    faceFor(codePoint: number) {
+      if (isStandardEncodable(codePoint)) return null;
+      return faces.find((candidate) => candidate.covers(codePoint)) ?? null;
+    },
+  };
 }

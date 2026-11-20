@@ -33,7 +33,12 @@
       "lockedTitle": "You joined to suggest: the writer accepts or rejects your edits",
       "title": "Your edits are suggestions. Click to edit directly again.",
       "label": "Suggesting"
-    }
+    },
+    "zoomFitWidth": "Fit width",
+    "zoomFitWidthTitle": "Zoom so the page fills the width of the window",
+    "footerControls": "Footer controls",
+    "showFooterControls": "Show footer controls",
+    "hideFooterControls": "Hide footer controls"
   },
   "resetToDefault": "Reset to Default",
   "richText": {
@@ -103,5 +108,338 @@
     "elementType": "Element type",
     "elementTypeTitlePage": "Title page elements are set in the Title Page editor; their formatting lives in the template",
     "titlePage": "Title Page"
+  },
+  "layout": {
+    "title": "Layout",
+    "tabs": {
+      "panels": "Panels",
+      "toolbar": "Toolbar & footer"
+    },
+    "quickSwitch": "Quick switch layout",
+    "close": "Close",
+    "done": "Done",
+    "customiseBars": "Customise toolbar…",
+    "editLayouts": "Edit layouts…",
+    "presets": {
+      "classic": "Classic",
+      "nav-end": "Navigator right",
+      "nav-bottom": "Navigator below",
+      "split": "Split navigator",
+      "custom": "Custom"
+    },
+    "presetHints": {
+      "classic": "Today’s layout",
+      "nav-end": "The whole Navigator on the right",
+      "nav-bottom": "The Navigator under the page",
+      "split": "Its panels spread out",
+      "saved": "Saved on this device"
+    },
+    "docks": {
+      "left": "Left",
+      "right": "Right",
+      "bottom": "Bottom",
+      "hidden": "Not placed"
+    },
+    "dockTitle": {
+      "left": "Left dock",
+      "right": "Right dock",
+      "bottom": "Bottom dock"
+    },
+    "panelsTab": {
+      "presetsHeading": "Layout presets",
+      "savedHeading": "Saved",
+      "saveAs": "Save current layout as…",
+      "nameLabel": "Name for this layout",
+      "save": "Save",
+      "cancel": "Cancel",
+      "deleteNamed": "Delete {{name}}",
+      "hintGroup": "Drag a group’s header to move the whole group, such as the entire Navigator.",
+      "hintPanel": "Drag a panel’s tab to move just that panel.",
+      "writingArea": "Writing area",
+      "writingAreaHint": "Script, Index Cards, Beat Board and Outline take turns here, from the Views menu. Panels sit around it.",
+      "dropNewGroup": "Drop here for a new group",
+      "dropGroup": "Drop the group here",
+      "emptyDock": "Empty. Drag a panel or a group here.",
+      "newGroup": "+ New group",
+      "notPlacedHint": "Panels here are left out of View › Panels. Drag one onto a dock to bring it back.",
+      "groupsArrange": "Groups",
+      "arrangeRows": "Stacked",
+      "arrangeColumns": "Side by side",
+      "selected": "Selected",
+      "noSelection": "Pick a panel or a group to see its options. Everything you can drag can also be set here, with a keyboard or on a touch screen.",
+      "opensIn": "Opens in",
+      "group": "Group",
+      "ownGroup": "On its own (new group)",
+      "pullOut": "Pull out of group",
+      "dontPlace": "Don’t place",
+      "groupName": "Group name",
+      "showAs": "Show panels as",
+      "tabs": "Tabs",
+      "stacked": "Stacked",
+      "panelsInGroup": "Panels in this group",
+      "moveUp": "Move {{name}} up",
+      "moveDown": "Move {{name}} down",
+      "ungroup": "Ungroup",
+      "toolbarButton": "Toolbar button",
+      "toolbarButtonHint": "Opens {{name}} wherever it is placed.",
+      "navigatorTag": "Navigator",
+      "addOnTag": "Add-on",
+      "reset": "Reset to Classic",
+      "dragGroup": "Move the {{name}} group",
+      "dragPanel": "Move {{name}}",
+      "moveGroupTo": "Where the {{name}} group opens",
+      "navigatorGroupName": "Navigator",
+      "tabCount_one": "{{count}} tab",
+      "tabCount_other": "{{count}} tabs",
+      "footerNote": "Saved on this device. On phones, panels open as sheets.",
+      "legendNavigator": "Navigator panels",
+      "groupCount_one": "{{count}} group",
+      "groupCount_other": "{{count}} groups",
+      "status": "{{preset}} · Navigator panels: {{places}}"
+    },
+    "toolbarTab": {
+      "presetsHeading": "Toolbar presets",
+      "saveAs": "Save as…",
+      "nameLabel": "Name for these bars",
+      "toolbarShows": "Toolbar shows",
+      "footerShows": "Footer shows",
+      "preview": "Live preview",
+      "previewHint": "Everything here works. Drop a control on either bar to add it.",
+      "onToolbar": "Toolbar",
+      "onFooter": "Footer",
+      "available": "Available",
+      "availableHint": "Drag to a bar, or add with the buttons. Drop a control here to remove it.",
+      "startSide": "Start side",
+      "endSide": "End side",
+      "dropStart": "Drop at the start side",
+      "dropEnd": "Drop at the end side",
+      "count_one": "{{count}} control",
+      "count_other": "{{count}} controls",
+      "addToToolbar": "Add {{name}} to the toolbar",
+      "addToFooter": "Add {{name}} to the footer",
+      "removeNamed": "Remove {{name}}",
+      "moveLeft": "Move {{name}} towards the start",
+      "moveRight": "Move {{name}} towards the end",
+      "showAs": "Show as",
+      "defaultMode": "Default ({{mode}})",
+      "placeOn": "Place on",
+      "notPlaced": "Not placed",
+      "side": "Side of the bar",
+      "start": "Start",
+      "end": "End",
+      "zoomControl": "Zoom control",
+      "zoomButtons": "Buttons",
+      "zoomSlider": "Slider",
+      "zoomBoth": "Slider with buttons",
+      "zoomHint": "From 50% to 300%, in steps of 10. ⌘ + and ⌘ − still work.",
+      "switcherStyle": "Switcher style",
+      "menu": "Menu",
+      "buttons": "Buttons",
+      "layoutsOffered": "Layouts it offers",
+      "editEntry": "End with “Edit layouts…”",
+      "noHeadingHint": "No heading shows just the drop-down, because its value already says what it is.",
+      "reset": "Reset to Default",
+      "foldNote": "Controls that don’t fit fold into the “…” menu, from the end of the start side.",
+      "keepOne": "The toolbar keeps at least one control.",
+      "groups": {
+        "writing": "Writing",
+        "document": "Document",
+        "view": "View and layout",
+        "panels": "Panels",
+        "plugins": "Add-ons",
+        "status": "Status"
+      },
+      "where": {
+        "top": "On the toolbar, {{side}} side",
+        "bottom": "On the footer, {{side}} side",
+        "none": "Not placed"
+      },
+      "removeFrom": {
+        "top": "Remove from the toolbar",
+        "bottom": "Remove from the footer"
+      },
+      "centerSide": "Centre",
+      "dropCenter": "Drop in the centre",
+      "center": "Centre",
+      "footerOnly": "Status lines go on the footer only.",
+      "narrowFooterNote": "On a phone or a narrow window the footer keeps its status line. Its controls, its centre and the revision colour open in a row above it from the arrow at its end.",
+      "phoneIconsNote": "On a phone the toolbar shows icons only: one row has no room for names."
+    },
+    "modes": {
+      "icon": "Icon",
+      "text": "Text",
+      "both": "Icon + text",
+      "none": "No heading"
+    },
+    "toolbarPresets": {
+      "default": "Default",
+      "writing": "Writing",
+      "review": "Review",
+      "everything": "Everything"
+    },
+    "toolbarPresetHints": {
+      "default": "Both bars exactly as they have always been.",
+      "writing": "Only the controls used while drafting, with zoom on the footer.",
+      "review": "Files, views, notes and the layout switcher.",
+      "everything": "Every built-in control."
+    },
+    "items": {
+      "undoRedo": {
+        "label": "Undo and Redo",
+        "description": "Undo and redo the last changes."
+      },
+      "element": {
+        "label": "Element",
+        "description": "The screenplay element menu."
+      },
+      "font": {
+        "label": "Font",
+        "description": "The typeface of the selection."
+      },
+      "fontSize": {
+        "label": "Font Size",
+        "description": "The size of the selection."
+      },
+      "format": {
+        "label": "Text Style",
+        "description": "Bold, italic, underline, colours and language."
+      },
+      "align": {
+        "label": "Alignment",
+        "description": "Left, centre, right and justified text."
+      },
+      "search": {
+        "label": "Find and Go to Page",
+        "description": "Search the script or jump to a page."
+      },
+      "notes": {
+        "label": "Notes and Tags",
+        "description": "Script notes and production tags."
+      },
+      "document": {
+        "label": "File Actions",
+        "description": "New, import, save and export the script."
+      },
+      "titlePage": {
+        "label": "Title Page",
+        "description": "Open the title page editor."
+      },
+      "production": {
+        "label": "Scene Numbers and Reports",
+        "description": "Show scene numbers, or open the Reports."
+      },
+      "views": {
+        "label": "Views",
+        "description": "The page layout, the full-screen view, the panels and the workspace layout in one menu."
+      },
+      "layout": {
+        "label": "Layout",
+        "description": "Switch between workspace layouts in one click."
+      },
+      "theme": {
+        "label": "Light / Dark",
+        "description": "Switch between the light and dark themes."
+      },
+      "zoom": {
+        "label": "Zoom",
+        "description": "Zoom out, the zoom level and zoom in, a slider or both, and Fit width."
+      },
+      "navigator": {
+        "label": "Navigator",
+        "description": "Show or hide every Navigator panel, wherever each is placed."
+      },
+      "panel": {
+        "description": "Open {{panel}}, wherever it is placed."
+      },
+      "plugin": {
+        "description": "A control from an add-on."
+      },
+      "statusTitle": {
+        "label": "Script name",
+        "description": "The script’s title, its project, and the file a save also writes to."
+      },
+      "statusSave": {
+        "label": "Save status",
+        "description": "Saved, Saving… or Unsaved changes."
+      },
+      "statusElement": {
+        "label": "Current element",
+        "description": "The element the cursor is in, such as Action or Dialogue."
+      },
+      "statusActs": {
+        "label": "Acts",
+        "description": "How many acts the script has, once it has act breaks."
+      },
+      "statusRuntime": {
+        "label": "Running time",
+        "description": "The estimated screen time. Click it to set the genre and pacing."
+      },
+      "statusWords": {
+        "label": "Word count",
+        "description": "Words in the whole script."
+      },
+      "statusRevision": {
+        "label": "Revision colour",
+        "description": "The revision colour, while revisions are being marked."
+      },
+      "statusProgress": {
+        "label": "Writing goal",
+        "description": "Progress towards today’s goal, or a sprint’s countdown. Click it for Writing Goals."
+      },
+      "statusPage": {
+        "label": "Page",
+        "description": "The page the cursor is on, and how many there are."
+      }
+    },
+    "labels": {
+      "undo": "Undo",
+      "redo": "Redo",
+      "element": "Element",
+      "font": "Font",
+      "fontSize": "Size",
+      "bold": "Bold",
+      "italic": "Italic",
+      "underline": "Underline",
+      "strikethrough": "Strikethrough",
+      "subscript": "Subscript",
+      "superscript": "Superscript",
+      "textColor": "Text colour",
+      "highlight": "Highlight",
+      "alignLeft": "Left",
+      "alignCenter": "Centre",
+      "alignRight": "Right",
+      "justify": "Justify",
+      "find": "Find",
+      "goToPage": "Go to page",
+      "notes": "Notes",
+      "tags": "Tags",
+      "new": "New",
+      "import": "Import",
+      "save": "Save",
+      "exportPdf": "Export PDF",
+      "titlePage": "Title Page",
+      "sceneNumbers": "Scene numbers",
+      "reports": "Reports",
+      "light": "Light",
+      "dark": "Dark",
+      "switchToLight": "Switch to the light theme",
+      "switchToDark": "Switch to the dark theme",
+      "navigator": "Navigator",
+      "zoomOut": "Zoom out",
+      "zoomIn": "Zoom in"
+    },
+    "views": {
+      "script": "Script",
+      "view": "View"
+    },
+    "panels": {
+      "locationDb": "Location Database"
+    },
+    "dnd": {
+      "pickedUp": "Picked up {{name}}. Use the arrow keys to move it, Space to drop it, Escape to cancel.",
+      "over": "{{name}} is over {{target}}.",
+      "dropped": "{{name}} dropped on {{target}}.",
+      "cancelled": "Moving {{name}} was cancelled."
+    }
   }
 }

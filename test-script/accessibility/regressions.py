@@ -109,15 +109,26 @@ class Accessibility(unittest.TestCase):
         self.row(self.page.evaluate("testI18n.t('menu:tools.systemSettings')")).focus()
         self.press("Enter")
         expect(self.page.locator(".settings-page")).to_be_visible()
+        # Settings opens on General, which holds the language choice.
+        language = self.page.get_by_role("radio", name="English", exact=True)
+        language.focus()
+        self.press("Space")
+        expect(language).to_have_attribute("aria-checked", "true")
+        self.audit()
+        # The server addresses are under Advanced in the sidebar.
+        advanced = self.page.get_by_role(
+            "button",
+            name=self.page.evaluate("testI18n.t('settings:nav.advanced')"),
+            exact=True,
+        )
+        advanced.focus()
+        self.press("Enter")
+        expect(advanced).to_have_attribute("aria-current", "page")
         field = self.page.get_by_label("Server URL", exact=True)
         field.focus()
         field.fill("wss://example.invalid")
         expect(field).to_have_value("wss://example.invalid")
         expect(self.page.get_by_label("Cloud API URL", exact=True)).to_be_visible()
-        language = self.page.get_by_role("radio", name="English", exact=True)
-        language.focus()
-        self.press("Space")
-        expect(language).to_have_attribute("aria-checked", "true")
         for theme in ["dark", "light"]:
             self.page.evaluate(
                 "theme=>document.documentElement.dataset.theme=theme", theme
@@ -752,7 +763,11 @@ class Accessibility(unittest.TestCase):
         expect(trigger).to_have_text("135%")
         expect(trigger).to_be_focused()
         self.page.evaluate("testStore.getState().setZoomPanelOpen(true)")
-        palette = self.page.get_by_role("group", name="Zoom", exact=True)
+        # The toolbar and the status bar have Zoom groups of their own (2.14.0),
+        # so take the palette by its id and check its role and name separately.
+        palette = self.page.locator("#zoom-panel")
+        expect(palette).to_have_attribute("role", "group")
+        expect(palette).to_have_attribute("aria-label", "Zoom")
         expect(
             palette.get_by_role("button", name="Zoom In", exact=True)
         ).to_be_visible()

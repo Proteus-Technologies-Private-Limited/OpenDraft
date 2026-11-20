@@ -10,6 +10,8 @@ mod native_menu;
 /// Platform text-to-speech for Table Read (issue #131).
 mod tts;
 mod dictation;
+/// Installed-font lookup for the PDF exporter's fallback (desktop only; a stub on mobile).
+mod system_fonts;
 /// Native hinge posture for foldable iPhones (issue #231).
 mod fold;
 use percent_encoding::percent_decode_str;
@@ -220,6 +222,48 @@ fn android_read_clipboard_html() -> Result<Option<String>, String> {
     Ok(if html.is_empty() { None } else { Some(html) })
 }
 
+/// Refuse a document too large to hold in memory, before reading any of it.
+///
+/// Both readers pull the whole file into the Java heap on the main thread, and
+/// the bytes path then copies it again into Rust. A wrong pick — a video, a disk
+/// image — used to be read in full until the heap ran out, and an
+/// `OutOfMemoryError` thrown that way surfaces as a crash in Play Console with
+/// nothing but `MessageQueue.nativePollOnce` in the trace.
+///
+/// A provider that does not report a size passes here; Kotlin's bounded read
+/// still stops it. The limit lives in `MainActivity.MAX_READ_BYTES`.
+#[cfg(target_os = "android")]
+fn android_check_uri_size(
+    env: &mut jni::JNIEnv,
+    activity: &jni::objects::JObject,
+    uri_str: &str,
+    filename: &str,
+) -> Result<(), String> {
+    use jni::objects::{JObject, JValue};
+
+    let uri_jobj = JObject::from(
+        env.new_string(uri_str)
+            .map_err(|e| format!("JNI new_string: {}", e))?,
+    );
+    let size = env.call_static_method(
+        "com/proteus/opendraft/MainActivity", "uriSize",
+        "(Landroid/content/Context;Ljava/lang/String;)J",
+        &[JValue::Object(activity), JValue::Object(&uri_jobj)],
+    ).map_err(|e| format!("uriSize: {}", e))?
+     .j().map_err(|e| format!("uriSize cast: {}", e))?;
+
+    const MAX_READ_BYTES: i64 = 64 * 1024 * 1024;
+    if size > MAX_READ_BYTES {
+        return Err(format!(
+            "{} is {} MB, which is too large to open on this device (the limit is {} MB).",
+            filename,
+            size / (1024 * 1024),
+            MAX_READ_BYTES / (1024 * 1024),
+        ));
+    }
+    Ok(())
+}
+
 #[cfg(target_os = "android")]
 fn android_read_content_uri_bytes(uri_str: &str) -> Result<ContentUriBytes, String> {
     use jni::objects::{JByteArray, JObject, JValue};
@@ -263,6 +307,8 @@ fn android_read_content_uri_bytes(uri_str: &str) -> Result<ContentUriBytes, Stri
         }
     }
 
+    android_check_uri_size(&mut env, &activity, uri_str, &filename)?;
+
     // The read itself lives in MainActivity.readUriBytes: minSdk is 26, so
     // InputStream.readAllBytes() is unavailable and a JNI read loop would be
     // far more code than a Kotlin one-liner.
@@ -275,8 +321,8 @@ fn android_read_content_uri_bytes(uri_str: &str) -> Result<ContentUriBytes, Stri
 
     if bytes_obj.is_null() {
         return Err(format!(
-            "Could not read {}. The file may have been moved or deleted, or its provider \
-             may be offline.",
+            "Could not read {}. The file may have been moved or deleted, its provider \
+             may be offline, or it may be too large to open on this device.",
             filename
         ));
     }
@@ -460,6 +506,8 @@ fn android_read_content_uri(uri_str: &str) -> Result<ContentUriResult, String> {
             eprintln!("[content-uri] Added extension from MIME: {}", filename);
         }
     }
+
+    android_check_uri_size(&mut env, &activity, uri_str, &filename)?;
 
     // ── Read content via InputStream + Scanner ───────────────────────
     let input_stream = env.call_method(
@@ -3120,6 +3168,7 @@ pub fn run() {
             tts::tts_native_stop,
             tts::tts_table_read,
             tts::tts_speech_server_request,
+            system_fonts::system_font_for_text,
         ]);
 
         // ── Native menu (desktop only) ────────────────────────────────

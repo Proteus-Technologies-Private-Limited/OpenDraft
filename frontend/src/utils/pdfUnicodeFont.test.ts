@@ -5,10 +5,13 @@
  * @vitest-environment node
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+const systemFont = vi.hoisted(() => ({ lookup: vi.fn(async (): Promise<Uint8Array | null> => null) }));
+vi.mock('./systemFonts', () => ({ systemFontForText: systemFont.lookup }));
 import {
   needsUnicodeFont, requiredUnicodeFaces, styleKey, embedUnicodeFonts, segmentByFace,
-  unsupportedScripts,
-  NO_FALLBACKS, UNICODE_FONT_ID, DEVANAGARI_FONT_ID, CJK_FONT_ID,
+  unsupportedScripts, embedSystemFonts, uncoveredCharacters,
+  NO_FALLBACKS, UNICODE_FONT_ID, LATIN_FONT_ID, LATIN_WIDE_FONT_ID, LATIN_SANS_FONT_ID, DEVANAGARI_FONT_ID, CJK_FONT_ID,
   type FontStyle, type RequiredFaces,
 } from './pdfUnicodeFont';
 
@@ -75,9 +78,9 @@ describe('requiredUnicodeFaces', () => {
   });
 
   it('asks for nothing for a script no face covers at all', () => {
-    // Khmer has no face here; asking for one that cannot draw it would only
+    // Syriac has no face here; asking for one that cannot draw it would only
     // cost the download.  unsupportedScripts() is what tells the writer.
-    expect(requiredUnicodeFaces([{ text: 'សួស្ដី' }]).size).toBe(0);
+    expect(requiredUnicodeFaces([{ text: 'ܫܠܡܐ' }]).size).toBe(0);
   });
 });
 
@@ -395,7 +398,7 @@ describe('unsupportedScripts', () => {
     // that had quietly lost its dialogue.  Naming the script is the whole
     // point — "some characters" would send the writer looking at the wrong
     // part of their script.
-    expect(unsupportedScripts([{ text: 'សួស្ដី' }])).toEqual(['Khmer']);
+    expect(unsupportedScripts([{ text: 'ܫܠܡܐ' }])).toEqual(['Syriac']);
     expect(unsupportedScripts([{ text: 'ᑕᐋᒥ' }])).toEqual(['an unsupported script']);
   });
 
@@ -405,8 +408,8 @@ describe('unsupportedScripts', () => {
 
   it('names each script once, however much of it there is', () => {
     expect(unsupportedScripts([
-      { text: 'សួស្ដី' }, { text: 'សួស្ដី', bold: true }, { text: 'សួស្ដី' },
-    ])).toEqual(['Khmer']);
+      { text: 'ܫܠܡܐ' }, { text: 'ܫܠܡܐ', bold: true }, { text: 'ܫܠܡܐ' },
+    ])).toEqual(['Syriac']);
   });
 
   it('falls back to a generic name for a script it has no name for', () => {
@@ -676,5 +679,227 @@ describe('every CJK family is actually reachable', () => {
     // 這 and 說 are written 这 and 说 in Simplified, and Japanese uses neither
     // — so this line can only be Traditional.
     expect(requiredUnicodeFaces([{ text: '這是說話' }]).get(CJK_FONT_ID)?.variant).toBe('TC');
+  });
+});
+
+// --- Latin Extended — Polish, Czech, Turkish… (#269) ------------------------
+
+describe('Latin text outside WinAnsi', () => {
+  const POLISH = 'Zażółć gęślą jaźń';
+
+  it('is asked of Courier Prime, the editor\'s own face, not of DejaVu', () => {
+    const faces = requiredUnicodeFaces([{ text: POLISH }]);
+    expect([...faces.keys()]).toEqual([LATIN_FONT_ID]);
+  });
+
+  it('still sends a letter neither Latin face has to DejaVu', () => {
+    // U+0250 (turned a) is IPA: in DejaVu, beyond Courier Prime and Cousine.
+    const faces = requiredUnicodeFaces([{ text: 'ɐ' }]);
+    expect([...faces.keys()]).toEqual([UNICODE_FONT_ID]);
+  });
+
+  it('draws Vietnamese in Cousine, the one monospace face that has all its letters', () => {
+    // ế and ề are not in DejaVu Sans Mono, and not in Courier Prime either.
+    const faces = requiredUnicodeFaces([
+      { text: 'Tiếng Việt: ế ề ộ ợ' },
+      { text: 'Plain line', bold: true },
+    ]);
+    expect([...faces.keys()]).toEqual([LATIN_WIDE_FONT_ID]);
+    // Embedded in every style the document draws, since it now draws all of it.
+    expect([...faces.get(LATIN_WIDE_FONT_ID)!.styles].sort()).toEqual(['bold', 'normal']);
+  });
+
+  it('uses Cousine instead of, not as well as, Courier Prime when both are wanted', () => {
+    const faces = requiredUnicodeFaces([{ text: 'Zażółć' }, { text: 'Việt' }]);
+    expect([...faces.keys()]).toEqual([LATIN_WIDE_FONT_ID]);
+  });
+
+  it('is embedded in every style the document draws, not just the accented one', () => {
+    const faces = requiredUnicodeFaces([
+      { text: 'INT. POKÓJ - DZIEŃ', bold: true },
+      { text: POLISH },
+      { text: 'Plain English in italics', italic: true },
+    ]);
+    expect([...faces.get(LATIN_FONT_ID)!.styles].sort()).toEqual(['bold', 'italic', 'normal']);
+  });
+
+  async function latinFaces() {
+    stubFontFetch();
+    return embedUnicodeFonts(
+      fakePdf() as never, asked([LATIN_FONT_ID, ['normal']]), FD_CHAR_WIDTH_PT,
+    );
+  }
+
+  it('is drawn in one face from the first letter to the last', async () => {
+    // Split at the first accent this was "Za" in Courier and "żółć" in another
+    // font — the font changing mid-sentence the issue reports.
+    const fallbacks = await latinFaces();
+    expect(segmentByFace(POLISH, fallbacks).map((s) => [s.text, s.fallback?.id]))
+      .toEqual([[POLISH, LATIN_FONT_ID]]);
+  });
+
+  it('keeps the rest of a Courier script in the same face once one line needs it', async () => {
+    const fallbacks = await latinFaces();
+    expect(segmentByFace('INT. ROOM - DAY', fallbacks, { latinBase: true }).map((s) => s.fallback?.id))
+      .toEqual([LATIN_FONT_ID]);
+    // A proportional document face is left alone unless the text needs it.
+    expect(segmentByFace('INT. ROOM - DAY', fallbacks).map((s) => s.fallback))
+      .toEqual([null]);
+  });
+
+  it('sits on the same cell as Courier, so no line break moves', async () => {
+    const fallbacks = await latinFaces();
+    const face = fallbacks.latin!;
+    expect(face.monospace).toBe(true);
+    expect(face.covers('ł'.codePointAt(0)!)).toBe(true);
+    expect(face.covers('Z'.codePointAt(0)!)).toBe(true);
+    expect(face.covers('П'.codePointAt(0)!)).toBe(false);
+  });
+
+  it('leaves a mixed Polish and Cyrillic run to the per-letter split', async () => {
+    stubFontFetch();
+    const fallbacks = await embedUnicodeFonts(
+      fakePdf() as never,
+      asked([LATIN_FONT_ID, ['normal']], [UNICODE_FONT_ID, ['normal']]),
+      FD_CHAR_WIDTH_PT,
+    );
+    const pieces = segmentByFace('łódź Привет', fallbacks, { latinBase: true });
+    expect(pieces.length).toBeGreaterThan(0);
+    expect(pieces.some((p) => p.fallback?.id === UNICODE_FONT_ID)).toBe(true);
+    expect(pieces.map((p) => p.text).join('')).toBe('łódź Привет');
+  });
+});
+
+// --- Polish in a sans-serif script (#269: Arial changed font too) -----------
+
+describe('Latin Extended in a sans-serif script', () => {
+  const POLISH_LINE = 'Zażółć gęślą jaźń, a potem łódź płynęła.';
+
+  it('embeds Liberation Sans, not Courier Prime, for a Helvetica run', () => {
+    const faces = requiredUnicodeFaces([{ text: POLISH_LINE, sans: true }]);
+    expect([...faces.keys()]).toEqual([LATIN_SANS_FONT_ID]);
+  });
+
+  it('still embeds Courier Prime for a Courier run, and never both for one script', () => {
+    expect([...requiredUnicodeFaces([{ text: POLISH_LINE }]).keys()]).toEqual([LATIN_FONT_ID]);
+    expect([...requiredUnicodeFaces([{ text: POLISH_LINE, sans: false }]).keys()]).toEqual([LATIN_FONT_ID]);
+  });
+
+  it('embeds every style the sans runs are drawn in', () => {
+    const faces = requiredUnicodeFaces([
+      { text: POLISH_LINE, sans: true },
+      { text: 'INT. ROOM - DAY', sans: true, bold: true },
+      { text: 'Plain English in italics', sans: true, italic: true },
+    ]);
+    expect([...faces.get(LATIN_SANS_FONT_ID)!.styles].sort()).toEqual(['bold', 'italic', 'normal']);
+  });
+
+  it('draws every line of a Helvetica run in the sans face, accented or not', async () => {
+    stubFontFetch();
+    const fallbacks = await embedUnicodeFonts(
+      fakePdf() as never, asked([LATIN_SANS_FONT_ID, ['normal']]), FD_CHAR_WIDTH_PT,
+    );
+    const sansBase = { sansBase: true };
+    expect(segmentByFace(POLISH_LINE, fallbacks, sansBase).map((s) => [s.text, s.fallback?.id]))
+      .toEqual([[POLISH_LINE, LATIN_SANS_FONT_ID]]);
+    // One face for the whole script: an unaccented line must match the Polish ones.
+    expect(segmentByFace('INT. ROOM - DAY', fallbacks, sansBase).map((s) => s.fallback?.id))
+      .toEqual([LATIN_SANS_FONT_ID]);
+    // It is proportional, so it is measured, not put on Courier's cell.
+    expect(fallbacks.sans!.monospace).toBe(false);
+    expect(fallbacks.sans!.charSpace).toBe(0);
+  });
+
+  it('leaves a Courier run on Courier Prime when the sans face is also embedded', async () => {
+    stubFontFetch();
+    const fallbacks = await embedUnicodeFonts(
+      fakePdf() as never,
+      asked([LATIN_FONT_ID, ['normal']], [LATIN_SANS_FONT_ID, ['normal']]),
+      FD_CHAR_WIDTH_PT,
+    );
+    expect(segmentByFace(POLISH_LINE, fallbacks, { latinBase: true }).map((s) => s.fallback?.id))
+      .toEqual([LATIN_FONT_ID]);
+  });
+
+  it('is never picked for a run that is not sans-serif', () => {
+    expect(requiredUnicodeFaces([{ text: 'Привет' }]).has(LATIN_SANS_FONT_ID)).toBe(false);
+  });
+});
+
+// --- Lines in one face, and what the installed fonts are asked ---------------
+
+describe('a line one face covers is drawn in it whole', () => {
+  it('keeps "Mixed: łódź, Привет" in one face rather than switching at the first accent', async () => {
+    stubFontFetch();
+    const fallbacks = await embedUnicodeFonts(
+      fakePdf() as never, asked([UNICODE_FONT_ID, ['normal']]), FD_CHAR_WIDTH_PT,
+    );
+    expect(segmentByFace('Mixed: łódź, Привет, café', fallbacks).map((s) => [s.text, s.fallback?.id]))
+      .toEqual([['Mixed: łódź, Привет, café', UNICODE_FONT_ID]]);
+  });
+
+  it('still lets a Latin word sit on the cell inside a Hindi line', async () => {
+    const fallbacks = await bothFaces();
+    const pieces = segmentByFace('नमस्ते friend', fallbacks);
+    expect(pieces.some((p) => p.fallback === null)).toBe(true);
+  });
+});
+
+describe('the scripts added for #269-era coverage', () => {
+  it.each([
+    ['Khmer', 'សួស្តី', 'NotoSansKhmer'],
+    ['Lao', 'ສະບາຍດີ', 'NotoSansLao'],
+    ['Myanmar', 'မင်္ဂလာပါ', 'NotoSansMyanmar'],
+    ['Ethiopic', 'ሰላም', 'NotoSansEthiopic'],
+    ['Cherokee', 'ᎣᏏᏲ', 'NotoSansCherokee'],
+    ['Tibetan', 'བཀྲ་ཤིས', 'NotoSerifTibetan'],
+  ])('%s has its own face and is no longer reported as unsupported', (_name, text, id) => {
+    expect([...requiredUnicodeFaces([{ text }]).keys()]).toEqual([id]);
+    expect(unsupportedScripts([{ text }])).toEqual([]);
+  });
+
+  it('cuts only the large fetched faces down to the characters used', () => {
+    const cjk = requiredUnicodeFaces([{ text: '你好 Hello' }]).get(CJK_FONT_ID)!;
+    expect(cjk.chars).toContain('你'.codePointAt(0));
+    // Upper and lower case, because the exporter changes the case of some elements.
+    const ethiopic = requiredUnicodeFaces([{ text: 'ሰላም' }]).get('NotoSansEthiopic')!;
+    expect(ethiopic.chars).toContain('ሰ'.codePointAt(0));
+    expect(requiredUnicodeFaces([{ text: 'नमस्ते' }]).get(DEVANAGARI_FONT_ID)!.chars).toBeUndefined();
+  });
+});
+
+describe('embedSystemFonts', () => {
+  beforeEach(() => systemFont.lookup.mockReset());
+
+  it('asks only for what nothing else covers — symbols, not Syriac or Thaana', () => {
+    // → is in DejaVu, so a bundled face already has it.
+    expect(uncoveredCharacters([{ text: 'Hello ✓ ★ → ܫܠܡܐ ހެލޯ' }]).sort())
+      .toEqual(['★', '✓']);
+  });
+
+  it('asks for nothing, and so looks nothing up, for a script the bundled faces cover', async () => {
+    const pdf = fakePdf();
+    const base = { ...NO_FALLBACKS };
+    expect(await embedSystemFonts(pdf as never, base, [{ text: 'Привет Zażółć' }])).toBe(base);
+    expect(systemFont.lookup).not.toHaveBeenCalled();
+  });
+
+  it('hands back what it was given when there is no installed font to use', async () => {
+    systemFont.lookup.mockResolvedValue(null);
+    const base = { ...NO_FALLBACKS, unsupported: ['an unsupported script'] };
+    expect(await embedSystemFonts(fakePdf() as never, base, [{ text: '✓' }])).toBe(base);
+  });
+
+  it('embeds the font it is given, routes exactly those characters to it, and stops warning', async () => {
+    systemFont.lookup.mockResolvedValue(new Uint8Array([0, 1, 0, 0, 9]));
+    const pdf = fakePdf();
+    const out = await embedSystemFonts(
+      pdf as never, { ...NO_FALLBACKS, unsupported: ['an unsupported script'] }, [{ text: '✓ ★' }],
+    );
+    expect(pdf.registered.map((r) => r.id)).toEqual(Array(4).fill('SystemFallback'));
+    expect(out.none).toBe(false);
+    expect(out.faceFor('✓'.codePointAt(0)!)?.id).toBe('SystemFallback');
+    expect(out.faceFor('→'.codePointAt(0)!)).toBeNull();
+    expect(out.unsupported).toEqual([]);
   });
 });

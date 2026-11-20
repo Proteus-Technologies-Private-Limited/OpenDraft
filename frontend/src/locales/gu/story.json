@@ -10,7 +10,19 @@
     "customColor": "કસ્ટમ રંગ",
     "pageSingular": "{{n}} પેજ",
     "pagePlural": "{{n}} પેજ",
-    "autoWithDuration": "ઑટો ({{duration}})"
+    "autoWithDuration": "ઑટો ({{duration}})",
+    "colors": {
+      "violet": "જાંબલી",
+      "indigo": "નીલો",
+      "blue": "વાદળી",
+      "green": "લીલો",
+      "yellow": "પીળો",
+      "orange": "નારંગી",
+      "red": "લાલ",
+      "black": "કાળો",
+      "white": "સફેદ",
+      "none": "કોઈ રંગ નહીં"
+    }
   },
   "scriptProfile": {
     "title": "જોનર અને ગતિ",
@@ -153,7 +165,10 @@
     "dragToReorder": "ક્રમ બદલવા ખેંચો",
     "goToScene": "સીન પર જવા ક્લિક કરો",
     "synopsisPlaceholder": "સારાંશ ઉમેરો...",
-    "expandSynopsis": "સારાંશ વિસ્તારો"
+    "expandSynopsis": "સારાંશ વિસ્તારો",
+    "timeline": "ટાઇમલાઇન",
+    "showTimeline": "દ્રશ્યોની ટાઇમલાઇન બતાવો",
+    "hideTimeline": "દ્રશ્યોની ટાઇમલાઇન છુપાવો"
   },
   "outline": {
     "title": "આઉટલાઇન",
@@ -359,9 +374,6 @@
     "pageSingular": "{{n}} પેજ",
     "pagePlural": "{{n}} પેજ",
     "pageAndDuration": "{{pages}} · {{duration}}",
-    "noSynopsis": "આ સીન માટે સારાંશ ઉપલબ્ધ નથી.",
-    "editSynopsis": "એડિટ",
-    "addSynopsis": "+ ઉમેરો",
     "noPages": "હજી કોઈ પેજ નથી. પેજ પ્રીવ્યૂ જોવા લખવાનું શરૂ કરો.",
     "pageLabel": "પેજ {{label}}",
     "sectionCount_one": "{{count}} સેક્શન",
@@ -381,7 +393,24 @@
     "noLocations": "હજી કોઈ લોકેશન નથી. “INT. COFFEE SHOP - DAY” જેવા સીન હેડિંગ અહીં દેખાશે.",
     "renameLocation": "લોકેશનનું નામ બદલો",
     "skippedHeadings_one": "લાઇન બ્રેક ધરાવતું {{count}} સીન હેડિંગ છોડી દીધું",
-    "skippedHeadings_other": "લાઇન બ્રેક ધરાવતાં {{count}} સીન હેડિંગ છોડી દીધાં"
+    "skippedHeadings_other": "લાઇન બ્રેક ધરાવતાં {{count}} સીન હેડિંગ છોડી દીધાં",
+    "showAllSynopses": "બધા સારાંશ બતાવો",
+    "hideAllSynopses": "બધા સારાંશ છુપાવો",
+    "expandScene": "સારાંશ બતાવો",
+    "collapseScene": "સારાંશ છુપાવો",
+    "changeColor": "સીનનો રંગ",
+    "changeColorFor": "સીન {{number}}નો રંગ",
+    "headingFontScript": "હેડિંગ સ્ક્રિપ્ટના ફૉન્ટમાં બતાવો",
+    "headingFontInterface": "હેડિંગ ઇન્ટરફેસના ફૉન્ટમાં બતાવો",
+    "startsOnPage": "પેજ {{label}} પર શરૂ થાય છે",
+    "synopsisFor": "{{heading}}નો સારાંશ",
+    "synopsisEditHint": "Enter સાચવે છે · Shift+Enter નવી લાઇન ઉમેરે છે · Esc રદ કરે છે",
+    "clickToEditSynopsis": "સારાંશ એડિટ કરવા ક્લિક કરો",
+    "clickToAddSynopsis": "સારાંશ ઉમેરો…",
+    "moreSceneOptions": "વધુ…",
+    "moreSceneOptionsTitle": "સારાંશ, રંગ અને સીનનો સમયગાળો",
+    "sceneNotFound": "તે સીન હવે સ્ક્રિપ્ટમાં નથી.",
+    "sceneSaveFailed": "સીન સાચવી શકાયો નહીં. ફરી પ્રયાસ કરો."
   },
   "beatBoard": {
     "title": "બીટ બોર્ડ",
@@ -531,5 +560,24 @@
     "linked": "જોડાયેલ",
     "removeTitle": "કેરેક્ટર દૂર કરો",
     "removeConfirm": "“{{name}}” ને કેરેક્ટર યાદીમાંથી દૂર કરવું છે?"
+  },
+  "storyMap": {
+    "title": "સ્ટોરી મેપ",
+    "measureIn": "મેપનું માપ",
+    "pages": "પેજ",
+    "pagesTip": "પેજની લંબાઈ મુજબ દ્રશ્યોનું કદ",
+    "time": "સમય",
+    "timeTip": "અંદાજિત સ્ક્રીન સમય મુજબ દ્રશ્યોનું કદ",
+    "pagesTotal": "{{pages}} પેજ",
+    "pagesShort": "{{pages}}પે",
+    "noLength": "હજી લંબાઈ નથી",
+    "close": "{{title}} બંધ કરો",
+    "empty": "હજી કોઈ દ્રશ્ય નથી. દ્રશ્યનું શીર્ષક (INT. અથવા EXT.) લખો અને તે અહીં દેખાશે."
+  },
+  "splitScreen": {
+    "pageView": "પેજ વ્યૂ",
+    "closePageView": "પેજ વ્યૂ બંધ કરો",
+    "noPages": "હજી કોઈ પેજ નથી. લખવાનું શરૂ કરો અને પેજ અહીં દેખાશે.",
+    "close": "સ્પ્લિટ સ્ક્રીન બંધ કરો"
   }
 }

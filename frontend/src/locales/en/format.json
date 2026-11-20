@@ -244,5 +244,21 @@
     "textColor": "Text color",
     "highlight": "Highlight",
     "highlightColor": "Highlight color"
+  },
+  "lineSpacing": {
+    "title": "Line Spacing",
+    "help": "Opens up the space between the lines of the script. The page on screen, the page count and the PDF, Word and Final Draft files all follow it. Standard is six lines to the inch, the spacing Final Draft prints a screenplay at.",
+    "preset": {
+      "standard": "Standard",
+      "slightlyOpen": "Slightly open",
+      "open": "Open"
+    },
+    "fine": "Fine adjustment",
+    "value": "{{points}} pt per line ({{value}}×)",
+    "pages": "Page count: {{pages}}",
+    "pagesChange": "Page count: {{from}} → {{to}}",
+    "scope": "Applies to this script only and travels with it. The blank lines between elements and the running-time estimate stay as they are.",
+    "reset": "Reset to Standard",
+    "failed": "The line spacing could not be applied. The script keeps its current spacing."
   }
 }

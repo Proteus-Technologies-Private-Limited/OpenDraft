@@ -3,9 +3,7 @@ import { ModalOverlay } from './ModalOverlay';
 import { useTranslation } from 'react-i18next';
 import { formatNumber } from '../i18n/format';
 import { formatSceneDuration, getTimingColor } from '../utils/scriptTiming';
-
-// VIBGYOR + black + white + no color (rainbow order)
-const SCENE_COLORS = ['#8b5cf6', '#4f46e5', '#2563eb', '#059669', '#eab308', '#f97316', '#ef4444', '#000000', '#ffffff', ''];
+import SceneColorSwatches from './SceneColorSwatches';
 
 interface SynopsisModalProps {
   sceneHeading: string;
@@ -140,25 +138,7 @@ const SynopsisModal: React.FC<SynopsisModalProps> = ({ sceneHeading, synopsis, s
         </div>
         <div className="synopsis-color-picker">
           <span className="synopsis-color-label">{t('synopsis.sceneColor')}</span>
-          <div className="synopsis-color-swatches">
-            {SCENE_COLORS.map((c) => (
-              <button
-                key={c || 'none'}
-                className={`synopsis-color-swatch${color === c ? ' active' : ''}`}
-                style={c ? { background: c } : undefined}
-                onClick={() => setColor(c)}
-                title={c || t('common:none')}
-              />
-            ))}
-            <label className="synopsis-color-custom" title={t('synopsis.customColor')}>
-              <input
-                type="color"
-                value={color || '#000000'}
-                onChange={(e) => setColor(e.target.value)}
-              />
-              <span>+</span>
-            </label>
-          </div>
+          <SceneColorSwatches value={color} onChange={setColor} />
         </div>
         <div className="dialog-footer">
           <button className="dialog-btn" onClick={onClose}>{t('common:cancel')}</button>

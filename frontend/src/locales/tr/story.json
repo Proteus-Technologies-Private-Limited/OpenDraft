@@ -10,7 +10,19 @@
     "customColor": "Özel renk",
     "pageSingular": "{{n}} sayfa",
     "pagePlural": "{{n}} sayfa",
-    "autoWithDuration": "Otomatik ({{duration}})"
+    "autoWithDuration": "Otomatik ({{duration}})",
+    "colors": {
+      "violet": "Menekşe",
+      "indigo": "Çivit mavisi",
+      "blue": "Mavi",
+      "green": "Yeşil",
+      "yellow": "Sarı",
+      "orange": "Turuncu",
+      "red": "Kırmızı",
+      "black": "Siyah",
+      "white": "Beyaz",
+      "none": "Renk yok"
+    }
   },
   "scriptProfile": {
     "title": "Tür ve tempo",
@@ -153,7 +165,10 @@
     "dragToReorder": "Sırayı değiştirmek için sürükleyin",
     "goToScene": "Sahneye gitmek için tıklayın",
     "synopsisPlaceholder": "Sinopsis ekle...",
-    "expandSynopsis": "Sinopsisi genişlet"
+    "expandSynopsis": "Sinopsisi genişlet",
+    "timeline": "Zaman çizelgesi",
+    "showTimeline": "Sahne zaman çizelgesini göster",
+    "hideTimeline": "Sahne zaman çizelgesini gizle"
   },
   "outline": {
     "title": "Ana hat",
@@ -359,9 +374,6 @@
     "pageSingular": "{{n}} sayfa",
     "pagePlural": "{{n}} sayfa",
     "pageAndDuration": "{{pages}} · {{duration}}",
-    "noSynopsis": "Bu sahne için sinopsis yok.",
-    "editSynopsis": "Düzenle",
-    "addSynopsis": "+ Ekle",
     "noPages": "Henüz sayfa yok. Sayfa önizlemelerini görmek için yazmaya başlayın.",
     "pageLabel": "Sayfa {{label}}",
     "sectionCount_one": "{{count}} bölüm",
@@ -381,7 +393,24 @@
     "noLocations": "Henüz mekân yok. “INT. COFFEE SHOP - DAY” gibi sahne başlıkları burada görünür.",
     "renameLocation": "Mekânı yeniden adlandır",
     "skippedHeadings_one": "Satır sonu içeren {{count}} sahne başlığı atlandı",
-    "skippedHeadings_other": "Satır sonu içeren {{count}} sahne başlığı atlandı"
+    "skippedHeadings_other": "Satır sonu içeren {{count}} sahne başlığı atlandı",
+    "showAllSynopses": "Tüm sinopsisleri göster",
+    "hideAllSynopses": "Tüm sinopsisleri gizle",
+    "expandScene": "Sinopsisi göster",
+    "collapseScene": "Sinopsisi gizle",
+    "changeColor": "Sahne rengi",
+    "changeColorFor": "Sahne {{number}} rengi",
+    "headingFontScript": "Başlıkları senaryo yazı tipiyle göster",
+    "headingFontInterface": "Başlıkları arayüz yazı tipiyle göster",
+    "startsOnPage": "Başladığı sayfa: {{label}}",
+    "synopsisFor": "Sinopsis: {{heading}}",
+    "synopsisEditHint": "Enter kaydeder · Shift+Enter satır ekler · Esc iptal eder",
+    "clickToEditSynopsis": "Sinopsisi düzenlemek için tıklayın",
+    "clickToAddSynopsis": "Sinopsis ekle…",
+    "moreSceneOptions": "Daha fazla…",
+    "moreSceneOptionsTitle": "Sinopsis, renk ve sahne süresi",
+    "sceneNotFound": "Bu sahne artık senaryoda yok.",
+    "sceneSaveFailed": "Sahne kaydedilemedi. Yeniden deneyin."
   },
   "beatBoard": {
     "title": "Beat panosu",
@@ -531,5 +560,24 @@
     "linked": "Bağlı",
     "removeTitle": "Karakteri kaldır",
     "removeConfirm": "“{{name}}” karakter listesinden kaldırılsın mı?"
+  },
+  "storyMap": {
+    "title": "Hikâye haritası",
+    "measureIn": "Haritayı şuna göre ölç",
+    "pages": "Sayfa",
+    "pagesTip": "Sahneleri sayfa uzunluğuna göre boyutlandır",
+    "time": "Süre",
+    "timeTip": "Sahneleri tahmini ekran süresine göre boyutlandır",
+    "pagesTotal": "{{pages}} sayfa",
+    "pagesShort": "{{pages}}s",
+    "noLength": "Henüz uzunluk yok",
+    "close": "{{title}} kapat",
+    "empty": "Henüz sahne yok. Bir sahne başlığı (INT. veya EXT.) yazın, burada görünsün."
+  },
+  "splitScreen": {
+    "pageView": "Sayfa görünümü",
+    "closePageView": "Sayfa görünümünü kapat",
+    "noPages": "Henüz sayfa yok. Yazmaya başlayın, sayfalar burada görünsün.",
+    "close": "Bölünmüş ekranı kapat"
   }
 }

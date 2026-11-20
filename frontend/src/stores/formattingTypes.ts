@@ -160,8 +160,15 @@ export interface FormattingTemplate {
   titlePageFields?: string[];
   /** Element ids that must start on a new page (e.g. sitcom: every sceneHeading). */
   forceBreakBefore?: string[];
-  /** Multiplier for line-height in pagination computation (e.g. 2.0 for double-spaced sitcom dialogue). Keyed by element id. */
+  /** Per-element line-height multiplier (e.g. 2.0 for double-spaced sitcom dialogue). Keyed by element id.
+   *  Drawn on screen, paginated, and exported — see utils/lineSpacing.ts. */
   lineHeightMultiplier?: Record<string, number>;
+  /**
+   * Script-wide line spacing, multiplying every element's own multiplier:
+   * 1 = Standard (six lines to the inch), up to 2, in steps of 1/8. Absent
+   * means Standard. See utils/lineSpacing.ts for why the steps are eighths.
+   */
+  lineSpacing?: number;
   /** Optional human-readable category for grouping in the format picker (e.g. "TV", "Stage", "Audio"). */
   scriptTypeGroup?: string;
   /** Short tagline shown in the format-picker card. */

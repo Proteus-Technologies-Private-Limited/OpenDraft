@@ -289,7 +289,9 @@
     "lineAfterTableTip": "Placer le curseur sur une ligne de scénario ordinaire sous ce tableau AV, en en ajoutant une si elle n’existe pas encore",
     "lineBeforeTableTip": "Placer le curseur sur une ligne de scénario ordinaire au-dessus de ce tableau AV, en en ajoutant une si elle n’existe pas encore",
     "avRowHint": "Placez d’abord le curseur dans une cellule Image ou Son d’un scénario AV",
-    "formattingTemplate": "Modèle de mise en forme ({{name}})…"
+    "formattingTemplate": "Modèle de mise en forme ({{name}})…",
+    "lineSpacing": "Interlignage…",
+    "lineSpacingTip": "Aérer l'espace entre les lignes et voir le nombre de pages avant d'appliquer"
   },
   "view": {
     "view": "Affichage",
@@ -329,7 +331,16 @@
     "hidden": "Masqué",
     "zoomIn": "Zoom avant",
     "zoomOut": "Zoom arrière",
-    "zoom": "Zoom ({{level}} %)"
+    "zoom": "Zoom ({{level}} %)",
+    "storyMap": "Carte de l’histoire",
+    "storyMapTip": "Les scènes en une seule bande, selon la longueur en pages ou le temps à l’écran",
+    "speed": "Vitesse",
+    "splitScreen": "Écran partagé",
+    "sideBySide": "Côte à côte",
+    "stacked": "Empilé",
+    "onePane": "Un seul volet",
+    "secondPane": "Deuxième volet",
+    "pageView": "Vue Page"
   },
   "tools": {
     "tools": "Outils",

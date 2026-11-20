@@ -10,7 +10,19 @@
     "customColor": "ਕਸਟਮ ਰੰਗ",
     "pageSingular": "{{n}} ਪੰਨਾ",
     "pagePlural": "{{n}} ਪੰਨੇ",
-    "autoWithDuration": "ਆਟੋ ({{duration}})"
+    "autoWithDuration": "ਆਟੋ ({{duration}})",
+    "colors": {
+      "violet": "ਬੈਂਗਣੀ",
+      "indigo": "ਗੂੜ੍ਹਾ ਨੀਲਾ",
+      "blue": "ਨੀਲਾ",
+      "green": "ਹਰਾ",
+      "yellow": "ਪੀਲਾ",
+      "orange": "ਸੰਤਰੀ",
+      "red": "ਲਾਲ",
+      "black": "ਕਾਲਾ",
+      "white": "ਚਿੱਟਾ",
+      "none": "ਕੋਈ ਰੰਗ ਨਹੀਂ"
+    }
   },
   "scriptProfile": {
     "title": "ਜੌਨਰ ਅਤੇ ਰਫ਼ਤਾਰ",
@@ -153,7 +165,10 @@
     "dragToReorder": "ਕ੍ਰਮ ਬਦਲਣ ਲਈ ਖਿੱਚੋ",
     "goToScene": "ਸੀਨ 'ਤੇ ਜਾਣ ਲਈ ਕਲਿੱਕ ਕਰੋ",
     "synopsisPlaceholder": "ਸਾਰਾਂਸ਼ ਜੋੜੋ...",
-    "expandSynopsis": "ਸਾਰਾਂਸ਼ ਫੈਲਾਓ"
+    "expandSynopsis": "ਸਾਰਾਂਸ਼ ਫੈਲਾਓ",
+    "timeline": "ਟਾਈਮਲਾਈਨ",
+    "showTimeline": "ਦ੍ਰਿਸ਼ ਟਾਈਮਲਾਈਨ ਦਿਖਾਓ",
+    "hideTimeline": "ਦ੍ਰਿਸ਼ ਟਾਈਮਲਾਈਨ ਲੁਕਾਓ"
   },
   "outline": {
     "title": "ਆਊਟਲਾਈਨ",
@@ -359,9 +374,6 @@
     "pageSingular": "{{n}} ਪੰਨਾ",
     "pagePlural": "{{n}} ਪੰਨੇ",
     "pageAndDuration": "{{pages}} · {{duration}}",
-    "noSynopsis": "ਇਸ ਸੀਨ ਦਾ ਕੋਈ ਸਾਰਾਂਸ਼ ਉਪਲਬਧ ਨਹੀਂ।",
-    "editSynopsis": "ਸੋਧੋ",
-    "addSynopsis": "+ ਜੋੜੋ",
     "noPages": "ਅਜੇ ਕੋਈ ਪੰਨਾ ਨਹੀਂ। ਪੰਨਿਆਂ ਦਾ ਪ੍ਰੀਵਿਊ ਦੇਖਣ ਲਈ ਲਿਖਣਾ ਸ਼ੁਰੂ ਕਰੋ।",
     "pageLabel": "ਪੰਨਾ {{label}}",
     "sectionCount_one": "{{count}} ਸੈਕਸ਼ਨ",
@@ -381,7 +393,24 @@
     "noLocations": "ਅਜੇ ਕੋਈ ਲੋਕੇਸ਼ਨ ਨਹੀਂ। “INT. COFFEE SHOP - DAY” ਵਰਗੀਆਂ ਸੀਨ ਹੈਡਿੰਗਾਂ ਇੱਥੇ ਦਿਖਾਈ ਦੇਣਗੀਆਂ।",
     "renameLocation": "ਲੋਕੇਸ਼ਨ ਦਾ ਨਾਮ ਬਦਲੋ",
     "skippedHeadings_one": "ਲਾਈਨ ਬ੍ਰੇਕ ਵਾਲੀ {{count}} ਸੀਨ ਹੈਡਿੰਗ ਛੱਡ ਦਿੱਤੀ ਗਈ",
-    "skippedHeadings_other": "ਲਾਈਨ ਬ੍ਰੇਕ ਵਾਲੀਆਂ {{count}} ਸੀਨ ਹੈਡਿੰਗਾਂ ਛੱਡ ਦਿੱਤੀਆਂ ਗਈਆਂ"
+    "skippedHeadings_other": "ਲਾਈਨ ਬ੍ਰੇਕ ਵਾਲੀਆਂ {{count}} ਸੀਨ ਹੈਡਿੰਗਾਂ ਛੱਡ ਦਿੱਤੀਆਂ ਗਈਆਂ",
+    "showAllSynopses": "ਸਾਰੇ ਸਾਰਾਂਸ਼ ਦਿਖਾਓ",
+    "hideAllSynopses": "ਸਾਰੇ ਸਾਰਾਂਸ਼ ਲੁਕਾਓ",
+    "expandScene": "ਸਾਰਾਂਸ਼ ਦਿਖਾਓ",
+    "collapseScene": "ਸਾਰਾਂਸ਼ ਲੁਕਾਓ",
+    "changeColor": "ਸੀਨ ਦਾ ਰੰਗ",
+    "changeColorFor": "ਸੀਨ {{number}} ਦਾ ਰੰਗ",
+    "headingFontScript": "ਹੈਡਿੰਗ ਸਕ੍ਰਿਪਟ ਦੇ ਫੌਂਟ ਵਿੱਚ ਦਿਖਾਓ",
+    "headingFontInterface": "ਹੈਡਿੰਗ ਇੰਟਰਫੇਸ ਦੇ ਫੌਂਟ ਵਿੱਚ ਦਿਖਾਓ",
+    "startsOnPage": "ਪੰਨਾ {{label}} ਤੋਂ ਸ਼ੁਰੂ ਹੁੰਦਾ ਹੈ",
+    "synopsisFor": "{{heading}} ਦਾ ਸਾਰਾਂਸ਼",
+    "synopsisEditHint": "Enter ਸੰਭਾਲਦਾ ਹੈ · Shift+Enter ਨਵੀਂ ਲਾਈਨ ਜੋੜਦਾ ਹੈ · Esc ਰੱਦ ਕਰਦਾ ਹੈ",
+    "clickToEditSynopsis": "ਸਾਰਾਂਸ਼ ਸੋਧਣ ਲਈ ਕਲਿੱਕ ਕਰੋ",
+    "clickToAddSynopsis": "ਸਾਰਾਂਸ਼ ਜੋੜੋ…",
+    "moreSceneOptions": "ਹੋਰ…",
+    "moreSceneOptionsTitle": "ਸਾਰਾਂਸ਼, ਰੰਗ ਅਤੇ ਸੀਨ ਦੀ ਮਿਆਦ",
+    "sceneNotFound": "ਉਹ ਸੀਨ ਹੁਣ ਸਕ੍ਰਿਪਟ ਵਿੱਚ ਨਹੀਂ ਹੈ।",
+    "sceneSaveFailed": "ਸੀਨ ਸੰਭਾਲਿਆ ਨਹੀਂ ਜਾ ਸਕਿਆ। ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।"
   },
   "beatBoard": {
     "title": "ਬੀਟ ਬੋਰਡ",
@@ -531,5 +560,24 @@
     "linked": "ਜੁੜਿਆ",
     "removeTitle": "ਕਿਰਦਾਰ ਹਟਾਓ",
     "removeConfirm": "“{{name}}” ਨੂੰ ਕਿਰਦਾਰ ਸੂਚੀ ਵਿੱਚੋਂ ਹਟਾਉਣਾ ਹੈ?"
+  },
+  "storyMap": {
+    "title": "ਕਹਾਣੀ ਨਕਸ਼ਾ",
+    "measureIn": "ਨਕਸ਼ੇ ਦਾ ਮਾਪ",
+    "pages": "ਪੰਨੇ",
+    "pagesTip": "ਦ੍ਰਿਸ਼ਾਂ ਦਾ ਆਕਾਰ ਪੰਨੇ ਦੀ ਲੰਬਾਈ ਅਨੁਸਾਰ",
+    "time": "ਸਮਾਂ",
+    "timeTip": "ਦ੍ਰਿਸ਼ਾਂ ਦਾ ਆਕਾਰ ਅੰਦਾਜ਼ਨ ਸਕ੍ਰੀਨ ਸਮੇਂ ਅਨੁਸਾਰ",
+    "pagesTotal": "{{pages}} ਪੰਨੇ",
+    "pagesShort": "{{pages}}ਪੰ",
+    "noLength": "ਹਾਲੇ ਕੋਈ ਲੰਬਾਈ ਨਹੀਂ",
+    "close": "{{title}} ਬੰਦ ਕਰੋ",
+    "empty": "ਹਾਲੇ ਕੋਈ ਦ੍ਰਿਸ਼ ਨਹੀਂ। ਦ੍ਰਿਸ਼ ਸਿਰਲੇਖ (INT. ਜਾਂ EXT.) ਲਿਖੋ, ਇਹ ਇੱਥੇ ਦਿਖਾਈ ਦੇਵੇਗਾ।"
+  },
+  "splitScreen": {
+    "pageView": "ਪੰਨਾ ਝਲਕ",
+    "closePageView": "ਪੰਨਾ ਝਲਕ ਬੰਦ ਕਰੋ",
+    "noPages": "ਹਾਲੇ ਕੋਈ ਪੰਨਾ ਨਹੀਂ। ਲਿਖਣਾ ਸ਼ੁਰੂ ਕਰੋ, ਪੰਨੇ ਇੱਥੇ ਦਿਖਾਈ ਦੇਣਗੇ।",
+    "close": "ਸਪਲਿਟ ਸਕ੍ਰੀਨ ਬੰਦ ਕਰੋ"
   }
 }

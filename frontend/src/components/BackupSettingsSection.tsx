@@ -142,7 +142,7 @@ const BackupSettingsSection: React.FC = () => {
   if (!supported) {
     return (
       <section className="settings-section">
-        <h2 className="settings-section-title">{t('backupSettings.title')}</h2>
+        <h3 className="settings-section-title">{t('backupSettings.title')}</h3>
         <p className="settings-section-desc">
           <Trans ns="backup" i18nKey="backupSettings.webOnly" components={{ strong: <strong /> }} />
         </p>
@@ -152,7 +152,7 @@ const BackupSettingsSection: React.FC = () => {
 
   return (
     <section className="settings-section">
-      <h2 className="settings-section-title">{t('backupSettings.title')}</h2>
+      <h3 className="settings-section-title">{t('backupSettings.title')}</h3>
       <p className="settings-section-desc">
         <Trans ns="backup" i18nKey="backupSettings.description" components={{ strong: <strong /> }} />
       </p>

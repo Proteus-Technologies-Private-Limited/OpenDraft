@@ -17,15 +17,39 @@ import {
   type FootnoteMarkerStyle,
 } from '../utils/noteNumbering';
 import { normalizeNoteThread, type NoteThread } from '../utils/noteThreads';
+import {
+  defaultToolbarLayout,
+  findToolbarPreset,
+  normaliseSavedToolbarLayouts,
+  normaliseToolbarLayout,
+  type SavedToolbarLayout,
+  type ToolbarLayoutState,
+} from '../utils/toolbarLayout';
+import {
+  isWorkspacePreset,
+  normaliseSavedWorkspaceLayouts,
+  normaliseWorkspaceLayout,
+  workspacePreset,
+  type SavedWorkspaceLayout,
+  type WorkspaceLayout,
+} from '../utils/workspaceLayout';
 import { useSettingsStore } from './settingsStore';
 import { t } from '../i18n';
+
+/** The zoom saved for a layout; Speed uses the page zoom until it has its own. */
+function savedZoom(saved: { zoomLevel?: number; phoneZoomLevel?: number; speedZoomLevel?: number }, layout: 'page' | 'phone' | 'speed'): number {
+  return (layout === 'phone' ? saved.phoneZoomLevel : layout === 'speed' ? (saved.speedZoomLevel ?? saved.zoomLevel) : saved.zoomLevel) ?? 100;
+}
 
 // ── View-state persistence helpers ──
 const VIEW_STATE_KEY = 'opendraft:viewState';
 interface ViewState extends PosturePreferences {
   navigatorOpen?: boolean;
+  navigatorHeadingFont?: NavigatorHeadingFont;
   indexCardsOpen?: boolean;
   beatBoardOpen?: boolean;
+  storyMapOpen?: boolean;
+  storyMapUnits?: 'pages' | 'time';
   scriptNotesOpen?: boolean;
   characterProfilesOpen?: boolean;
   tagsPanelOpen?: boolean;
@@ -39,8 +63,23 @@ interface ViewState extends PosturePreferences {
   /** Zoom in the phone view, kept apart: there it sets the size of the text,
    *  and the page view's zoom on a phone is fitted to the screen every time. */
   phoneZoomLevel?: number;
+  speedZoomLevel?: number;
   viewLayout?: ViewLayout;
   toolbarMode?: 'compact' | 'comfortable' | 'hidden';
+  /** The toolbar's and footer's controls, sides and labels (toolbarLayout.ts). */
+  toolbarLayout?: ToolbarLayoutState;
+  /** PR #217's single list of toolbar controls, read once into toolbarLayout. */
+  toolbarItems?: string[];
+  /** The preset the bars came from, a saved layout's id, or 'custom'. */
+  toolbarPreset?: string;
+  /** Toolbar layouts the writer saved under their own names. */
+  toolbarLayouts?: SavedToolbarLayout[];
+  /** Where every panel goes (workspaceLayout.ts). */
+  workspaceLayout?: WorkspaceLayout;
+  /** The layout preset, a saved layout's id, or 'custom'. */
+  workspacePreset?: string;
+  /** Workspace layouts the writer saved under their own names. */
+  workspaceLayouts?: SavedWorkspaceLayout[];
   focusTypewriter?: boolean;
   focusDim?: 'off' | 'element' | 'scene';
   characterSortBy?: 'name' | 'importance' | 'scenes' | 'dialogues' | 'appearance';
@@ -48,6 +87,12 @@ interface ViewState extends PosturePreferences {
   spellingSettings?: SpellingSettings;
   includeTitlePageInOutput?: boolean;
 }
+
+/**
+ * The font the Navigator lists scene headings in. The interface font keeps the
+ * list from competing with the page; the script font matches it.
+ */
+export type NavigatorHeadingFont = 'interface' | 'script';
 
 /** One colour a script has been revised in. */
 export interface RevisionHistoryEntry {
@@ -84,6 +129,11 @@ function saveViewState(patch: Partial<ViewState>) {
 }
 const _vs = loadViewState();
 
+/** A deep copy of plain saved data, so a stored layout never shares arrays with the live one. */
+function structuredCloneSafe<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
 /**
  * How tight the chrome is before the writer says otherwise.
  *
@@ -110,11 +160,21 @@ function defaultToolbarMode(): 'compact' | 'comfortable' | 'hidden' {
  *
  * `page` draws real 8.5" sheets — what prints. `phone` reflows the same script
  * to the width of a phone at full-size text, with the page breaks drawn as
- * dividers. Pagination, page count and every export are the same in both; only
- * the drawing differs. Phones start in the phone view, because a whole page
- * fitted to one is 8px text (Play Store review, Oct 2026).
+ * dividers. `speed` is the page's sheet without page breaks: one continuous
+ * scroll for drafting. Pagination, page count and every export are the same in
+ * all three; only the drawing differs. Phones start in the phone view, because
+ * a whole page fitted to one is 8px text (Play Store review, Oct 2026).
  */
-export type ViewLayout = 'page' | 'phone';
+export type ViewLayout = 'page' | 'phone' | 'speed';
+
+/** Whether the Story Map sizes its scenes by pages or by screen time. */
+export type StoryMapUnits = 'pages' | 'time';
+
+/** How the split screen arranges its two panes. */
+export type SplitScreenMode = 'side-by-side' | 'stacked';
+
+/** What the split screen shows beside the script. */
+export type SplitScreenPane = 'page-view' | 'index-cards' | 'outline' | 'beat-board';
 
 function defaultViewLayout(): ViewLayout {
   return isPhoneDevice() ? 'phone' : 'page';
@@ -390,6 +450,10 @@ export interface PageLayout {
   /** Footnote/endnote config. Optional for back-compat with documents saved
    *  before this existed — read via resolveFootnotes(). */
   footnotes?: FootnoteSettings;
+  /** The size the whole script is set at, in points. Absent means the standard
+   *  12pt. The editor's pages and the PDF lay out on the 12pt grid scaled by
+   *  this over 12 — see utils/fontScale. */
+  fontSize?: number;
 }
 
 export const DEFAULT_PAGE_LAYOUT: PageLayout = {
@@ -805,6 +869,8 @@ interface EditorState {
   scenes: SceneInfo[];
   setScenes: (scenes: SceneInfo[]) => void;
   navigatorOpen: boolean;
+  navigatorHeadingFont: NavigatorHeadingFont;
+  setNavigatorHeadingFont: (font: NavigatorHeadingFont) => void;
   toggleNavigator: () => void;
 
   // Panels
@@ -812,6 +878,18 @@ interface EditorState {
   toggleIndexCards: () => void;
   beatBoardOpen: boolean;
   toggleBeatBoard: () => void;
+  /** The scenes as one strip under the editor, sized by page or screen time. */
+  storyMapOpen: boolean;
+  toggleStoryMap: () => void;
+  storyMapUnits: StoryMapUnits;
+  setStoryMapUnits: (units: StoryMapUnits) => void;
+  /** The editor and a second pane beside or below it. */
+  splitScreenOpen: boolean;
+  toggleSplitScreen: () => void;
+  splitScreenMode: SplitScreenMode;
+  setSplitScreenMode: (mode: SplitScreenMode) => void;
+  splitScreenPane: SplitScreenPane;
+  setSplitScreenPane: (pane: SplitScreenPane) => void;
   /** Dedicated outline editor (acts, sequences, sections, scenes). */
   outlineOpen: boolean;
   toggleOutline: () => void;
@@ -1047,6 +1125,34 @@ interface EditorState {
   // Toolbar display mode
   toolbarMode: 'compact' | 'comfortable' | 'hidden';
   setToolbarMode: (mode: 'compact' | 'comfortable' | 'hidden') => void;
+  /** The toolbar's and footer's controls. Saved on this device, like the mode. */
+  toolbarLayout: ToolbarLayoutState;
+  /** Any edit to the bars: the preset becomes 'custom'. */
+  setToolbarLayout: (layout: ToolbarLayoutState) => void;
+  /** Lay the bars out as a built-in preset, keeping each control's settings. */
+  applyToolbarPreset: (preset: string) => void;
+  toolbarPreset: string;
+  savedToolbarLayouts: SavedToolbarLayout[];
+  /** Save the current bars under a name; returns its id, or null for a blank name. */
+  saveToolbarLayout: (label: string) => string | null;
+  applySavedToolbarLayout: (id: string) => void;
+  deleteSavedToolbarLayout: (id: string) => void;
+  /** Where every panel goes: docks, groups and the panels left out. */
+  workspaceLayout: WorkspaceLayout;
+  setWorkspaceLayout: (layout: WorkspaceLayout) => void;
+  /** 'classic', another built-in preset, a saved layout's id, or 'custom'. */
+  workspacePreset: string;
+  /** Switch to a built-in preset or a saved layout. */
+  applyWorkspacePreset: (id: string) => void;
+  savedWorkspaceLayouts: SavedWorkspaceLayout[];
+  saveWorkspaceLayout: (label: string) => string | null;
+  deleteSavedWorkspaceLayout: (id: string) => void;
+  /** The tab each dock group shows. Not saved: groups open on their first tab. */
+  dockActive: Record<string, string>;
+  setDockActive: (groupId: string, panel: string) => void;
+  /** View → Layout…: which tab of the Layout dialog is open, if it is. */
+  layoutDialog: null | 'panels' | 'toolbar';
+  setLayoutDialog: (tab: null | 'panels' | 'toolbar') => void;
   /**
    * View → Focus Mode: full screen, menus and panels out of the way. Not
    * saved — every launch starts with the normal window. Its two options are.
@@ -1248,6 +1354,11 @@ export const useEditorStore = create<EditorState>()(skipUnchanged((set, get) => 
 
   scenes: [],
   setScenes: (scenes) => { if (!sameItems(get().scenes, scenes, sameScene)) set({ scenes }); },
+  navigatorHeadingFont: _vs.navigatorHeadingFont === 'script' ? 'script' : 'interface',
+  setNavigatorHeadingFont: (font) => {
+    saveViewState({ navigatorHeadingFont: font });
+    set({ navigatorHeadingFont: font });
+  },
   navigatorOpen: _vs.navigatorOpen ?? (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0 ? false : true),
   toggleNavigator: () => set((s) => {
     const v = !s.navigatorOpen;
@@ -1268,16 +1379,49 @@ export const useEditorStore = create<EditorState>()(skipUnchanged((set, get) => 
     // The full-width planning views replace one another; opening this one
     // closes the Outline and Statistics instead of hiding them.
     return v
-      ? { beatBoardOpen: true, outlineOpen: false, statisticsOpen: false }
+      ? { beatBoardOpen: true, outlineOpen: false, statisticsOpen: false, splitScreenOpen: false }
       : { beatBoardOpen: false };
   }),
+  storyMapOpen: _vs.storyMapOpen ?? false,
+  toggleStoryMap: () => set((s) => {
+    const v = !s.storyMapOpen;
+    saveViewState({ storyMapOpen: v });
+    return { storyMapOpen: v };
+  }),
+  storyMapUnits: _vs.storyMapUnits ?? 'pages',
+  setStoryMapUnits: (units) => {
+    saveViewState({ storyMapUnits: units });
+    set({ storyMapUnits: units });
+  },
+  splitScreenOpen: false,
+  toggleSplitScreen: () => set((s) => {
+    const open = !s.splitScreenOpen;
+    // The full-width views leave no editor to split.
+    return open
+      ? { splitScreenOpen: true, statisticsOpen: false, beatBoardOpen: false, outlineOpen: false }
+      : { splitScreenOpen: false };
+  }),
+  splitScreenMode: 'side-by-side',
+  setSplitScreenMode: (mode) => set((s) => (s.splitScreenOpen && s.splitScreenMode === mode
+    ? {}
+    : {
+      splitScreenMode: mode, splitScreenOpen: true,
+      statisticsOpen: false, beatBoardOpen: false, outlineOpen: false,
+    })),
+  splitScreenPane: 'index-cards',
+  setSplitScreenPane: (pane) => set((s) => (s.splitScreenOpen && s.splitScreenPane === pane
+    ? {}
+    : {
+      splitScreenPane: pane, splitScreenOpen: true,
+      statisticsOpen: false, beatBoardOpen: false, outlineOpen: false,
+    })),
   outlineOpen: false,
   toggleOutline: () => set((s) => {
     const open = !s.outlineOpen;
     if (!open) return { outlineOpen: false };
     // Keep the saved Beat Board choice in step: the Outline takes the screen.
     saveViewState({ beatBoardOpen: false });
-    return { outlineOpen: true, statisticsOpen: false, beatBoardOpen: false, storyTimelineOpen: false };
+    return { outlineOpen: true, statisticsOpen: false, beatBoardOpen: false, storyTimelineOpen: false, splitScreenOpen: false };
   }),
   statisticsOpen: false,
   setStatisticsOpen: (open) => set((s) => {
@@ -1285,7 +1429,7 @@ export const useEditorStore = create<EditorState>()(skipUnchanged((set, get) => 
     // Statistics takes the screen like the Outline does, so the Beat Board
     // choice is saved as closed instead of opening again on the next reload.
     if (s.beatBoardOpen) saveViewState({ beatBoardOpen: false });
-    return { statisticsOpen: true, outlineOpen: false, beatBoardOpen: false };
+    return { statisticsOpen: true, outlineOpen: false, beatBoardOpen: false, splitScreenOpen: false };
   }),
   statisticsScrollTo: null,
   setStatisticsScrollTo: (id) => set({ statisticsScrollTo: id }),
@@ -1749,12 +1893,12 @@ export const useEditorStore = create<EditorState>()(skipUnchanged((set, get) => 
   setEditingTagId: (id) => set({ editingTagId: id }),
 
   zoomLayout: currentZoomLayout(initialViewLayout),
-  zoomLevel: (currentZoomLayout(initialViewLayout) === 'phone' ? _vs.phoneZoomLevel : _vs.zoomLevel) ?? 100,
+  zoomLevel: savedZoom(_vs, currentZoomLayout(initialViewLayout)),
   setZoomLevel: (level) => {
     const clamped = Math.min(300, Math.max(50, level));
     const zoomLayout = currentZoomLayout(get().viewLayout);
     set({ zoomLevel: clamped, zoomLayout });
-    saveViewState(zoomLayout === 'phone' ? { phoneZoomLevel: clamped } : { zoomLevel: clamped });
+    saveViewState(zoomLayout === 'phone' ? { phoneZoomLevel: clamped } : zoomLayout === 'speed' ? { speedZoomLevel: clamped } : { zoomLevel: clamped });
   },
   viewLayout: initialViewLayout,
   setViewLayout: (layout) => {
@@ -1766,7 +1910,7 @@ export const useEditorStore = create<EditorState>()(skipUnchanged((set, get) => 
     // sheet the phone has to scroll sideways across.
     const saved = loadViewState();
     const zoomLayout = currentZoomLayout(layout);
-    const zoom = (zoomLayout === 'phone' ? saved.phoneZoomLevel : saved.zoomLevel) ?? 100;
+    const zoom = savedZoom(saved, zoomLayout);
     set({ viewLayout: layout, zoomLevel: zoom, zoomLayout });
     if (!key) saveViewState({ viewLayout: layout });
   },
@@ -1778,7 +1922,7 @@ export const useEditorStore = create<EditorState>()(skipUnchanged((set, get) => 
     if (layout === get().viewLayout) return;
     // Not saved: it is still the device's default, and should keep following it.
     const zoomLayout = currentZoomLayout(layout);
-    const zoom = (zoomLayout === 'phone' ? saved.phoneZoomLevel : saved.zoomLevel) ?? 100;
+    const zoom = savedZoom(saved, zoomLayout);
     set({ viewLayout: layout, zoomLevel: zoom, zoomLayout });
   },
   followFoldPosture: () => {
@@ -1788,7 +1932,7 @@ export const useEditorStore = create<EditorState>()(skipUnchanged((set, get) => 
     if (!saved.byPosture) saveViewState({ byPosture: migratePosturePreferences(saved) });
     const choices = postureChoices(saved, key);
     const zoomLayout = currentZoomLayout(choices.viewLayout);
-    const zoom = (zoomLayout === 'phone' ? saved.phoneZoomLevel : saved.zoomLevel) ?? 100;
+    const zoom = savedZoom(saved, zoomLayout);
     set({ ...choices, zoomLayout, ...(zoomLayout !== get().zoomLayout ? { zoomLevel: zoom } : {}) });
   },
   zoomPanelOpen: false,
@@ -1820,6 +1964,80 @@ export const useEditorStore = create<EditorState>()(skipUnchanged((set, get) => 
       ? { byPosture: savePostureChoice(loadViewState(), key, { toolbarMode: mode }) }
       : { toolbarMode: mode });
   },
+  toolbarLayout: normaliseToolbarLayout(_vs.toolbarLayout, _vs.toolbarItems),
+  setToolbarLayout: (layout) => {
+    set({ toolbarLayout: layout, toolbarPreset: 'custom' });
+    saveViewState({ toolbarLayout: layout, toolbarPreset: 'custom' });
+  },
+  applyToolbarPreset: (preset) => {
+    const found = findToolbarPreset(preset);
+    if (!found) return;
+    // The default preset is today's bars exactly, labels and sides included.
+    const layout: ToolbarLayoutState = found.id === 'default'
+      ? defaultToolbarLayout()
+      : { ...get().toolbarLayout, bars: { top: [...found.bars.top], bottom: [...found.bars.bottom] } };
+    set({ toolbarLayout: layout, toolbarPreset: found.id });
+    saveViewState({ toolbarLayout: layout, toolbarPreset: found.id });
+  },
+  // An unset preset means the writer has never arranged the bars.
+  toolbarPreset: _vs.toolbarPreset ?? 'default',
+  savedToolbarLayouts: normaliseSavedToolbarLayouts(_vs.toolbarLayouts),
+  saveToolbarLayout: (label) => {
+    const clean = label.trim().slice(0, 40);
+    if (!clean) return null;
+    const id = `toolbar-${uuid()}`;
+    const current = get().toolbarLayout;
+    const layouts = [...get().savedToolbarLayouts, { id, label: clean, ...structuredCloneSafe(current) }];
+    set({ savedToolbarLayouts: layouts, toolbarPreset: id });
+    saveViewState({ toolbarLayouts: layouts, toolbarPreset: id });
+    return id;
+  },
+  applySavedToolbarLayout: (id) => {
+    const saved = get().savedToolbarLayouts.find((entry) => entry.id === id);
+    if (!saved) return;
+    const layout: ToolbarLayoutState = structuredCloneSafe({ version: saved.version, bars: saved.bars, options: saved.options, labels: saved.labels });
+    set({ toolbarLayout: layout, toolbarPreset: id });
+    saveViewState({ toolbarLayout: layout, toolbarPreset: id });
+  },
+  deleteSavedToolbarLayout: (id) => {
+    const layouts = get().savedToolbarLayouts.filter((entry) => entry.id !== id);
+    const preset = get().toolbarPreset === id ? 'custom' : get().toolbarPreset;
+    set({ savedToolbarLayouts: layouts, toolbarPreset: preset });
+    saveViewState({ toolbarLayouts: layouts, toolbarPreset: preset });
+  },
+  workspaceLayout: normaliseWorkspaceLayout(_vs.workspaceLayout),
+  setWorkspaceLayout: (layout) => {
+    set({ workspaceLayout: layout, workspacePreset: 'custom' });
+    saveViewState({ workspaceLayout: layout, workspacePreset: 'custom' });
+  },
+  workspacePreset: _vs.workspacePreset ?? 'classic',
+  applyWorkspacePreset: (id) => {
+    const saved = get().savedWorkspaceLayouts.find((entry) => entry.id === id);
+    const layout = isWorkspacePreset(id) ? workspacePreset(id) : saved ? structuredCloneSafe(saved.layout) : null;
+    if (!layout) return;
+    set({ workspaceLayout: layout, workspacePreset: id, dockActive: {} });
+    saveViewState({ workspaceLayout: layout, workspacePreset: id });
+  },
+  savedWorkspaceLayouts: normaliseSavedWorkspaceLayouts(_vs.workspaceLayouts),
+  saveWorkspaceLayout: (label) => {
+    const clean = label.trim().slice(0, 40);
+    if (!clean) return null;
+    const id = `layout-${uuid()}`;
+    const layouts = [...get().savedWorkspaceLayouts, { id, label: clean, layout: structuredCloneSafe(get().workspaceLayout) }];
+    set({ savedWorkspaceLayouts: layouts, workspacePreset: id });
+    saveViewState({ workspaceLayouts: layouts, workspacePreset: id });
+    return id;
+  },
+  deleteSavedWorkspaceLayout: (id) => {
+    const layouts = get().savedWorkspaceLayouts.filter((entry) => entry.id !== id);
+    const preset = get().workspacePreset === id ? 'custom' : get().workspacePreset;
+    set({ savedWorkspaceLayouts: layouts, workspacePreset: preset });
+    saveViewState({ workspaceLayouts: layouts, workspacePreset: preset });
+  },
+  dockActive: {},
+  setDockActive: (groupId, panel) => set((s) => (s.dockActive[groupId] === panel ? {} : { dockActive: { ...s.dockActive, [groupId]: panel } })),
+  layoutDialog: null,
+  setLayoutDialog: (tab) => set({ layoutDialog: tab }),
   focusMode: false,
   setFocusMode: (on) => set({ focusMode: on }),
   focusTypewriter: _vs.focusTypewriter ?? true,

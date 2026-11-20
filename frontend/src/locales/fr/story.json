@@ -10,7 +10,19 @@
     "customColor": "Couleur personnalisée",
     "pageSingular": "{{n}} page",
     "pagePlural": "{{n}} pages",
-    "autoWithDuration": "Auto ({{duration}})"
+    "autoWithDuration": "Auto ({{duration}})",
+    "colors": {
+      "violet": "Violet",
+      "indigo": "Indigo",
+      "blue": "Bleu",
+      "green": "Vert",
+      "yellow": "Jaune",
+      "orange": "Orange",
+      "red": "Rouge",
+      "black": "Noir",
+      "white": "Blanc",
+      "none": "Aucune couleur"
+    }
   },
   "scriptProfile": {
     "title": "Genre et rythme",
@@ -157,7 +169,10 @@
     "dragToReorder": "Faire glisser pour réorganiser",
     "goToScene": "Cliquez pour aller à la scène",
     "synopsisPlaceholder": "Ajouter un synopsis…",
-    "expandSynopsis": "Développer le synopsis"
+    "expandSynopsis": "Développer le synopsis",
+    "timeline": "Chronologie",
+    "showTimeline": "Afficher la chronologie des scènes",
+    "hideTimeline": "Masquer la chronologie des scènes"
   },
   "outline": {
     "title": "Séquencier",
@@ -368,9 +383,6 @@
     "pageSingular": "{{n}} page",
     "pagePlural": "{{n}} pages",
     "pageAndDuration": "{{pages}} · {{duration}}",
-    "noSynopsis": "Aucun synopsis disponible pour cette scène.",
-    "editSynopsis": "Modifier",
-    "addSynopsis": "+ Ajouter",
     "noPages": "Aucune page pour l’instant. Commencez à écrire pour voir les aperçus de pages.",
     "pageLabel": "Page {{label}}",
     "sectionCount_one": "{{count}} section",
@@ -393,7 +405,24 @@
     "renameLocation": "Renommer le décor",
     "skippedHeadings_one": "{{count}} intitulé de scène contenant un saut de ligne ignoré",
     "skippedHeadings_many": "{{count}} d’intitulés de scène contenant un saut de ligne ignorés",
-    "skippedHeadings_other": "{{count}} intitulés de scène contenant un saut de ligne ignorés"
+    "skippedHeadings_other": "{{count}} intitulés de scène contenant un saut de ligne ignorés",
+    "showAllSynopses": "Afficher tous les synopsis",
+    "hideAllSynopses": "Masquer tous les synopsis",
+    "expandScene": "Afficher le synopsis",
+    "collapseScene": "Masquer le synopsis",
+    "changeColor": "Couleur de la scène",
+    "changeColorFor": "Couleur de la scène {{number}}",
+    "headingFontScript": "Afficher les intitulés dans la police du scénario",
+    "headingFontInterface": "Afficher les intitulés dans la police de l’interface",
+    "startsOnPage": "Commence à la page {{label}}",
+    "synopsisFor": "Synopsis de {{heading}}",
+    "synopsisEditHint": "Entrée enregistre · Maj+Entrée ajoute une ligne · Échap annule",
+    "clickToEditSynopsis": "Cliquez pour modifier le synopsis",
+    "clickToAddSynopsis": "Ajouter un synopsis…",
+    "moreSceneOptions": "Plus…",
+    "moreSceneOptionsTitle": "Synopsis, couleur et durée de la scène",
+    "sceneNotFound": "Cette scène n’est plus dans le scénario.",
+    "sceneSaveFailed": "Impossible d’enregistrer la scène. Réessayez."
   },
   "beatBoard": {
     "title": "Tableau de beats",
@@ -549,5 +578,24 @@
     "linked": "Lié",
     "removeTitle": "Supprimer le personnage",
     "removeConfirm": "Retirer « {{name}} » de la liste des personnages ?"
+  },
+  "storyMap": {
+    "title": "Carte de l’histoire",
+    "measureIn": "Mesurer la carte en",
+    "pages": "Pages",
+    "pagesTip": "Dimensionner les scènes selon leur longueur en pages",
+    "time": "Durée",
+    "timeTip": "Dimensionner les scènes selon la durée estimée à l’écran",
+    "pagesTotal": "{{pages}} pages",
+    "pagesShort": "{{pages}} p",
+    "noLength": "Pas encore de longueur",
+    "close": "Fermer {{title}}",
+    "empty": "Aucune scène pour l’instant. Écrivez un intitulé de scène (INT. ou EXT.) et il apparaîtra ici."
+  },
+  "splitScreen": {
+    "pageView": "Vue Page",
+    "closePageView": "Fermer la vue Page",
+    "noPages": "Aucune page pour l’instant. Commencez à écrire et les pages apparaîtront ici.",
+    "close": "Fermer l’écran partagé"
   }
 }

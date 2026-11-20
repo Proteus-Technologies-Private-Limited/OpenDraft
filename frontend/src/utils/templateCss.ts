@@ -11,6 +11,7 @@ import type { PageLayout } from '../stores/editorStore';
 import { fontStack } from './fonts';
 import { templatePlaceholder } from '../editor/elementLabels';
 import { pageInk, pagePaper } from './inkColor';
+import { lineMultiplierFor } from './lineSpacing';
 
 const STYLE_ELEMENT_ID = 'opendraft-template-css';
 
@@ -130,6 +131,47 @@ function getSelector(elementId: string, rule: FormattingElementRule): string {
 }
 
 /**
+ * Line spacing on screen (utils/lineSpacing): each element whose lines the
+ * template opens up gets a `line-height` of its multiplier, so a line is drawn
+ * `16px × multiplier` apart — exactly the pitch pagination counts it at.
+ *
+ * Emitted for every template, the Industry Standard one included, because the
+ * static stylesheet has no line spacing of its own: without this the Multi-Cam
+ * Sitcom's double-spaced dialogue was counted double for page breaks and drawn
+ * single. Elements at standard spacing get no rule at all, so a standard
+ * template emits nothing and the page is exactly as it was.
+ *
+ * Only top-level blocks: the children of dual dialogue and of an AV cell sit on
+ * grids of their own (see `takesLineSpacing`), and the title-page region keeps
+ * its 12pt spacer lines.
+ */
+export function generateLineSpacingCss(template: FormattingTemplate): string {
+  const lines: string[] = [];
+  const ids = new Set([...Object.keys(template.rules ?? {}), ...Object.keys(template.lineHeightMultiplier ?? {})]);
+  for (const elementId of ids) {
+    if (isTitlePageRuleId(elementId) || elementId === AV_BLOCK_RULE_ID || AV_CELL_CSS_CLASS[elementId]) continue;
+    const builtInClass = ELEMENT_CSS_CLASS[elementId];
+    const rule = template.rules?.[elementId];
+    // A custom element is a `customElement` node to the schema; a rule marked
+    // built-in with no class of its own is nothing on the page to style.
+    if (!builtInClass && rule?.isBuiltIn) continue;
+    const typeName = builtInClass ? elementId : 'customElement';
+    const multiplier = lineMultiplierFor(template, typeName, elementId);
+    if (multiplier === 1) continue;
+    const element = builtInClass
+      ? `.screenplay-element.${builtInClass}`
+      : `.screenplay-element.custom-element[data-custom-type="${escapeCssString(elementId)}"]`;
+    lines.push(`.screenplay-content > ${element}:not(.${TITLE_REGION_CLASS}) { line-height: ${multiplier}; }`);
+  }
+  return lines.join('\n');
+}
+
+/** Mirrors `TITLE_REGION_CLASS` in editor/pagination.ts, which cannot be
+ *  imported here without pulling the pagination plugin into every stylesheet
+ *  consumer. utils/lineSpacing.test.ts pins the two together. */
+const TITLE_REGION_CLASS = 'sp-title-region';
+
+/**
  * Placeholder hints in the interface language. The built-in templates (and the
  * static stylesheet behind the default one) carry their descriptive hints in
  * English; where the interface speaks another language this overrides just
@@ -215,7 +257,8 @@ function generateRuleProperties(
 
   // Margin
   if (rule.marginTop > 0) {
-    props.push(`margin-top: ${rule.marginTop}pt;`);
+    // Blank lines open up with the script's font size, as the page counts them.
+    props.push(`margin-top: calc(${rule.marginTop}pt * var(--script-scale, 1));`);
   } else {
     props.push('margin-top: 0;');
   }
