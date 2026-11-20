@@ -37,7 +37,10 @@
       "label": "Sugerindo"
     },
     "zoomFitWidth": "Ajustar à largura",
-    "zoomFitWidthTitle": "Ajustar o zoom para a página preencher a largura da janela"
+    "zoomFitWidthTitle": "Ajustar o zoom para a página preencher a largura da janela",
+    "footerControls": "Controles da barra de status",
+    "showFooterControls": "Mostrar controles da barra de status",
+    "hideFooterControls": "Ocultar controles da barra de status"
   },
   "resetToDefault": "Restaurar padrão",
   "richText": {
@@ -248,7 +251,8 @@
         "document": "Documento",
         "view": "Exibição e layout",
         "panels": "Painéis",
-        "plugins": "Complementos"
+        "plugins": "Complementos",
+        "status": "Situação"
       },
       "where": {
         "top": "Na barra de ferramentas ({{side}})",
@@ -258,7 +262,13 @@
       "removeFrom": {
         "top": "Remover da barra de ferramentas",
         "bottom": "Remover da barra de status"
-      }
+      },
+      "centerSide": "Centro",
+      "dropCenter": "Soltar no centro",
+      "center": "Centro",
+      "footerOnly": "As linhas de status ficam só na barra de status.",
+      "narrowFooterNote": "Num telefone ou numa janela estreita, a barra de status mantém sua linha de status. Os controles, o centro e a cor de revisão abrem numa fileira acima dela pela seta na ponta.",
+      "phoneIconsNote": "Num telefone a barra de ferramentas mostra só ícones: uma fileira não tem espaço para os nomes."
     },
     "modes": {
       "icon": "Ícone",
@@ -336,12 +346,8 @@
         "description": "Alterna entre os temas claro e escuro."
       },
       "zoom": {
-        "label": "Botões de zoom",
-        "description": "Reduzir zoom, o nível de zoom e aumentar zoom, ou um controle deslizante."
-      },
-      "statusZoom": {
-        "label": "Controle deslizante de zoom",
-        "description": "Zoom com controle deslizante, o nível e Ajustar à largura."
+        "label": "Zoom",
+        "description": "Reduzir zoom, o nível de zoom e aumentar zoom, um controle deslizante ou ambos, e Ajustar à largura."
       },
       "navigator": {
         "label": "Navegador",
@@ -352,6 +358,42 @@
       },
       "plugin": {
         "description": "Um controle de um complemento."
+      },
+      "statusTitle": {
+        "label": "Nome do roteiro",
+        "description": "O título do roteiro, o projeto e o arquivo em que o salvamento também grava."
+      },
+      "statusSave": {
+        "label": "Status de salvamento",
+        "description": "Salvo, Salvando… ou Alterações não salvas."
+      },
+      "statusElement": {
+        "label": "Elemento atual",
+        "description": "O elemento onde está o cursor, como Ação ou Diálogo."
+      },
+      "statusActs": {
+        "label": "Atos",
+        "description": "Quantos atos o roteiro tem, quando tem quebras de ato."
+      },
+      "statusRuntime": {
+        "label": "Duração",
+        "description": "O tempo de tela estimado. Clique para definir o gênero e o ritmo."
+      },
+      "statusWords": {
+        "label": "Contagem de palavras",
+        "description": "Palavras no roteiro inteiro."
+      },
+      "statusRevision": {
+        "label": "Cor de revisão",
+        "description": "A cor de revisão, enquanto as revisões são marcadas."
+      },
+      "statusProgress": {
+        "label": "Meta de escrita",
+        "description": "O progresso rumo à meta de hoje, ou a contagem regressiva de um sprint. Clique para abrir Metas de escrita."
+      },
+      "statusPage": {
+        "label": "Página",
+        "description": "A página onde está o cursor e quantas existem."
       }
     },
     "labels": {

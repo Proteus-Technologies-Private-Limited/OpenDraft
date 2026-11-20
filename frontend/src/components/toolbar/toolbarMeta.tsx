@@ -8,7 +8,8 @@ import {
   FaUndo, FaParagraph, FaFont, FaTextHeight, FaBold, FaAlignLeft, FaSearch, FaStickyNote,
   FaFileAlt, FaFile, FaListOl, FaColumns, FaThLarge, FaAdjust, FaSearchPlus, FaCompass,
   FaList, FaRegFileAlt, FaMapMarkerAlt, FaSitemap, FaBookmark, FaUsers, FaTags, FaMapMarkedAlt,
-  FaComments, FaUserEdit, FaPuzzlePiece, FaPlay, FaSlidersH,
+  FaComments, FaUserEdit, FaPuzzlePiece, FaPlay,
+  FaHeading, FaSave, FaClock, FaSpellCheck, FaHistory, FaBullseye, FaHashtag,
 } from 'react-icons/fa';
 import { pluginRegistry, resolvePluginText } from '../../plugins/registry';
 import { TOOLBAR_PANEL_PREFIX, TOOLBAR_PLUGIN_PREFIX } from '../../utils/toolbarLayout';
@@ -37,16 +38,29 @@ const ITEM_ICONS: Record<string, React.ReactNode> = {
   layout: <FaThLarge />,
   theme: <FaAdjust />,
   zoom: <FaSearchPlus />,
-  'status-zoom': <FaSlidersH />,
   navigator: <FaCompass />,
+  'status-title': <FaHeading />,
+  'status-save': <FaSave />,
+  'status-element': <FaParagraph />,
+  'status-acts': <FaSitemap />,
+  'status-runtime': <FaClock />,
+  'status-words': <FaSpellCheck />,
+  'status-revision': <FaHistory />,
+  'status-progress': <FaBullseye />,
+  'status-page': <FaHashtag />,
 };
 
 /** Translation key of each built-in control under toolbar:layout.items. */
 const ITEM_KEYS: Record<string, 'undoRedo' | 'element' | 'font' | 'fontSize' | 'format' | 'align' | 'search' | 'notes'
-  | 'document' | 'titlePage' | 'production' | 'views' | 'layout' | 'theme' | 'zoom' | 'statusZoom' | 'navigator'> = {
+  | 'document' | 'titlePage' | 'production' | 'views' | 'layout' | 'theme' | 'zoom' | 'navigator'
+  | 'statusTitle' | 'statusSave' | 'statusElement' | 'statusActs' | 'statusRuntime' | 'statusWords'
+  | 'statusRevision' | 'statusProgress' | 'statusPage'> = {
   'undo-redo': 'undoRedo', element: 'element', font: 'font', 'font-size': 'fontSize', format: 'format',
   align: 'align', search: 'search', notes: 'notes', document: 'document', 'title-page': 'titlePage',
-  production: 'production', views: 'views', layout: 'layout', theme: 'theme', zoom: 'zoom', 'status-zoom': 'statusZoom', navigator: 'navigator',
+  production: 'production', views: 'views', layout: 'layout', theme: 'theme', zoom: 'zoom', navigator: 'navigator',
+  'status-title': 'statusTitle', 'status-save': 'statusSave', 'status-element': 'statusElement', 'status-acts': 'statusActs',
+  'status-runtime': 'statusRuntime', 'status-words': 'statusWords', 'status-revision': 'statusRevision',
+  'status-progress': 'statusProgress', 'status-page': 'statusPage',
 };
 
 const PANEL_ICONS: Record<string, React.ReactNode> = {

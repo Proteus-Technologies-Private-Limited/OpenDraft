@@ -65,6 +65,7 @@ import { avCellElementRules, scriptBodyElementRules } from '../utils/avCellEleme
 import Select from './Select';
 import { useFoldState } from '../hooks/useFoldState';
 import { useWorkspaceDocksAvailable } from '../hooks/useWorkspaceDocks';
+import { usePhoneScreen } from '../hooks/usePhoneScreen';
 import { PHONE_DEVICE_CHANGE_EVENT } from '../utils/phoneDevice';
 import { FOLD_CHANGE_EVENT } from '../utils/foldPosture';
 import { formatShortcut } from '../utils/shortcuts';
@@ -78,16 +79,15 @@ import {
   effectiveLabel,
   splitBySide,
   toolbarItemDefinition,
+  effectiveZoomStyle,
   type ToolbarBar,
   type ToolbarLabelMode,
-  type ToolbarSide,
 } from '../utils/toolbarLayout';
 import { togglePanel, usePanelOpen } from '../utils/panelActions';
 import { panelIcon, usePanelLabel } from './toolbar/toolbarMeta';
 import ZoomControl from './toolbar/ZoomControl';
 import LayoutSwitcher from './toolbar/LayoutSwitcher';
 import ViewsMenu from './toolbar/ViewsMenu';
-import StatusZoom from './StatusZoom';
 
 interface ToolbarProps {
   editor: Editor | null;
@@ -220,9 +220,17 @@ function useBarContextMenu() {
 interface ControlBarProps {
   editor: Editor | null;
   bar: ToolbarBar;
-  /** The footer draws its two sides in two places; the toolbar draws both. */
-  side?: ToolbarSide;
-  /** The script pane, for the zoom slider's Fit width. */
+  /**
+   * The footer's controls between two status lines (StatusBar.tsx), in order.
+   * The toolbar draws its own bar's controls on all three sides.
+   */
+  items?: string[];
+  /**
+   * Footer controls that did not fit the strip (StatusBar.tsx): drawn unseen
+   * at their full width, to be measured again, while the row shows them.
+   */
+  hidden?: ReadonlySet<string>;
+  /** The script pane, for the zoom's Fit width. */
   editorMain?: HTMLElement | null;
 }
 
@@ -231,7 +239,7 @@ interface ControlBarProps {
  * toolbar folds what does not fit into its "…" menu; the footer shows what it
  * has been given.
  */
-const ControlBar: React.FC<ControlBarProps> = ({ editor, bar, side, editorMain = null }) => {
+const ControlBar: React.FC<ControlBarProps> = ({ editor, bar, items, hidden, editorMain = null }) => {
   const foldState = useFoldState();
   const docksAvailable = useWorkspaceDocksAvailable();
   const { t } = useTranslation(['toolbar', 'common']);
@@ -289,6 +297,12 @@ const ControlBar: React.FC<ControlBarProps> = ({ editor, bar, side, editorMain =
     'pageLayout',
   );
   const isTop = bar === 'top';
+  const phone = usePhoneScreen();
+  /** The label a control shows here: a phone's toolbar has room for icons only. */
+  const labelOf = useCallback((id: string): ToolbarLabelMode => {
+    const mode = effectiveLabel(id, bar, toolbarLayout);
+    return isTop && phone && (mode === 'text' || mode === 'both') ? 'icon' : mode;
+  }, [bar, toolbarLayout, isTop, phone]);
   // Focus Mode hides the toolbar like Hidden does, keeping the saved choice.
   const toolbarMode = focusMode ? 'hidden' : savedToolbarMode;
 
@@ -321,13 +335,11 @@ const ControlBar: React.FC<ControlBarProps> = ({ editor, bar, side, editorMain =
 
   // The controls this bar draws. Formatting detection below is only needed
   // when one of them shows the caret's font or locks.
-  const { start: startItems, end: endItems } = useMemo(() => {
-    const split = splitBySide(toolbarLayout.bars[bar], toolbarLayout.options);
-    if (side === 'start') return { start: split.start, end: [] };
-    if (side === 'end') return { start: [], end: split.end };
-    return split;
-  }, [toolbarLayout, bar, side]);
-  const allItems = useMemo(() => [...startItems, ...endItems], [startItems, endItems]);
+  const { start: startItems, center: centerItems, end: endItems } = useMemo(() => {
+    if (items) return { start: items, center: [] as string[], end: [] as string[] };
+    return splitBySide(toolbarLayout.bars[bar], toolbarLayout.options);
+  }, [toolbarLayout, bar, items]);
+  const allItems = useMemo(() => [...startItems, ...centerItems, ...endItems], [startItems, centerItems, endItems]);
   const needsFormatting = allItems.some((id) => id === 'font' || id === 'font-size' || id === 'format' || id === 'align');
 
   const detectFormatting = useCallback(() => {
@@ -542,10 +554,11 @@ const ControlBar: React.FC<ControlBarProps> = ({ editor, bar, side, editorMain =
     const order: string[] = [];
     if (zoomOnBar) order.push('zoom');
     order.push(...[...startItems].reverse().filter(folds));
+    order.push(...[...centerItems].reverse().filter(folds));
     order.push(...[...endItems].reverse().filter(folds));
     if (allItems.includes('notes')) order.push('notes');
     return order;
-  }, [startItems, endItems, allItems, zoomOnBar]);
+  }, [startItems, centerItems, endItems, allItems, zoomOnBar]);
 
   /**
    * True while the narrow-layout single zoom button is on screen.  Below the
@@ -1118,7 +1131,7 @@ const ControlBar: React.FC<ControlBarProps> = ({ editor, bar, side, editorMain =
   );
 
   const renderItem = (id: string, inOverflow = false): React.ReactNode => {
-    const mode = effectiveLabel(id, bar, toolbarLayout);
+    const mode = labelOf(id);
     const options = toolbarLayout.options[id] ?? {};
     switch (id) {
       case 'undo-redo': return renderUndoRedo(mode);
@@ -1157,10 +1170,8 @@ const ControlBar: React.FC<ControlBarProps> = ({ editor, bar, side, editorMain =
         </div>;
       }
       case 'zoom':
-        return <ZoomControl key="zoom" zoomStyle={options.zoomStyle ?? 'buttons'} label={mode}
+        return <ZoomControl key="zoom" zoomStyle={effectiveZoomStyle(bar, options)} label={mode} editorMain={editorMain}
           className={isTop && !inOverflow ? 'zoom-group' : 'footer-zoom'} />;
-      case 'status-zoom':
-        return <StatusZoom key="status-zoom" editorMain={editorMain} pageWidthIn={pageLayout.pageWidth} label={mode} />;
       case 'navigator':
         return <div className="toolbar-group" key="navigator">
           {plainButton('navigator', mode, <FaCompass />, t('layout.labels.navigator'), t('layout.labels.navigator'),
@@ -1242,14 +1253,17 @@ const ControlBar: React.FC<ControlBarProps> = ({ editor, bar, side, editorMain =
     const node = renderItem(id);
     if (node === null) return null;
     const classes = ['toolbar-priority-block'];
-    const mode = effectiveLabel(id, bar, toolbarLayout);
+    const mode = labelOf(id);
     if (mode === 'text' || mode === 'both') classes.push('has-labels');
     if (isTop && def?.desktopOnly) classes.push('toolbar-desktop-only');
     if (isTop && id === 'zoom') classes.push('zoom-group');
     if (def?.fixed) classes.push('toolbar-fixed-item');
+    const off = !isTop && !!hidden?.has(id);
+    if (off) classes.push('is-overflow');
     return (
       <React.Fragment key={id}>
-        <div className={classes.join(' ')} data-priority={isTop && !def?.fixed ? id : undefined} data-item={id}>
+        <div className={classes.join(' ')} data-priority={isTop && !def?.fixed ? id : undefined} data-item={id}
+          aria-hidden={off || undefined} inert={off || undefined}>
           {/* Inside the block so it folds with the control it separates. */}
           {/* Font and its size read as one control, as they always have. */}
           {index > 0 && !(id === 'font-size' && list[index - 1] === 'font') && <div className="toolbar-separator" />}
@@ -1265,8 +1279,10 @@ const ControlBar: React.FC<ControlBarProps> = ({ editor, bar, side, editorMain =
 
   if (!isTop) {
     if (allItems.length === 0) return null;
+    // Every control here went up to the row: the box takes no room on the strip.
+    const allOff = !!hidden && allItems.every((id) => hidden.has(id));
     return (
-      <div className={`footer-controls footer-controls-${side ?? 'start'}`} onContextMenu={contextMenu.onContextMenu}>
+      <div className={`footer-controls${allOff ? ' is-all-overflow' : ''}`} onContextMenu={contextMenu.onContextMenu}>
         {allItems.map((id, index, list) => block(id, index, list))}
         {contextMenu.element}
       </div>
@@ -1288,8 +1304,15 @@ const ControlBar: React.FC<ControlBarProps> = ({ editor, bar, side, editorMain =
           be reachable while the caret is in a row. */}
       {isInsideAvRow && !allItems.includes('element') && avRowControls}
 
-      {/* Spacer between the two sides */}
+      {/* Spacer between the sides */}
       <div className="toolbar-spacer" style={{ flex: 1 }} />
+
+      {centerItems.length > 0 && (
+        <>
+          {centerItems.map((id, index, list) => block(id, index, list))}
+          <div className="toolbar-spacer" style={{ flex: 1 }} />
+        </>
+      )}
 
       {/* Overflow 3-dot menu */}
       {hasOverflow && (
@@ -1342,14 +1365,17 @@ const MemoControlBar = React.memo(ControlBar);
 const Toolbar: React.FC<ToolbarProps> = ({ editor }) => <MemoControlBar editor={editor} bar="top" />;
 
 /**
- * Controls the writer placed on the footer, one side of it. Renders nothing
- * (and runs nothing) when that side is empty, which it is by default.
+ * A run of controls the writer placed on the footer, between its status lines
+ * (StatusBar.tsx). Renders nothing, and runs nothing, for an empty run.
  */
-export const FooterControls: React.FC<ToolbarProps & { side: ToolbarSide; editorMain?: HTMLElement | null }> = React.memo(({ editor, side, editorMain }) => {
-  const layout = useEditorStore((s) => s.toolbarLayout);
-  const has = useMemo(() => splitBySide(layout.bars.bottom, layout.options)[side].length > 0, [layout, side]);
-  if (!has) return null;
-  return <MemoControlBar editor={editor} bar="bottom" side={side} editorMain={editorMain} />;
+export const FooterControls: React.FC<ToolbarProps & {
+  items: string[];
+  editorMain?: HTMLElement | null;
+  /** Those that did not fit the strip, which the row shows instead. */
+  hidden?: ReadonlySet<string>;
+}> = React.memo(({ editor, items, editorMain, hidden }) => {
+  if (items.length === 0) return null;
+  return <MemoControlBar editor={editor} bar="bottom" items={items} hidden={hidden} editorMain={editorMain} />;
 });
 FooterControls.displayName = 'FooterControls';
 

@@ -44,7 +44,7 @@ class PhoneLayoutCustomisation(unittest.TestCase):
           window.testStore = (await import(m.name)).useEditorStore;
           const s = testStore.getState();
           // Layout switcher on the toolbar and footer, labelled, so it is easy to find.
-          s.setToolbarLayout({ bars: { top: ['undo-redo', 'notes', 'layout'], bottom: ['status-zoom', 'layout'] },
+          s.setToolbarLayout({ bars: { top: ['undo-redo', 'notes', 'layout'], bottom: ['zoom', 'layout'] },
                                options: {}, labels: { top: 'both', bottom: 'both' } });
         }""")
         page.wait_for_timeout(400)

@@ -1995,7 +1995,7 @@ export const useEditorStore = create<EditorState>()(skipUnchanged((set, get) => 
   applySavedToolbarLayout: (id) => {
     const saved = get().savedToolbarLayouts.find((entry) => entry.id === id);
     if (!saved) return;
-    const layout: ToolbarLayoutState = structuredCloneSafe({ bars: saved.bars, options: saved.options, labels: saved.labels });
+    const layout: ToolbarLayoutState = structuredCloneSafe({ version: saved.version, bars: saved.bars, options: saved.options, labels: saved.labels });
     set({ toolbarLayout: layout, toolbarPreset: id });
     saveViewState({ toolbarLayout: layout, toolbarPreset: id });
   },

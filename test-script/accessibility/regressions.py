@@ -763,7 +763,11 @@ class Accessibility(unittest.TestCase):
         expect(trigger).to_have_text("135%")
         expect(trigger).to_be_focused()
         self.page.evaluate("testStore.getState().setZoomPanelOpen(true)")
-        palette = self.page.get_by_role("group", name="Zoom", exact=True)
+        # The toolbar and the status bar have Zoom groups of their own (2.14.0),
+        # so take the palette by its id and check its role and name separately.
+        palette = self.page.locator("#zoom-panel")
+        expect(palette).to_have_attribute("role", "group")
+        expect(palette).to_have_attribute("aria-label", "Zoom")
         expect(
             palette.get_by_role("button", name="Zoom In", exact=True)
         ).to_be_visible()

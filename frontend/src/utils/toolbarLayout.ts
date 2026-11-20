@@ -18,7 +18,10 @@
  */
 
 export type ToolbarBar = 'top' | 'bottom';
-export type ToolbarSide = 'start' | 'end';
+/** Where on a bar a control sits. The footer has always had a centre (the
+ *  current element); the toolbar can use it too. */
+export type ToolbarSide = 'start' | 'center' | 'end';
+export const TOOLBAR_SIDES: readonly ToolbarSide[] = ['start', 'center', 'end'];
 /** How a control is labelled. `none` exists only for drop-downs that show their value. */
 export type ToolbarLabelMode = 'icon' | 'text' | 'both' | 'none';
 /** A bar-wide default: every control can show an icon, its name or both. */
@@ -26,7 +29,7 @@ export type ToolbarBarLabel = 'icon' | 'text' | 'both';
 export type ToolbarZoomStyle = 'buttons' | 'slider' | 'both';
 export type ToolbarLayoutStyle = 'menu' | 'buttons';
 
-export type ToolbarGroup = 'writing' | 'document' | 'view' | 'panels';
+export type ToolbarGroup = 'writing' | 'document' | 'view' | 'panels' | 'status';
 
 /**
  * What a control is, which decides how its label can be shown:
@@ -34,8 +37,10 @@ export type ToolbarGroup = 'writing' | 'document' | 'view' | 'panels';
  * - `select`: a drop-down that shows its value; it may also show no heading.
  * - `zoom`: zoom out/in buttons, a slider, or both, with the level.
  * - `layout`: the workspace layout switcher, as a menu or a row of buttons.
+ * - `status`: a line of the status bar (page, words, save state…): text the
+ *   footer shows, which has no icon or label setting of its own.
  */
-export type ToolbarItemKind = 'button' | 'select' | 'zoom' | 'layout';
+export type ToolbarItemKind = 'button' | 'select' | 'zoom' | 'layout' | 'status';
 
 export interface ToolbarItemDefinition {
   id: string;
@@ -49,6 +54,8 @@ export interface ToolbarItemDefinition {
   fixed?: boolean;
   /** Hidden by the phone stylesheet, so it lives in the overflow menu there. */
   desktopOnly?: boolean;
+  /** Can sit on the footer only: status lines are not toolbar controls. */
+  footerOnly?: boolean;
 }
 
 /** Per-control settings. Every field is optional: unset means the default. */
@@ -68,7 +75,14 @@ export interface ToolbarBars {
   bottom: string[];
 }
 
+/**
+ * Version of the saved layout. 2 added the status lines as footer items; a
+ * layout saved before that gets them where the status bar always drew them.
+ */
+export const TOOLBAR_LAYOUT_VERSION = 2;
+
 export interface ToolbarLayoutState {
+  version: number;
   bars: ToolbarBars;
   options: Record<string, ToolbarItemOptions>;
   labels: Record<ToolbarBar, ToolbarBarLabel>;
@@ -105,11 +119,39 @@ export const TOOLBAR_ITEMS: ToolbarItemDefinition[] = [
   { id: 'views', group: 'view', kind: 'button' },
   { id: 'layout', group: 'view', kind: 'layout', defaultSide: 'end' },
   { id: 'theme', group: 'view', kind: 'button', defaultSide: 'end' },
-  { id: 'zoom', group: 'view', kind: 'zoom', defaultSide: 'end' },
-  /** The status bar's zoom from #273: −, a slider, +, the level and Fit width. */
-  { id: 'status-zoom', group: 'view', kind: 'zoom', defaultLabel: 'icon', defaultSide: 'end' },
+  /**
+   * Zoom: out/in buttons, a slider or both, with the level and Fit width. One
+   * control, on whichever bar the writer puts it; it was two before (the
+   * toolbar's buttons and #273's footer slider, LEGACY_FOOTER_ZOOM).
+   */
+  { id: 'zoom', group: 'view', kind: 'zoom', defaultLabel: 'icon', defaultSide: 'end' },
   { id: 'navigator', group: 'panels', kind: 'button' },
+  // The status bar's lines, footer only. Their default sides are where the
+  // status bar has always drawn them.
+  { id: 'status-title', group: 'status', kind: 'status', footerOnly: true },
+  { id: 'status-save', group: 'status', kind: 'status', footerOnly: true },
+  { id: 'status-element', group: 'status', kind: 'status', footerOnly: true, defaultSide: 'center' },
+  { id: 'status-acts', group: 'status', kind: 'status', footerOnly: true, defaultSide: 'end' },
+  { id: 'status-runtime', group: 'status', kind: 'status', footerOnly: true, defaultSide: 'end' },
+  { id: 'status-words', group: 'status', kind: 'status', footerOnly: true, defaultSide: 'end' },
+  { id: 'status-revision', group: 'status', kind: 'status', footerOnly: true, defaultSide: 'end' },
+  { id: 'status-progress', group: 'status', kind: 'status', footerOnly: true, defaultSide: 'end' },
+  { id: 'status-page', group: 'status', kind: 'status', footerOnly: true, defaultSide: 'end' },
 ];
+
+/** The status lines, in the order the status bar has always drawn them. */
+export const STATUS_ITEM_IDS = TOOLBAR_ITEMS.filter((item) => item.kind === 'status').map((item) => item.id);
+
+/** Whether a control is one of the status bar's lines. */
+export function isStatusItem(id: string): boolean {
+  return ITEM_KIND_STATUS.has(id);
+}
+const ITEM_KIND_STATUS: ReadonlySet<string> = new Set(STATUS_ITEM_IDS);
+
+/** Whether a control may go on this bar. */
+export function canPlaceOn(id: string, bar: ToolbarBar): boolean {
+  return bar === 'bottom' || !toolbarItemDefinition(id)?.footerOnly;
+}
 
 const ITEM_BY_ID = new Map(TOOLBAR_ITEMS.map((item) => [item.id, item]));
 
@@ -141,18 +183,22 @@ function isKnownItem(id: string): boolean {
 }
 
 /** The bars the app has always drawn, so upgrading changes nothing. */
-const DEFAULT_TOP = ['undo-redo', 'element', 'font', 'font-size', 'format', 'align', 'search', 'notes', 'zoom'];
-const DEFAULT_BOTTOM: string[] = ['status-zoom'];
+const DEFAULT_TOP = ['undo-redo', 'element', 'font', 'font-size', 'format', 'align', 'search', 'notes'];
+/** Zoom sits at the footer's end, where the status bar has had it since #273. */
+const DEFAULT_BOTTOM: string[] = [...STATUS_ITEM_IDS, 'zoom'];
+
+/** The footer's own zoom from #273, now the one `zoom` control. */
+const LEGACY_FOOTER_ZOOM = 'status-zoom';
 
 export const TOOLBAR_PRESETS: ToolbarPreset[] = [
   { id: 'default', bars: { top: DEFAULT_TOP, bottom: DEFAULT_BOTTOM } },
   {
     id: 'writing',
-    bars: { top: ['undo-redo', 'element', 'font', 'font-size', 'format', 'align', 'notes', 'theme'], bottom: ['status-zoom'] },
+    bars: { top: ['undo-redo', 'element', 'font', 'font-size', 'format', 'align', 'notes', 'theme'], bottom: DEFAULT_BOTTOM },
   },
   {
     id: 'review',
-    bars: { top: ['undo-redo', 'navigator', 'document', 'search', 'views', 'notes', 'layout', 'theme'], bottom: ['status-zoom'] },
+    bars: { top: ['undo-redo', 'navigator', 'document', 'search', 'views', 'notes', 'layout', 'theme'], bottom: DEFAULT_BOTTOM },
   },
   {
     id: 'everything',
@@ -161,7 +207,7 @@ export const TOOLBAR_PRESETS: ToolbarPreset[] = [
         'undo-redo', 'document', 'title-page', 'production', 'element', 'font', 'font-size', 'format', 'align',
         'search', 'views', 'notes', 'navigator', 'layout', 'theme',
       ],
-      bottom: ['status-zoom'],
+      bottom: DEFAULT_BOTTOM,
     },
   },
 ];
@@ -169,7 +215,12 @@ export const TOOLBAR_PRESETS: ToolbarPreset[] = [
 export const DEFAULT_BAR_LABELS: Record<ToolbarBar, ToolbarBarLabel> = { top: 'icon', bottom: 'text' };
 
 export function defaultToolbarLayout(): ToolbarLayoutState {
-  return { bars: { top: [...DEFAULT_TOP], bottom: [...DEFAULT_BOTTOM] }, options: {}, labels: { ...DEFAULT_BAR_LABELS } };
+  return {
+    version: TOOLBAR_LAYOUT_VERSION,
+    bars: { top: [...DEFAULT_TOP], bottom: [...DEFAULT_BOTTOM] },
+    options: {},
+    labels: { ...DEFAULT_BAR_LABELS },
+  };
 }
 
 export function findToolbarPreset(id: string): ToolbarPreset | undefined {
@@ -186,13 +237,23 @@ export function canShowNoHeading(id: string, options?: ToolbarItemOptions): bool
   return def.kind === 'layout' && (options?.layoutStyle ?? 'menu') === 'menu';
 }
 
-/** The label a control actually shows on a bar. */
+/** The label a control actually shows on a bar. A status line is always its text. */
 export function effectiveLabel(id: string, bar: ToolbarBar, state: Pick<ToolbarLayoutState, 'options' | 'labels'>): ToolbarLabelMode {
+  if (isStatusItem(id)) return 'text';
   const options = state.options[id];
   const fallback = state.labels[bar] ?? DEFAULT_BAR_LABELS[bar];
   const chosen = options?.label ?? toolbarItemDefinition(id)?.defaultLabel ?? fallback;
   if (chosen === 'none' && !canShowNoHeading(id, options)) return fallback;
   return chosen;
+}
+
+/**
+ * The zoom control's look on a bar: what the writer chose, or by default the
+ * buttons on the toolbar and the slider with its buttons on the footer, as
+ * each bar has always had it.
+ */
+export function effectiveZoomStyle(bar: ToolbarBar, options?: ToolbarItemOptions): ToolbarZoomStyle {
+  return options?.zoomStyle ?? (bar === 'bottom' ? 'both' : 'buttons');
 }
 
 export function effectiveSide(id: string, options: Record<string, ToolbarItemOptions>): ToolbarSide {
@@ -201,10 +262,9 @@ export function effectiveSide(id: string, options: Record<string, ToolbarItemOpt
 
 /** A bar's controls split by side, each in the writer's order. */
 export function splitBySide(ids: string[], options: Record<string, ToolbarItemOptions>): Record<ToolbarSide, string[]> {
-  const start: string[] = [];
-  const end: string[] = [];
-  for (const id of ids) (effectiveSide(id, options) === 'end' ? end : start).push(id);
-  return { start, end };
+  const sides: Record<ToolbarSide, string[]> = { start: [], center: [], end: [] };
+  for (const id of ids) sides[effectiveSide(id, options)].push(id);
+  return sides;
 }
 
 // ── Normalising saved values ────────────────────────────────────────────
@@ -223,7 +283,7 @@ function cleanItems(raw: unknown, seen: Set<string>): string[] {
 
 const LABELS: ReadonlySet<string> = new Set(['icon', 'text', 'both', 'none']);
 const BAR_LABELS: ReadonlySet<string> = new Set(['icon', 'text', 'both']);
-const SIDES: ReadonlySet<string> = new Set(['start', 'end']);
+const SIDES: ReadonlySet<string> = new Set(TOOLBAR_SIDES);
 const ZOOM_STYLES: ReadonlySet<string> = new Set(['buttons', 'slider', 'both']);
 const LAYOUT_STYLES: ReadonlySet<string> = new Set(['menu', 'buttons']);
 
@@ -269,11 +329,54 @@ export function normaliseToolbarLayout(raw: unknown, legacyItems?: unknown): Too
   const fallback = defaultToolbarLayout();
   const value = raw && typeof raw === 'object' ? raw as Record<string, unknown> : null;
   const bars = value?.bars && typeof value.bars === 'object' ? value.bars as Record<string, unknown> : null;
+  const zoom = oneZoom(bars ? bars.top : legacyItems, bars?.bottom, value?.options);
   const seen = new Set<string>();
-  const top = cleanItems(bars ? bars.top : legacyItems, seen);
-  const bottom = cleanItems(bars?.bottom, seen);
+  // Status lines cannot go on the toolbar; drop any a hand-edited value put there.
+  const top = cleanItems(zoom.top, seen).filter((id) => canPlaceOn(id, 'top'));
+  let bottom = cleanItems(zoom.bottom, seen);
   if (top.length === 0 && bottom.length === 0) return fallback;
-  return { bars: { top, bottom }, options: cleanOptions(value?.options), labels: cleanLabels(value?.labels) };
+  const options = cleanOptions(zoom.options);
+  const version = typeof value?.version === 'number' ? value.version : 1;
+  if (version < 2) bottom = withStatusLines(bottom, options);
+  return { version: TOOLBAR_LAYOUT_VERSION, bars: { top, bottom }, options, labels: cleanLabels(value?.labels) };
+}
+
+/**
+ * One zoom control. A layout from before they were merged may have the
+ * toolbar's zoom and the footer's (#273) both; the footer's stays, where the
+ * slider and Fit width were, and takes its settings with it. Nothing changes
+ * for a layout that has only one of them, or neither.
+ */
+function oneZoom(rawTop: unknown, rawBottom: unknown, rawOptions: unknown): { top: unknown; bottom: unknown; options: unknown } {
+  try {
+    const has = (list: unknown) => Array.isArray(list) && list.includes(LEGACY_FOOTER_ZOOM);
+    if (!has(rawTop) && !has(rawBottom)) return { top: rawTop, bottom: rawBottom, options: rawOptions };
+    const rename = (list: unknown) => (Array.isArray(list)
+      ? list.filter((id) => id !== 'zoom').map((id) => (id === LEGACY_FOOTER_ZOOM ? 'zoom' : id))
+      : list);
+    let options = rawOptions;
+    if (rawOptions && typeof rawOptions === 'object') {
+      const { [LEGACY_FOOTER_ZOOM]: legacy, zoom: _replaced, ...rest } = rawOptions as Record<string, unknown>;
+      void _replaced;
+      options = legacy ? { ...rest, zoom: legacy } : rest;
+    }
+    return { top: rename(rawTop), bottom: rename(rawBottom), options };
+  } catch (err) {
+    console.warn('[toolbar] could not merge the two zoom controls; keeping the layout as saved', err);
+    return { top: rawTop, bottom: rawBottom, options: rawOptions };
+  }
+}
+
+/**
+ * A footer saved before the status lines were items: the lines go where the
+ * status bar drew them, the writer's start-side controls before them (where
+ * FooterControls drew them) and their end-side controls after.
+ */
+function withStatusLines(bottom: string[], options: Record<string, ToolbarItemOptions>): string[] {
+  const missing = STATUS_ITEM_IDS.filter((id) => !bottom.includes(id));
+  const before = bottom.filter((id) => effectiveSide(id, options) === 'start');
+  const after = bottom.filter((id) => effectiveSide(id, options) !== 'start');
+  return [...before, ...missing, ...after];
 }
 
 /**
@@ -321,7 +424,7 @@ export function placeToolbarItem(
   bar: ToolbarBar,
   options: { before?: string | null; side?: ToolbarSide } = {},
 ): ToolbarLayoutState {
-  if (!isKnownItem(id)) return state;
+  if (!isKnownItem(id) || !canPlaceOn(id, bar)) return state;
   const { before = null } = options;
   let side = options.side;
   if (before && !side) side = effectiveSide(before, state.options);

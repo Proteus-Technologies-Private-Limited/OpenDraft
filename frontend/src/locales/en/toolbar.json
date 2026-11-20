@@ -35,7 +35,10 @@
       "label": "Suggesting"
     },
     "zoomFitWidth": "Fit width",
-    "zoomFitWidthTitle": "Zoom so the page fills the width of the window"
+    "zoomFitWidthTitle": "Zoom so the page fills the width of the window",
+    "footerControls": "Footer controls",
+    "showFooterControls": "Show footer controls",
+    "hideFooterControls": "Hide footer controls"
   },
   "resetToDefault": "Reset to Default",
   "richText": {
@@ -243,7 +246,8 @@
         "document": "Document",
         "view": "View and layout",
         "panels": "Panels",
-        "plugins": "Add-ons"
+        "plugins": "Add-ons",
+        "status": "Status"
       },
       "where": {
         "top": "On the toolbar, {{side}} side",
@@ -253,7 +257,13 @@
       "removeFrom": {
         "top": "Remove from the toolbar",
         "bottom": "Remove from the footer"
-      }
+      },
+      "centerSide": "Centre",
+      "dropCenter": "Drop in the centre",
+      "center": "Centre",
+      "footerOnly": "Status lines go on the footer only.",
+      "narrowFooterNote": "On a phone or a narrow window the footer keeps its status line. Its controls, its centre and the revision colour open in a row above it from the arrow at its end.",
+      "phoneIconsNote": "On a phone the toolbar shows icons only: one row has no room for names."
     },
     "modes": {
       "icon": "Icon",
@@ -331,12 +341,8 @@
         "description": "Switch between the light and dark themes."
       },
       "zoom": {
-        "label": "Zoom Buttons",
-        "description": "Zoom out, the zoom level and zoom in, or a slider."
-      },
-      "statusZoom": {
-        "label": "Zoom Slider",
-        "description": "Zoom with a slider, the level and Fit width."
+        "label": "Zoom",
+        "description": "Zoom out, the zoom level and zoom in, a slider or both, and Fit width."
       },
       "navigator": {
         "label": "Navigator",
@@ -347,6 +353,42 @@
       },
       "plugin": {
         "description": "A control from an add-on."
+      },
+      "statusTitle": {
+        "label": "Script name",
+        "description": "The script’s title, its project, and the file a save also writes to."
+      },
+      "statusSave": {
+        "label": "Save status",
+        "description": "Saved, Saving… or Unsaved changes."
+      },
+      "statusElement": {
+        "label": "Current element",
+        "description": "The element the cursor is in, such as Action or Dialogue."
+      },
+      "statusActs": {
+        "label": "Acts",
+        "description": "How many acts the script has, once it has act breaks."
+      },
+      "statusRuntime": {
+        "label": "Running time",
+        "description": "The estimated screen time. Click it to set the genre and pacing."
+      },
+      "statusWords": {
+        "label": "Word count",
+        "description": "Words in the whole script."
+      },
+      "statusRevision": {
+        "label": "Revision colour",
+        "description": "The revision colour, while revisions are being marked."
+      },
+      "statusProgress": {
+        "label": "Writing goal",
+        "description": "Progress towards today’s goal, or a sprint’s countdown. Click it for Writing Goals."
+      },
+      "statusPage": {
+        "label": "Page",
+        "description": "The page the cursor is on, and how many there are."
       }
     },
     "labels": {

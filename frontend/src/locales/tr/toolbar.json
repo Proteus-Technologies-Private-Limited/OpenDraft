@@ -35,7 +35,10 @@
       "label": "Öneri modu"
     },
     "zoomFitWidth": "Genişliğe sığdır",
-    "zoomFitWidthTitle": "Sayfa pencerenin genişliğini dolduracak şekilde yakınlaştır"
+    "zoomFitWidthTitle": "Sayfa pencerenin genişliğini dolduracak şekilde yakınlaştır",
+    "footerControls": "Durum çubuğu denetimleri",
+    "showFooterControls": "Durum çubuğu denetimlerini göster",
+    "hideFooterControls": "Durum çubuğu denetimlerini gizle"
   },
   "resetToDefault": "Varsayılana sıfırla",
   "richText": {
@@ -243,7 +246,8 @@
         "document": "Belge",
         "view": "Görünüm ve düzen",
         "panels": "Paneller",
-        "plugins": "Eklentiler"
+        "plugins": "Eklentiler",
+        "status": "Durum"
       },
       "where": {
         "top": "Araç çubuğunda ({{side}})",
@@ -253,7 +257,13 @@
       "removeFrom": {
         "top": "Araç çubuğundan kaldır",
         "bottom": "Durum çubuğundan kaldır"
-      }
+      },
+      "centerSide": "Orta",
+      "dropCenter": "Ortaya bırak",
+      "center": "Orta",
+      "footerOnly": "Durum satırları yalnızca durum çubuğuna konur.",
+      "narrowFooterNote": "Telefonda ya da dar bir pencerede durum çubuğu durum satırını korur. Denetimleri, ortası ve revizyon rengi, ucundaki okla üstünde bir sırada açılır.",
+      "phoneIconsNote": "Telefonda araç çubuğu yalnızca simgeleri gösterir: tek sırada adlara yer yoktur."
     },
     "modes": {
       "icon": "Simge",
@@ -331,12 +341,8 @@
         "description": "Açık ve koyu tema arasında geçiş yapar."
       },
       "zoom": {
-        "label": "Yakınlaştırma düğmeleri",
-        "description": "Uzaklaştır, yakınlaştırma düzeyi ve yakınlaştır ya da bir kaydırıcı."
-      },
-      "statusZoom": {
-        "label": "Yakınlaştırma kaydırıcısı",
-        "description": "Kaydırıcıyla yakınlaştırma, düzey ve Genişliğe sığdır."
+        "label": "Yakınlaştırma",
+        "description": "Uzaklaştır, yakınlaştırma düzeyi ve yakınlaştır, bir kaydırıcı ya da ikisi birden ve Genişliğe sığdır."
       },
       "navigator": {
         "label": "Gezgin",
@@ -347,6 +353,42 @@
       },
       "plugin": {
         "description": "Bir eklentiden gelen denetim."
+      },
+      "statusTitle": {
+        "label": "Senaryo adı",
+        "description": "Senaryonun başlığı, projesi ve kaydetmenin ayrıca yazdığı dosya."
+      },
+      "statusSave": {
+        "label": "Kayıt durumu",
+        "description": "Kaydedildi, Kaydediliyor… ya da Kaydedilmemiş değişiklikler."
+      },
+      "statusElement": {
+        "label": "Geçerli öğe",
+        "description": "İmlecin bulunduğu öğe, örneğin Aksiyon ya da Diyalog."
+      },
+      "statusActs": {
+        "label": "Perdeler",
+        "description": "Perde araları olduğunda senaryonun kaç perdesi olduğu."
+      },
+      "statusRuntime": {
+        "label": "Süre",
+        "description": "Tahmini ekran süresi. Tür ve tempoyu seçmek için tıklayın."
+      },
+      "statusWords": {
+        "label": "Sözcük sayısı",
+        "description": "Tüm senaryodaki sözcükler."
+      },
+      "statusRevision": {
+        "label": "Revizyon rengi",
+        "description": "Revizyonlar işaretlenirken revizyon rengi."
+      },
+      "statusProgress": {
+        "label": "Yazma hedefi",
+        "description": "Bugünkü hedefe ilerleme ya da bir sprintin geri sayımı. Yazma Hedefleri için tıklayın."
+      },
+      "statusPage": {
+        "label": "Sayfa",
+        "description": "İmlecin bulunduğu sayfa ve toplam sayfa sayısı."
       }
     },
     "labels": {

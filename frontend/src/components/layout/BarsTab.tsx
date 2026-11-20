@@ -17,11 +17,14 @@ import { useWorkspaceDocksAvailable } from '../../hooks/useWorkspaceDocks';
 import {
   TOOLBAR_PRESETS,
   TOOLBAR_PLUGIN_PREFIX,
+  TOOLBAR_SIDES,
   allToolbarItemIds,
   barOf,
+  canPlaceOn,
   canShowNoHeading,
   effectiveLabel,
   effectiveSide,
+  effectiveZoomStyle,
   placeToolbarItem,
   removeToolbarItem,
   setToolbarItemOptions,
@@ -36,6 +39,7 @@ import {
 } from '../../utils/toolbarLayout';
 import { layoutPanels, WORKSPACE_PRESET_IDS } from '../../utils/workspaceLayout';
 import { useToolbarItemMeta } from '../toolbar/toolbarMeta';
+import { usePhoneScreen } from '../../hooks/usePhoneScreen';
 import { layoutCollision, useLayoutAnnouncements, useLayoutSensors } from './dndConfig';
 import DropZone from './DropZone';
 
@@ -46,10 +50,11 @@ const BAR_MODES: ToolbarBarLabel[] = ['icon', 'text', 'both'];
 function PreviewChip({ id, mode, selected, onSelect }: { id: string; mode: ToolbarLabelMode; selected: boolean; onSelect: () => void }) {
   const meta = useToolbarItemMeta()(id);
   const def = toolbarItemDefinition(id);
-  const showIcon = mode === 'icon' || mode === 'both';
-  const showText = mode === 'text' || mode === 'both';
+  const status = def?.kind === 'status';
+  const showIcon = !status && (mode === 'icon' || mode === 'both');
+  const showText = status || mode === 'text' || mode === 'both';
   return (
-    <button type="button" className={`bars-preview-chip${def?.group === 'panels' ? ' is-panel' : ''}${selected ? ' is-selected' : ''}`}
+    <button type="button" className={`bars-preview-chip${def?.group === 'panels' ? ' is-panel' : ''}${status ? ' is-status' : ''}${selected ? ' is-selected' : ''}`}
       onClick={onSelect} title={meta.label}>
       {showIcon && <span aria-hidden="true">{meta.icon}</span>}
       {showText && <span>{meta.label}</span>}
@@ -71,10 +76,13 @@ function BarRow({ id, bar, state, selected, onSelect, onChange }: {
   const { t } = useTranslation('toolbar');
   const meta = useToolbarItemMeta()(id);
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: `item:${id}` });
-  const mode = effectiveLabel(id, bar, state);
+  const phone = usePhoneScreen();
+  const chosen = effectiveLabel(id, bar, state);
+  // What the bar shows here: a phone's toolbar shows icons whatever is chosen.
+  const mode = bar === 'top' && phone && (chosen === 'text' || chosen === 'both') ? 'icon' : chosen;
   const def = toolbarItemDefinition(id);
   const extra = def?.kind === 'zoom'
-    ? ` · ${t(`layout.toolbarTab.zoom${({ buttons: 'Buttons', slider: 'Slider', both: 'Both' } as const)[state.options[id]?.zoomStyle ?? 'buttons']}`)}`
+    ? ` · ${t(`layout.toolbarTab.zoom${({ buttons: 'Buttons', slider: 'Slider', both: 'Both' } as const)[effectiveZoomStyle(bar, state.options[id])]}`)}`
     : def?.kind === 'layout' ? ` · ${(state.options[id]?.layoutStyle ?? 'menu') === 'menu' ? t('layout.toolbarTab.menu') : t('layout.toolbarTab.buttons')}` : '';
   const lone = bar === 'top' && state.bars.top.length === 1;
   return (
@@ -86,7 +94,7 @@ function BarRow({ id, bar, state, selected, onSelect, onChange }: {
         <span className="bars-row-icon" aria-hidden="true">{meta.icon}</span>
         <span className="bars-row-text">
           <strong>{meta.label}</strong>
-          <small>{t(`layout.modes.${mode}`)}{extra}</small>
+          <small>{def?.kind === 'status' ? t('layout.toolbarTab.groups.status') : `${t(`layout.modes.${mode}`)}${extra}`}</small>
         </span>
       </button>
       <button type="button" className="layout-icon-btn" aria-label={t('layout.toolbarTab.moveLeft', { name: meta.label })}
@@ -114,10 +122,12 @@ function AvailableRow({ id, selected, onSelect, onAdd }: { id: string; selected:
         <span className="bars-row-icon" aria-hidden="true">{meta.icon}</span>
         <span className="bars-row-text"><strong>{meta.label}</strong></span>
       </button>
-      <button type="button" className="layout-icon-btn bars-add" aria-label={t('layout.toolbarTab.addToToolbar', { name: meta.label })}
-        title={t('layout.toolbarTab.addToToolbar', { name: meta.label })} onClick={() => onAdd('top')}>
-        <FaPlus aria-hidden="true" /><span className="bars-add-where">{t('layout.toolbarTab.onToolbar')}</span>
-      </button>
+      {canPlaceOn(id, 'top') && (
+        <button type="button" className="layout-icon-btn bars-add" aria-label={t('layout.toolbarTab.addToToolbar', { name: meta.label })}
+          title={t('layout.toolbarTab.addToToolbar', { name: meta.label })} onClick={() => onAdd('top')}>
+          <FaPlus aria-hidden="true" /><span className="bars-add-where">{t('layout.toolbarTab.onToolbar')}</span>
+        </button>
+      )}
       <button type="button" className="layout-icon-btn bars-add" aria-label={t('layout.toolbarTab.addToFooter', { name: meta.label })}
         title={t('layout.toolbarTab.addToFooter', { name: meta.label })} onClick={() => onAdd('bottom')}>
         <FaPlus aria-hidden="true" /><span className="bars-add-where">{t('layout.toolbarTab.onFooter')}</span>
@@ -145,6 +155,15 @@ const BarsTab: React.FC<Props> = ({ state, setState }) => {
   const [selected, setSelected] = useState<string>('zoom');
   const [dragging, setDragging] = useState<string | null>(null);
   const [naming, setNaming] = useState<string | null>(null);
+  // A phone's toolbar shows icons whatever is chosen (Toolbar.tsx), so its
+  // label choices are not offered there.
+  const phone = usePhoneScreen();
+  const sideName = useCallback((side: ToolbarSide) => (
+    side === 'start' ? t('layout.toolbarTab.startSide') : side === 'center' ? t('layout.toolbarTab.centerSide') : t('layout.toolbarTab.endSide')
+  ), [t]);
+  const sideShort = (side: ToolbarSide) => (
+    side === 'start' ? t('layout.toolbarTab.start') : side === 'center' ? t('layout.toolbarTab.center') : t('layout.toolbarTab.end')
+  );
 
   const placedPanels = useMemo(
     () => layoutPanels(workspaceLayout).filter((p) => !workspaceLayout.hidden.includes(p) && !p.startsWith('plugin:')),
@@ -167,12 +186,12 @@ const BarsTab: React.FC<Props> = ({ state, setState }) => {
     if (dragId.startsWith('row:')) return metaOf(dragId.split(':').slice(2).join(':')).label;
     if (dragId.startsWith('side:')) {
       const [, bar, side] = dragId.split(':');
-      return `${bar === 'top' ? t('layout.toolbarTab.onToolbar') : t('layout.toolbarTab.onFooter')}, ${side === 'start' ? t('layout.toolbarTab.startSide') : t('layout.toolbarTab.endSide')}`;
+      return `${bar === 'top' ? t('layout.toolbarTab.onToolbar') : t('layout.toolbarTab.onFooter')}, ${sideName(side as ToolbarSide)}`;
     }
     if (dragId.startsWith('bar:')) return dragId === 'bar:top' ? t('layout.toolbarTab.onToolbar') : t('layout.toolbarTab.onFooter');
     if (dragId === 'avail') return t('layout.toolbarTab.available');
     return dragId;
-  }, [metaOf, t]);
+  }, [metaOf, t, sideName]);
   const announcements = useLayoutAnnouncements(nameOf);
 
   const onDragStart = (event: DragStartEvent) => setDragging(String(event.active.id));
@@ -200,43 +219,52 @@ const BarsTab: React.FC<Props> = ({ state, setState }) => {
   };
 
   const renderList = (bar: ToolbarBar) => {
-    const { start, end } = splitBySide(state.bars[bar].filter(shown), state.options);
+    const sides = splitBySide(state.bars[bar].filter(shown), state.options);
     const title = bar === 'top' ? t('layout.toolbarTab.onToolbar') : t('layout.toolbarTab.onFooter');
     const divider = (side: ToolbarSide) => (
       <DropZone id={`side:${bar}:${side}`} className="bars-side">
         {dragging
-          ? (side === 'start' ? t('layout.toolbarTab.dropStart') : t('layout.toolbarTab.dropEnd'))
-          : (side === 'start' ? t('layout.toolbarTab.startSide') : t('layout.toolbarTab.endSide'))}
+          ? (side === 'start' ? t('layout.toolbarTab.dropStart') : side === 'center' ? t('layout.toolbarTab.dropCenter') : t('layout.toolbarTab.dropEnd'))
+          : sideName(side)}
       </DropZone>
     );
     return (
       <section className="bars-list" aria-label={title}>
         <h3>{title} <small>{t('layout.toolbarTab.count', { count: state.bars[bar].filter(shown).length })}</small></h3>
         <div className="bars-list-body">
-          {divider('start')}
-          {start.map((id) => <BarRow key={id} id={id} bar={bar} state={state} selected={selected === id} onSelect={() => setSelected(id)} onChange={setState} />)}
-          {divider('end')}
-          {end.map((id) => <BarRow key={id} id={id} bar={bar} state={state} selected={selected === id} onSelect={() => setSelected(id)} onChange={setState} />)}
+          {TOOLBAR_SIDES.map((side) => (
+            <React.Fragment key={side}>
+              {divider(side)}
+              {sides[side].map((id) => <BarRow key={id} id={id} bar={bar} state={state} selected={selected === id} onSelect={() => setSelected(id)} onChange={setState} />)}
+            </React.Fragment>
+          ))}
         </div>
+        {bar === 'bottom' && <small className="layout-muted bars-list-note">{t('layout.toolbarTab.narrowFooterNote')}</small>}
       </section>
     );
   };
 
   const renderPreviewBar = (bar: ToolbarBar) => {
-    const { start, end } = splitBySide(state.bars[bar].filter(shown), state.options);
+    const { start, center, end } = splitBySide(state.bars[bar].filter(shown), state.options);
+    const modeOf = (id: string) => {
+      const mode = effectiveLabel(id, bar, state);
+      return bar === 'top' && phone && (mode === 'text' || mode === 'both') ? 'icon' : mode;
+    };
+    const chip = (id: string) => <PreviewChip key={id} id={id} mode={modeOf(id)} selected={selected === id} onSelect={() => setSelected(id)} />;
     return (
       <DropZone id={`bar:${bar}`} className={`bars-preview-bar bars-preview-${bar}`}>
         <span className="bars-preview-tag">{bar === 'top' ? t('layout.toolbarTab.onToolbar') : t('layout.toolbarTab.onFooter')}</span>
-        {start.map((id) => <PreviewChip key={id} id={id} mode={effectiveLabel(id, bar, state)} selected={selected === id} onSelect={() => setSelected(id)} />)}
+        {start.map(chip)}
         <span className="bars-preview-spacer" />
-        {end.map((id) => <PreviewChip key={id} id={id} mode={effectiveLabel(id, bar, state)} selected={selected === id} onSelect={() => setSelected(id)} />)}
+        {center.length > 0 && <>{center.map(chip)}<span className="bars-preview-spacer" /></>}
+        {end.map(chip)}
       </DropZone>
     );
   };
 
-  const groupOf = (id: string): 'writing' | 'document' | 'view' | 'panels' | 'plugins' =>
+  const groupOf = (id: string): 'writing' | 'document' | 'view' | 'panels' | 'status' | 'plugins' =>
     (id.startsWith(TOOLBAR_PLUGIN_PREFIX) ? 'plugins' : toolbarItemDefinition(id)?.group ?? 'view');
-  const availableGroups = (['writing', 'document', 'view', 'panels', 'plugins'] as const)
+  const availableGroups = (['status', 'writing', 'document', 'view', 'panels', 'plugins'] as const)
     .map((g) => ({ g, ids: available.filter((id) => groupOf(id) === g) }))
     .filter((entry) => entry.ids.length > 0);
 
@@ -265,10 +293,14 @@ const BarsTab: React.FC<Props> = ({ state, setState }) => {
           <strong>{meta.label}</strong>
         </div>
         <p className="layout-muted">
-          {bar ? t(`layout.toolbarTab.where.${bar}`, { side: side === 'start' ? t('layout.toolbarTab.start') : t('layout.toolbarTab.end') }) : t('layout.toolbarTab.where.none')}
+          {bar ? t(`layout.toolbarTab.where.${bar}`, { side: sideShort(side) }) : t('layout.toolbarTab.where.none')}
         </p>
         <p className="layout-muted">{meta.description}</p>
 
+        {def?.kind !== 'status' && bar === 'top' && phone && (
+          <p className="layout-muted">{t('layout.toolbarTab.phoneIconsNote')}</p>
+        )}
+        {def?.kind !== 'status' && !(bar === 'top' && phone) && (
         <div className="layout-field" role="radiogroup" aria-label={t('layout.toolbarTab.showAs')}>
           <span>{t('layout.toolbarTab.showAs')}</span>
           <button type="button" role="radio" aria-checked={!options.label}
@@ -285,6 +317,7 @@ const BarsTab: React.FC<Props> = ({ state, setState }) => {
           </div>
           {canShowNoHeading(sel, options) && <small>{t('layout.toolbarTab.noHeadingHint')}</small>}
         </div>
+        )}
 
         <div className="layout-field">
           <span>{t('layout.toolbarTab.placeOn')}</span>
@@ -292,7 +325,8 @@ const BarsTab: React.FC<Props> = ({ state, setState }) => {
             {(['top', 'bottom', null] as const).map((where) => (
               <button key={String(where)} type="button" role="radio" aria-checked={bar === where}
                 className={bar === where ? 'is-on' : ''}
-                disabled={where === null && state.bars.top.length === 1 && bar === 'top'}
+                disabled={(where === null && state.bars.top.length === 1 && bar === 'top') || (where !== null && !canPlaceOn(sel, where))}
+                title={where === 'top' && !canPlaceOn(sel, 'top') ? t('layout.toolbarTab.footerOnly') : undefined}
                 onClick={() => setState(where ? placeToolbarItem(state, sel, where) : removeToolbarItem(state, sel))}>
                 {where === 'top' ? t('layout.toolbarTab.onToolbar') : where === 'bottom' ? t('layout.toolbarTab.onFooter') : t('layout.toolbarTab.notPlaced')}
               </button>
@@ -303,10 +337,10 @@ const BarsTab: React.FC<Props> = ({ state, setState }) => {
         <div className="layout-field">
           <span>{t('layout.toolbarTab.side')}</span>
           <span className="layout-seg" role="radiogroup" aria-label={t('layout.toolbarTab.side')}>
-            {(['start', 'end'] as const).map((s) => (
+            {TOOLBAR_SIDES.map((s) => (
               <button key={s} type="button" role="radio" aria-checked={side === s} className={side === s ? 'is-on' : ''}
                 onClick={() => setState(bar ? placeToolbarItem(state, sel, bar, { side: s }) : setToolbarItemOptions(state, sel, { side: s }))}>
-                {s === 'start' ? t('layout.toolbarTab.start') : t('layout.toolbarTab.end')}
+                {sideShort(s)}
               </button>
             ))}
           </span>
@@ -316,8 +350,8 @@ const BarsTab: React.FC<Props> = ({ state, setState }) => {
           <div className="layout-field" role="radiogroup" aria-label={t('layout.toolbarTab.zoomControl')}>
             <span>{t('layout.toolbarTab.zoomControl')}</span>
             {(['buttons', 'slider', 'both'] as const).map((z) => (
-              <button key={z} type="button" role="radio" aria-checked={(options.zoomStyle ?? 'buttons') === z}
-                className={`layout-radio${(options.zoomStyle ?? 'buttons') === z ? ' is-on' : ''}`}
+              <button key={z} type="button" role="radio" aria-checked={effectiveZoomStyle(bar ?? 'bottom', options) === z}
+                className={`layout-radio${effectiveZoomStyle(bar ?? 'bottom', options) === z ? ' is-on' : ''}`}
                 onClick={() => setOptions({ zoomStyle: z })}>
                 {t(`layout.toolbarTab.zoom${({ buttons: 'Buttons', slider: 'Slider', both: 'Both' } as const)[z]}`)}
               </button>
@@ -399,7 +433,7 @@ const BarsTab: React.FC<Props> = ({ state, setState }) => {
             )}
           </div>
           <div className="bars-defaults">
-            {(['top', 'bottom'] as const).map((bar) => (
+            {(phone ? ['bottom'] as const : ['top', 'bottom'] as const).map((bar) => (
               <span key={bar} className="bars-default">
                 <span className="layout-muted">{bar === 'top' ? t('layout.toolbarTab.toolbarShows') : t('layout.toolbarTab.footerShows')}</span>
                 <span className="layout-seg" role="radiogroup" aria-label={bar === 'top' ? t('layout.toolbarTab.toolbarShows') : t('layout.toolbarTab.footerShows')}>

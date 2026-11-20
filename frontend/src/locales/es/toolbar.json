@@ -37,7 +37,10 @@
       "label": "Sugiriendo"
     },
     "zoomFitWidth": "Ajustar al ancho",
-    "zoomFitWidthTitle": "Ajustar el zoom para que la página ocupe todo el ancho de la ventana"
+    "zoomFitWidthTitle": "Ajustar el zoom para que la página ocupe todo el ancho de la ventana",
+    "footerControls": "Controles de la barra de estado",
+    "showFooterControls": "Mostrar controles de la barra de estado",
+    "hideFooterControls": "Ocultar controles de la barra de estado"
   },
   "resetToDefault": "Restablecer valores predeterminados",
   "richText": {
@@ -248,7 +251,8 @@
         "document": "Documento",
         "view": "Vista y disposición",
         "panels": "Paneles",
-        "plugins": "Complementos"
+        "plugins": "Complementos",
+        "status": "Estado"
       },
       "where": {
         "top": "En la barra de herramientas ({{side}})",
@@ -258,7 +262,13 @@
       "removeFrom": {
         "top": "Quitar de la barra de herramientas",
         "bottom": "Quitar de la barra de estado"
-      }
+      },
+      "centerSide": "Centro",
+      "dropCenter": "Soltar en el centro",
+      "center": "Centro",
+      "footerOnly": "Las líneas de estado solo van en la barra de estado.",
+      "narrowFooterNote": "En un teléfono o una ventana estrecha, la barra de estado conserva su línea de estado. Sus controles, su centro y el color de revisión se abren en una fila encima con la flecha del extremo.",
+      "phoneIconsNote": "En un teléfono la barra de herramientas solo muestra iconos: en una fila no caben los nombres."
     },
     "modes": {
       "icon": "Icono",
@@ -336,12 +346,8 @@
         "description": "Cambia entre el tema claro y el oscuro."
       },
       "zoom": {
-        "label": "Botones de zoom",
-        "description": "Reducir, el nivel de zoom y ampliar, o un control deslizante."
-      },
-      "statusZoom": {
-        "label": "Control deslizante de zoom",
-        "description": "Zoom con un control deslizante, el nivel y Ajustar al ancho."
+        "label": "Ampliación",
+        "description": "Reducir, el nivel de zoom y ampliar, un control deslizante o ambos, y Ajustar al ancho."
       },
       "navigator": {
         "label": "Navegador",
@@ -352,6 +358,42 @@
       },
       "plugin": {
         "description": "Un control de un complemento."
+      },
+      "statusTitle": {
+        "label": "Nombre del guion",
+        "description": "El título del guion, su proyecto y el archivo en el que también se guarda."
+      },
+      "statusSave": {
+        "label": "Estado de guardado",
+        "description": "Guardado, Guardando… o Cambios sin guardar."
+      },
+      "statusElement": {
+        "label": "Elemento actual",
+        "description": "El elemento donde está el cursor, como Acción o Diálogo."
+      },
+      "statusActs": {
+        "label": "Actos",
+        "description": "Cuántos actos tiene el guion, cuando tiene cortes de acto."
+      },
+      "statusRuntime": {
+        "label": "Duración",
+        "description": "El tiempo estimado en pantalla. Haz clic para elegir el género y el ritmo."
+      },
+      "statusWords": {
+        "label": "Recuento de palabras",
+        "description": "Palabras en todo el guion."
+      },
+      "statusRevision": {
+        "label": "Color de revisión",
+        "description": "El color de revisión, mientras se marcan revisiones."
+      },
+      "statusProgress": {
+        "label": "Objetivo de escritura",
+        "description": "El progreso hacia el objetivo de hoy, o la cuenta atrás de un sprint. Haz clic para abrir Objetivos de escritura."
+      },
+      "statusPage": {
+        "label": "Página",
+        "description": "La página en la que está el cursor y cuántas hay."
       }
     },
     "labels": {

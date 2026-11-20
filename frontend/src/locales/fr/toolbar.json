@@ -37,7 +37,10 @@
       "label": "Suggestion"
     },
     "zoomFitWidth": "Pleine largeur",
-    "zoomFitWidthTitle": "Zoomer pour que la page occupe toute la largeur de la fenêtre"
+    "zoomFitWidthTitle": "Zoomer pour que la page occupe toute la largeur de la fenêtre",
+    "footerControls": "Commandes de la barre d’état",
+    "showFooterControls": "Afficher les commandes de la barre d’état",
+    "hideFooterControls": "Masquer les commandes de la barre d’état"
   },
   "resetToDefault": "Rétablir les valeurs par défaut",
   "richText": {
@@ -248,7 +251,8 @@
         "document": "Document",
         "view": "Affichage et disposition",
         "panels": "Panneaux",
-        "plugins": "Modules complémentaires"
+        "plugins": "Modules complémentaires",
+        "status": "État"
       },
       "where": {
         "top": "Dans la barre d’outils ({{side}})",
@@ -258,7 +262,13 @@
       "removeFrom": {
         "top": "Retirer de la barre d’outils",
         "bottom": "Retirer de la barre d’état"
-      }
+      },
+      "centerSide": "Milieu",
+      "dropCenter": "Déposer au milieu",
+      "center": "Milieu",
+      "footerOnly": "Les lignes d’état vont uniquement dans la barre d’état.",
+      "narrowFooterNote": "Sur un téléphone ou une fenêtre étroite, la barre d’état garde sa ligne d’état. Ses commandes, son centre et la couleur de révision s’ouvrent dans une rangée au-dessus, avec la flèche à son extrémité.",
+      "phoneIconsNote": "Sur un téléphone, la barre d’outils n’affiche que des icônes : une seule rangée n’a pas la place pour les noms."
     },
     "modes": {
       "icon": "Icône",
@@ -336,12 +346,8 @@
         "description": "Basculer entre le thème clair et le thème sombre."
       },
       "zoom": {
-        "label": "Boutons de zoom",
-        "description": "Zoom arrière, niveau de zoom et zoom avant, ou un curseur."
-      },
-      "statusZoom": {
-        "label": "Curseur de zoom",
-        "description": "Zoomer avec un curseur, le niveau et Pleine largeur."
+        "label": "Zoom",
+        "description": "Zoom arrière, niveau de zoom et zoom avant, un curseur ou les deux, et Pleine largeur."
       },
       "navigator": {
         "label": "Navigateur",
@@ -352,6 +358,42 @@
       },
       "plugin": {
         "description": "Une commande provenant d’un module complémentaire."
+      },
+      "statusTitle": {
+        "label": "Nom du scénario",
+        "description": "Le titre du scénario, son projet et le fichier dans lequel l’enregistrement écrit aussi."
+      },
+      "statusSave": {
+        "label": "État de l’enregistrement",
+        "description": "Enregistré, Enregistrement… ou Modifications non enregistrées."
+      },
+      "statusElement": {
+        "label": "Élément actuel",
+        "description": "L’élément où se trouve le curseur, comme Action ou Dialogue."
+      },
+      "statusActs": {
+        "label": "Actes",
+        "description": "Le nombre d’actes du scénario, dès qu’il a des coupures d’acte."
+      },
+      "statusRuntime": {
+        "label": "Durée",
+        "description": "La durée à l’écran estimée. Cliquez pour choisir le genre et le rythme."
+      },
+      "statusWords": {
+        "label": "Nombre de mots",
+        "description": "Les mots de tout le scénario."
+      },
+      "statusRevision": {
+        "label": "Couleur de révision",
+        "description": "La couleur de révision, pendant que les révisions sont marquées."
+      },
+      "statusProgress": {
+        "label": "Objectif d’écriture",
+        "description": "La progression vers l’objectif du jour, ou le compte à rebours d’un sprint. Cliquez pour ouvrir Objectifs d’écriture."
+      },
+      "statusPage": {
+        "label": "Page",
+        "description": "La page où se trouve le curseur, et leur nombre."
       }
     },
     "labels": {

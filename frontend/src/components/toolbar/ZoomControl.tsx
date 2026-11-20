@@ -1,27 +1,36 @@
 /**
- * Zoom for either bar: out/in buttons, a slider, or both, with the level,
- * which can be clicked and typed into. The range and step are the store's
- * (setZoomLevel clamps to 50–300%).
+ * Zoom, the one control for either bar: out/in buttons, a slider, or both,
+ * with the level (click it to type one) and Fit width. The range and step are
+ * the store's (setZoomLevel clamps to 50–300%).
+ *
+ * It drives the same `zoomLevel` the View menu and the keyboard do, so they
+ * always agree, and the phone view keeps its own zoom because the store files
+ * the value under the current layout.
  */
 import React, { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FaSearchMinus, FaSearchPlus } from 'react-icons/fa';
+import { FaArrowsAltH, FaSearchMinus, FaSearchPlus } from 'react-icons/fa';
 import { useEditorFields } from '../../stores/editorStore';
 import type { ToolbarLabelMode, ToolbarZoomStyle } from '../../utils/toolbarLayout';
 
 export const ZOOM_MIN = 50;
 export const ZOOM_MAX = 300;
 export const ZOOM_STEP = 10;
+/** Room left either side of the sheet when fitting it to the pane. */
+const FIT_GUTTER_PX = 32;
 
 interface Props {
   zoomStyle: ToolbarZoomStyle;
   label: ToolbarLabelMode;
   className?: string;
+  /** The scrolling pane the page sits in, for Fit width; found on screen when not given. */
+  editorMain?: HTMLElement | null;
 }
 
-const ZoomControl: React.FC<Props> = ({ zoomStyle, label, className }) => {
+const ZoomControl: React.FC<Props> = ({ zoomStyle, label, className, editorMain = null }) => {
   const { t } = useTranslation('toolbar');
-  const { zoomLevel, setZoomLevel } = useEditorFields('zoomLevel', 'setZoomLevel');
+  const { zoomLevel, setZoomLevel, pageLayout } = useEditorFields('zoomLevel', 'setZoomLevel', 'pageLayout');
+  const pageWidthIn = pageLayout?.pageWidth ?? 0;
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(String(zoomLevel));
   const inputRef = useRef<HTMLInputElement>(null);
@@ -38,6 +47,26 @@ const ZoomControl: React.FC<Props> = ({ zoomStyle, label, className }) => {
     if (Number.isFinite(value) && value >= ZOOM_MIN && value <= ZOOM_MAX) setZoomLevel(value);
     setEditing(false);
   }, [draft, setZoomLevel]);
+
+  /** The zoom at which the page fills the pane's width. */
+  const fitWidth = useCallback(() => {
+    try {
+      const pane = editorMain ?? document.querySelector<HTMLElement>('.editor-main');
+      if (!pane) {
+        console.warn('[zoom] Fit width: the editor pane is not mounted');
+        return;
+      }
+      const pagePx = pageWidthIn * 96;
+      const room = pane.clientWidth - FIT_GUTTER_PX;
+      if (!(pagePx > 0) || !(room > 0)) {
+        console.warn('[zoom] Fit width: nothing to measure', { pagePx, room });
+        return;
+      }
+      setZoomLevel(Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, Math.floor((room / pagePx) * 100))));
+    } catch (err) {
+      console.error('[zoom] Fit width failed', err);
+    }
+  }, [editorMain, pageWidthIn, setZoomLevel]);
 
   const showIcon = label !== 'text';
   const showText = label === 'text' || label === 'both';
@@ -117,6 +146,16 @@ const ZoomControl: React.FC<Props> = ({ zoomStyle, label, className }) => {
           {showText && <span className="toolbar-btn-label">{t('layout.labels.zoomIn')}</span>}
         </button>
       )}
+      <button
+        type="button"
+        className="toolbar-btn zoom-fit"
+        title={t('status.zoomFitWidthTitle')}
+        aria-label={showText ? undefined : t('status.zoomFitWidth')}
+        onClick={fitWidth}
+      >
+        {showIcon && <FaArrowsAltH />}
+        {showText && <span className="toolbar-btn-label">{t('status.zoomFitWidth')}</span>}
+      </button>
     </div>
   );
 };

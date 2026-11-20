@@ -463,3 +463,135 @@ html.phone .toolbar.toolbar-comfortable .has-labels .toolbar-btn,
   .bars-columns { grid-template-columns: minmax(0, 1fr); }
   .layout-quick-switch span { display: none; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   The footer (StatusBar.tsx): status lines and controls where the writer
+   placed them, at every width, for as long as they fit; what does not fit
+   opens in a row above the strip from the arrow at its end, wrapping onto as
+   many lines as it needs. The strip keeps its height and its look; the row
+   overlays the script rather than pushing it up.
+   ═══════════════════════════════════════════════════════════════════════ */
+.status-bar-wrap { flex: 1; min-width: 0; display: flex; position: relative; }
+.bars-preview-chip.is-status { color: var(--fd-text-muted); font-size: 10.5px; }
+.bars-list-note { display: block; margin-top: 6px; font-size: 11px; line-height: 1.4; }
+
+/* The strip (StatusBar.tsx fits it). Nothing on it is squeezed or clipped:
+   what does not fit goes to the row instead, so menus opening from a control
+   on the strip are not cut off either (the phone and foldable rules clip the
+   status bar; here they need not). */
+.status-bar-wrap > .status-bar,
+html.phone .status-bar-wrap > .status-bar,
+html.fold-book .status-bar-wrap > .status-bar { position: relative; min-width: 0; overflow: visible; }
+/* Air between the start side, the centre and the end side, so a long start
+   side never runs into the centre. */
+.status-bar-wrap > .status-bar { column-gap: 16px; }
+.status-bar-wrap.is-narrow > .status-bar { column-gap: 8px; }
+.status-bar-wrap > .status-bar > .status-left,
+.status-bar-wrap > .status-bar > .status-right { overflow: visible; }
+/* The phone rules (≤480px) hide the centre and the revision colour; the strip
+   shows them like anything else the writer placed, for as long as they fit. */
+.status-bar-wrap > .status-bar > .status-center { display: flex !important; }
+.status-bar-wrap > .status-bar .status-revision { display: inline !important; }
+.status-bar-wrap.is-narrow .status-left { min-width: 0; }
+.status-bar-wrap.is-narrow .status-right { flex: 0 0 auto; }
+/* Each status line sits in a slot that adds no box of its own. */
+.status-slot { display: contents; }
+.status-bar-wrap > .status-bar .status-slot > *,
+.status-bar-wrap > .status-bar .footer-controls,
+.status-bar-wrap > .status-bar .footer-controls > .toolbar-priority-block { flex-shrink: 0; }
+/* On a narrow strip the name and save state shorten into what is left. */
+.status-bar-wrap.is-narrow .status-slot[data-slot="status-title"] > *,
+.status-bar-wrap.is-narrow .status-slot[data-slot="status-save"] > * {
+  flex-shrink: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+}
+/* What did not fit stays on the strip unseen, at its full width, to be
+   measured again; the row shows it. It sits past the strip's start edge,
+   where overflow never scrolls, so it cannot widen anything. */
+.status-bar .status-slot.is-overflow {
+  display: inline-flex; align-items: center; gap: inherit;
+}
+.status-bar .status-slot.is-overflow,
+.status-bar .footer-controls > .toolbar-priority-block.is-overflow {
+  position: absolute; inset-inline-end: 100%; top: 0;
+  visibility: hidden; pointer-events: none; white-space: nowrap;
+}
+/* A run of controls that all went up to the row takes no room. */
+.status-bar .footer-controls.is-all-overflow { display: contents; }
+
+/* The arrow: as tall as the strip, wide enough for a thumb. */
+.status-row-toggle {
+  flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 20px; margin-inline-end: -6px; padding: 0;
+  border: none; border-radius: 10px; cursor: pointer;
+  background: var(--fd-overlay-light); color: var(--fd-text-muted); font-size: 10px;
+  transition: background-color .2s ease, color .2s ease;
+}
+.status-row-toggle svg { transition: transform .26s cubic-bezier(.2, .8, .2, 1); }
+.status-row-toggle:hover { color: var(--fd-text); }
+.status-row-toggle:focus-visible { outline: 2px solid var(--fd-accent); outline-offset: 1px; }
+.status-row-toggle.is-open { color: var(--fd-accent); background: rgba(74, 158, 255, .18); }
+.status-row-toggle.is-open svg { transform: rotate(180deg); }
+/* Far from the phone's own bottom-edge gestures it is not; give it the whole strip. */
+html.phone .status-row-toggle { height: 22px; width: 40px; }
+
+/* The row. Revealed by a clip that wipes upwards and a slide, so nothing is
+   laid out twice; once open the clip reaches far above the row, so a menu
+   that opens out of it is not cut off. */
+.status-row {
+  position: absolute; inset-inline: 0; bottom: 100%; z-index: 45;
+  pointer-events: none;
+  clip-path: inset(100% 0 0 0);
+  transition: clip-path .26s cubic-bezier(.2, .9, .25, 1);
+}
+.status-row.is-open { pointer-events: auto; clip-path: inset(-100vh -100vw 0 -100vw); }
+/* It wraps rather than scrolling sideways: a sideways scroll with no
+   scrollbar hid whatever sat past the zoom (which alone is most of a phone's
+   width) with nothing to say it was there. A footer too full for even that
+   scrolls up and down, below the top of the screen. */
+.status-row .status-row-scroll {
+  width: 100%; box-sizing: border-box; min-height: 44px;
+  max-height: min(45vh, calc(var(--vv-height, 100dvh) * .45));
+  display: flex; flex-wrap: wrap; align-items: center; align-content: center;
+  gap: 4px 6px; padding: 4px 10px;
+  overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch; scrollbar-width: none;
+  background: var(--fd-status-bg); border-top: 1px solid var(--fd-border);
+  box-shadow: 0 -6px 16px rgba(0, 0, 0, .18);
+  transform: translateY(100%);
+  transition: transform .26s cubic-bezier(.2, .9, .25, 1.05);
+}
+.status-row .status-row-scroll::-webkit-scrollbar { display: none; }
+/* `none` at rest, not translateY(0): a transform would make the row the
+   containing block of the Views menu placed against the window below. */
+.status-row.is-open .status-row-scroll { transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  .status-row, .status-row .status-row-scroll, .status-row-toggle svg { transition: none; }
+}
+
+/* Thumb-sized controls in the row, never squeezed: they wrap instead. A run
+   of controls between two status lines wraps within itself too. */
+.status-row-scroll > .footer-controls {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px;
+  min-width: 0; max-width: 100%;
+}
+.status-row .toolbar-priority-block { flex-shrink: 0; max-width: 100%; }
+.status-row .footer-controls .toolbar-btn { height: 36px; min-width: 36px; }
+.status-row .footer-controls select,
+.status-row .footer-controls .select-button { height: 32px; font-size: 13px; }
+.status-row .footer-controls .toolbar-separator { height: 20px; }
+.status-row .zoom-label { font-size: 13px; min-width: 40px; }
+/* The zoom gives way on a screen too narrow for all of it: the slider shrinks. */
+.status-row .zoom-control { flex-shrink: 1; min-width: 0; max-width: 100%; }
+.status-row .zoom-slider { flex: 0 1 120px; width: 120px; min-width: 48px; height: 28px; }
+/* Status lines read normally up here, whatever the phone rules do to the strip. */
+.status-row .status-item,
+.status-row .status-item.status-revision { display: inline-flex !important; align-items: center; flex-shrink: 0; font-size: 12px !important; }
+.status-row .status-element { color: var(--fd-accent) !important; font-weight: 500; }
+/* The row scrolls when it is too full, which clips anything absolutely placed
+   in it: the Views menu opens against the window instead, just above the row. */
+.status-row .toolbar-views-menu {
+  position: fixed; top: auto; bottom: calc(var(--footer-row-lift, 70px) + 4px);
+  inset-inline-start: 8px; inset-inline-end: auto; margin: 0;
+  max-width: calc(100vw - 16px);
+  max-height: min(60vh, calc(var(--vv-height, 100dvh) - var(--footer-row-lift, 70px) - 72px));
+}
