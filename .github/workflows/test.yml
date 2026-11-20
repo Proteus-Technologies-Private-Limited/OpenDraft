@@ -79,6 +79,7 @@ jobs:
   # Kotlin, R8 or packaging — those still first run at release time.
   android-rust:
     name: Linux title bars + Android Rust
+    timeout-minutes: 45
     # Match the Linux release build, including its GTK version.
     runs-on: ubuntu-22.04
 
@@ -86,6 +87,8 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install Linux native build and display-test dependencies
+        # Bound mirror/apt-lock stalls before starting the native checks.
+        timeout-minutes: 10
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf weston xvfb
