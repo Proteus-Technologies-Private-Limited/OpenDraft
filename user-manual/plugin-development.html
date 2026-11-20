@@ -57,7 +57,7 @@
   </div>
   <div class="sidebar-section">
     <div class="sidebar-section-title">Characters &amp; Notes</div>
-    <a href="characters.html" class="sidebar-link">Characters</a>
+    <a href="characters.html" class="sidebar-link">Character Profiles</a>
     <a href="script-notes.html" class="sidebar-link">Script Notes</a>
   </div>
   <div class="sidebar-section">
@@ -68,7 +68,8 @@
   <div class="sidebar-section">
     <div class="sidebar-section-title">Production</div>
     <a href="tags.html" class="sidebar-link">Tags &amp; Entities</a>
-    <a href="locations.html" class="sidebar-link">Locations</a>
+    <a href="locations.html" class="sidebar-link">Location Profiles</a>
+    <a href="scene-details.html" class="sidebar-link">Scene Details</a>
     <a href="revision-mode.html" class="sidebar-link">Revision Mode</a>
   </div>
   <div class="sidebar-section">
@@ -158,8 +159,27 @@
         <tr><td><code>editorExtensions</code></td><td>Tiptap extensions. They take effect the next time a script is opened.</td></tr>
         <tr><td><code>importers</code>, <code>exporters</code>, <code>reports</code></td><td>Join File &gt; Import, File &gt; Export and Tools &gt; Analytics &gt; Reports. A plugin can add a format but never take over a built-in one.</td></tr>
         <tr><td><code>grammarProviders</code></td><td>Writing-suggestion checks, merged with the built-in ones.</td></tr>
+        <tr><td><code>sceneActions</code></td><td>Buttons in <a href="scene-details.html">Scene Details</a>, once under the scene (<code>target: 'scene'</code>) or on every shot (<code>target: 'shot'</code>). See <a href="#scene-actions">Scene actions</a>.</td></tr>
       </tbody>
     </table>
+
+    <h3 id="scene-actions">Scene actions</h3>
+    <p>A scene action is given everything Scene Details knows about the scene, already resolved: the heading, synopsis and number; the location with its type, description, images, the look the scene shows and the setting note; each character with their lines, images and the costumes they wear in order (with when each change happens and each costume&rsquo;s image); and each shot with the characters it names and the costume each one shows. Images are project asset ids. An add-on that makes a video clip per shot has its references in one object:</p>
+    <pre><code>pluginRegistry.register({
+  id: 'my-clips', name: 'My Clips', version: '1.0.0', optIn: true,
+  privacy: 'Sends the shot text and its reference images to the video service you choose.',
+  sceneActions: [{
+    id: 'make-clip',
+    label: 'Make clip',
+    target: 'shot',
+    available: ({ shot }) =&gt; !!shot?.text,
+    run: async ({ projectId, scene, shot }) =&gt; {
+      // scene.location?.look?.image, shot.characters[0]?.costume?.image …
+    },
+    preview: ClipThumbnail, // optional: drawn beside the shot
+  }],
+});</code></pre>
+    <p><code>run</code> may be async; the button is disabled while it runs, and an error it throws is shown to the writer. <code>available</code> hides the button for a scene or shot it cannot act on. The types are <code>PluginSceneAction</code> and <code>PluginSceneActionContext</code> in <code>frontend/src/plugins/registry.ts</code>.</p>
 
     <h2 id="add-on-rules">Rules for Add-ons</h2>
     <ol>

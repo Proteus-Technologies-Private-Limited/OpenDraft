@@ -176,6 +176,88 @@ export interface PluginReport {
   build: (ctx: PluginDocumentContext) => ReportTable | Promise<ReportTable>;
 }
 
+// ── Scene actions ──
+//
+// Scene Details shows everything a scene holds: who is in it and what they
+// wear, where it is set and how the place looks, and its shots. A plugin can
+// act on that — make a clip for a shot from those references, say — with a
+// button under the scene or on each shot, and can show what it made (a clip's
+// thumbnail) beside the shot. Core only gathers the references; making
+// anything from them is the plugin's job.
+
+/** An image reference: a project asset, by id. */
+export interface PluginSceneImage {
+  assetId: string;
+  /** What it shows: "Night", "Chef whites", "ANNA". */
+  label: string;
+}
+
+/** One character as a scene presents them. */
+export interface PluginSceneCastMember {
+  name: string;
+  /** Dialogue blocks in the scene; 0 for someone there without speaking. */
+  lines: number;
+  /** The character's own images (main first). */
+  images: PluginSceneImage[];
+  /** Costumes worn in the scene, in order, with when each change happens. */
+  costumes: Array<{ id: string; name: string; when: string; image: PluginSceneImage | null }>;
+}
+
+/** Everything Scene Details knows about a scene. */
+export interface PluginSceneBrief {
+  /** Place in the scene list, from 0. */
+  index: number;
+  /** The heading's stable id, when something has given it one. */
+  uid: string | null;
+  heading: string;
+  number: string | null;
+  synopsis: string;
+  location: {
+    name: string;
+    type: 'interior' | 'exterior' | 'both';
+    description: string;
+    /** The look the scene shows, or null. */
+    look: { id: string; name: string; image: PluginSceneImage | null } | null;
+    /** What is different about the place in this scene. */
+    setting: string;
+    images: PluginSceneImage[];
+  } | null;
+  cast: PluginSceneCastMember[];
+  shots: PluginSceneShot[];
+}
+
+/** A shot line, with the references Scene Details lists beside it. */
+export interface PluginSceneShot {
+  /** Place among the scene's shots, from 0. */
+  index: number;
+  text: string;
+  /** The characters the shot names, each with the costume it shows. */
+  characters: Array<{ name: string; costume: { id: string; name: string; image: PluginSceneImage | null } | null }>;
+}
+
+export interface PluginSceneActionContext {
+  editor: Editor | null;
+  projectId: string;
+  scene: PluginSceneBrief;
+  /** The shot, for an action shown on each shot. */
+  shot?: PluginSceneShot;
+}
+
+export interface PluginSceneAction {
+  id: string;
+  /** Button text, e.g. "Make clip". */
+  label: string;
+  /** Translation key; `label` is the English default. */
+  labelKey?: string;
+  /** Shown once under the scene, or on every shot. */
+  target: 'scene' | 'shot';
+  run: (ctx: PluginSceneActionContext) => void | Promise<void>;
+  /** Hide the button for a scene or shot it cannot act on. */
+  available?: (ctx: PluginSceneActionContext) => boolean;
+  /** Drawn beside the shot (or under the scene) — a clip's thumbnail, its state. */
+  preview?: React.ComponentType<PluginSceneActionContext>;
+}
+
 // ── Add-ons: plugins the writer chooses to turn on ──
 //
 // A plugin marked `optIn` is an add-on. It is registered like any other, but
@@ -247,6 +329,8 @@ export interface OpenDraftPlugin {
   importers?: PluginImporter[];
   exporters?: PluginExporter[];
   reports?: PluginReport[];
+  /** Buttons Scene Details shows under a scene or on each of its shots. */
+  sceneActions?: PluginSceneAction[];
   /**
    * Grammar / writing-suggestion providers, by name. Merged with those added
    * through `registerGrammarProvider`; an add-on's are withheld while it is off.
@@ -535,6 +619,15 @@ export class PluginRegistry {
       if (plugin.reports) reports.push(...plugin.reports);
     }
     return reports;
+  }
+
+  /** Every plugin scene action, in registration order. */
+  getSceneActions(): PluginSceneAction[] {
+    const actions: PluginSceneAction[] = [];
+    for (const plugin of this._active()) {
+      if (plugin.sceneActions) actions.push(...plugin.sceneActions);
+    }
+    return actions;
   }
 
   /** Initialize all plugins. Call once after the editor is ready. */

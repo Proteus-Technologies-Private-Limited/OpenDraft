@@ -298,9 +298,9 @@
     "storyTimeline": "कथा टाइमलाइन…",
     "plotlinesAcrossTheScenesByScreen": "सीनमधील कथाधागे, स्क्रीन टाइमनुसार",
     "notesPanel": "टिपा पॅनेल",
-    "characters": "पात्रे",
+    "characters": "पात्र प्रोफाइल",
     "tags": "टॅग",
-    "locations": "लोकेशन",
+    "locations": "लोकेशन प्रोफाइल",
     "dialogueTuner": "डायलॉग ट्यूनर",
     "suggestions": "सूचना",
     "highlights": "हायलाइट",
@@ -335,7 +335,9 @@
     "stacked": "वर-खाली",
     "onePane": "एक पॅन",
     "secondPane": "दुसरे पॅन",
-    "pageView": "पृष्ठ दृश्य"
+    "pageView": "पृष्ठ दृश्य",
+    "sceneDetails": "सीन तपशील",
+    "sceneDetailsTip": "कर्सर ज्या सीनमध्ये आहे तो: तिथे कोण आहे, कोणी काय घातले आहे, जागा कशी दिसते, आणि त्याचे शॉट"
   },
   "tools": {
     "tools": "साधने",

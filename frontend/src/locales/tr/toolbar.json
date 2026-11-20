@@ -433,7 +433,7 @@
       "view": "Görünüm"
     },
     "panels": {
-      "locationDb": "Mekân veritabanı"
+      "locationDb": "Mekân profilleri"
     },
     "dnd": {
       "pickedUp": "{{name}} alındı. Taşımak için ok tuşlarını, bırakmak için Boşluk tuşunu, iptal etmek için Esc tuşunu kullanın.",

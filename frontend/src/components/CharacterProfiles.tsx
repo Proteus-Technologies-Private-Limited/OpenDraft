@@ -1,3 +1,13 @@
+/**
+ * Character Profiles: every character in the script, and one character at a
+ * time on five tabs — Profile, Story, Voice, Relationships and Scenes.
+ *
+ * In a narrow panel the list and the character take turns; in a wide one
+ * (or the wide view) they sit side by side. The Scenes tab is the cross-view
+ * "one character, all scenes": where they are, with whom, and what they wear
+ * in each, read from the script and from the costumes each scene notes
+ * (utils/sceneDetails). The Relationship Map is the list's second tab.
+ */
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { ModalOverlay } from './ModalOverlay';
 import type { Editor } from '@tiptap/react';
@@ -7,6 +17,7 @@ import { compareText } from '../i18n/format';
 import { useDelayedUnmount, useSwipeDismiss } from '../hooks/useTouch';
 import { useEditorStore, type CharacterProfile, type CharacterRelationship } from '../stores/editorStore';
 import { useProjectStore } from '../stores/projectStore';
+import { useLocationStore } from '../stores/locationStore';
 import { characterKey, singleLine } from '../utils/nodeText';
 import { useAssetStore } from '../stores/assetStore';
 import { api } from '../services/api';
@@ -16,21 +27,35 @@ import { RelationshipMap, relTypeLabel, relDynamicLabel, characterRoleLabel } fr
 import VoicePicker from './VoicePicker';
 import { useTableReadStore } from '../stores/tableReadStore';
 import Select from './Select';
+import { AssetImagePicker, ImageLightbox, ReferenceImageGallery } from './ReferenceImages';
 import { useEditorDoc } from '../hooks/useEditorTransactions';
+import { collectSceneBriefs, costumesIn, type SceneBrief } from '../utils/sceneDetails';
+import { newCostumeId, type CharacterCostume } from '../utils/characterCostumes';
+import { lookForScene, locationNamed } from '../utils/locationData';
+import { goToPosition, useNarrowPanel, jumpToPanel } from '../utils/storyPanels';
+import { CompletenessRing, DraftText, ImageSlot, StoryPanelHeader, StoryPanelTabs, type CompletenessField } from './StoryPanelParts';
 
 // Default colors for auto-assignment (VIBGYOR palette)
 const DEFAULT_HIGHLIGHT_COLORS = [
   '#8b5cf6', '#4f46e5', '#2563eb', '#059669', '#eab308',
   '#f97316', '#ef4444', '#000000',
 ];
+const SWATCHES = ['#8b5cf6', '#4f46e5', '#2563eb', '#059669', '#eab308', '#f97316', '#ef4444', '#000000', '#ffffff'];
 
 // Character roles matching industry standard (Final Draft Character Navigator)
 const CHARACTER_ROLES = ['', 'Lead', 'Supporting', 'Featured', 'Background', 'Day Player'];
+
+type CharacterTab = 'profile' | 'story' | 'voice' | 'relationships' | 'scenes';
+const CHARACTER_TABS: readonly CharacterTab[] = ['profile', 'story', 'voice', 'relationships', 'scenes'];
 
 /** Strip HTML tags to get plain text (for collapsed preview and FDX export) */
 function stripHtml(html: string): string {
   if (!html) return '';
   return DOMPurify.sanitize(html, { ALLOWED_TAGS: [] }).replace(/\s+/g, ' ').trim();
+}
+
+function initials(name: string): string {
+  return name.split(/\s+/).filter(Boolean).map((w) => w[0]).join('').slice(0, 2);
 }
 
 const REL_TYPES = ['allies', 'rivals', 'family', 'romantic', 'mentor', 'antagonist', 'employer', 'friends'];
@@ -99,6 +124,8 @@ interface CharacterProfilesProps {
   style?: React.CSSProperties;
 }
 
+interface CharStats { dialogueCount: number; sceneCount: number; scenes: SceneBrief[]; appearanceOrder: number }
+
 const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId, style }) => {
   const { t } = useTranslation(['story', 'common']);
   const {
@@ -114,32 +141,35 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
     selectedCharacter,
     setSelectedCharacter,
   } = useEditorStore();
+  const profileFocus = useEditorStore((s) => s.profileFocus);
+  const setProfileFocus = useEditorStore((s) => s.setProfileFocus);
 
   const currentScriptId = useProjectStore((s) => s.currentScriptId);
   const { assets, setAssets } = useAssetStore();
+  const locations = useLocationStore((s) => s.locations);
+  const loadLocations = useLocationStore((s) => s.load);
 
-  const [activeTab, setActiveTab] = useState<'profiles' | 'map'>('profiles');
-  const [addRelFor, setAddRelFor] = useState<string | null>(null); // character name to add rel for
-  const [expandedChar, setExpandedChar] = useState<string | null>(null);
+  const [listView, setListView] = useState<'profiles' | 'map'>('profiles');
+  const [current, setCurrent] = useState<string | null>(null);
+  const [tab, setTab] = useState<CharacterTab>('profile');
+  const [costumeFilter, setCostumeFilter] = useState('');
+  const [addRelFor, setAddRelFor] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showReferred, setShowReferred] = useState(false);
   const sortBy = useEditorStore((s) => s.characterSortBy);
   const setSortBy = useEditorStore((s) => s.setCharacterSortBy);
   const setRenamingCharacter = useEditorStore((s) => s.setRenamingCharacter);
   const [pendingRemoveChar, setPendingRemoveChar] = useState<string | null>(null);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [fsViewMode, setFsViewMode] = useState<'cards' | 'list'>('cards');
-  const [modalChar, setModalChar] = useState<string | null>(null);
+  const [isWide, setIsWide] = useState(false);
+  const [newCostumeName, setNewCostumeName] = useState('');
 
   // Image picker state
   const [imagePickerFor, setImagePickerFor] = useState<string | null>(null);
-  const [imagePickerFilter, setImagePickerFilter] = useState('');
   const [lightboxImage, setLightboxImage] = useState<{ url: string; name: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const uploadTargetRef = useRef<string | null>(null);
   const [uploading, setUploading] = useState(false);
 
-  // Fetch project assets when image picker opens
   const fetchAssets = useCallback(async () => {
     if (!projectId) return;
     try {
@@ -154,17 +184,31 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
     if (imagePickerFor && projectId) fetchAssets();
   }, [imagePickerFor, projectId, fetchAssets]);
 
-  // When a character is clicked in the editor, expand it in the panel
+  // Looks shown on the Scenes tab come from the project's locations.
   useEffect(() => {
-    if (selectedCharacter) {
-      setExpandedChar(selectedCharacter);
-      setSelectedCharacter(null);
-      setTimeout(() => {
-        const card = document.querySelector(`[data-char-name="${selectedCharacter}"]`);
-        card?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      }, 50);
-    }
-  }, [selectedCharacter, setSelectedCharacter]);
+    if (characterProfilesOpen && projectId) void loadLocations(projectId);
+  }, [characterProfilesOpen, projectId, loadLocations]);
+
+  /** Show one character, on a tab if one is named. */
+  const openCharacter = useCallback((name: string, onTab?: string) => {
+    setListView('profiles');
+    setCurrent(characterKey(name) || name);
+    setCostumeFilter('');
+    if (onTab && (CHARACTER_TABS as readonly string[]).includes(onTab)) setTab(onTab as CharacterTab);
+  }, []);
+
+  // A cue clicked in the script, or a name clicked in another panel.
+  useEffect(() => {
+    if (!selectedCharacter) return;
+    openCharacter(selectedCharacter);
+    setSelectedCharacter(null);
+  }, [selectedCharacter, setSelectedCharacter, openCharacter]);
+
+  useEffect(() => {
+    if (!profileFocus || profileFocus.panel !== 'characters') return;
+    openCharacter(profileFocus.name, profileFocus.tab);
+    setProfileFocus(null);
+  }, [profileFocus, setProfileFocus, openCharacter]);
 
   // Auto-sync: ensure every detected character has a profile entry
   useEffect(() => {
@@ -223,7 +267,6 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
         if (/[a-zA-Z]/.test(before) || /[a-z]/.test(after)) return true;
 
         // Extract the whole sentence containing the character name
-        // Find sentence boundaries
         let sentStart = idx;
         while (sentStart > 0 && text[sentStart - 1] !== '.' && text[sentStart - 1] !== '\n') sentStart--;
         let sentEnd = idx + charName.length;
@@ -282,42 +325,34 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
     }
   }, [editor, characterProfiles, upsertCharacterProfile, deleteCharacterProfile]);
 
-  // Compute stats per character: dialogue count, scene appearances, order of appearance
-  interface CharStats { dialogueCount: number; sceneCount: number; scenes: string[]; appearanceOrder: number }
+  const { shouldRender, animationState } = useDelayedUnmount(characterProfilesOpen, 250);
+  // Its lists are read off the document, so a selection that moves needs no render.
+  const doc = useEditorDoc(editor, shouldRender);
+  const panelRef = useRef<HTMLDivElement>(null);
+  useSwipeDismiss(panelRef, { direction: 'right', onDismiss: toggleCharacterProfiles, enabled: shouldRender && !isWide });
+  const narrowPanel = useNarrowPanel(panelRef, shouldRender, 620);
+  const sideBySide = isWide || !narrowPanel;
+
+  const briefs = useMemo(() => (doc ? collectSceneBriefs(doc) : []), [doc]);
+
+  // Per character: lines, scenes (speaking or noted as there), order of first appearance.
   const charStats = useMemo((): Map<string, CharStats> => {
-    if (!editor) return new Map();
-    const stats = new Map<string, { dialogueCount: number; scenes: Set<string>; appearanceOrder: number }>();
-
-    let currentScene = '';
-    let currentChar = '';
-    let orderCounter = 0;
-    editor.state.doc.descendants((node) => {
-      if (node.type.name === 'sceneHeading') {
-        // Normalized identically to the lookup below — both sides must agree or
-        // the scene match silently fails.
-        currentScene = singleLine(node.textContent);
-      }
-      if (node.type.name === 'character') {
-        currentChar = characterKey(node.textContent);
-        if (!stats.has(currentChar)) {
-          stats.set(currentChar, { dialogueCount: 0, scenes: new Set(), appearanceOrder: orderCounter++ });
+    const stats = new Map<string, CharStats>();
+    let order = 0;
+    for (const scene of briefs) {
+      for (const member of scene.cast) {
+        let s = stats.get(member.name);
+        if (!s) {
+          s = { dialogueCount: 0, sceneCount: 0, scenes: [], appearanceOrder: order++ };
+          stats.set(member.name, s);
         }
-        const s = stats.get(currentChar)!;
-        if (currentScene) s.scenes.add(currentScene);
+        s.dialogueCount += member.lines;
+        s.sceneCount++;
+        s.scenes.push(scene);
       }
-      if (node.type.name === 'dialogue' && currentChar) {
-        const s = stats.get(currentChar);
-        if (s) s.dialogueCount++;
-      }
-      return true;
-    });
-
-    const result = new Map<string, CharStats>();
-    for (const [name, s] of stats) {
-      result.set(name, { dialogueCount: s.dialogueCount, sceneCount: s.scenes.size, scenes: Array.from(s.scenes), appearanceOrder: s.appearanceOrder });
     }
-    return result;
-  }, [editor, editor?.state.doc]);
+    return stats;
+  }, [briefs]);
 
   /** Navigate to first appearance of a character in the script */
   const handleNavigateToCharacter = useCallback(
@@ -338,55 +373,21 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
         return true;
       });
 
-      if (targetPos !== null) {
-        editor.chain().focus().setTextSelection(targetPos).run();
-        const coords = editor.view.coordsAtPos(targetPos);
-        const editorMain = document.querySelector('.editor-main');
-        if (editorMain && coords) {
-          const rect = editorMain.getBoundingClientRect();
-          const scrollTo = editorMain.scrollTop + (coords.top - rect.top) - rect.height / 3;
-          editorMain.scrollTo({ top: scrollTo, behavior: 'auto' });
-        }
-      }
+      if (targetPos !== null) goToPosition(editor, targetPos);
     },
     [editor],
   );
 
-  /** Navigate to a scene heading in the script */
-  const handleNavigateToScene = useCallback(
-    (sceneText: string) => {
-      if (!editor) return;
-      let targetPos: number | null = null;
-
-      editor.state.doc.descendants((node, pos) => {
-        if (targetPos !== null) return false;
-        if (node.type.name === 'sceneHeading') {
-          if (singleLine(node.textContent) === sceneText) {
-            targetPos = pos + 1;
-            return false;
-          }
-        }
-        return true;
-      });
-
-      if (targetPos !== null) {
-        editor.chain().focus().setTextSelection(targetPos).run();
-        const coords = editor.view.coordsAtPos(targetPos);
-        const editorMain = document.querySelector('.editor-main');
-        if (editorMain && coords) {
-          const rect = editorMain.getBoundingClientRect();
-          const scrollTo = editorMain.scrollTop + (coords.top - rect.top) - rect.height / 3;
-          editorMain.scrollTo({ top: scrollTo, behavior: 'auto' });
-        }
-      }
-    },
-    [editor],
-  );
+  /** Show a scene in the script, with Scene Details beside it. */
+  const openScene = useCallback((scene: SceneBrief) => {
+    goToPosition(editor, scene.pos + 1);
+    jumpToPanel('scene-details', 'characters');
+  }, [editor]);
 
   // Detect potential characters mentioned in action lines (ALL-CAPS words 2+ chars)
   // that are not yet in the character list — these may be non-speaking characters
   const unmatchedNames = useMemo(() => {
-    if (!editor) return [];
+    if (!doc) return [];
     const known = new Set<string>();
     for (const c of characters) known.add(c.toUpperCase());
     for (const p of characterProfiles) known.add(p.name);
@@ -405,7 +406,7 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
     ]);
 
     const found = new Set<string>();
-    editor.state.doc.descendants((node) => {
+    doc.descendants((node) => {
       if (node.type.name !== 'action') return true;
       const text = node.textContent;
       // Match sequences of 2+ uppercase words (character names are often multi-word)
@@ -413,11 +414,9 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
       let match;
       while ((match = regex.exec(text)) !== null) {
         const candidate = match[1].trim();
-        // Must be 2+ chars and not be an excluded common word
         if (candidate.length < 2) continue;
         const words = candidate.split(/\s+/);
         if (words.every((w) => EXCLUDE.has(w.replace(/[.']/g, '')))) continue;
-        // Must not already be known
         if (known.has(candidate)) continue;
         found.add(candidate);
       }
@@ -425,7 +424,7 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
     });
 
     return Array.from(found).sort();
-  }, [editor, editor?.state.doc, characters, characterProfiles]);
+  }, [doc, characters, characterProfiles]);
 
   const handleAddUnmatched = useCallback(
     (name: string) => {
@@ -435,12 +434,12 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
     [characterProfiles, upsertCharacterProfile],
   );
 
-  // Characters that have a profile but are no longer detected in the script
-  // Scan the editor doc directly so we don't depend on the store's `characters` timing
+  // Characters that have a profile but are no longer detected in the script.
+  // Scan the document directly so we don't depend on the store's `characters` timing.
   const scriptCharacterNames = useMemo(() => {
     const names = new Set<string>();
-    if (!editor) return names;
-    editor.state.doc.descendants((node) => {
+    if (!doc) return names;
+    doc.descendants((node) => {
       if (node.type.name === 'character') {
         const base = characterKey(node.textContent);
         if (base) names.add(base);
@@ -448,7 +447,7 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
       return true;
     });
     return names;
-  }, [editor, editor?.state.doc]);
+  }, [doc]);
 
   const orphanedNames = useMemo(() => {
     return new Set(
@@ -478,7 +477,6 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
         case 'name':
           return compareText(a, b);
         case 'importance':
-          // scenes + dialogues descending
           return ((sb?.sceneCount ?? 0) + (sb?.dialogueCount ?? 0))
                - ((sa?.sceneCount ?? 0) + (sa?.dialogueCount ?? 0));
         case 'scenes':
@@ -499,7 +497,7 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
     (name: string): CharacterProfile => {
       const existing = characterProfiles.find((p) => p.name === name);
       if (existing) return existing;
-      return { name, description: '', color: '', highlighted: false, gender: '', age: '', role: '', backstory: '', arc: '', speechPattern: '', vocabulary: '', verbalTics: '', sampleDialogue: '', images: [] };
+      return { name, description: '', color: '', highlighted: false, gender: '', age: '', role: '', backstory: '', arc: '', speechPattern: '', vocabulary: '', verbalTics: '', sampleDialogue: '', images: [], costumes: [] };
     },
     [characterProfiles],
   );
@@ -507,52 +505,22 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
   // Voices Table Read cast automatically, shown beside "Automatic".
   const tableReadCasting = useTableReadStore((s) => s.casting);
 
-  /** The Table Read voice for a character (issue #131). */
-  const renderTableReadVoice = (charName: string, prof: CharacterProfile) => (
-    <div className="char-profile-tts-voice">
-      <label className="char-profile-label" htmlFor={`tts-voice-${charName}`}>{t('characters.tableReadVoice')}</label>
-      <VoicePicker
-        id={`tts-voice-${charName}`}
-        value={prof.voice}
-        onChange={(slot, id) => {
-          const voice = { ...(prof.voice ?? {}) };
-          if (id) voice[slot] = id;
-          else delete voice[slot];
-          upsertCharacterProfile(charName, { voice });
-        }}
-        sample={singleLine(prof.sampleDialogue ? stripHtml(prof.sampleDialogue) : '').slice(0, 160) || /* i18n-ignore: spoken sample text for the English voice engine */ `Hello, I'm ${charName.charAt(0) + charName.slice(1).toLowerCase()}.`}
-        automaticVoiceId={tableReadCasting[charName]}
-      />
-    </div>
-  );
-
-  /** Calculate profile completeness as percentage + field breakdown */
-  const getProfileCompleteness = useCallback((profile: CharacterProfile) => {
-    const fields: { label: string; filled: boolean }[] = [
-      { label: t('characters.field.description'), filled: !!stripHtml(profile.description || '').trim() },
-      { label: t('characters.field.gender'), filled: !!profile.gender },
-      { label: t('characters.field.age'), filled: !!profile.age },
-      { label: t('characters.field.role'), filled: !!profile.role },
-      { label: t('characters.field.backstory'), filled: !!stripHtml(profile.backstory || '').trim() },
-      { label: t('characters.field.arc'), filled: !!stripHtml(profile.arc || '').trim() },
-      { label: t('characters.field.speechPattern'), filled: !!stripHtml(profile.speechPattern || '').trim() },
-      { label: t('characters.field.vocabulary'), filled: !!stripHtml(profile.vocabulary || '').trim() },
-      { label: t('characters.field.verbalTics'), filled: !!stripHtml(profile.verbalTics || '').trim() },
-      { label: t('characters.field.image'), filled: (profile.images?.length || 0) > 0 },
-    ];
-    const filled = fields.filter((f) => f.filled).length;
-    const pct = Math.round((filled / fields.length) * 100);
-    return { pct, filled, total: fields.length, fields };
-  }, [t]);
+  /** Profile completeness: which fields are filled in. */
+  const completenessFields = useCallback((profile: CharacterProfile): CompletenessField[] => [
+    { label: t('characters.field.description'), filled: !!stripHtml(profile.description || '').trim() },
+    { label: t('characters.field.gender'), filled: !!profile.gender },
+    { label: t('characters.field.age'), filled: !!profile.age },
+    { label: t('characters.field.role'), filled: !!profile.role },
+    { label: t('characters.field.backstory'), filled: !!stripHtml(profile.backstory || '').trim() },
+    { label: t('characters.field.arc'), filled: !!stripHtml(profile.arc || '').trim() },
+    { label: t('characters.field.speechPattern'), filled: !!stripHtml(profile.speechPattern || '').trim() },
+    { label: t('characters.field.vocabulary'), filled: !!stripHtml(profile.vocabulary || '').trim() },
+    { label: t('characters.field.verbalTics'), filled: !!stripHtml(profile.verbalTics || '').trim() },
+    { label: t('characters.field.image'), filled: (profile.images?.length || 0) > 0 },
+  ], [t]);
 
   // Image helpers
-  const getAssetUrl = useCallback((assetId: string) => {
-    return api.getAssetUrl(projectId, assetId);
-  }, [projectId]);
-
-  const imageAssets = useMemo(() => {
-    return assets.filter((a) => a.mime_type.startsWith('image/'));
-  }, [assets]);
+  const getAssetUrl = useCallback((assetId: string) => api.getAssetUrl(projectId, assetId), [projectId]);
 
   const handleUploadImage = useCallback(async (charName: string, file: File) => {
     if (!projectId) return;
@@ -561,7 +529,7 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
       const data = await api.uploadAsset(projectId, file, [`character:${charName}`]);
       const assetId = data.id || data.asset?.id;
       if (assetId) {
-        const profile = characterProfiles.find((p) => p.name === charName);
+        const profile = useEditorStore.getState().characterProfiles.find((p) => p.name === charName);
         const currentImages = profile?.images || [];
         upsertCharacterProfile(charName, { images: [...currentImages, assetId] });
       }
@@ -572,7 +540,7 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
     } finally {
       setUploading(false);
     }
-  }, [projectId, characterProfiles, upsertCharacterProfile, fetchAssets, t]);
+  }, [projectId, upsertCharacterProfile, fetchAssets, t]);
 
   const handleAssociateAsset = useCallback((charName: string, assetId: string) => {
     const profile = characterProfiles.find((p) => p.name === charName);
@@ -581,28 +549,23 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
       upsertCharacterProfile(charName, { images: [...currentImages, assetId] });
     }
     setImagePickerFor(null);
-    setImagePickerFilter('');
   }, [characterProfiles, upsertCharacterProfile]);
 
   const handleRemoveImage = useCallback((charName: string, assetId: string) => {
     const profile = characterProfiles.find((p) => p.name === charName);
-    const currentImages = profile?.images || [];
-    upsertCharacterProfile(charName, { images: currentImages.filter((id) => id !== assetId) });
+    upsertCharacterProfile(charName, { images: (profile?.images || []).filter((id) => id !== assetId) });
   }, [characterProfiles, upsertCharacterProfile]);
 
   const handleSetPrimaryImage = useCallback((charName: string, assetId: string) => {
     const profile = characterProfiles.find((p) => p.name === charName);
-    const currentImages = profile?.images || [];
-    const filtered = currentImages.filter((id) => id !== assetId);
+    const filtered = (profile?.images || []).filter((id) => id !== assetId);
     upsertCharacterProfile(charName, { images: [assetId, ...filtered] });
   }, [characterProfiles, upsertCharacterProfile]);
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     const charName = uploadTargetRef.current;
-    if (file && charName) {
-      handleUploadImage(charName, file);
-    }
+    if (file && charName) void handleUploadImage(charName, file);
     e.target.value = '';
   }, [handleUploadImage]);
 
@@ -611,795 +574,530 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
     fileInputRef.current?.click();
   }, []);
 
-  /** Render character detail fields — used in both card expansion and modal */
-  const renderCharacterFields = (charName: string, isModal: boolean) => {
-    const prof = getProfile(charName);
-    const st = charStats.get(charName);
-    return (
-      <>
-        {/* Description */}
-        <label className="char-profile-label">{t('characters.field.description')}</label>
-        <MiniRichText
-          value={prof.description}
-          onChange={(html) => upsertCharacterProfile(charName, { description: html })}
-          placeholder={t('characters.placeholder.description')}
-          minHeight={isModal ? 80 : 50}
-        />
+  /** Change one of a character's costumes, or the list of them. */
+  const setCostumes = useCallback((charName: string, change: (list: CharacterCostume[]) => CharacterCostume[]) => {
+    const profile = useEditorStore.getState().characterProfiles.find((p) => p.name === charName);
+    upsertCharacterProfile(charName, { costumes: change(profile?.costumes ?? []) });
+  }, [upsertCharacterProfile]);
 
-        {/* Role / Gender / Age */}
-        <div className="char-profile-meta-row char-profile-meta-row-3">
-          <div className="char-profile-meta-field">
-            <label className="char-profile-label">{t('characters.field.role')}</label>
-            <Select
-              className="char-profile-select"
-              value={prof.role}
-              onChange={(e) => upsertCharacterProfile(charName, { role: e.target.value })}
-            >
-              {CHARACTER_ROLES.map((r) => (
-                <option key={r} value={r}>{r ? characterRoleLabel(t, r) : '—'}</option>
-              ))}
+  if (!shouldRender) return null;
+
+  const panelClass = !isWide && animationState === 'entered'
+    ? 'panel-open' : !isWide && animationState === 'exiting' ? 'panel-closing' : '';
+  const close = () => { setIsWide(false); toggleCharacterProfiles(); };
+  const currentName = current && allCharacters.concat(characterProfiles.map((p) => p.name)).includes(current) ? current : null;
+  const shownName = currentName ?? (sideBySide && listView === 'profiles' ? allCharacters[0] ?? null : null);
+
+  // ── The list ──
+
+  const tabsBar = (
+    <StoryPanelTabs
+      value={listView}
+      onChange={setListView}
+      label={t('characters.title')}
+      tabs={[{ id: 'profiles', label: t('characters.tabProfiles') }, { id: 'map', label: t('characters.tabMap') }]}
+    />
+  );
+
+  const map = (
+    <div className="sp-body">
+      <RelationshipMap
+        key={currentScriptId || 'no-script'}
+        scriptId={currentScriptId || undefined}
+        onSelectCharacter={(name) => openCharacter(name, 'relationships')}
+      />
+    </div>
+  );
+
+  const list = (
+    <div className="sp-master">
+      {tabsBar}
+          <div className="sp-tools">
+            <input
+              type="search"
+              className="sp-input"
+              style={{ flex: 1, minWidth: 120, width: 'auto' }}
+              placeholder={t('characters.placeholder.search')}
+              aria-label={t('characters.placeholder.search')}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            <button type="button" className="sp-btn" onClick={handleBuildFromScript} title={t('characters.buildFromScriptTitle')}>
+              {t('characters.buildFromScript')}
+            </button>
+          </div>
+          <div className="sp-tools" style={{ paddingTop: 0 }}>
+            <label className="sp-label" htmlFor="char-sort">{t('characters.sort.label')}</label>
+            <Select id="char-sort" className="sp-select" style={{ flex: 1, width: 'auto' }} value={sortBy} onChange={(e) => setSortBy(e.target.value as typeof sortBy)}>
+              <option value="name">{t('characters.sort.name')}</option>
+              <option value="importance">{t('characters.sort.importance')}</option>
+              <option value="scenes">{t('characters.sort.scenes')}</option>
+              <option value="dialogues">{t('characters.sort.dialogues')}</option>
+              <option value="appearance">{t('characters.sort.appearance')}</option>
             </Select>
           </div>
-          <div className="char-profile-meta-field">
-            <label className="char-profile-label">{t('characters.field.gender')}</label>
-            <input
-              type="text"
-              className="char-profile-input"
-              value={prof.gender}
-              onChange={(e) => upsertCharacterProfile(charName, { gender: e.target.value })}
-              placeholder={t('characters.placeholder.gender')}
-            />
+          <div className="sp-list">
+            {allCharacters.length === 0 ? (
+              <div className="sp-empty">{searchQuery ? t('characters.noMatch') : t('characters.noneDetected')}</div>
+            ) : allCharacters.map((name) => {
+              const profile = getProfile(name);
+              const stats = charStats.get(name);
+              const image = profile.images?.[0];
+              const plain = stripHtml(profile.description || '');
+              const role = profile.role ? characterRoleLabel(t, profile.role) : t('characters.noRole');
+              return (
+                <button
+                  key={name}
+                  type="button"
+                  data-char-name={name}
+                  className={`sp-row${shownName === name ? ' current' : ''}${orphanedNames.has(name) ? ' orphan' : ''}`}
+                  onClick={() => openCharacter(name)}
+                >
+                  {image && projectId
+                    ? <img className="sp-avatar" src={getAssetUrl(image)} alt="" />
+                    : <span className="sp-avatar" style={{ background: profile.color || '#999' }} aria-hidden="true">{initials(name)}</span>}
+                  <span className="sp-row-main">
+                    <span className="sp-row-name">{name}</span>
+                    <span className="sp-row-sub">{plain || t('characters.noDescription')}</span>
+                    <span className="sp-row-sub">
+                      {stats
+                        ? `${role} · ${t('characters.linesShort', { count: stats.dialogueCount })} · ${t('characters.scenesShort', { count: stats.sceneCount })}`
+                        : `${role} · ${t('characters.notInScript')}`}
+                    </span>
+                  </span>
+                  <CompletenessRing fields={completenessFields(profile)} />
+                </button>
+              );
+            })}
           </div>
-          <div className="char-profile-meta-field">
-            <label className="char-profile-label">{t('characters.field.age')}</label>
-            <input
-              type="text"
-              className="char-profile-input"
-              value={prof.age}
-              onChange={(e) => upsertCharacterProfile(charName, { age: e.target.value })}
-              placeholder={t('characters.placeholder.age')}
+          {unmatchedNames.length > 0 && (
+            <div className="sp-tools" style={{ borderTop: '1px solid var(--fd-border)' }}>
+              <button type="button" className="sp-btn" style={{ width: '100%' }} onClick={() => setShowReferred(true)}>
+                {t('characters.referredButton', { n: unmatchedNames.length })}
+              </button>
+            </div>
+          )}
+    </div>
+  );
+
+  // ── One character ──
+
+  const renderProfileTab = (name: string, prof: CharacterProfile) => {
+    const owned = prof.costumes ?? [];
+    const scenesWith = (costumeId: string) => (charStats.get(name)?.scenes ?? [])
+      .filter((s) => costumesIn(s.details, name).some((c) => c.costumeId === costumeId)).length;
+    return (
+      <>
+        {projectId && (
+          <div className="sp-field">
+            <ReferenceImageGallery
+              imageIds={prof.images || []}
+              name={name}
+              getUrl={getAssetUrl}
+              onOpen={(id) => setLightboxImage({ url: getAssetUrl(id), name })}
+              onSetPrimary={(id) => handleSetPrimaryImage(name, id)}
+              onRemove={(id) => handleRemoveImage(name, id)}
             />
+            <div className="char-profile-image-actions">
+              <button className="char-profile-img-btn" onClick={() => triggerUpload(name)} disabled={uploading} title={t('characters.uploadImageTitle')}>
+                {uploading ? t('characters.uploading') : t('characters.uploadImage')}
+              </button>
+              <button className="char-profile-img-btn" onClick={() => setImagePickerFor(name)} title={t('characters.fromAssetsTitle')}>
+                {t('characters.fromAssets')}
+              </button>
+            </div>
+          </div>
+        )}
+        <div className="sp-field">
+          <label className="sp-label">{t('characters.field.description')}</label>
+          <MiniRichText
+            value={prof.description}
+            onChange={(html) => upsertCharacterProfile(name, { description: html })}
+            placeholder={t('characters.placeholder.description')}
+            minHeight={60}
+          />
+        </div>
+        <div className="sp-cols2" style={{ gridTemplateColumns: 'minmax(0,1.3fr) minmax(0,1fr) minmax(0,1fr)' }}>
+          <div className="sp-field">
+            <label className="sp-label" htmlFor={`char-role-${name}`}>{t('characters.field.role')}</label>
+            <Select id={`char-role-${name}`} className="sp-select" value={prof.role} onChange={(e) => upsertCharacterProfile(name, { role: e.target.value })}>
+              {CHARACTER_ROLES.map((r) => <option key={r} value={r}>{r ? characterRoleLabel(t, r) : '—'}</option>)}
+            </Select>
+          </div>
+          <div className="sp-field">
+            <label className="sp-label" htmlFor={`char-gender-${name}`}>{t('characters.field.gender')}</label>
+            <input id={`char-gender-${name}`} type="text" className="sp-input" value={prof.gender}
+              onChange={(e) => upsertCharacterProfile(name, { gender: e.target.value })} placeholder={t('characters.placeholder.gender')} />
+          </div>
+          <div className="sp-field">
+            <label className="sp-label" htmlFor={`char-age-${name}`}>{t('characters.field.age')}</label>
+            <input id={`char-age-${name}`} type="text" className="sp-input" value={prof.age}
+              onChange={(e) => upsertCharacterProfile(name, { age: e.target.value })} placeholder={t('characters.placeholder.age')} />
           </div>
         </div>
 
-        {/* Images */}
-        {prof.images && prof.images.length > 0 && projectId && (
-          <div className="char-profile-images">
-            <div className="char-profile-images-primary">
-              <img
-                src={getAssetUrl(prof.images[0])}
-                alt={charName}
-                className="char-profile-image-main"
-                onClick={() => setLightboxImage({ url: getAssetUrl(prof.images[0]), name: charName })}
-              />
-            </div>
-            {prof.images.length > 1 && (
-              <div className="char-profile-images-strip">
-                {prof.images.map((imgId, idx) => (
-                  <div key={imgId} className={`char-profile-thumb-wrap${idx === 0 ? ' active' : ''}`}>
-                    <img
-                      src={getAssetUrl(imgId)}
-                      alt={`${charName} ${idx + 1}`}
-                      className="char-profile-thumb"
-                      onClick={() => setLightboxImage({ url: getAssetUrl(imgId), name: charName })}
-                    />
-                    {idx > 0 && (
-                      <button
-                        className="char-profile-thumb-primary"
-                        onClick={() => handleSetPrimaryImage(charName, imgId)}
-                        title={t('characters.setPrimaryImage')}
-                      >
-                        &#9733;
-                      </button>
-                    )}
-                    <button
-                      className="char-profile-thumb-remove"
-                      onClick={() => handleRemoveImage(charName, imgId)}
-                      title={t('characters.removeImage')}
-                    >
-                      &times;
-                    </button>
-                  </div>
-                ))}
+        <div className="sp-field">
+          <div className="sp-sec">{t('characters.costumes')} <span className="sp-sec-count">{owned.length || ''}</span><small>{t('characters.costumesHelp')}</small></div>
+          <div className="sp-owned">
+            {owned.length === 0 && <div className="sp-note">{t('characters.noCostumes')}</div>}
+            {owned.map((c) => (
+              <div key={c.id} className="sp-owned-row">
+                <ImageSlot
+                  small
+                  projectId={projectId}
+                  assetId={c.imageAssetId}
+                  name={`${name} · ${c.name}`}
+                  uploadTag={`costume:${name}`}
+                  onChange={(assetId) => setCostumes(name, (l) => l.map((x) => (x.id === c.id ? { ...x, imageAssetId: assetId } : x)))}
+                />
+                <DraftText
+                  value={c.name}
+                  aria-label={t('characters.costumeName')}
+                  onCommit={(v) => { if (v.trim()) setCostumes(name, (l) => l.map((x) => (x.id === c.id ? { ...x, name: v.trim() } : x))); }}
+                />
+                <span className="sp-note" style={{ whiteSpace: 'nowrap' }}>{t('characters.scenesShort', { count: scenesWith(c.id) })}</span>
+                <button
+                  type="button"
+                  className="sp-icon-btn"
+                  onClick={() => setCostumes(name, (l) => l.filter((x) => x.id !== c.id))}
+                  title={t('characters.removeCostume', { costume: c.name })}
+                  aria-label={t('characters.removeCostume', { costume: c.name })}
+                >
+                  &times;
+                </button>
               </div>
-            )}
-          </div>
-        )}
-
-        {projectId && (
-          <div className="char-profile-image-actions">
-            <button
-              className="char-profile-img-btn"
-              onClick={() => triggerUpload(charName)}
-              disabled={uploading}
-              title={t('characters.uploadImageTitle')}
+            ))}
+            <form
+              className="sp-inline-form"
+              onSubmit={(e) => {
+                e.preventDefault();
+                const clean = newCostumeName.trim();
+                if (!clean) return;
+                setCostumes(name, (l) => [...l, { id: newCostumeId(), name: clean, imageAssetId: null, notes: '' }]);
+                setNewCostumeName('');
+              }}
             >
-              {uploading ? t('characters.uploading') : t('characters.uploadImage')}
-            </button>
-            <button
-              className="char-profile-img-btn"
-              onClick={() => { setImagePickerFor(charName); setImagePickerFilter(''); }}
-              title={t('characters.fromAssetsTitle')}
-            >
-              {t('characters.fromAssets')}
-            </button>
+              <input
+                className="sp-input"
+                value={newCostumeName}
+                placeholder={t('characters.newCostumePlaceholder')}
+                aria-label={t('characters.addCostume')}
+                onChange={(e) => setNewCostumeName(e.target.value)}
+              />
+              <button type="submit" className="sp-btn" disabled={!newCostumeName.trim()}>{t('characters.addCostume')}</button>
+            </form>
           </div>
-        )}
+        </div>
 
-        {/* Backstory */}
-        <label className="char-profile-label">{t('characters.field.backstory')}</label>
-        <MiniRichText
-          value={prof.backstory}
-          onChange={(html) => upsertCharacterProfile(charName, { backstory: html })}
-          placeholder={t('characters.placeholder.backstory')}
-          minHeight={isModal ? 100 : 60}
-        />
-
-        {/* Character Arc */}
-        <label className="char-profile-label">{t('characters.field.arc')}</label>
-        <MiniRichText
-          value={prof.arc || ''}
-          onChange={(html) => upsertCharacterProfile(charName, { arc: html })}
-          placeholder={t('characters.placeholder.arc')}
-          minHeight={isModal ? 80 : 50}
-        />
-
-        {renderTableReadVoice(charName, prof)}
-
-        {/* Voice Profile (collapsible) */}
-        <details className="char-profile-voice-section">
-          <summary className="char-profile-label char-profile-voice-toggle">{t('characters.field.voiceProfile')}</summary>
-          <div className="char-profile-voice-fields">
-            <label className="char-profile-label">{t('characters.field.speechPattern')}</label>
-            <MiniRichText
-              value={prof.speechPattern || ''}
-              onChange={(html) => upsertCharacterProfile(charName, { speechPattern: html })}
-              placeholder={t('characters.placeholder.speechPattern')}
-              minHeight={40}
-            />
-            <label className="char-profile-label">{t('characters.field.vocabulary')}</label>
-            <MiniRichText
-              value={prof.vocabulary || ''}
-              onChange={(html) => upsertCharacterProfile(charName, { vocabulary: html })}
-              placeholder={t('characters.placeholder.vocabulary')}
-              minHeight={40}
-            />
-            <label className="char-profile-label">{t('characters.field.verbalTics')}</label>
-            <MiniRichText
-              value={prof.verbalTics || ''}
-              onChange={(html) => upsertCharacterProfile(charName, { verbalTics: html })}
-              placeholder={t('characters.placeholder.verbalTics')}
-              minHeight={40}
-            />
-            <label className="char-profile-label">{t('characters.field.sampleDialogue')}</label>
-            <MiniRichText
-              value={prof.sampleDialogue || ''}
-              onChange={(html) => upsertCharacterProfile(charName, { sampleDialogue: html })}
-              placeholder={t('characters.placeholder.sampleDialogue')}
-              minHeight={40}
-            />
-          </div>
-        </details>
-
-        {/* Color + Highlight */}
-        <div className="char-profile-color-highlight">
-          <label className="char-profile-label">{t('characters.field.color')}</label>
-          <div className="char-color-swatches">
-            {['#8b5cf6','#4f46e5','#2563eb','#059669','#eab308','#f97316','#ef4444','#000000','#ffffff'].map(c => (
-              <button key={c} className={`synopsis-color-swatch${(prof.color || '') === c ? ' active' : ''}`} style={{ background: c }} onClick={() => upsertCharacterProfile(charName, { color: c })} />
+        <div className="sp-field">
+          <label className="sp-label">{t('characters.field.color')}</label>
+          <div className="sp-swatches">
+            {SWATCHES.map((c) => (
+              <button key={c} type="button" aria-label={c} className={`synopsis-color-swatch${(prof.color || '') === c ? ' active' : ''}`}
+                style={{ background: c }} onClick={() => upsertCharacterProfile(name, { color: c })} />
             ))}
             <label className="synopsis-color-custom" title={t('characters.customColor')}>
-              <input type="color" value={prof.color || '#999999'} onChange={(e) => upsertCharacterProfile(charName, { color: e.target.value })} />
+              <input type="color" value={prof.color || '#999999'} onChange={(e) => upsertCharacterProfile(name, { color: e.target.value })} />
               <span>+</span>
             </label>
-          </div>
-          <div className="char-profile-highlight-inline">
-            <label className="char-profile-label" style={{ marginBottom: 0 }}>{t('characters.field.highlight')}</label>
+            <span className="sp-grow" />
+            <label className="sp-label" style={{ margin: 0 }}>{t('characters.field.highlight')}</label>
             <button
+              type="button"
               className={`char-profile-highlight-btn${prof.highlighted ? ' active' : ''}`}
-              onClick={() => upsertCharacterProfile(charName, { highlighted: !prof.highlighted })}
+              aria-pressed={prof.highlighted}
+              onClick={() => upsertCharacterProfile(name, { highlighted: !prof.highlighted })}
               style={prof.highlighted ? { background: prof.color || '#999', borderColor: prof.color || '#999' } : undefined}
             >
               {prof.highlighted ? t('common:on') : t('common:off')}
             </button>
           </div>
         </div>
+      </>
+    );
+  };
 
-        {/* Relationships (before scenes) */}
-        {(() => {
-          const nameUpper = charName.toUpperCase();
-          const rels = characterRelationships.filter(
-            (r) => r.characterA === nameUpper || r.characterB === nameUpper
-          );
-          const isAdding = addRelFor === nameUpper;
+  const renderStoryTab = (name: string, prof: CharacterProfile) => (
+    <>
+      <div className="sp-field">
+        <label className="sp-label">{t('characters.field.backstory')}</label>
+        <MiniRichText value={prof.backstory} onChange={(html) => upsertCharacterProfile(name, { backstory: html })}
+          placeholder={t('characters.placeholder.backstory')} minHeight={110} />
+      </div>
+      <div className="sp-field">
+        <label className="sp-label">{t('characters.field.arc')}</label>
+        <MiniRichText value={prof.arc || ''} onChange={(html) => upsertCharacterProfile(name, { arc: html })}
+          placeholder={t('characters.placeholder.arc')} minHeight={80} />
+      </div>
+    </>
+  );
+
+  const renderVoiceTab = (name: string, prof: CharacterProfile) => (
+    <>
+      <div className="char-profile-tts-voice">
+        <label className="sp-label" htmlFor={`tts-voice-${name}`}>{t('characters.tableReadVoice')}</label>
+        <VoicePicker
+          id={`tts-voice-${name}`}
+          value={prof.voice}
+          onChange={(slot, id) => {
+            const voice = { ...(prof.voice ?? {}) };
+            if (id) voice[slot] = id;
+            else delete voice[slot];
+            upsertCharacterProfile(name, { voice });
+          }}
+          sample={singleLine(prof.sampleDialogue ? stripHtml(prof.sampleDialogue) : '').slice(0, 160) || /* i18n-ignore: spoken sample text for the English voice engine */ `Hello, I'm ${name.charAt(0) + name.slice(1).toLowerCase()}.`}
+          automaticVoiceId={tableReadCasting[name]}
+        />
+      </div>
+      <div className="sp-sec">{t('characters.field.voiceProfile')}</div>
+      <div className="sp-cols2">
+        <div className="sp-field">
+          <label className="sp-label">{t('characters.field.speechPattern')}</label>
+          <MiniRichText value={prof.speechPattern || ''} onChange={(html) => upsertCharacterProfile(name, { speechPattern: html })}
+            placeholder={t('characters.placeholder.speechPatternShort')} minHeight={44} />
+        </div>
+        <div className="sp-field">
+          <label className="sp-label">{t('characters.field.vocabulary')}</label>
+          <MiniRichText value={prof.vocabulary || ''} onChange={(html) => upsertCharacterProfile(name, { vocabulary: html })}
+            placeholder={t('characters.placeholder.vocabularyShort')} minHeight={44} />
+        </div>
+        <div className="sp-field">
+          <label className="sp-label">{t('characters.field.verbalTics')}</label>
+          <MiniRichText value={prof.verbalTics || ''} onChange={(html) => upsertCharacterProfile(name, { verbalTics: html })}
+            placeholder={t('characters.placeholder.verbalTicsShort')} minHeight={44} />
+        </div>
+        <div className="sp-field">
+          <label className="sp-label">{t('characters.field.sampleDialogue')}</label>
+          <MiniRichText value={prof.sampleDialogue || ''} onChange={(html) => upsertCharacterProfile(name, { sampleDialogue: html })}
+            placeholder={t('characters.placeholder.sampleDialogueShort')} minHeight={44} />
+        </div>
+      </div>
+    </>
+  );
+
+  const renderRelationshipsTab = (name: string) => {
+    const rels = characterRelationships.filter((r) => r.characterA === name || r.characterB === name);
+    const isAdding = addRelFor === name;
+    return (
+      <div className="char-profile-relationships">
+        {rels.map((r) => {
+          const other = r.characterA === name ? r.characterB : r.characterA;
           return (
-            <div className="char-profile-relationships">
-              <div className="char-profile-rel-header-row">
-                <label className="char-profile-label" style={{ marginBottom: 0 }}>{t('characters.field.relationships')}</label>
-                {!isAdding && (
-                  <button className="char-profile-rel-add-btn" onClick={() => setAddRelFor(nameUpper)}>{t('characters.addRelationship')}</button>
-                )}
+            <div key={r.id} className="char-profile-rel-item">
+              <div className="char-profile-rel-header">
+                <button type="button" className="sp-link char-profile-rel-other" onClick={() => openCharacter(other, 'relationships')}>{other}</button>
+                <span className="char-profile-rel-type">{relTypeLabel(t, r.type)}</span>
+                {r.dynamic && <span className="char-profile-rel-dynamic">{relDynamicLabel(t, r.dynamic)}</span>}
+                <button className="char-profile-rel-remove" onClick={() => deleteCharacterRelationship(r.id)} title={t('characters.removeRelationship')}>&times;</button>
               </div>
-              {rels.map((r) => {
-                const other = r.characterA === nameUpper ? r.characterB : r.characterA;
-                return (
-                  <div key={r.id} className="char-profile-rel-item">
-                    <div className="char-profile-rel-header">
-                      <span className="char-profile-rel-other">{other}</span>
-                      <span className="char-profile-rel-type">{relTypeLabel(t, r.type)}</span>
-                      {r.dynamic && <span className="char-profile-rel-dynamic">{relDynamicLabel(t, r.dynamic)}</span>}
-                      <button
-                        className="char-profile-rel-remove"
-                        onClick={() => deleteCharacterRelationship(r.id)}
-                        title={t('characters.removeRelationship')}
-                      >&times;</button>
-                    </div>
-                    {r.description && <div className="char-profile-rel-desc">{r.description}</div>}
-                  </div>
-                );
-              })}
-              {rels.length === 0 && !isAdding && (
-                <div className="char-profile-rel-empty">{t('characters.noRelationships')}</div>
-              )}
-              {isAdding && (
-                <InlineRelForm
-                  characterName={nameUpper}
-                  allCharacters={allCharacters}
-                  onSave={(rel) => {
-                    upsertCharacterRelationship(rel);
-                    setAddRelFor(null);
-                  }}
-                  onCancel={() => setAddRelFor(null)}
-                />
-              )}
+              {r.description && <div className="char-profile-rel-desc">{r.description}</div>}
             </div>
           );
-        })()}
+        })}
+        {rels.length === 0 && !isAdding && <div className="char-profile-rel-empty">{t('characters.noRelationships')}</div>}
+        {isAdding ? (
+          <InlineRelForm
+            characterName={name}
+            allCharacters={allCharacters}
+            onSave={(rel) => { upsertCharacterRelationship(rel); setAddRelFor(null); }}
+            onCancel={() => setAddRelFor(null)}
+          />
+        ) : (
+          <div className="sp-chips" style={{ marginTop: 8 }}>
+            <button type="button" className="sp-btn sp-btn-dashed" onClick={() => setAddRelFor(name)}>{t('characters.addRelationship')}</button>
+            <button type="button" className="sp-btn" onClick={() => { setListView('map'); if (!sideBySide) setCurrent(null); }}>{t('characters.openMap')}</button>
+          </div>
+        )}
+      </div>
+    );
+  };
 
-        {/* Scene appearances (collapsed by default) */}
-        {st && st.scenes.length > 0 && (
-          <details className="char-profile-scenes-collapsible">
-            <summary className="char-profile-label char-profile-scenes-toggle">
-              {t('characters.appearsIn', { count: st.scenes.length })}
-            </summary>
-            <div className="char-profile-scene-chips">
-              {st.scenes.map((s, i) => (
-                <span key={i} className="char-profile-scene-chip" onClick={() => handleNavigateToScene(s)} title={t('characters.goTo', { scene: s })}>{s}</span>
-              ))}
-            </div>
-          </details>
+  const renderScenesTab = (name: string, prof: CharacterProfile) => {
+    const stats = charStats.get(name);
+    const scenes = stats?.scenes ?? [];
+    if (!scenes.length) return <div className="sp-note">{t('characters.noScenesYet')}</div>;
+    const owned = prof.costumes ?? [];
+    const costumeName = (id: string) => owned.find((c) => c.id === id)?.name ?? t('sceneDetails.costumeGone');
+    const rows = scenes.map((s, i) => {
+      const worn = costumesIn(s.details, name);
+      const prev = i ? costumesIn(scenes[i - 1].details, name) : [];
+      const changed = i > 0 && worn.length > 0 && prev.length > 0 && prev[prev.length - 1].costumeId !== worn[0].costumeId;
+      const record = s.location ? locationNamed(locations, s.location) : null;
+      const look = record ? lookForScene(record.looks, s.details.lookId, s.timeOfDay) : null;
+      const member = s.cast.find((m) => m.name === name);
+      return { s, worn, changed, record, look, lines: member?.lines ?? 0, silent: !!member?.silent, with: s.cast.filter((m) => m.name !== name).map((m) => m.name) };
+    }).filter((r) => !costumeFilter || r.worn.some((w) => w.costumeId === costumeFilter));
+
+    const costumesCell = (r: typeof rows[number]) => (r.worn.length ? (
+      <span className="sp-chips">
+        {r.worn.map((w, j) => (
+          <React.Fragment key={w.costumeId}>
+            {j > 0 && <span className="sp-note">{t('characters.then')}</span>}
+            <span className="sp-chip" title={w.when || undefined}>{costumeName(w.costumeId)}</span>
+          </React.Fragment>
+        ))}
+        {r.changed && <span className="sp-change">{t('characters.change')}</span>}
+      </span>
+    ) : <span className="sp-note">{t('characters.notSet')}</span>);
+    const locationCell = (r: typeof rows[number]) => (r.s.location ? (
+      <span>
+        <button type="button" className="sp-link" onClick={() => {
+          setProfileFocus({ panel: 'locations', name: r.record?.name ?? r.s.location, tab: 'scenes' });
+          jumpToPanel('location-db', 'characters');
+        }}>{r.record?.name ?? r.s.location}</button>
+        {r.look && <span className="sp-note"> {r.look.name}</span>}
+      </span>
+    ) : <span className="sp-note">—</span>);
+    const withCell = (r: typeof rows[number]) => (r.with.length ? r.with.join(', ') : <span className="sp-note">{t('characters.alone')}</span>);
+    const linesCell = (r: typeof rows[number]) => (r.silent ? t('sceneDetails.doesNotSpeak') : r.lines);
+
+    return (
+      <>
+        <div className="sp-chips">
+          <button type="button" className={`sp-btn${!costumeFilter ? ' sp-btn-primary' : ''}`} onClick={() => setCostumeFilter('')}>
+            {t('characters.allScenes', { count: scenes.length })}
+          </button>
+          {owned.map((c) => (
+            <button key={c.id} type="button" className={`sp-btn${costumeFilter === c.id ? ' sp-btn-primary' : ''}`} onClick={() => setCostumeFilter(c.id)}>
+              {c.name} · {scenes.filter((s) => costumesIn(s.details, name).some((w) => w.costumeId === c.id)).length}
+            </button>
+          ))}
+        </div>
+        {sideBySide ? (
+          <div className="sp-table-wrap">
+            <table className="sp-table">
+              <thead>
+                <tr>
+                  <th>{t('characters.col.number')}</th><th>{t('characters.col.scene')}</th><th>{t('characters.col.location')}</th>
+                  <th>{t('characters.col.costumes')}</th><th>{t('characters.col.with')}</th><th>{t('characters.col.lines')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr key={r.s.pos}>
+                    <td className="sp-note">{r.s.number ?? r.s.index + 1}</td>
+                    <td><button type="button" className="sp-link" onClick={() => openScene(r.s)}>{r.s.heading || t('sceneDetails.untitled')}</button></td>
+                    <td>{locationCell(r)}</td>
+                    <td>{costumesCell(r)}</td>
+                    <td>{withCell(r)}</td>
+                    <td>{linesCell(r)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="sp-stack" style={{ gap: 8 }}>
+            {rows.map((r) => (
+              <div key={r.s.pos} className="sp-scard">
+                <div className="sp-scard-head">
+                  <span className="sp-scene-num" style={r.s.color ? { background: r.s.color } : undefined}>{r.s.number ?? r.s.index + 1}</span>
+                  <button type="button" className="sp-link" onClick={() => openScene(r.s)}>{r.s.heading || t('sceneDetails.untitled')}</button>
+                  <span className="sp-grow" />
+                  <span className="sp-note" style={{ whiteSpace: 'nowrap' }}>{r.silent ? t('sceneDetails.doesNotSpeak') : t('characters.linesShort', { count: r.lines })}</span>
+                </div>
+                <dl className="sp-kv">
+                  <dt>{t('characters.costumes')}</dt><dd>{costumesCell(r)}</dd>
+                  <dt>{t('characters.col.location')}</dt><dd>{locationCell(r)}</dd>
+                  <dt>{t('characters.col.with')}</dt><dd>{withCell(r)}</dd>
+                </dl>
+              </div>
+            ))}
+          </div>
         )}
       </>
     );
   };
 
-  const { shouldRender, animationState } = useDelayedUnmount(characterProfilesOpen, 250);
-  // Its lists are read off the document, so a selection that moves needs no render.
-  useEditorDoc(editor, shouldRender);
-  const panelRef = useRef<HTMLDivElement>(null);
-  useSwipeDismiss(panelRef, { direction: 'right', onDismiss: toggleCharacterProfiles, enabled: shouldRender && !isFullscreen });
+  const detail = (name: string) => {
+    const prof = getProfile(name);
+    const stats = charStats.get(name);
+    const image = prof.images?.[0];
+    const relCount = characterRelationships.filter((r) => r.characterA === name || r.characterB === name).length;
+    return (
+      <div className="sp-detail">
+        <div className="sp-head">
+          {!sideBySide && (
+            <button type="button" className="sp-icon-btn" onClick={() => setCurrent(null)} title={t('characters.backToList')} aria-label={t('characters.backToList')}>&#8249;</button>
+          )}
+          {image && projectId
+            ? <img className="sp-avatar" style={{ width: 26, height: 26 }} src={getAssetUrl(image)} alt="" />
+            : <span className="sp-avatar" style={{ width: 26, height: 26, fontSize: 10, background: prof.color || '#999' }} aria-hidden="true">{initials(name)}</span>}
+          <h2 className="sp-title sp-title-record">{name}</h2>
+          <CompletenessRing fields={completenessFields(prof)} />
+          <span className="sp-grow" />
+          {stats && (
+            <button type="button" className="sp-icon-btn" onClick={() => handleNavigateToCharacter(name)} title={t('characters.navigateToFirst')} aria-label={t('characters.navigateToFirst')}>&#8594;</button>
+          )}
+          <button type="button" className="sp-btn" onClick={() => setRenamingCharacter(name)} title={t('characters.renameEverywhere')} aria-label={t('characters.renameNamed', { name })}>
+            {t('characters.rename')}
+          </button>
+          {!sideBySide && (
+            <>
+              <button type="button" className="sp-icon-btn sp-wide-btn" onClick={() => setIsWide(true)} title={t('storyPanels.wideView')} aria-label={t('storyPanels.wideView')}>&#x26F6;</button>
+              <button type="button" className="sp-icon-btn" onClick={close} title={t('common:close')} aria-label={t('common:close')}>&times;</button>
+            </>
+          )}
+        </div>
+        <StoryPanelTabs
+          value={tab}
+          onChange={setTab}
+          label={name}
+          tabs={[
+            { id: 'profile', label: t('characters.tab.profile') },
+            { id: 'story', label: t('characters.tab.story') },
+            { id: 'voice', label: t('characters.tab.voice') },
+            { id: 'relationships', label: <>{t('characters.tab.relationships')}{relCount > 0 && <span className="sp-tab-count">{relCount}</span>}</> },
+            { id: 'scenes', label: <>{t('characters.tab.scenes')}{stats && <span className="sp-tab-count">{stats.sceneCount}</span>}</> },
+          ]}
+        />
+        <div className="sp-body">
+          {orphanedNames.has(name) && (
+            <div className="sp-banner">
+              <span>{t('characters.notInScript')}</span>
+              <span className="sp-grow" />
+              <button type="button" className="sp-btn sp-btn-danger" onClick={() => setPendingRemoveChar(name)}>{t('common:remove')}</button>
+            </div>
+          )}
+          {tab === 'profile' && renderProfileTab(name, prof)}
+          {tab === 'story' && renderStoryTab(name, prof)}
+          {tab === 'voice' && renderVoiceTab(name, prof)}
+          {tab === 'relationships' && renderRelationshipsTab(name)}
+          {tab === 'scenes' && renderScenesTab(name, prof)}
+        </div>
+      </div>
+    );
+  };
 
-  if (!shouldRender) return null;
-
-  const panelClass = !isFullscreen && animationState === 'entered'
-    ? 'panel-open' : !isFullscreen && animationState === 'exiting' ? 'panel-closing' : '';
+  const showRecordAlone = !sideBySide && !!currentName && listView === 'profiles';
 
   return (
-    <div ref={panelRef} className={`char-profiles-panel${isFullscreen ? ' char-profiles-fullscreen' : ''}${isFullscreen && fsViewMode === 'list' ? ' char-fs-list-mode' : ''} ${panelClass}`} style={isFullscreen ? undefined : style}>
-      {/* Hidden file input for image uploads */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        style={{ display: 'none' }}
-        onChange={handleFileSelect}
-      />
+    <div
+      ref={panelRef}
+      className={`char-profiles-panel sp-panel${isWide ? ' sp-wide-overlay' : ''}${sideBySide ? '' : ' sp-narrow'} ${panelClass}`}
+      style={isWide ? undefined : style}
+    >
+      <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileSelect} />
 
-      <div className="char-profiles-header">
-        <span className="char-profiles-title">{t('characters.title')}</span>
-        <span className="char-profiles-count">{allCharacters.length}</span>
-        <button
-          className="char-profiles-fullscreen-btn"
-          onClick={() => setIsFullscreen(!isFullscreen)}
-          title={isFullscreen ? t('characters.exitFullscreen') : t('characters.fullscreen')}
-        >
-          {isFullscreen ? '\u2716' : '\u26F6'}
-        </button>
-        {isFullscreen && (
-          <div className="char-fs-view-toggle">
-            <button
-              className={`char-fs-view-btn${fsViewMode === 'cards' ? ' active' : ''}`}
-              onClick={() => setFsViewMode('cards')}
-            >
-              {t('characters.viewCards')}
-            </button>
-            <button
-              className={`char-fs-view-btn${fsViewMode === 'list' ? ' active' : ''}`}
-              onClick={() => setFsViewMode('list')}
-            >
-              {t('characters.viewList')}
-            </button>
-          </div>
-        )}
-        <button className="char-profiles-close" onClick={() => { setIsFullscreen(false); toggleCharacterProfiles(); }} title={t('common:close')}>
-          &times;
-        </button>
-      </div>
-
-      {/* Tabs: Profiles / Relationship Map */}
-      <div className="char-profiles-tabs">
-        <button
-          className={`char-profiles-tab${activeTab === 'profiles' ? ' active' : ''}`}
-          onClick={() => setActiveTab('profiles')}
-        >
-          {t('characters.tabProfiles')}
-        </button>
-        <button
-          className={`char-profiles-tab${activeTab === 'map' ? ' active' : ''}`}
-          onClick={() => setActiveTab('map')}
-        >
-          {t('characters.tabMap')}
-        </button>
-      </div>
-
-      {/* Relationship Map tab */}
-      {activeTab === 'map' && (
-        <RelationshipMap
-          key={currentScriptId || 'no-script'}
-          scriptId={currentScriptId || undefined}
-          onSelectCharacter={(name) => {
-            setActiveTab('profiles');
-            setSelectedCharacter(name);
-            setExpandedChar(name);
-            setModalChar(name);
-          }}
+      {!showRecordAlone && (
+        <StoryPanelHeader
+          title={t('characters.title')}
+          count={allCharacters.length}
+          wide={isWide}
+          onToggleWide={() => setIsWide((w) => !w)}
+          onClose={close}
         />
       )}
 
-      {/* Profiles tab content */}
-      {activeTab === 'profiles' && <>
-
-      {/* Toolbar: Search + Build */}
-      <div className="char-profiles-toolbar">
-        <input
-          type="text"
-          placeholder={t('characters.placeholder.search')}
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="char-profiles-search-input"
-        />
-        <button
-          className="char-profiles-build-btn"
-          onClick={handleBuildFromScript}
-          title={t('characters.buildFromScriptTitle')}
-        >
-          {t('characters.buildFromScript')}
-        </button>
-      </div>
-      {/* Sort bar */}
-      <div className="char-profiles-sort">
-        <span className="char-sort-label">{t('characters.sort.label')}</span>
-        <Select
-          className="char-sort-select"
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-        >
-          <option value="name">{t('characters.sort.name')}</option>
-          <option value="importance">{t('characters.sort.importance')}</option>
-          <option value="scenes">{t('characters.sort.scenes')}</option>
-          <option value="dialogues">{t('characters.sort.dialogues')}</option>
-          <option value="appearance">{t('characters.sort.appearance')}</option>
-        </Select>
-      </div>
-
-      {/* Character list */}
-      <div className="char-profiles-list">
-        {allCharacters.length === 0 ? (
-          <div className="char-profiles-empty">
-            {searchQuery
-              ? t('characters.noMatch')
-              : t('characters.noneDetected')}
-          </div>
-        ) : (
-          allCharacters.map((name) => {
-            const profile = getProfile(name);
-            const stats = charStats.get(name);
-            const isExpanded = isFullscreen || expandedChar === name;
-            const isOrphaned = orphanedNames.has(name);
-            const primaryImageId = profile.images?.[0];
-
-            return (
-              <div key={name} data-char-name={name} className={`char-profile-card${isOrphaned ? ' char-orphaned' : ''}`}>
-                {/* Orphaned banner */}
-                {isOrphaned && (
-                  <div className="char-orphaned-banner">
-                    <span>{t('characters.notInScript')}</span>
-                    <button
-                      className="char-orphaned-remove"
-                      onClick={() => setPendingRemoveChar(name)}
-                    >
-                      {t('common:remove')}
-                    </button>
-                  </div>
-                )}
-                {/* Header row */}
-                <div
-                  className="char-profile-row"
-                  onClick={() => setExpandedChar(isExpanded ? null : name)}
-                >
-                  {/* Avatar: show primary image or color swatch */}
-                  {primaryImageId && projectId ? (
-                    <img
-                      src={getAssetUrl(primaryImageId)}
-                      alt={name}
-                      className="char-profile-avatar"
-                      onClick={(e) => e.stopPropagation()}
-                    />
-                  ) : (
-                    <input
-                      type="color"
-                      className="char-profile-color"
-                      value={profile.color || '#999999'}
-                      onClick={(e) => e.stopPropagation()}
-                      onChange={(e) => upsertCharacterProfile(name, { color: e.target.value })}
-                      title={t('characters.highlightColor')}
-                    />
-                  )}
-                  <div className="char-profile-name-col">
-                    <span
-                      className="char-profile-name"
-                      onClick={(e) => { e.stopPropagation(); handleNavigateToCharacter(name); }}
-                      title={t('characters.navigateToFirst')}
-                    >
-                      {name}
-                    </span>
-                    {profile.description && !isExpanded && (() => {
-                      const plain = stripHtml(profile.description);
-                      return plain ? (
-                        <span className="char-profile-desc-preview">
-                          {plain.slice(0, 50)}{plain.length > 50 ? '...' : ''}
-                        </span>
-                      ) : null;
-                    })()}
-                  </div>
-                  <div className="char-profile-stats">
-                    {stats && (
-                      <>
-                        <span title={t('characters.dialogueLines', { count: stats.dialogueCount })}>{t('characters.linesShort', { count: stats.dialogueCount })}</span>
-                        <span title={t('characters.inScenes', { count: stats.sceneCount })}>{t('characters.scenesShort', { count: stats.sceneCount })}</span>
-                      </>
-                    )}
-                  </div>
-                  {/* Profile completeness indicator */}
-                  {(() => {
-                    const comp = getProfileCompleteness(profile);
-                    const color = comp.pct === 0 ? 'var(--fd-text-muted, #666)'
-                      : comp.pct < 40 ? '#f44336'
-                      : comp.pct < 70 ? '#ff9800'
-                      : comp.pct < 100 ? '#4caf50'
-                      : '#2e7d32';
-                    return (
-                      <div className="char-profile-completeness">
-                        <svg width="22" height="22" viewBox="0 0 22 22">
-                          <circle cx="11" cy="11" r="9" fill="none" stroke="var(--fd-border, #333)" strokeWidth="2" />
-                          <circle
-                            cx="11" cy="11" r="9" fill="none"
-                            stroke={color} strokeWidth="2"
-                            strokeDasharray={`${comp.pct * 0.5655} 56.55`}
-                            strokeLinecap="round"
-                            transform="rotate(-90 11 11)"
-                          />
-                        </svg>
-                        <span className="char-profile-completeness-label" style={{ color }}>
-                          {comp.pct}%
-                        </span>
-                        <div className="char-completeness-tooltip">
-                          <div className="char-completeness-tooltip-title">{t('characters.profileCompleteness', { filled: comp.filled, total: comp.total })}</div>
-                          {comp.fields.map((f) => (
-                            <div key={f.label} className={`char-completeness-tooltip-row${f.filled ? ' filled' : ''}`}>
-                              <span>{f.filled ? '\u2713' : '\u2717'}</span> {f.label}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })()}
-                  <button
-                    className="char-profile-enlarge-btn"
-                    onClick={(e) => { e.stopPropagation(); setRenamingCharacter(name); }}
-                    title={t('characters.renameEverywhere')}
-                    aria-label={t('characters.renameNamed', { name })}
-                  >
-                    &#x270E;
-                  </button>
-                  <button
-                    className="char-profile-enlarge-btn"
-                    onClick={(e) => { e.stopPropagation(); setModalChar(name); }}
-                    title={t('characters.viewEnlarged')}
-                  >
-                    &#x26F6;
-                  </button>
-                  <span className={`char-profile-chevron${isExpanded ? ' expanded' : ''}`}>&#9662;</span>
-                </div>
-
-                {/* Expanded detail */}
-                {isExpanded && (
-                  <div className={`char-profile-detail${isFullscreen && fsViewMode === 'cards' ? ' char-profile-detail-fs' : ''}`}>
-                    {/* Top section: Description + Role/Gender/Age and Images (side-by-side in fullscreen) */}
-                    <div className="char-profile-detail-top">
-                      <div className="char-profile-detail-info">
-                        {/* Description */}
-                        <label className="char-profile-label">{t('characters.field.description')}</label>
-                        <MiniRichText
-                          value={profile.description}
-                          onChange={(html) => upsertCharacterProfile(name, { description: html })}
-                          placeholder={t('characters.placeholder.description')}
-                          minHeight={50}
-                        />
-
-                        {/* Role / Gender / Age */}
-                        <div className="char-profile-meta-row char-profile-meta-row-3">
-                          <div className="char-profile-meta-field">
-                            <label className="char-profile-label">{t('characters.field.role')}</label>
-                            <Select
-                              className="char-profile-select"
-                              value={profile.role}
-                              onChange={(e) => upsertCharacterProfile(name, { role: e.target.value })}
-                            >
-                              {CHARACTER_ROLES.map((r) => (
-                                <option key={r} value={r}>{r ? characterRoleLabel(t, r) : '—'}</option>
-                              ))}
-                            </Select>
-                          </div>
-                          <div className="char-profile-meta-field">
-                            <label className="char-profile-label">{t('characters.field.gender')}</label>
-                            <input
-                              type="text"
-                              className="char-profile-input"
-                              value={profile.gender}
-                              onChange={(e) => upsertCharacterProfile(name, { gender: e.target.value })}
-                              placeholder={t('characters.placeholder.gender')}
-                            />
-                          </div>
-                          <div className="char-profile-meta-field">
-                            <label className="char-profile-label">{t('characters.field.age')}</label>
-                            <input
-                              type="text"
-                              className="char-profile-input"
-                              value={profile.age}
-                              onChange={(e) => upsertCharacterProfile(name, { age: e.target.value })}
-                              placeholder={t('characters.placeholder.age')}
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Images section */}
-                      <div className="char-profile-detail-media">
-                        {profile.images && profile.images.length > 0 && projectId && (
-                          <div className="char-profile-images">
-                            <div className="char-profile-images-primary">
-                              <img
-                                src={getAssetUrl(profile.images[0])}
-                                alt={name}
-                                className="char-profile-image-main"
-                                onClick={() => setLightboxImage({ url: getAssetUrl(profile.images[0]), name })}
-                              />
-                            </div>
-                            {profile.images.length > 1 && (
-                              <div className="char-profile-images-strip">
-                                {profile.images.map((imgId, idx) => (
-                                  <div key={imgId} className={`char-profile-thumb-wrap${idx === 0 ? ' active' : ''}`}>
-                                    <img
-                                      src={getAssetUrl(imgId)}
-                                      alt={`${name} ${idx + 1}`}
-                                      className="char-profile-thumb"
-                                      onClick={() => setLightboxImage({ url: getAssetUrl(imgId), name })}
-                                    />
-                                    {idx > 0 && (
-                                      <button
-                                        className="char-profile-thumb-primary"
-                                        onClick={() => handleSetPrimaryImage(name, imgId)}
-                                        title={t('characters.setPrimaryImage')}
-                                      >
-                                        &#9733;
-                                      </button>
-                                    )}
-                                    <button
-                                      className="char-profile-thumb-remove"
-                                      onClick={() => handleRemoveImage(name, imgId)}
-                                      title={t('characters.removeImage')}
-                                    >
-                                      &times;
-                                    </button>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        )}
-
-                        {projectId && (
-                          <div className="char-profile-image-actions">
-                            <button
-                              className="char-profile-img-btn"
-                              onClick={() => triggerUpload(name)}
-                              disabled={uploading}
-                              title={t('characters.uploadImageTitle')}
-                            >
-                              {uploading ? t('characters.uploading') : t('characters.uploadImage')}
-                            </button>
-                            <button
-                              className="char-profile-img-btn"
-                              onClick={() => { setImagePickerFor(name); setImagePickerFilter(''); }}
-                              title={t('characters.fromAssetsTitle')}
-                            >
-                              {t('characters.fromAssets')}
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Bottom section: Backstory, Arc, Color/Highlight, Scenes */}
-                    <div className="char-profile-detail-bottom">
-                      <label className="char-profile-label">{t('characters.field.backstory')}</label>
-                      <MiniRichText
-                        value={profile.backstory}
-                        onChange={(html) => upsertCharacterProfile(name, { backstory: html })}
-                        placeholder={t('characters.placeholder.backstory')}
-                        minHeight={60}
-                      />
-
-                      <label className="char-profile-label">{t('characters.field.arc')}</label>
-                      <MiniRichText
-                        value={profile.arc || ''}
-                        onChange={(html) => upsertCharacterProfile(name, { arc: html })}
-                        placeholder={t('characters.placeholder.arc')}
-                        minHeight={50}
-                      />
-
-                      {renderTableReadVoice(name, profile)}
-
-                      {/* Voice Profile (collapsible) */}
-                      <details className="char-profile-voice-section">
-                        <summary className="char-profile-label char-profile-voice-toggle">{t('characters.field.voiceProfile')}</summary>
-                        <div className="char-profile-voice-fields">
-                          <label className="char-profile-label">{t('characters.field.speechPattern')}</label>
-                          <MiniRichText
-                            value={profile.speechPattern || ''}
-                            onChange={(html) => upsertCharacterProfile(name, { speechPattern: html })}
-                            placeholder={t('characters.placeholder.speechPatternShort')}
-                            minHeight={40}
-                          />
-                          <label className="char-profile-label">{t('characters.field.vocabulary')}</label>
-                          <MiniRichText
-                            value={profile.vocabulary || ''}
-                            onChange={(html) => upsertCharacterProfile(name, { vocabulary: html })}
-                            placeholder={t('characters.placeholder.vocabularyShort')}
-                            minHeight={40}
-                          />
-                          <label className="char-profile-label">{t('characters.field.verbalTics')}</label>
-                          <MiniRichText
-                            value={profile.verbalTics || ''}
-                            onChange={(html) => upsertCharacterProfile(name, { verbalTics: html })}
-                            placeholder={t('characters.placeholder.verbalTicsShort')}
-                            minHeight={40}
-                          />
-                          <label className="char-profile-label">{t('characters.field.sampleDialogue')}</label>
-                          <MiniRichText
-                            value={profile.sampleDialogue || ''}
-                            onChange={(html) => upsertCharacterProfile(name, { sampleDialogue: html })}
-                            placeholder={t('characters.placeholder.sampleDialogueShort')}
-                            minHeight={40}
-                          />
-                        </div>
-                      </details>
-
-                      <div className="char-profile-color-highlight">
-                        <label className="char-profile-label">{t('characters.field.color')}</label>
-                        <div className="char-color-swatches">
-                          {['#8b5cf6','#4f46e5','#2563eb','#059669','#eab308','#f97316','#ef4444','#000000','#ffffff'].map(c => (
-                            <button key={c} className={`synopsis-color-swatch${(profile.color || '') === c ? ' active' : ''}`} style={{ background: c }} onClick={() => upsertCharacterProfile(name, { color: c })} />
-                          ))}
-                          <label className="synopsis-color-custom" title={t('characters.customColor')}>
-                            <input type="color" value={profile.color || '#999999'} onChange={(e) => upsertCharacterProfile(name, { color: e.target.value })} />
-                            <span>+</span>
-                          </label>
-                        </div>
-                        <div className="char-profile-highlight-inline">
-                          <label className="char-profile-label" style={{ marginBottom: 0 }}>{t('characters.field.highlight')}</label>
-                          <button
-                            className={`char-profile-highlight-btn${profile.highlighted ? ' active' : ''}`}
-                            onClick={() => upsertCharacterProfile(name, { highlighted: !profile.highlighted })}
-                            style={profile.highlighted ? { background: profile.color || '#999', borderColor: profile.color || '#999' } : undefined}
-                          >
-                            {profile.highlighted ? t('common:on') : t('common:off')}
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Relationships (before scenes) */}
-                      {(() => {
-                        const rels = characterRelationships.filter(
-                          (r) => r.characterA === name || r.characterB === name
-                        );
-                        const isAdding = addRelFor === name;
-                        return (
-                          <div className="char-profile-relationships">
-                            <div className="char-profile-rel-header-row">
-                              <label className="char-profile-label" style={{ marginBottom: 0 }}>{t('characters.field.relationships')}</label>
-                              {!isAdding && (
-                                <button className="char-profile-rel-add-btn" onClick={() => setAddRelFor(name)}>{t('characters.addRelationship')}</button>
-                              )}
-                            </div>
-                            {rels.map((r) => {
-                              const other = r.characterA === name ? r.characterB : r.characterA;
-                              return (
-                                <div key={r.id} className="char-profile-rel-item">
-                                  <div className="char-profile-rel-header">
-                                    <span className="char-profile-rel-other">{other}</span>
-                                    <span className="char-profile-rel-type">{relTypeLabel(t, r.type)}</span>
-                                    {r.dynamic && <span className="char-profile-rel-dynamic">{relDynamicLabel(t, r.dynamic)}</span>}
-                                    <button
-                                      className="char-profile-rel-remove"
-                                      onClick={() => deleteCharacterRelationship(r.id)}
-                                      title={t('characters.removeRelationship')}
-                                    >&times;</button>
-                                  </div>
-                                  {r.description && <div className="char-profile-rel-desc">{r.description}</div>}
-                                </div>
-                              );
-                            })}
-                            {rels.length === 0 && !isAdding && (
-                              <div className="char-profile-rel-empty">{t('characters.noRelationships')}</div>
-                            )}
-                            {isAdding && (
-                              <InlineRelForm
-                                characterName={name}
-                                allCharacters={allCharacters}
-                                onSave={(rel) => {
-                                  upsertCharacterRelationship(rel);
-                                  setAddRelFor(null);
-                                }}
-                                onCancel={() => setAddRelFor(null)}
-                              />
-                            )}
-                          </div>
-                        );
-                      })()}
-
-                      {/* Scene appearances (collapsed by default) */}
-                      {stats && stats.scenes.length > 0 && (
-                        <details className="char-profile-scenes-collapsible">
-                          <summary className="char-profile-label char-profile-scenes-toggle">
-                            {t('characters.appearsIn', { count: stats.scenes.length })}
-                          </summary>
-                          <div className="char-profile-scene-chips">
-                            {stats.scenes.map((s, i) => (
-                              <span key={i} className="char-profile-scene-chip" onClick={() => handleNavigateToScene(s)} title={t('characters.goTo', { scene: s })}>{s}</span>
-                            ))}
-                          </div>
-                        </details>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })
-        )}
-
-      </div>
-
-      {/* "Referred in Script" button at the bottom */}
-      {unmatchedNames.length > 0 && (
-        <button
-          className="char-referred-btn"
-          onClick={() => setShowReferred(true)}
-        >
-          {t('characters.referredButton', { n: unmatchedNames.length })}
-        </button>
+      {listView === 'map' ? (
+        <>{tabsBar}{map}</>
+      ) : showRecordAlone && currentName ? (
+        detail(currentName)
+      ) : (
+        <div className="sp-md">
+          {list}
+          {sideBySide && shownName && detail(shownName)}
+        </div>
       )}
 
       {/* Referred in Script overlay panel */}
@@ -1410,18 +1108,12 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
               <span>{t('characters.referredTitle')}</span>
               <button className="char-profiles-close" onClick={() => setShowReferred(false)}>&times;</button>
             </div>
-            <div className="char-referred-desc">
-              {t('characters.referredHelp')}
-            </div>
+            <div className="char-referred-desc">{t('characters.referredHelp')}</div>
             <div className="char-referred-list">
               {unmatchedNames.map((name) => (
                 <div key={name} className="char-unmatched-row">
                   <span className="char-unmatched-name">{name}</span>
-                  <button
-                    className="char-unmatched-add"
-                    onClick={() => handleAddUnmatched(name)}
-                    title={t('characters.addToList')}
-                  >
+                  <button className="char-unmatched-add" onClick={() => handleAddUnmatched(name)} title={t('characters.addToList')}>
                     {t('characters.addRelationship')}
                   </button>
                 </div>
@@ -1431,77 +1123,20 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
         </div>
       )}
 
-      </>}
-      {/* End of profiles tab */}
-
-      {/* Image Picker Overlay */}
       {imagePickerFor && (
-        <ModalOverlay className="dialog-overlay" onClick={() => { setImagePickerFor(null); setImagePickerFilter(''); }}>
-          <div className="dialog-box char-image-picker-dialog" onClick={(e) => e.stopPropagation()}>
-            <div className="dialog-header">
-              {t('characters.selectImageFor', { name: imagePickerFor })}
-              <button className="char-profiles-close" onClick={() => { setImagePickerFor(null); setImagePickerFilter(''); }}>&times;</button>
-            </div>
-            <div className="char-image-picker-search">
-              <input
-                type="text"
-                placeholder={t('characters.placeholder.filterImages')}
-                value={imagePickerFilter}
-                onChange={(e) => setImagePickerFilter(e.target.value)}
-                className="char-profiles-search-input"
-                autoFocus
-              />
-            </div>
-            <div className="char-image-picker-grid">
-              {imageAssets.length === 0 ? (
-                <div className="char-profiles-empty">{t('characters.noImageAssets')}</div>
-              ) : (
-                imageAssets
-                  .filter((a) => !imagePickerFilter || a.original_name.toLowerCase().includes(imagePickerFilter.toLowerCase()))
-                  .map((asset) => {
-                    const alreadyLinked = (characterProfiles.find((p) => p.name === imagePickerFor)?.images || []).includes(asset.id);
-                    return (
-                      <div
-                        key={asset.id}
-                        className={`char-image-picker-item${alreadyLinked ? ' linked' : ''}`}
-                        onClick={() => !alreadyLinked && handleAssociateAsset(imagePickerFor, asset.id)}
-                        title={alreadyLinked ? t('characters.alreadyAssociated') : t('characters.associateNamed', { name: asset.original_name })}
-                      >
-                        <img src={getAssetUrl(asset.id)} alt={asset.original_name} />
-                        <span className="char-image-picker-name">{asset.original_name}</span>
-                        {alreadyLinked && <span className="char-image-picker-linked">{t('characters.linked')}</span>}
-                      </div>
-                    );
-                  })
-              )}
-            </div>
-          </div>
-        </ModalOverlay>
+        <AssetImagePicker
+          title={t('characters.selectImageFor', { name: imagePickerFor })}
+          assets={assets}
+          linkedIds={characterProfiles.find((p) => p.name === imagePickerFor)?.images || []}
+          emptyText={t('characters.noImageAssets')}
+          getUrl={getAssetUrl}
+          onPick={(assetId) => handleAssociateAsset(imagePickerFor, assetId)}
+          onClose={() => setImagePickerFor(null)}
+        />
       )}
 
-      {/* Image Lightbox */}
       {lightboxImage && (
-        <ModalOverlay dialogLabel={lightboxImage.name} className="dialog-overlay char-lightbox-overlay" onClick={() => setLightboxImage(null)}>
-          <div className="char-lightbox" onClick={(e) => e.stopPropagation()}>
-            <img src={lightboxImage.url} alt={lightboxImage.name} />
-            <button className="char-lightbox-close" aria-label={t('common:close')} onClick={() => setLightboxImage(null)}>&times;</button>
-          </div>
-        </ModalOverlay>
-      )}
-
-      {/* Per-character enlarge modal */}
-      {modalChar && (
-        <ModalOverlay className="char-modal-overlay" onClick={() => setModalChar(null)}>
-          <div className="char-modal-detail" onClick={(e) => e.stopPropagation()}>
-            <div className="dialog-header">
-              {modalChar}
-              <button className="char-profiles-close" onClick={() => setModalChar(null)}>&times;</button>
-            </div>
-            <div className="char-modal-body">
-              {renderCharacterFields(modalChar, true)}
-            </div>
-          </div>
-        </ModalOverlay>
+        <ImageLightbox url={lightboxImage.url} name={lightboxImage.name} onClose={() => setLightboxImage(null)} />
       )}
 
       {pendingRemoveChar && (
@@ -1518,6 +1153,7 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
                 style={{ background: '#c0392b' }}
                 onClick={() => {
                   deleteCharacterProfile(pendingRemoveChar);
+                  if (current === pendingRemoveChar) setCurrent(null);
                   setPendingRemoveChar(null);
                 }}
               >

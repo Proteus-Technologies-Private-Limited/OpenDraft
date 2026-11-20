@@ -318,9 +318,9 @@
     "storyTimeline": "الخط الزمني للقصة…",
     "plotlinesAcrossTheScenesByScreen": "الخطوط الدرامية عبر المشاهد، حسب زمن الشاشة",
     "notesPanel": "لوحة الملاحظات",
-    "characters": "الشخصيات",
+    "characters": "ملفات الشخصيات",
     "tags": "الوسوم",
-    "locations": "المواقع",
+    "locations": "ملفات المواقع",
     "dialogueTuner": "ضبط الحوار",
     "suggestions": "الاقتراحات",
     "highlights": "التمييزات",
@@ -355,7 +355,9 @@
     "stacked": "متراصة",
     "onePane": "لوحة واحدة",
     "secondPane": "اللوحة الثانية",
-    "pageView": "عرض الصفحة"
+    "pageView": "عرض الصفحة",
+    "sceneDetails": "تفاصيل المشهد",
+    "sceneDetailsTip": "المشهد الذي يقف فيه المؤشر: مَن فيه، وماذا يرتدون، وكيف يبدو المكان، ولقطاته"
   },
   "tools": {
     "tools": "أدوات",

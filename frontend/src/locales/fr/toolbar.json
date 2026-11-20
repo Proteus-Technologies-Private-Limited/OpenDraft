@@ -438,7 +438,7 @@
       "view": "Affichage"
     },
     "panels": {
-      "locationDb": "Base de données des décors"
+      "locationDb": "Fiches décors"
     },
     "dnd": {
       "pickedUp": "{{name}} saisi. Utilisez les flèches pour le déplacer, Espace pour le déposer, Échap pour annuler.",

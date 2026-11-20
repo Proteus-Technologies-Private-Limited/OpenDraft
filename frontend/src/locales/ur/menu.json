@@ -298,9 +298,9 @@
     "storyTimeline": "اسٹوری ٹائم لائن…",
     "plotlinesAcrossTheScenesByScreen": "اسکرین ٹائم کے لحاظ سے سینز میں پلاٹ لائنز",
     "notesPanel": "نوٹس پینل",
-    "characters": "کردار",
+    "characters": "کرداروں کے پروفائلز",
     "tags": "ٹیگز",
-    "locations": "لوکیشنز",
+    "locations": "لوکیشن پروفائلز",
     "dialogueTuner": "ڈائیلاگ ٹیونر",
     "suggestions": "تجاویز",
     "highlights": "ہائی لائٹس",
@@ -335,7 +335,9 @@
     "stacked": "اوپر نیچے",
     "onePane": "ایک پین",
     "secondPane": "دوسرا پین",
-    "pageView": "صفحہ منظر"
+    "pageView": "صفحہ منظر",
+    "sceneDetails": "سین کی تفصیلات",
+    "sceneDetailsTip": "وہ سین جس میں کرسر ہے: وہاں کون ہے، کیا پہنے ہوئے ہے، جگہ کیسی دکھتی ہے، اور اس کے شاٹس"
   },
   "tools": {
     "tools": "ٹولز",

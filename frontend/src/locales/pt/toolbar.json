@@ -438,7 +438,7 @@
       "view": "Exibir"
     },
     "panels": {
-      "locationDb": "Banco de dados de locações"
+      "locationDb": "Fichas de locações"
     },
     "dnd": {
       "pickedUp": "{{name}} selecionado. Use as setas para mover, Espaço para soltar e Esc para cancelar.",

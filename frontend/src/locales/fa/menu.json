@@ -298,9 +298,9 @@
     "storyTimeline": "خط زمانی داستان…",
     "plotlinesAcrossTheScenesByScreen": "خطوط داستانی در سکانس‌ها، بر پایهٔ زمان روی پرده",
     "notesPanel": "پنل یادداشت‌ها",
-    "characters": "شخصیت‌ها",
+    "characters": "پروفایل شخصیت‌ها",
     "tags": "برچسب‌ها",
-    "locations": "لوکیشن‌ها",
+    "locations": "پروفایل لوکیشن‌ها",
     "dialogueTuner": "تنظیم‌گر دیالوگ",
     "suggestions": "پیشنهادها",
     "highlights": "هایلایت‌ها",
@@ -335,7 +335,9 @@
     "stacked": "زیر هم",
     "onePane": "یک پنل",
     "secondPane": "پنل دوم",
-    "pageView": "نمای صفحه"
+    "pageView": "نمای صفحه",
+    "sceneDetails": "جزئیات سکانس",
+    "sceneDetailsTip": "سکانسی که مکان‌نما در آن است: چه کسانی هستند، چه می‌پوشند، مکان چه شکلی است و نماهایش"
   },
   "tools": {
     "tools": "ابزارها",

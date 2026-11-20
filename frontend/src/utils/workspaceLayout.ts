@@ -30,7 +30,7 @@ export type NavigatorPanelId = typeof NAVIGATOR_PANELS[number];
 
 /** The other built-in panels. */
 export const TOOL_PANELS = [
-  'notes', 'characters', 'tags', 'location-db', 'tuner', 'suggestions', 'add-ons', 'table-read',
+  'notes', 'characters', 'tags', 'location-db', 'scene-details', 'tuner', 'suggestions', 'add-ons', 'table-read',
 ] as const;
 
 export const BUILT_IN_PANELS: string[] = [...NAVIGATOR_PANELS, ...TOOL_PANELS];
@@ -96,7 +96,7 @@ export function workspacePreset(id: WorkspacePresetId): WorkspaceLayout {
       const scenes = g('g-navigator', ['scenes', 'structure']);
       const bookmarks = g('g-bookmarks', ['bookmarks']);
       const pages = g('g-pages', ['pages']);
-      const script = g('g-script-tools', ['notes', 'characters', 'tags', 'location-db', 'tuner', 'suggestions']);
+      const script = g('g-script-tools', ['notes', 'characters', 'tags', 'location-db', 'scene-details', 'tuner', 'suggestions']);
       const addOns = g('g-add-ons', ['add-ons']);
       const locations = g('g-locations', ['locations']);
       return build([scenes, bookmarks, pages, script, addOns, locations, tableRead],

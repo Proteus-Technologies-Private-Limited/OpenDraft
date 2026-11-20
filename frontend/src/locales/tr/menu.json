@@ -298,9 +298,9 @@
     "storyTimeline": "Hikâye zaman çizelgesi…",
     "plotlinesAcrossTheScenesByScreen": "Sahneler boyunca olay örgüleri, ekran süresine göre",
     "notesPanel": "Not paneli",
-    "characters": "Karakterler",
+    "characters": "Karakter profilleri",
     "tags": "Etiketler",
-    "locations": "Mekânlar",
+    "locations": "Mekân profilleri",
     "dialogueTuner": "Diyalog ayarlayıcı",
     "suggestions": "Öneriler",
     "highlights": "Vurgular",
@@ -335,7 +335,9 @@
     "stacked": "Üst üste",
     "onePane": "Tek bölme",
     "secondPane": "İkinci bölme",
-    "pageView": "Sayfa görünümü"
+    "pageView": "Sayfa görünümü",
+    "sceneDetails": "Sahne ayrıntıları",
+    "sceneDetailsTip": "İmlecin bulunduğu sahne: kimler var, ne giyiyorlar, mekân nasıl görünüyor ve çekimleri"
   },
   "tools": {
     "tools": "Araçlar",

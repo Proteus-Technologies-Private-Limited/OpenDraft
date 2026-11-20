@@ -298,9 +298,9 @@
     "storyTimeline": "ಕಥೆಯ ಟೈಮ್‌ಲೈನ್…",
     "plotlinesAcrossTheScenesByScreen": "ಸೀನ್‌ಗಳಾದ್ಯಂತ ಕಥಾಎಳೆಗಳು, ಪರದೆ ಸಮಯದ ಪ್ರಕಾರ",
     "notesPanel": "ಟಿಪ್ಪಣಿ ಪ್ಯಾನೆಲ್",
-    "characters": "ಪಾತ್ರಗಳು",
+    "characters": "ಪಾತ್ರ ಪ್ರೊಫೈಲ್‌ಗಳು",
     "tags": "ಟ್ಯಾಗ್‌ಗಳು",
-    "locations": "ಲೊಕೇಶನ್‌ಗಳು",
+    "locations": "ಲೊಕೇಶನ್ ಪ್ರೊಫೈಲ್‌ಗಳು",
     "dialogueTuner": "ಡೈಲಾಗ್ ಟ್ಯೂನರ್",
     "suggestions": "ಸಲಹೆಗಳು",
     "highlights": "ಹೈಲೈಟ್‌ಗಳು",
@@ -335,7 +335,9 @@
     "stacked": "ಮೇಲೆ-ಕೆಳಗೆ",
     "onePane": "ಒಂದು ಪೇನ್",
     "secondPane": "ಎರಡನೇ ಪೇನ್",
-    "pageView": "ಪುಟ ನೋಟ"
+    "pageView": "ಪುಟ ನೋಟ",
+    "sceneDetails": "ಸೀನ್ ವಿವರಗಳು",
+    "sceneDetailsTip": "ಕರ್ಸರ್ ಇರುವ ಸೀನ್: ಅಲ್ಲಿ ಯಾರಿದ್ದಾರೆ, ಏನು ಧರಿಸಿದ್ದಾರೆ, ಸ್ಥಳ ಹೇಗೆ ಕಾಣುತ್ತದೆ, ಮತ್ತು ಅದರ ಶಾಟ್‌ಗಳು"
   },
   "tools": {
     "tools": "ಟೂಲ್ಸ್",

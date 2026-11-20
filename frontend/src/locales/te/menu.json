@@ -298,9 +298,9 @@
     "storyTimeline": "స్టోరీ టైమ్‌లైన్…",
     "plotlinesAcrossTheScenesByScreen": "సీన్‌ల అంతటా ప్లాట్‌లైన్‌లు, తెర సమయం ప్రకారం",
     "notesPanel": "నోట్స్ ప్యానెల్",
-    "characters": "క్యారెక్టర్‌లు",
+    "characters": "క్యారెక్టర్ ప్రొఫైల్‌లు",
     "tags": "ట్యాగ్‌లు",
-    "locations": "లొకేషన్‌లు",
+    "locations": "లొకేషన్ ప్రొఫైల్‌లు",
     "dialogueTuner": "డైలాగ్ ట్యూనర్",
     "suggestions": "సూచనలు",
     "highlights": "హైలైట్‌లు",
@@ -335,7 +335,9 @@
     "stacked": "ఒకదానిపై ఒకటి",
     "onePane": "ఒక పేన్",
     "secondPane": "రెండో పేన్",
-    "pageView": "పేజీ వీక్షణ"
+    "pageView": "పేజీ వీక్షణ",
+    "sceneDetails": "సీన్ వివరాలు",
+    "sceneDetailsTip": "కర్సర్ ఉన్న సీన్: అక్కడ ఎవరున్నారు, ఏం ధరించారు, ఆ చోటు ఎలా కనిపిస్తుంది, దాని షాట్‌లు"
   },
   "tools": {
     "tools": "టూల్స్",

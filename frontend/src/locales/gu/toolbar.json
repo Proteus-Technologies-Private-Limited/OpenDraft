@@ -433,7 +433,7 @@
       "view": "વ્યૂ"
     },
     "panels": {
-      "locationDb": "લોકેશન ડેટાબેઝ"
+      "locationDb": "લોકેશન પ્રોફાઇલ"
     },
     "dnd": {
       "pickedUp": "{{name}} ઉપાડ્યું. ખસેડવા એરો કી, મૂકવા Space અને રદ કરવા Escape વાપરો.",

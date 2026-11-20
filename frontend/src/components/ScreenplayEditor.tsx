@@ -109,6 +109,7 @@ import CharacterProfiles from './CharacterProfiles';
 import TagsPanel from './TagsPanel';
 import { PluginPanelTabs, type ActivePluginPanel } from './PluginPanelTabs';
 import LocationDatabase from './LocationDatabase';
+import SceneDetailsPanel from './SceneDetailsPanel';
 import DialogueTuner from './DialogueTuner';
 import SuggestionsPanel from './SuggestionsPanel';
 import WritingGoalsDialog from './WritingGoalsDialog';
@@ -596,7 +597,7 @@ const ScreenplayEditor: React.FC = () => {
     storyMapOpen, toggleStoryMap,
     outlineOpen,
     navigatorOpen, toggleNavigator, scriptNotesOpen, toggleScriptNotes,
-    characterProfilesOpen, tagsPanelOpen, locationDatabaseOpen, dialogueTunerOpen,
+    characterProfilesOpen, tagsPanelOpen, locationDatabaseOpen, sceneDetailsOpen, dialogueTunerOpen,
     spellCheckEnabled, spellModalOpen, setSpellModalOpen,
     grammarCheckEnabled, grammarModalOpen, setGrammarModalOpen,
     grammarRulesPanelOpen, setGrammarRulesPanelOpen,
@@ -700,7 +701,7 @@ const ScreenplayEditor: React.FC = () => {
   }, [navWidth, rightPanelWidth]);
 
   const suggestionsPanelOpen = useSuggestModeStore((s) => s.panelOpen);
-  const rightPanelVisible = scriptNotesOpen || characterProfilesOpen || tagsPanelOpen || locationDatabaseOpen || dialogueTunerOpen || suggestionsPanelOpen;
+  const rightPanelVisible = scriptNotesOpen || characterProfilesOpen || tagsPanelOpen || locationDatabaseOpen || sceneDetailsOpen || dialogueTunerOpen || suggestionsPanelOpen;
   const foldOpen = foldState.foldable && foldState.size === 'wide' && foldState.fold === 'flat';
   const foldRightColumnVisible = rightPanelVisible || tableReadOpen || !!foldPlugin;
   const foldNavigatorDocked = foldOpen && foldLayout(
@@ -5814,7 +5815,7 @@ const ScreenplayEditor: React.FC = () => {
   const panelWidthStyle = (w: number | undefined): React.CSSProperties =>
     (w === undefined ? { width: '100%', minWidth: 0 } : { width: w, minWidth: w });
   const openFlags = {
-    navigatorOpen, scriptNotesOpen, characterProfilesOpen, tagsPanelOpen, locationDatabaseOpen,
+    navigatorOpen, scriptNotesOpen, characterProfilesOpen, tagsPanelOpen, locationDatabaseOpen, sceneDetailsOpen,
     dialogueTunerOpen, suggestions: suggestionsPanelOpen, tableRead: tableReadOpen && !statisticsOpen && !beatBoardOpen,
   };
   const dockPanels: Record<string, DockPanelDef> = {};
@@ -5824,6 +5825,7 @@ const ScreenplayEditor: React.FC = () => {
     dockPanels.characters.render = (w) => <CharacterProfiles editor={editor} projectId={currentProject?.id || ''} style={panelWidthStyle(w)} />;
     dockPanels.tags.render = (w) => <TagsPanel editor={editor} style={panelWidthStyle(w)} />;
     dockPanels['location-db'].render = (w) => <LocationDatabase editor={editor} style={panelWidthStyle(w)} />;
+    dockPanels['scene-details'].render = (w) => <SceneDetailsPanel editor={editor} projectId={currentProject?.id || ''} style={panelWidthStyle(w)} />;
     dockPanels.tuner.render = (w) => <DialogueTuner editor={editor} style={panelWidthStyle(w)} />;
     dockPanels.suggestions.render = (w) => <SuggestionsPanel editor={editor} style={panelWidthStyle(w)} />;
     dockPanels['add-ons'] = {
@@ -6376,6 +6378,7 @@ const ScreenplayEditor: React.FC = () => {
               { id: 'characters', label: tg('menu:view.characters'), open: characterProfilesOpen, content: <CharacterProfiles editor={editor} projectId={currentProject?.id || ''} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} /> },
               { id: 'tags', label: tg('menu:view.tags'), open: tagsPanelOpen, content: <TagsPanel editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} /> },
               { id: 'locations', label: tg('menu:view.locations'), open: locationDatabaseOpen, content: <LocationDatabase editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} /> },
+              { id: 'scene-details', label: tg('menu:view.sceneDetails'), open: sceneDetailsOpen, content: <SceneDetailsPanel editor={editor} projectId={currentProject?.id || ''} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} /> },
               { id: 'tuner', label: tg('menu:view.dialogueTuner'), open: dialogueTunerOpen, content: <DialogueTuner editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} /> },
               { id: 'suggestions', label: tg('menu:view.suggestions'), open: suggestionsPanelOpen, content: <SuggestionsPanel editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} /> },
               { id: 'plugin', label: foldPlugin?.label ?? tg('menu:pluginPanels.tabs'), open: !!foldPlugin, activationKey: foldPlugin?.activation, keepHomeWhenClosed: true,

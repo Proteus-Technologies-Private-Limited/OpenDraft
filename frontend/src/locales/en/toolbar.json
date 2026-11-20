@@ -433,7 +433,7 @@
       "view": "View"
     },
     "panels": {
-      "locationDb": "Location Database"
+      "locationDb": "Location Profiles"
     },
     "dnd": {
       "pickedUp": "Picked up {{name}}. Use the arrow keys to move it, Space to drop it, Escape to cancel.",

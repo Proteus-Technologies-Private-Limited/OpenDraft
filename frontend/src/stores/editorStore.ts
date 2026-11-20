@@ -3,6 +3,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { skipUnchanged } from './skipUnchanged';
 import { uuid } from '../utils/uuid';
 import { characterKey } from '../utils/nodeText';
+import { cleanCostumes, mergeCostumes, type CharacterCostume } from '../utils/characterCostumes';
 import { newPlotline, normalizePlotlines, type Plotline } from '../utils/plotlines';
 import { applyAppearance, applyNativeTheme, readAppearance, saveAppearance, themeOf, type Appearance } from '../utils/appearance';
 import { DEFAULT_SCRIPT_PROFILE, normalizeScriptProfile, type ScriptProfile } from '../utils/scriptProfile';
@@ -54,6 +55,7 @@ interface ViewState extends PosturePreferences {
   characterProfilesOpen?: boolean;
   tagsPanelOpen?: boolean;
   locationDatabaseOpen?: boolean;
+  sceneDetailsOpen?: boolean;
   dialogueTunerOpen?: boolean;
   notesVisible?: boolean;
   tagsVisible?: boolean;
@@ -732,6 +734,11 @@ export interface CharacterProfile {
   /** Asset IDs of images associated with this character */
   images: string[];
   /**
+   * The named costumes the character wears (OpenDraft-only); scenes pick from
+   * them. Optional, and absent on every profile written before costumes existed.
+   */
+  costumes?: CharacterCostume[];
+  /**
    * The voice Table Read gives this character (OpenDraft-only). Optional, and
    * absent on every profile written before Table Read existed.
    */
@@ -778,6 +785,7 @@ export function savedProfileFields(prof: Record<string, unknown>): Partial<Omit<
     verbalTics: str(prof.verbalTics),
     sampleDialogue: str(prof.sampleDialogue),
     images: Array.isArray(prof.images) ? (prof.images as string[]) : [],
+    costumes: cleanCostumes(prof.costumes),
   };
   const v = prof.voice;
   if (v && typeof v === 'object') {
@@ -1077,6 +1085,16 @@ interface EditorState {
   toggleTagsPanel: () => void;
   locationDatabaseOpen: boolean;
   toggleLocationDatabase: () => void;
+  /** View → Panels → Scene Details: the scene the cursor is in, and everything in it. */
+  sceneDetailsOpen: boolean;
+  toggleSceneDetails: () => void;
+  /**
+   * A request for Character Profiles or Location Profiles to show one record
+   * on one tab — from a name clicked in another panel. The panel takes it and
+   * clears it. `name` is a character key or a location name.
+   */
+  profileFocus: { panel: 'characters' | 'locations'; name: string; tab?: string } | null;
+  setProfileFocus: (focus: { panel: 'characters' | 'locations'; name: string; tab?: string } | null) => void;
   /** View → Panels → Dialogue Tuner: one character's lines, editable in one place. */
   dialogueTunerOpen: boolean;
   /** Open the tuner, on `character` when one is given. */
@@ -1750,6 +1768,7 @@ export const useEditorStore = create<EditorState>()(skipUnchanged((set, get) => 
             verbalTics: '',
             sampleDialogue: '',
             images: [],
+            costumes: [],
             ...updates,
           },
         ],
@@ -1773,11 +1792,12 @@ export const useEditorStore = create<EditorState>()(skipUnchanged((set, get) => 
         // Merge: the existing profile wins, empty fields are filled from the old one.
         const merged: CharacterProfile = { ...target };
         for (const [k, v] of Object.entries(source) as [keyof CharacterProfile, unknown][]) {
-          if (k === 'name' || k === 'images' || k === 'voice') continue;
+          if (k === 'name' || k === 'images' || k === 'voice' || k === 'costumes') continue;
           if (typeof v === 'string' && v && !merged[k]) (merged as unknown as Record<string, unknown>)[k] = v;
         }
         merged.images = [...target.images, ...source.images.filter((i) => !target.images.includes(i))];
         if (!target.voice && source.voice) merged.voice = source.voice;
+        merged.costumes = mergeCostumes(target.costumes ?? [], source.costumes ?? []);
         characterProfiles = s.characterProfiles
           .filter((p) => p.name !== from)
           .map((p) => (p.name === to ? merged : p));
@@ -1887,6 +1907,14 @@ export const useEditorStore = create<EditorState>()(skipUnchanged((set, get) => 
     saveViewState({ locationDatabaseOpen: v });
     return { locationDatabaseOpen: v };
   }),
+  sceneDetailsOpen: _vs.sceneDetailsOpen ?? false,
+  toggleSceneDetails: () => set((s) => {
+    const v = !s.sceneDetailsOpen;
+    saveViewState({ sceneDetailsOpen: v });
+    return { sceneDetailsOpen: v };
+  }),
+  profileFocus: null,
+  setProfileFocus: (focus) => set({ profileFocus: focus }),
   pendingTagSelection: null,
   setPendingTagSelection: (sel) => set({ pendingTagSelection: sel }),
   editingTagId: null,

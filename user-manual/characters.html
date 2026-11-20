@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Characters - OpenDraft User Manual</title>
+  <title>Character Profiles - OpenDraft User Manual</title>
   <meta name="description" content="Characters in OpenDraft, the free screenwriting app: build rich character profiles with images, backstories, and dialogue stats.">
   <link rel="canonical" href="https://proteus-technologies-private-limited.github.io/OpenDraft/user-manual/characters.html">
   <link rel="stylesheet" href="style.css">
@@ -57,7 +57,7 @@
   </div>
   <div class="sidebar-section">
     <div class="sidebar-section-title">Characters &amp; Notes</div>
-    <a href="characters.html" class="sidebar-link active">Characters</a>
+    <a href="characters.html" class="sidebar-link active">Character Profiles</a>
     <a href="script-notes.html" class="sidebar-link">Script Notes</a>
   </div>
   <div class="sidebar-section">
@@ -68,7 +68,8 @@
   <div class="sidebar-section">
     <div class="sidebar-section-title">Production</div>
     <a href="tags.html" class="sidebar-link">Tags &amp; Entities</a>
-    <a href="locations.html" class="sidebar-link">Locations</a>
+    <a href="locations.html" class="sidebar-link">Location Profiles</a>
+    <a href="scene-details.html" class="sidebar-link">Scene Details</a>
     <a href="revision-mode.html" class="sidebar-link">Revision Mode</a>
   </div>
   <div class="sidebar-section">
@@ -99,21 +100,36 @@
   <div class="content">
 
     <div class="breadcrumb">
-      <a href="index.html">Home</a><span class="sep">/</span>Characters
+      <a href="index.html">Home</a><span class="sep">/</span>Character Profiles
     </div>
 
-    <h1>Characters</h1>
-    <p class="page-subtitle">Build rich character profiles with images, backstories, and dialogue stats.</p>
+    <h1>Character Profiles</h1>
+    <p class="page-subtitle">Build rich character profiles with images, backstories, costumes and dialogue stats, and see every scene a character is in.</p>
 
-    <h2 id="open-panel">Opening the Characters Panel</h2>
+    <h2 id="open-panel">Opening Character Profiles</h2>
 
-    <p>Open the Characters panel from <strong>View &gt; Characters</strong>. It appears as a side panel alongside the editor.</p>
+    <p>Open the panel from <strong>View &gt; Panels &gt; Character Profiles</strong>. It docks beside the editor. To put a button for it on the toolbar, add <strong>Character Profiles</strong> in the toolbar&rsquo;s customise list. Clicking a character&rsquo;s cue in the script, or a character&rsquo;s name in <a href="scene-details.html">Scene Details</a> or Location Profiles, opens the panel on that character.</p>
 
     <div class="screenshot">
-      <img src="../images/macos/character_profile.png" alt="Characters panel showing character list with profile details, avatar, role, gender, and age">
+      <img src="../images/macos/character_profile.png" alt="Character Profiles showing the character list with profile details, avatar, role, gender, and age">
     </div>
 
-    <p>The panel automatically detects every character in your screenplay &mdash; anyone who has a <strong>Character</strong> element (i.e., anyone who speaks) appears in the list. Characters with images show a circular avatar in the collapsed view.</p>
+    <p>The panel automatically detects every character in your screenplay &mdash; anyone who has a <strong>Character</strong> element (i.e., anyone who speaks) appears in the list. Characters with images show a round avatar in the collapsed view.</p>
+
+    <h3 id="layout">The List and One Character</h3>
+
+    <p>The panel has two parts: the <strong>list</strong> of every character, and <strong>one character</strong> at a time. Click a character in the list to open them. In a narrow panel the two take turns &mdash; use <strong>&lsaquo;</strong> to go back to the list. When the panel is wide enough they sit side by side, and the <strong>&#x26F6;</strong> button opens a wide view over the whole window.</p>
+
+    <p>One character is shown on five tabs:</p>
+    <ul>
+      <li><strong>Profile</strong> &mdash; images, description, role, gender and age, <a href="#costumes">costumes</a>, and the highlight colour.</li>
+      <li><strong>Story</strong> &mdash; backstory and arc.</li>
+      <li><strong>Voice</strong> &mdash; the Table Read voice and the voice profile.</li>
+      <li><strong>Relationships</strong> &mdash; who this character is connected to.</li>
+      <li><strong>Scenes</strong> &mdash; <a href="#scenes-tab">every scene they are in</a>, with what they wear.</li>
+    </ul>
+
+    <p>At the top of a character are the profile&rsquo;s completeness ring, <strong>&rarr;</strong> to jump to their first line, and <strong>Rename</strong>.</p>
 
     <h2 id="character-stats">Character Statistics</h2>
 
@@ -121,14 +137,14 @@
 
     <ul>
       <li><strong>Dialogue count</strong> &mdash; How many lines of dialogue this character has.</li>
-      <li><strong>Scene appearances</strong> &mdash; How many scenes the character appears in (as a speaker).</li>
+      <li><strong>Scene appearances</strong> &mdash; How many scenes the character is in: as a speaker, or added in Scene Details as being there without speaking.</li>
       <li><strong>First appearance</strong> &mdash; Which scene the character first speaks in.</li>
-      <li><strong>Scene list</strong> &mdash; A list of all scenes where the character appears.</li>
+      <li><strong>Scene list</strong> &mdash; Every scene the character is in, on their <a href="#scenes-tab">Scenes tab</a>.</li>
     </ul>
 
-    <h2 id="profiles">Character Profiles</h2>
+    <h2 id="profiles">Profile Fields</h2>
 
-    <p>Click on a character name to expand their profile. To open the Characters panel from the script, right-click a character&rsquo;s cue or dialogue and choose <strong>Character &gt; Character Profile&hellip;</strong>. Each profile includes a comprehensive set of fields inspired by Final Draft's Character Navigator:</p>
+    <p>Click a character in the list to open their profile. To open Character Profiles from the script, right-click a character&rsquo;s cue or dialogue and choose <strong>Character &gt; Character Profile&hellip;</strong>. Each profile includes a comprehensive set of fields inspired by Final Draft's Character Navigator:</p>
 
     <table>
       <thead>
@@ -186,6 +202,11 @@
           <td>A few lines of example dialogue that capture the character's unique voice. Useful as a reference while writing their scenes.</td>
         </tr>
         <tr>
+          <td><strong>Costumes</strong></td>
+          <td>List</td>
+          <td>The named costumes the character wears, each with an optional reference image. Scenes choose from them &mdash; see <a href="#costumes">Costumes</a>.</td>
+        </tr>
+        <tr>
           <td><strong>Highlight color</strong></td>
           <td>Color picker</td>
           <td>A color used to visually highlight this character's dialogue in the editor.</td>
@@ -193,7 +214,7 @@
       </tbody>
     </table>
 
-    <p>Each profile also has a <strong>Table Read Voice</strong> &mdash; the voice that reads the character&rsquo;s lines when you hear the script read aloud. See <a href="table-read.html#voices">Table Read</a>.</p>
+    <p>Description, role, gender, age, costumes and colour are on the <strong>Profile</strong> tab; backstory and arc on <strong>Story</strong>; the four voice fields on <strong>Voice</strong>. Each profile also has a <strong>Table Read Voice</strong> &mdash; the voice that reads the character&rsquo;s lines when you hear the script read aloud. See <a href="table-read.html#voices">Table Read</a>.</p>
 
     <h3 id="character-arc">Character Arc</h3>
 
@@ -239,13 +260,37 @@
       </div>
     </div>
 
+    <h2 id="costumes">Costumes</h2>
+
+    <p>A character owns a list of named costumes &mdash; <em>Chef whites</em>, <em>Rain jacket</em>, <em>Black dress</em> &mdash; on the <strong>Profile</strong> tab. Describe each one once and every scene can use it:</p>
+    <ul>
+      <li>Type a name under <strong>Costumes</strong> and press <strong>Add costume</strong>. You can also make one from <a href="scene-details.html#costumes">Scene Details</a> while choosing what a character wears.</li>
+      <li>Give a costume a reference image with <strong>Upload Image</strong> or <strong>From Assets</strong>. Click the image to see it full size, <strong>&times;</strong> beside it to take it off.</li>
+      <li>Edit a costume&rsquo;s name in place; each costume shows how many scenes use it.</li>
+      <li><strong>&times;</strong> at the end of the row removes the costume. Scenes that used it show <em>Deleted costume</em> until you choose another.</li>
+    </ul>
+
+    <p>What a character wears in each scene &mdash; in order, when it changes during the scene &mdash; is chosen in <a href="scene-details.html#costumes">Scene Details</a>.</p>
+
+    <h2 id="scenes-tab">The Scenes Tab</h2>
+
+    <p>The <strong>Scenes</strong> tab lists every scene the character is in, in script order. For each scene it shows:</p>
+    <ul>
+      <li>the scene number and heading &mdash; click the heading to go to the scene, with Scene Details opened beside it;</li>
+      <li>the location and the look the scene shows &mdash; click the location to open it in <a href="locations.html">Location Profiles</a>;</li>
+      <li>the <strong>costumes, in order</strong>, with <span style="white-space:nowrap">a <em>change</em></span> marker where the character arrives in something different from how they left the scene before;</li>
+      <li>who else is in the scene, and how many lines the character has there.</li>
+    </ul>
+
+    <p>The buttons above the list filter it to the scenes where one costume is worn &mdash; useful for a costume department, or to check continuity. In a wide panel the scenes are shown as a table.</p>
+
     <h2 id="images">Character Images</h2>
 
     <p>You can associate one or more images with each character &mdash; headshots, costume references, mood boards, or any visual reference.</p>
 
     <h3 id="add-image">Adding Images</h3>
 
-    <p>In the expanded character profile, you'll see two buttons:</p>
+    <p>On the character&rsquo;s <strong>Profile</strong> tab, you'll see two buttons:</p>
 
     <ul>
       <li><strong>Upload Image</strong> &mdash; Upload a new image file from your computer. It's automatically added to the project's assets and tagged with the character's name.</li>
@@ -255,13 +300,13 @@
     <h3 id="view-images">Viewing Images</h3>
 
     <ul>
-      <li>The <strong>first image</strong> (primary) is shown large at the top of the expanded profile and as a circular <strong>avatar</strong> in the collapsed character row.</li>
-      <li>If there are <strong>multiple images</strong>, a thumbnail strip appears below the primary image. Click any thumbnail to view it full-size in a lightbox.</li>
+      <li>The <strong>first image</strong> (primary) is shown large at the top of the Profile tab and as a round <strong>avatar</strong> beside the name in the list.</li>
+      <li>A <strong>thumbnail strip</strong> below the primary image shows every image of the character. Click any thumbnail to view it full-size in a lightbox.</li>
     </ul>
 
     <h3 id="manage-images">Managing Images</h3>
 
-    <p>Hover over a thumbnail to reveal action buttons:</p>
+    <p>Hover over a thumbnail to reveal its action buttons. On a touch screen they are always shown:</p>
 
     <ul>
       <li><strong>&#9733; (star)</strong> &mdash; Set this image as the primary image (shown as avatar and first in the profile).</li>
@@ -273,7 +318,7 @@
     <p>The <strong>Build from Script</strong> feature automatically extracts character information from your screenplay's action lines:</p>
 
     <ol class="steps">
-      <li>Click the <strong>Build from Script</strong> button in the Characters panel.</li>
+      <li>Click the <strong>Build from Script</strong> button above the character list.</li>
       <li>OpenDraft scans your action lines for character introductions (e.g., "SARAH (30s, sharp eyes, messy bun) waits in line").</li>
       <li>It automatically populates the character's description and age fields from the introduction text.</li>
     </ol>
@@ -289,7 +334,7 @@
 
     <p>Each character can be assigned a highlight color. When enabled, each character's dialogue is tinted with their assigned color in the editor. This makes it easy to visually scan who's speaking at a glance. Toggle character highlighting from the <strong>Characters</strong> panel.</p>
 
-    <p>Colors are automatically assigned from a 12-color palette when characters are first detected. You can change any character's color in their expanded profile.</p>
+    <p>Colors are automatically assigned from a 12-color palette when characters are first detected. You can change any character's color on their Profile tab.</p>
 
     <h2 id="sorting">Sorting Characters</h2>
 
@@ -310,8 +355,8 @@
     <h3 id="adding-relationships">Adding a Relationship</h3>
 
     <ol class="steps">
-      <li>Expand a character's profile in the Characters panel.</li>
-      <li>Scroll to the <strong>Relationships</strong> section and click <strong>Add Relationship</strong>.</li>
+      <li>Open the character and choose the <strong>Relationships</strong> tab.</li>
+      <li>Click <strong>+ Add</strong>.</li>
       <li>Select the other character from the dropdown.</li>
       <li>Choose the <strong>relationship type</strong>: Allies, Rivals, Family, Romantic, Mentor, Antagonist, Employer, or Friends.</li>
       <li>Add a <strong>description</strong> to capture the specifics (e.g., &ldquo;Sarah trained under Marcus for three years before they fell out&rdquo;).</li>
@@ -322,7 +367,7 @@
 
     <h3 id="relationship-map">Relationship Map</h3>
 
-    <p>Click the <strong>Relationship Map</strong> button at the top of the Characters panel to open a visual graph of all character connections. Each character appears as a node, and each relationship appears as a connecting line with a label showing the relationship type.</p>
+    <p>Choose the <strong>Relationship Map</strong> tab above the character list, or <strong>Open Relationship Map</strong> on a character&rsquo;s Relationships tab, to open a visual graph of all character connections. Each character appears as a node, and each relationship appears as a connecting line with a label showing the relationship type.</p>
 
     <p>The map is interactive:</p>
     <ul>
@@ -340,15 +385,15 @@
 
     <h2 id="referred-characters">Referred Characters</h2>
 
-    <p>The <strong>Show Referred</strong> toggle displays characters who are mentioned in action lines but never speak. This helps you track all characters in your story, not just those with dialogue.</p>
+    <p>The <strong>Referred in Script</strong> button at the bottom of the list shows names written in capitals in action lines that are not in the list yet &mdash; often people who never speak. <strong>+ Add</strong> puts one in the list. This helps you track all characters in your story, not just those with dialogue.</p>
 
     <h2 id="rename-character">Renaming a Character</h2>
 
-    <p>To rename a character everywhere at once, click the <strong>&#x270E;</strong> button on the character&rsquo;s card in the Characters panel, or right-click any of their cues in the script and choose <strong>Character &gt; Rename Character&hellip;</strong>.</p>
+    <p>To rename a character everywhere at once, click <strong>Rename</strong> at the top of the character in Character Profiles, or right-click any of their cues in the script and choose <strong>Character &gt; Rename Character&hellip;</strong>.</p>
 
     <ul>
       <li>Every cue is renamed and keeps its extension &mdash; <code>SARAH (V.O.)</code> becomes <code>SAM (V.O.)</code>.</li>
-      <li>The profile, relationships, Cast tags and Table Read voice move to the new name.</li>
+      <li>The profile, relationships, Cast tags, Table Read voice and the costumes chosen in each scene and shot move to the new name.</li>
       <li>Where the name appears in action, dialogue or a scene heading, it is listed for review. Untick any you want to leave alone &mdash; a name like WILL is also an ordinary word. Lower-case uses (&ldquo;will&rdquo;) are never offered.</li>
       <li>The new name is written in the same case as the old one: <code>SARAH</code> becomes <code>SAM</code>, <code>Sarah</code> becomes <code>Sam</code>.</li>
       <li>Renaming to a character who already exists merges the two; the existing profile is kept and its empty fields are filled from the renamed one.</li>
@@ -370,7 +415,7 @@
 
     <h2 id="search-characters">Searching Characters</h2>
 
-    <p>Use the search field at the top of the Characters panel to filter the list by name. This is helpful in scripts with large casts.</p>
+    <p>Use the search field above the character list to filter it by name. This is helpful in scripts with large casts.</p>
 
     <div class="page-nav">
       <a href="outline.html">

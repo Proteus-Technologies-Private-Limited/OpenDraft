@@ -438,7 +438,7 @@
       "view": "Ver"
     },
     "panels": {
-      "locationDb": "Base de datos de localizaciones"
+      "locationDb": "Fichas de localizaciones"
     },
     "dnd": {
       "pickedUp": "Has tomado {{name}}. Usa las flechas para moverlo, Espacio para soltarlo y Escape para cancelar.",

@@ -203,6 +203,22 @@ async function migrate(db: Database): Promise<void> {
     );
   `);
 
+  // ── Location Database ─────────────────────────────────────────────────────
+  // One row per project holding its whole list as JSON — the same shape as the
+  // backend's locations.json, and a list is always read and written whole.
+  // Photos are not in here: a location refers to project assets by id.
+  //
+  // No foreign key to projects: a project opened from the cloud has no local
+  // row, and its locations are still kept on this device. deleteProject clears
+  // the row explicitly.
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS project_locations (
+      project_id    TEXT PRIMARY KEY,
+      data          TEXT NOT NULL DEFAULT '[]',
+      updated_at    TEXT NOT NULL
+    );
+  `);
+
   // ── Migration from old schema ─────────────────────────────────────────────
   // If the old `versions` table (full-snapshot) exists, migrate data.
   // If the old `scripts` table has a `content` column, migrate it.

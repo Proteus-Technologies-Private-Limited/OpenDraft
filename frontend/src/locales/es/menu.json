@@ -303,9 +303,9 @@
     "storyTimeline": "Línea de tiempo de la historia…",
     "plotlinesAcrossTheScenesByScreen": "Líneas argumentales a lo largo de las escenas, según el tiempo en pantalla",
     "notesPanel": "Panel de notas",
-    "characters": "Personajes",
+    "characters": "Fichas de personajes",
     "tags": "Etiquetas",
-    "locations": "Localizaciones",
+    "locations": "Fichas de localizaciones",
     "dialogueTuner": "Afinador de diálogos",
     "suggestions": "Sugerencias",
     "highlights": "Resaltados",
@@ -340,7 +340,9 @@
     "stacked": "Apilado",
     "onePane": "Un panel",
     "secondPane": "Segundo panel",
-    "pageView": "Vista de página"
+    "pageView": "Vista de página",
+    "sceneDetails": "Detalles de escena",
+    "sceneDetailsTip": "La escena donde está el cursor: quién está, qué lleva puesto, cómo se ve el lugar y sus planos"
   },
   "tools": {
     "tools": "Herramientas",

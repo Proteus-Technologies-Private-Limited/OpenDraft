@@ -3,6 +3,7 @@ import { getApiBase, getCollabWsUrl } from '../config';
 import { useSettingsStore } from '../stores/settingsStore';
 import { authedFetch, sessionSurvivesUnauthorized } from './authedFetch';
 import { t } from '../i18n';
+import { sanitizeLocations } from '../utils/locationData';
 
 /**
  * Custom events dispatched by the API client so UI components (AuthGate) can
@@ -239,10 +240,19 @@ export interface CollabSession {
 
 // ── API methods ──────────────────────────────────────────────────────────────
 
+/** A named way a location looks (Day, Night, Dressed for the party), with its reference image. */
+export interface LocationLook {
+  id: string;
+  name: string;
+  imageAssetId: string | null;
+}
+
 export interface LocationEntry {
   id: string;
   name: string;
   fullName: string;
+  /** What the audience sees: size, light, materials. */
+  description: string;
   type: 'interior' | 'exterior' | 'both';
   address: string;
   notes: string;
@@ -251,6 +261,8 @@ export interface LocationEntry {
   tags: string[];
   imageAssetIds: string[];
   aliases: string[];
+  /** The looks scenes choose between; a scene with none chosen shows the one its time of day names. */
+  looks: LocationLook[];
   created_at: string;
   updated_at: string;
 }
@@ -421,7 +433,8 @@ export const api = {
   // Locations
   listLocations: async (projectId: string): Promise<LocationEntry[]> => {
     const data = await request<{ locations: LocationEntry[] }>(`/projects/${projectId}/locations/`);
-    return data.locations || [];
+    // Records written before a field existed come back without it.
+    return sanitizeLocations(data);
   },
 
   createLocation: (projectId: string, data: Partial<LocationEntry> & { name: string }) =>

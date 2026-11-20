@@ -1,6 +1,7 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { sceneUidPastePlugin } from '../../utils/beatScenes';
 import { safeSequenceColor } from '../../utils/formatAnnotations';
+import { SCENE_DETAILS_ATTR, readSceneDetails, sceneDetailsAttr } from '../../utils/sceneDetails';
 
 export const SceneHeading = Node.create({
   name: 'sceneHeading',
@@ -47,6 +48,18 @@ export const SceneHeading = Node.create({
         parseHTML: (el: HTMLElement) => el.getAttribute('data-scene-uid') || null,
         renderHTML: (attrs: Record<string, unknown>) =>
           typeof attrs.sceneUid === 'string' && attrs.sceneUid ? { 'data-scene-uid': attrs.sceneUid } : {},
+      },
+      // Costumes, the location's look, a setting note and who is there without
+      // speaking (utils/sceneDetails). Null when nothing has been entered. Not
+      // copied onto a heading split off this one: a new scene starts empty.
+      [SCENE_DETAILS_ATTR]: {
+        default: null,
+        keepOnSplit: false,
+        parseHTML: (el: HTMLElement) => sceneDetailsAttr(readSceneDetails(el.getAttribute('data-scene-details'))),
+        renderHTML: (attrs: Record<string, unknown>) => {
+          const details = sceneDetailsAttr(readSceneDetails(attrs[SCENE_DETAILS_ATTR]));
+          return details ? { 'data-scene-details': JSON.stringify(details) } : {};
+        },
       },
     };
   },

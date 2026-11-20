@@ -22,7 +22,10 @@ TIME_WORDS_RE = re.compile(
     r"(?:\s+-\s+|\.\s*)(DAY|NIGHT|DAWN|DUSK|MORNING|AFTERNOON|EVENING|SUNSET|SUNRISE|LATER|CONTINUOUS|SAME TIME|MOMENTS LATER|SAME|MAGIC HOUR)\.?$",
     re.IGNORECASE,
 )
-PREFIX_RE = re.compile(r"^(INT\.?\/?EXT\.?|EXT\.?\/?INT\.?|INT\.?|EXT\.?|I\/E\.?)\s+", re.IGNORECASE)
+# The prefix ends at a space or at the end of the line: a heading that is so far
+# only "INT." names no place, and must not be recorded as a location called INT.
+# The device storages use the same rule (frontend/src/utils/locationData.ts).
+PREFIX_RE = re.compile(r"^(INT\.?\/?EXT\.?|EXT\.?\/?INT\.?|INT\.?|EXT\.?|I\/E\.?)(?:\s+|$)", re.IGNORECASE)
 
 
 def _locations_file(project_id: str) -> Path:
@@ -82,18 +85,51 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _clean_looks(raw: Any) -> list[dict[str, Any]]:
+    """The named looks of a location (Day, Night…), keeping only well-formed ones.
+
+    The device storages apply the same rule (frontend/src/utils/locationData.ts).
+    """
+    looks: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for item in raw if isinstance(raw, list) else []:
+        if not isinstance(item, dict):
+            continue
+        look_id = item.get("id")
+        name = item.get("name")
+        if not isinstance(look_id, str) or not look_id or look_id in seen:
+            continue
+        if not isinstance(name, str) or not name.strip():
+            continue
+        seen.add(look_id)
+        image = item.get("imageAssetId")
+        looks.append({
+            "id": look_id,
+            "name": name.strip(),
+            "imageAssetId": image if isinstance(image, str) and image else None,
+        })
+    return looks
+
+
+def _with_defaults(loc: dict[str, Any]) -> dict[str, Any]:
+    """A stored location with the fields added since it was written."""
+    loc.setdefault("description", "")
+    loc["looks"] = _clean_looks(loc.get("looks"))
+    return loc
+
+
 # ── Public API ─────────────────────────────────────────────────────────────
 
 
 def list_locations(project_id: str) -> list[dict[str, Any]]:
-    return _read(project_id).get("locations", [])
+    return [_with_defaults(loc) for loc in _read(project_id).get("locations", [])]
 
 
 def get_location(project_id: str, loc_id: str) -> dict[str, Any]:
     data = _read(project_id)
     for loc in data.get("locations", []):
         if loc.get("id") == loc_id:
-            return loc
+            return _with_defaults(loc)
     raise FileNotFoundError(f"Location '{loc_id}' not found")
 
 
@@ -107,6 +143,7 @@ def create_location(project_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         "id": f"loc-{uuid4().hex[:12]}",
         "name": _normalize_name(payload["name"]),
         "fullName": payload.get("fullName", ""),
+        "description": payload.get("description", "") or "",
         "type": payload.get("type", "interior"),
         "address": payload.get("address", ""),
         "notes": payload.get("notes", ""),
@@ -115,6 +152,7 @@ def create_location(project_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         "tags": list(payload.get("tags", [])),
         "imageAssetIds": list(payload.get("imageAssetIds", [])),
         "aliases": [_normalize_name(a) for a in payload.get("aliases", [])],
+        "looks": _clean_looks(payload.get("looks", [])),
         "created_at": now,
         "updated_at": now,
     }
@@ -128,17 +166,19 @@ def update_location(project_id: str, loc_id: str, payload: dict[str, Any]) -> di
     for loc in data.get("locations", []):
         if loc.get("id") == loc_id:
             # Whitelist updatable fields
-            for key in ("fullName", "type", "address", "notes", "contact",
+            for key in ("fullName", "description", "type", "address", "notes", "contact",
                         "availability", "tags", "imageAssetIds"):
                 if key in payload:
                     loc[key] = payload[key]
+            if "looks" in payload:
+                loc["looks"] = _clean_looks(payload["looks"])
             if "name" in payload and payload["name"]:
                 loc["name"] = _normalize_name(payload["name"])
             if "aliases" in payload:
                 loc["aliases"] = [_normalize_name(a) for a in payload["aliases"]]
             loc["updated_at"] = _now()
             _write(project_id, data)
-            return loc
+            return _with_defaults(loc)
     raise FileNotFoundError(f"Location '{loc_id}' not found")
 
 
@@ -211,6 +251,7 @@ def discover_locations(project_id: str, script_contents: list[dict[str, Any]]) -
             "id": f"loc-{uuid4().hex[:12]}",
             "name": name,
             "fullName": "",
+            "description": "",
             "type": kind,
             "address": "",
             "notes": "",
@@ -219,6 +260,7 @@ def discover_locations(project_id: str, script_contents: list[dict[str, Any]]) -
             "tags": [],
             "imageAssetIds": [],
             "aliases": [],
+            "looks": [],
             "created_at": now,
             "updated_at": now,
         })
@@ -227,4 +269,4 @@ def discover_locations(project_id: str, script_contents: list[dict[str, Any]]) -
     if created:
         _write(project_id, data)
 
-    return {"discovered": created, "locations": locations}
+    return {"discovered": created, "locations": [_with_defaults(loc) for loc in locations]}

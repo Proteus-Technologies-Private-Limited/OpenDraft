@@ -22,7 +22,7 @@ export type MainView = 'script' | 'index-cards' | 'beat-board' | 'outline';
 export function usePanelOpen(panel: string): boolean {
   const fields = useEditorFields(
     'navigatorOpen', 'scriptNotesOpen', 'characterProfilesOpen', 'tagsPanelOpen',
-    'locationDatabaseOpen', 'dialogueTunerOpen',
+    'locationDatabaseOpen', 'sceneDetailsOpen', 'dialogueTunerOpen',
   );
   const suggestions = useSuggestModeStore((s) => s.panelOpen);
   const tableRead = useTableReadStore((s) => s.open);
@@ -35,6 +35,7 @@ interface OpenFlags {
   characterProfilesOpen: boolean;
   tagsPanelOpen: boolean;
   locationDatabaseOpen: boolean;
+  sceneDetailsOpen: boolean;
   dialogueTunerOpen: boolean;
   suggestions: boolean;
   tableRead: boolean;
@@ -47,6 +48,7 @@ export function panelOpenIn(panel: string, f: OpenFlags): boolean {
     case 'characters': return f.characterProfilesOpen;
     case 'tags': return f.tagsPanelOpen;
     case 'location-db': return f.locationDatabaseOpen;
+    case 'scene-details': return f.sceneDetailsOpen;
     case 'tuner': return f.dialogueTunerOpen;
     case 'suggestions': return f.suggestions;
     case 'table-read': return f.tableRead;
@@ -64,6 +66,7 @@ function currentFlags(): OpenFlags {
     characterProfilesOpen: s.characterProfilesOpen,
     tagsPanelOpen: s.tagsPanelOpen,
     locationDatabaseOpen: s.locationDatabaseOpen,
+    sceneDetailsOpen: s.sceneDetailsOpen,
     dialogueTunerOpen: s.dialogueTunerOpen,
     suggestions: useSuggestModeStore.getState().panelOpen,
     tableRead: useTableReadStore.getState().open,
@@ -83,6 +86,7 @@ function setPanelOpen(panel: string, open: boolean): void {
     case 'characters': s.toggleCharacterProfiles(); return;
     case 'tags': s.toggleTagsPanel(); return;
     case 'location-db': s.toggleLocationDatabase(); return;
+    case 'scene-details': s.toggleSceneDetails(); return;
     case 'tuner': if (open) s.openDialogueTuner(); else s.closeDialogueTuner(); return;
     case 'suggestions': useSuggestModeStore.getState().setPanelOpen(open); return;
     case 'table-read':
@@ -100,6 +104,11 @@ export function showPanel(panel: string): void {
   const group = groupOfPanel(s.workspaceLayout, panel);
   if (group) s.setDockActive(group, panel);
   setPanelOpen(panel, true);
+}
+
+/** Close a panel, wherever the layout puts it. */
+export function hidePanel(panel: string): void {
+  setPanelOpen(panel, false);
 }
 
 /**

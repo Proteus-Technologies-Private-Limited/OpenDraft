@@ -12,9 +12,17 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
+class LocationLook(BaseModel):
+    """A named way the place looks (Day, Night, Dressed for the party), with an image."""
+    id: str
+    name: str
+    imageAssetId: str | None = None
+
+
 class LocationCreate(BaseModel):
     name: str
     fullName: str = ""
+    description: str = ""
     type: str = "interior"
     address: str = ""
     notes: str = ""
@@ -23,11 +31,13 @@ class LocationCreate(BaseModel):
     tags: list[str] = []
     imageAssetIds: list[str] = []
     aliases: list[str] = []
+    looks: list[LocationLook] = []
 
 
 class LocationUpdate(BaseModel):
     name: str | None = None
     fullName: str | None = None
+    description: str | None = None
     type: str | None = None
     address: str | None = None
     notes: str | None = None
@@ -36,6 +46,7 @@ class LocationUpdate(BaseModel):
     tags: list[str] | None = None
     imageAssetIds: list[str] | None = None
     aliases: list[str] | None = None
+    looks: list[LocationLook] | None = None
 
 
 @router.get("/{project_id}/locations/")

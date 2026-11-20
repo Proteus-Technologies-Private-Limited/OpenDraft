@@ -25,6 +25,7 @@ import type {
   DemoInfo,
 } from './api';
 import { normalizeFormat } from '../utils/scriptFormat';
+import { browserLocationStore, createLocationApi, forgetBrowserLocations } from './localLocations';
 
 const STORAGE_KEY = 'opendraft:fallback';
 
@@ -90,6 +91,13 @@ export function createFallbackStorage() {
     'color: #ff9f43; font-weight: bold'
   );
 
+  // The Location Database, kept in its own localStorage key per project.
+  const locationApi = createLocationApi(browserLocationStore(async (projectId) =>
+    Object.values(loadData().scripts)
+      .filter((s) => s.project_id === projectId && s.content)
+      .map((s) => s.content),
+  ));
+
   return {
     getDemoInfo: async (): Promise<DemoInfo> => ({ demo: false, message: null }),
 
@@ -147,6 +155,7 @@ export function createFallbackStorage() {
         if (s.project_id === id) delete data.scripts[sid];
       }
       saveData(data);
+      forgetBrowserLocations(id);
       // i18n-ignore status payload returned by the storage layer, never shown
       return { message: 'Deleted' };
     },
@@ -277,6 +286,10 @@ export function createFallbackStorage() {
     updateAssetTags: async (): Promise<void> => {},
     getAssetUrl: (): string => '',
     fetchLinkPreview: async (): Promise<LinkPreview> => ({ url: '', title: '', description: '', image: '', site_name: '' }),
+
+    // ── Locations ─────────────────────────────────────────────────────
+
+    ...locationApi,
 
     // ── Formatting templates ─────────────────────────────────────────
 

@@ -308,9 +308,9 @@
     "storyTimeline": "Хронология истории…",
     "plotlinesAcrossTheScenesByScreen": "Сюжетные линии по сценам в экранном времени",
     "notesPanel": "Панель заметок",
-    "characters": "Персонажи",
+    "characters": "Карточки персонажей",
     "tags": "Теги",
-    "locations": "Локации",
+    "locations": "Карточки локаций",
     "dialogueTuner": "Настройка диалога",
     "suggestions": "Предложения",
     "highlights": "Подсветка",
@@ -345,7 +345,9 @@
     "stacked": "Друг под другом",
     "onePane": "Одна панель",
     "secondPane": "Вторая панель",
-    "pageView": "Вид страницы"
+    "pageView": "Вид страницы",
+    "sceneDetails": "Подробности сцены",
+    "sceneDetailsTip": "Сцена, в которой стоит курсор: кто в ней, во что одеты, как выглядит место и какие в ней кадры"
   },
   "tools": {
     "tools": "Инструменты",

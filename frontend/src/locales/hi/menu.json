@@ -298,9 +298,9 @@
     "storyTimeline": "स्टोरी टाइमलाइन…",
     "plotlinesAcrossTheScenesByScreen": "सीन के आर-पार प्लॉटलाइन, स्क्रीन टाइम के अनुसार",
     "notesPanel": "नोट्स पैनल",
-    "characters": "कैरेक्टर",
+    "characters": "कैरेक्टर प्रोफ़ाइल",
     "tags": "टैग",
-    "locations": "लोकेशन",
+    "locations": "लोकेशन प्रोफ़ाइल",
     "dialogueTuner": "डायलॉग ट्यूनर",
     "suggestions": "सुझाव",
     "highlights": "हाइलाइट",
@@ -335,7 +335,9 @@
     "stacked": "ऊपर-नीचे",
     "onePane": "एक पैन",
     "secondPane": "दूसरा पैन",
-    "pageView": "पेज व्यू"
+    "pageView": "पेज व्यू",
+    "sceneDetails": "सीन विवरण",
+    "sceneDetailsTip": "जिस सीन में कर्सर है: वहाँ कौन है, क्या पहने है, जगह कैसी दिखती है, और उसके शॉट"
   },
   "tools": {
     "tools": "टूल्स",

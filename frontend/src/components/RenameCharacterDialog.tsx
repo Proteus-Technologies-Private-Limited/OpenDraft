@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { useEditorStore } from '../stores/editorStore';
 import { characterKey } from '../utils/nodeText';
 import { applyCharacterRename, findCharacterRenameMatches } from '../editor/characterRename';
+import { renameCharacterInScript } from '../utils/sceneDetails';
 import { showToast } from './Toast';
 import { elementLabel } from '../editor/elementLabels';
 
@@ -77,7 +78,9 @@ const RenameCharacterDialog: React.FC<RenameCharacterDialogProps> = ({ editor, n
     if (!canApply) return;
     const tr = editor.state.tr;
     const changed = applyCharacterRename(tr, [...matches.cues, ...chosenMentions]);
-    if (changed > 0) editor.view.dispatch(tr);
+    // Costumes noted per scene and per shot follow the character to the new name.
+    const detailsChanged = targetKey !== name ? renameCharacterInScript(tr, name, targetKey) : 0;
+    if (changed > 0 || detailsChanged > 0) editor.view.dispatch(tr);
     // Back to the script, so the very next Undo reverts the rename.
     editor.commands.focus();
     if (targetKey !== name) renameCharacter(name, targetKey);

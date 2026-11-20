@@ -298,9 +298,9 @@
     "storyTimeline": "গল্পের টাইমলাইন…",
     "plotlinesAcrossTheScenesByScreen": "সিনগুলো জুড়ে প্লটলাইন, পর্দার সময় অনুযায়ী",
     "notesPanel": "নোট প্যানেল",
-    "characters": "চরিত্র",
+    "characters": "চরিত্রের প্রোফাইল",
     "tags": "ট্যাগ",
-    "locations": "লোকেশন",
+    "locations": "লোকেশন প্রোফাইল",
     "dialogueTuner": "ডায়লগ টিউনার",
     "suggestions": "পরামর্শ",
     "highlights": "হাইলাইট",
@@ -335,7 +335,9 @@
     "stacked": "উপর-নিচে",
     "onePane": "একটি প্যান",
     "secondPane": "দ্বিতীয় প্যান",
-    "pageView": "পৃষ্ঠা ভিউ"
+    "pageView": "পৃষ্ঠা ভিউ",
+    "sceneDetails": "সিনের বিবরণ",
+    "sceneDetailsTip": "কার্সর যে সিনে আছে: সেখানে কে আছে, কী পরে আছে, জায়গাটি দেখতে কেমন, আর তার শট"
   },
   "tools": {
     "tools": "টুলস",

@@ -153,7 +153,7 @@ const RecoveryPromptDialog: React.FC<Props> = ({
   };
 
   return (
-    <ModalOverlay className="dialog-overlay" onKeyDown={handleKeyDown}>
+    <ModalOverlay className="dialog-overlay recovery-prompt-overlay" onKeyDown={handleKeyDown}>
       <div
         className="dialog-box"
         style={{ maxWidth: 480 }}

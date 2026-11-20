@@ -303,9 +303,9 @@
     "storyTimeline": "Chronologie de l’histoire…",
     "plotlinesAcrossTheScenesByScreen": "Intrigues à travers les scènes, selon le temps à l’écran",
     "notesPanel": "Panneau des notes",
-    "characters": "Personnages",
+    "characters": "Fiches personnages",
     "tags": "Balises",
-    "locations": "Décors",
+    "locations": "Fiches décors",
     "dialogueTuner": "Ajusteur de dialogues",
     "suggestions": "Suggestions",
     "highlights": "Surlignages",
@@ -340,7 +340,9 @@
     "stacked": "Empilé",
     "onePane": "Un seul volet",
     "secondPane": "Deuxième volet",
-    "pageView": "Vue Page"
+    "pageView": "Vue Page",
+    "sceneDetails": "Détails de la scène",
+    "sceneDetailsTip": "La scène où se trouve le curseur : qui est là, ce que chacun porte, l’aspect du lieu et ses plans"
   },
   "tools": {
     "tools": "Outils",

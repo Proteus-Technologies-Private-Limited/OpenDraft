@@ -42,6 +42,7 @@ import type {
   DemoInfo,
 } from './api';
 import { normalizeFormat } from '../utils/scriptFormat';
+import { browserLocationStore, createLocationApi, forgetBrowserLocations } from './localLocations';
 
 const INDEX_KEY = 'opendraft:file-fallback:index';
 const LEGACY_FALLBACK_KEY = 'opendraft:fallback';
@@ -282,6 +283,22 @@ export async function createFileFallbackStorage() {
   // Cache app-data dir for sync getAssetUrl().
   const baseDir = await appDataDir();
 
+  // The Location Database, kept beside the index in localStorage.
+  const locationApi = createLocationApi(browserLocationStore(async (projectId) => {
+    const docs: unknown[] = [];
+    for (const [sid, s] of Object.entries(loadIndex().scripts)) {
+      if (s.project_id !== projectId) continue;
+      try {
+        const content = await readScriptContent(sid);
+        if (content) docs.push(content);
+      } catch (err) {
+        // One unreadable script must not stop discovery in the others.
+        console.warn(`File fallback: skipping script ${sid} in location discovery`, err);
+      }
+    }
+    return docs;
+  }));
+
   return {
     getDemoInfo: async (): Promise<DemoInfo> => ({ demo: false, message: null }),
 
@@ -355,6 +372,7 @@ export async function createFileFallbackStorage() {
         }
       }
       saveIndex(idx);
+      forgetBrowserLocations(id);
       // i18n-ignore status payload returned by the storage layer, never shown
       return { message: 'Deleted' };
     },
@@ -621,6 +639,10 @@ export async function createFileFallbackStorage() {
         return { url, title: '', description: '', image: '', site_name: '' };
       }
     },
+
+    // ── Locations ─────────────────────────────────────────────────────
+
+    ...locationApi,
 
     // ── Formatting templates ─────────────────────────────────────────
 

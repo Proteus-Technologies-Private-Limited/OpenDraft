@@ -7,7 +7,7 @@ import { useTranslation } from 'react-i18next';
 import {
   FaUndo, FaParagraph, FaFont, FaTextHeight, FaBold, FaAlignLeft, FaSearch, FaStickyNote,
   FaFileAlt, FaFile, FaListOl, FaColumns, FaThLarge, FaAdjust, FaSearchPlus, FaCompass,
-  FaList, FaRegFileAlt, FaMapMarkerAlt, FaSitemap, FaBookmark, FaUsers, FaTags, FaMapMarkedAlt,
+  FaList, FaRegFileAlt, FaMapMarkerAlt, FaSitemap, FaBookmark, FaUsers, FaTags, FaMapMarkedAlt, FaClipboardList,
   FaComments, FaUserEdit, FaPuzzlePiece, FaPlay,
   FaHeading, FaSave, FaClock, FaSpellCheck, FaHistory, FaBullseye, FaHashtag,
 } from 'react-icons/fa';
@@ -73,6 +73,7 @@ const PANEL_ICONS: Record<string, React.ReactNode> = {
   characters: <FaUsers />,
   tags: <FaTags />,
   'location-db': <FaMapMarkedAlt />,
+  'scene-details': <FaClipboardList />,
   tuner: <FaComments />,
   suggestions: <FaUserEdit />,
   'add-ons': <FaPuzzlePiece />,
@@ -89,6 +90,7 @@ export function usePanelLabel(): (panel: string) => string {
       case 'characters': return t('menu:view.characters');
       case 'tags': return t('menu:view.tags');
       case 'location-db': return t('toolbar:layout.panels.locationDb');
+      case 'scene-details': return t('menu:view.sceneDetails');
       case 'tuner': return t('menu:view.dialogueTuner');
       case 'suggestions': return t('menu:view.suggestions');
       case 'add-ons': return t('menu:pluginPanels.tabs');

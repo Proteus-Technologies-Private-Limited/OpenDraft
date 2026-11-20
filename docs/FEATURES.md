@@ -28,7 +28,7 @@ A complete list of features in OpenDraft.
 - **Split Screen** -- Keep the script beside Page View, Index Cards, the Outline or the Beat Board, side by side or stacked, from View → Split Screen
 - **Plotlines & Story Timeline** -- Name the story's threads, put scenes and beats in them, and see every plotline across the script by screen time
 - **Beats Linked to Scenes** -- Link a Beat Board beat to the scenes that carry it and jump straight to them; linked beats show on the Story Timeline
-- **Character Profiles** -- Track characters with role types, highlight colors, and rich descriptions
+- **Character Profiles** -- Track characters with role types, highlight colors, rich descriptions and named costumes with reference images; one character at a time on Profile, Story, Voice, Relationships and Scenes tabs, where Scenes lists every scene they are in with the location, look, costumes in order and who else is there
 - **Global Character Rename** -- Rename a character everywhere in one undoable step: cues keep their extensions, the profile, relationships and Cast tags follow, and mentions in action and dialogue are offered for review
 - **Dialogue Tuner** -- Every line one character speaks, in order and with the line before for context, editable in place and playable in Table Read
 - **Casting / Reference Images** -- Attach headshots or reference images to characters
@@ -39,6 +39,8 @@ A complete list of features in OpenDraft.
 - **Multiple Projects** -- Organize all your screenplays with metadata (genre, logline, synopsis)
 - **Project Folders** -- On the desktop, save a project's scripts as files in any folder (external disk, RAID, network drive), with changes made elsewhere detected
 - **Asset Management** -- Attach reference images, research docs, and notes to projects
+- **Location Profiles** -- A record of every place in the story, discovered from scene headings or added by hand, and kept with the project on every platform: what it looks like, named looks (Day, Night, Dressed for the party) with their own images, address, contact, availability, notes, aliases, tags, reference images with a main image shown in the list, and a Scenes tab with the look, setting note and who is there for every scene set there
+- **Scene Details** -- A panel that follows the cursor and shows the scene it is in: synopsis, location and the look it shows, a setting note, every character with the costumes they wear in order (including changes during the scene) and people there without speaking, production tags in the scene, and its shots with the references each needs. Add-ons can add buttons per scene or per shot (`sceneActions`), e.g. to make a clip from those references
 - **Script Notes** -- Inline annotations for review and feedback, with threaded replies, resolve and reopen, assigning to a collaborator, and @mentions
 
 ## Version Control

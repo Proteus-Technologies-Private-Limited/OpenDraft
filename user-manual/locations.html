@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Locations - OpenDraft User Manual</title>
-  <meta name="description" content="Locations in OpenDraft, the free screenwriting app: auto-extracted locations from your scene headings with batch rename.">
+  <title>Location Profiles - OpenDraft User Manual</title>
+  <meta name="description" content="Location Profiles in OpenDraft, the free screenwriting app: every place in the story from your scene headings, with looks, reference images, production details and every scene set there.">
   <link rel="canonical" href="https://proteus-technologies-private-limited.github.io/OpenDraft/user-manual/locations.html">
   <link rel="stylesheet" href="style.css">
   <link rel="icon" href="../images/OpenDraft.png">
@@ -57,7 +57,7 @@
   </div>
   <div class="sidebar-section">
     <div class="sidebar-section-title">Characters &amp; Notes</div>
-    <a href="characters.html" class="sidebar-link">Characters</a>
+    <a href="characters.html" class="sidebar-link">Character Profiles</a>
     <a href="script-notes.html" class="sidebar-link">Script Notes</a>
   </div>
   <div class="sidebar-section">
@@ -68,7 +68,8 @@
   <div class="sidebar-section">
     <div class="sidebar-section-title">Production</div>
     <a href="tags.html" class="sidebar-link">Tags &amp; Entities</a>
-    <a href="locations.html" class="sidebar-link active">Locations</a>
+    <a href="locations.html" class="sidebar-link active">Location Profiles</a>
+    <a href="scene-details.html" class="sidebar-link">Scene Details</a>
     <a href="revision-mode.html" class="sidebar-link">Revision Mode</a>
   </div>
   <div class="sidebar-section">
@@ -99,11 +100,11 @@
   <div class="content">
 
     <div class="breadcrumb">
-      <a href="index.html">Home</a><span class="sep">/</span>Locations
+      <a href="index.html">Home</a><span class="sep">/</span>Location Profiles
     </div>
 
-    <h1>Locations</h1>
-    <p class="page-subtitle">Auto-extracted locations from your scene headings with batch rename.</p>
+    <h1>Location Profiles</h1>
+    <p class="page-subtitle">Every place in your story, found from your scene headings: its looks, reference images and production details, and every scene set there.</p>
 
     <h2 id="how-it-works">How It Works</h2>
 
@@ -120,7 +121,8 @@ INT. COFFEE SHOP - DAY</code></pre>
 
     <p>Locations are available in two places:</p>
     <ul>
-      <li><strong>Scene Navigator &gt; Locations tab</strong> &mdash; Switch to the Locations tab in the Navigator panel.</li>
+      <li><strong>Scene Navigator &gt; Locations tab</strong> &mdash; Switch to the Locations tab in the Navigator panel. It groups your scenes by location and needs no setup.</li>
+      <li><strong>View &gt; Panels &gt; Location Profiles</strong> &mdash; Opens <a href="#location-database">Location Profiles</a>, where each location keeps its own details, looks and reference images. To put a button for it on the toolbar, add <strong>Location Profiles</strong> in the toolbar&rsquo;s customise list.</li>
     </ul>
 
     <h2 id="location-groups">Location Groups</h2>
@@ -139,10 +141,10 @@ INT. COFFEE SHOP - DAY</code></pre>
     <p>Need to rename a location across your entire script? The batch rename feature updates every scene heading that uses that location:</p>
 
     <ol class="steps">
-      <li>Find the location in the Locations panel.</li>
-      <li>Click the <strong>rename</strong> button next to the location name.</li>
-      <li>Type the new location name.</li>
-      <li>Confirm &mdash; every scene heading with that location is updated at once.</li>
+      <li>Open the location in Location Profiles.</li>
+      <li>Click <strong>Rename</strong> at the top.</li>
+      <li>Type the new location name. Leave <strong>Also rename it in every scene heading</strong> ticked.</li>
+      <li>Click <strong>Save</strong> &mdash; every scene heading with that location is updated at once.</li>
     </ol>
 
     <div class="callout callout-tip">
@@ -151,6 +153,71 @@ INT. COFFEE SHOP - DAY</code></pre>
         <p><strong>Example:</strong> If you rename "COFFEE SHOP" to "BISTRO", then "INT. COFFEE SHOP - DAY" becomes "INT. BISTRO - DAY", "EXT. COFFEE SHOP - NIGHT" becomes "EXT. BISTRO - NIGHT", and so on.</p>
       </div>
     </div>
+
+    <h2 id="location-database">Location Profiles</h2>
+
+    <p>Location Profiles is a record of every place in your story, kept with the project. Open it from <strong>View &gt; Panels &gt; Location Profiles</strong>. Clicking a location&rsquo;s name in <a href="scene-details.html">Scene Details</a> or on a character&rsquo;s Scenes tab opens it here.</p>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">&#8505;&#65039;</span>
+      <div class="callout-content">
+        <p>Location profiles belong to a <strong>project</strong>, so the script has to be saved into one first. Every script in the project shares the same locations.</p>
+      </div>
+    </div>
+
+    <h3 id="discover">Discover and New</h3>
+
+    <p>Click <strong>Discover</strong> to scan the saved scripts in the project and create an entry for every location named in a scene heading. Locations you already have are left alone, so it is safe to run again after writing new scenes. A place that appears both as INT. and as EXT. is recorded as <strong>Both</strong>.</p>
+
+    <p>Click <strong>New</strong> to add a location by hand &mdash; one you are scouting before any scene is written there.</p>
+
+    <h3 id="layout">The List and One Location</h3>
+
+    <p>The list shows each location&rsquo;s main image, type, address, tags and how many scenes are set there. Click one to open it. In a narrow panel the list and the location take turns &mdash; use <strong>&lsaquo;</strong> to go back to the list; when the panel is wide enough they sit side by side, and <strong>&#x26F6;</strong> opens a wide view over the whole window. A location has three tabs: <strong>Details</strong>, <strong>Production</strong> and <strong>Scenes</strong>. Every field is saved as you leave it; there is no Edit button.</p>
+
+    <h3 id="location-details">Details</h3>
+
+    <ul>
+      <li><strong>Reference Images</strong> &mdash; see <a href="#location-images">below</a>.</li>
+      <li><strong>What it looks like</strong> &mdash; what the audience sees: size, light, materials.</li>
+      <li><strong>Full Name</strong> &mdash; a longer description than the short name used in scene headings.</li>
+      <li><strong>Type</strong> &mdash; Interior, Exterior or Both.</li>
+      <li><strong>Looks</strong> &mdash; see <a href="#looks">Looks</a>.</li>
+      <li><strong>Aliases</strong> &mdash; other names the script uses for the same place, so their scenes are counted together. Type one and click <strong>Add</strong>; <strong>&times;</strong> removes it.</li>
+      <li><strong>Tags</strong> &mdash; your own labels, such as "studio" or "permit needed".</li>
+    </ul>
+
+    <h3 id="production">Production</h3>
+
+    <p><strong>Address</strong>, <strong>Contact</strong> and <strong>Availability</strong> for the real place you plan to shoot at, and <strong>Notes</strong> for anything else worth remembering.</p>
+
+    <h3 id="looks">Looks</h3>
+
+    <p>A location can look different from scene to scene &mdash; by day and by night, dressed for a party, after a fire. Name each look once, with an optional reference image, and scenes choose between them:</p>
+    <ul>
+      <li>Type a name under <strong>Looks</strong> and click <strong>Add look</strong>. Edit a name in place; <strong>&times;</strong> removes the look.</li>
+      <li>Give a look an image with <strong>Upload Image</strong> or <strong>From Assets</strong>.</li>
+      <li>A scene that has not chosen a look shows the one named like its heading&rsquo;s time of day: name your looks <em>Day</em> and <em>Night</em> and every <code>- DAY</code> and <code>- NIGHT</code> scene picks them up on its own.</li>
+    </ul>
+
+    <h3 id="scenes-tab">Scenes</h3>
+
+    <p>The <strong>Scenes</strong> tab lists every scene set at the location, by its name or any alias. For each scene you can choose the <strong>look</strong> and write the <strong>setting</strong> &mdash; what is different here in this scene &mdash; and see who is there and in which costumes. These are the same look and setting note as in <a href="scene-details.html#location">Scene Details</a>. Click a scene&rsquo;s heading to go to it, with Scene Details opened beside it; click a name to open that character in Character Profiles.</p>
+
+    <h3 id="location-images">Reference Images</h3>
+
+    <p>Each location can hold one or more reference images &mdash; scouting photos, concept art, mood boards, floor plans.</p>
+
+    <ul>
+      <li><strong>Upload Image</strong> &mdash; Add an image file from your device. It is stored in the project's assets and tagged with the location's name.</li>
+      <li><strong>From Assets</strong> &mdash; Pick an image that is already in the project.</li>
+    </ul>
+
+    <p>The first image is the location's <strong>main image</strong>: it is shown large on the Details tab and as a small thumbnail beside the location's name in the list. Every image appears in the strip below it. Click an image to see it full size. On a thumbnail, <strong>&#9733;</strong> makes that image the main one and <strong>&times;</strong> removes it from the location. Removing an image here does not delete it from the project's assets.</p>
+
+    <h3 id="delete">Delete</h3>
+
+    <p><strong>Delete</strong>, at the top of a location, removes its record after asking. Scene headings are not changed.</p>
 
     <h2 id="smart-parsing">Smart Parsing</h2>
 
@@ -175,9 +242,9 @@ INT. COFFEE SHOP - DAY</code></pre>
         <span class="nav-label">&larr; Previous</span>
         <span class="nav-title">Tags &amp; Entities</span>
       </a>
-      <a href="revision-mode.html" class="nav-next">
+      <a href="scene-details.html" class="nav-next">
         <span class="nav-label">Next &rarr;</span>
-        <span class="nav-title">Revision Mode</span>
+        <span class="nav-title">Scene Details</span>
       </a>
     </div>
 

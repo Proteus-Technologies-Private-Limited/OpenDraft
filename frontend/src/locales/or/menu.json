@@ -298,9 +298,9 @@
     "storyTimeline": "କାହାଣୀ ଟାଇମଲାଇନ୍…",
     "plotlinesAcrossTheScenesByScreen": "ପରଦା ସମୟ ଅନୁସାରେ ସିନ୍ ଉପରେ ପ୍ଲଟ୍‌ଲାଇନ୍",
     "notesPanel": "ଟିପ୍ପଣୀ ପ୍ୟାନେଲ୍",
-    "characters": "ଚରିତ୍ର",
+    "characters": "ଚରିତ୍ର ପ୍ରୋଫାଇଲ୍",
     "tags": "ଟ୍ୟାଗ୍",
-    "locations": "ଲୋକେସନ୍",
+    "locations": "ଲୋକେସନ୍ ପ୍ରୋଫାଇଲ୍",
     "dialogueTuner": "ଡାଇଲଗ୍ ଟ୍ୟୁନର୍",
     "suggestions": "ପରାମର୍ଶ",
     "highlights": "ହାଇଲାଇଟ୍",
@@ -335,7 +335,9 @@
     "stacked": "ଉପର-ତଳ",
     "onePane": "ଗୋଟିଏ ପେନ୍",
     "secondPane": "ଦ୍ୱିତୀୟ ପେନ୍",
-    "pageView": "ପୃଷ୍ଠା ଦୃଶ୍ୟ"
+    "pageView": "ପୃଷ୍ଠା ଦୃଶ୍ୟ",
+    "sceneDetails": "ସିନ୍ ବିବରଣୀ",
+    "sceneDetailsTip": "କର୍ସର୍ ଥିବା ସିନ୍: ସେଠାରେ କିଏ ଅଛି, କ'ଣ ପିନ୍ଧିଛି, ସ୍ଥାନଟି କିପରି ଦେଖାଯାଏ, ଓ ତାର ସଟ୍"
   },
   "tools": {
     "tools": "ଟୁଲ୍ସ",

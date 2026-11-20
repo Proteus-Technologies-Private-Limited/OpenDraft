@@ -298,9 +298,9 @@
     "storyTimeline": "સ્ટોરી ટાઇમલાઇન…",
     "plotlinesAcrossTheScenesByScreen": "સીનમાં પ્લૉટલાઇન, સ્ક્રીન સમય મુજબ",
     "notesPanel": "નોંધ પૅનલ",
-    "characters": "કેરેક્ટર",
+    "characters": "કેરેક્ટર પ્રોફાઇલ",
     "tags": "ટૅગ",
-    "locations": "લોકેશન",
+    "locations": "લોકેશન પ્રોફાઇલ",
     "dialogueTuner": "ડાયલોગ ટ્યૂનર",
     "suggestions": "સૂચનો",
     "highlights": "હાઇલાઇટ",
@@ -335,7 +335,9 @@
     "stacked": "ઉપર-નીચે",
     "onePane": "એક પેન",
     "secondPane": "બીજું પેન",
-    "pageView": "પેજ વ્યૂ"
+    "pageView": "પેજ વ્યૂ",
+    "sceneDetails": "સીન વિગતો",
+    "sceneDetailsTip": "જે સીનમાં કર્સર છે: ત્યાં કોણ છે, શું પહેર્યું છે, જગ્યા કેવી દેખાય છે, અને તેના શોટ"
   },
   "tools": {
     "tools": "ટૂલ્સ",

@@ -39,6 +39,7 @@ import type {
   LinkPreview,
 } from './api';
 import { looksLikeTreatment, normalizeFormat } from '../utils/scriptFormat';
+import { createLocationApi } from './localLocations';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -229,6 +230,51 @@ export async function createLocalStorage() {
   const rows = await db.select<{ id: string; filename: string }[]>('SELECT id, filename FROM assets');
   for (const r of rows) assetFilenameCache[r.id] = r.filename;
 
+  // The Location Database: one JSON list per project (see db.ts).
+  const locationApi = createLocationApi({
+    read: async (projectId) => {
+      const found = await db.select<{ data: string }[]>(
+        'SELECT data FROM project_locations WHERE project_id = $1',
+        [projectId],
+      );
+      if (!found.length) return null;
+      try {
+        return JSON.parse(found[0].data);
+      } catch (err) {
+        // Unreadable — show an empty database rather than a panel that cannot open.
+        console.warn(`[local-storage] locations for ${projectId} are unreadable:`, err);
+        return null;
+      }
+    },
+    write: async (projectId, locations) => {
+      await db.execute(
+        `INSERT INTO project_locations (project_id, data, updated_at) VALUES ($1, $2, $3)
+         ON CONFLICT(project_id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at`,
+        [projectId, JSON.stringify(locations), now()],
+      );
+    },
+    scriptDocs: async (projectId) => {
+      const found = await db.select<{ id: string; content: string | null }[]>(
+        `SELECT s.id, sc.content
+         FROM scripts s
+         JOIN script_content sc ON sc.script_id = s.id
+         WHERE s.project_id = $1`,
+        [projectId],
+      );
+      const docs: unknown[] = [];
+      for (const r of found) {
+        if (!r.content) continue;
+        try {
+          docs.push(JSON.parse(r.content));
+        } catch (err) {
+          // One unreadable script must not stop discovery in the others.
+          console.warn(`[local-storage] skipping script ${r.id} in location discovery:`, err);
+        }
+      }
+      return docs;
+    },
+  });
+
   const storage = {
     // ── Projects ───────────────────────────────────────────────────────────
 
@@ -285,6 +331,7 @@ export async function createLocalStorage() {
       await db.execute('DELETE FROM version_scripts WHERE commit_id IN (SELECT id FROM version_commits WHERE project_id = $1)', [id]);
       await db.execute('DELETE FROM version_commits WHERE project_id = $1', [id]);
       await db.execute('DELETE FROM assets WHERE project_id = $1', [id]);
+      await db.execute('DELETE FROM project_locations WHERE project_id = $1', [id]);
       await db.execute('DELETE FROM projects WHERE id = $1', [id]);
       await linkedFileHook((lf) => lf.afterProjectDeleted(id));
       // i18n-ignore status payload returned by the storage layer, never shown
@@ -1021,6 +1068,10 @@ export async function createLocalStorage() {
       );
       delete assetFilenameCache[assetId];
     },
+
+    // ── Locations ─────────────────────────────────────────────────────────
+
+    ...locationApi,
 
     // ── Link preview (via Tauri command) ──────────────────────────────────
 

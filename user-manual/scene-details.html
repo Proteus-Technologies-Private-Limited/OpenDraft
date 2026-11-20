@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Scene Details - OpenDraft User Manual</title>
+  <meta name="description" content="Scene Details in OpenDraft, the free screenwriting app: the scene the cursor is in, with who is there, the costumes each character wears in order, how the location looks, tags and shots.">
+  <link rel="canonical" href="https://proteus-technologies-private-limited.github.io/OpenDraft/user-manual/scene-details.html">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="../images/OpenDraft.png">
+</head>
+<body>
+
+<header class="header">
+  <button class="menu-toggle" onclick="toggleSidebar()" aria-label="Toggle menu">&#9776;</button>
+  <a href="index.html" class="header-logo">
+    <img src="../images/OpenDraft.png" alt="OpenDraft">
+    <span>OpenDraft Manual</span>
+  </a>
+  <div class="header-search">
+    <span class="search-icon">&#128269;</span>
+    <input type="text" id="searchInput" placeholder="Search the manual..." autocomplete="off">
+    <span class="search-shortcut">/</span>
+  </div>
+  <nav class="header-nav">
+    <a href="../">Home</a>
+    <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft" target="_blank">GitHub</a>
+    <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases" target="_blank">Download</a>
+  </nav>
+</header>
+
+<div class="search-results" id="searchResults"></div>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Getting Started</div>
+    <a href="index.html" class="sidebar-link">Home</a>
+    <a href="getting-started.html" class="sidebar-link">Getting Started</a>
+    <a href="installation.html" class="sidebar-link">Installation</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Writing</div>
+    <a href="writing-screenplay.html" class="sidebar-link">Writing Your Screenplay</a>
+    <a href="formatting.html" class="sidebar-link">Formatting</a>
+    <a href="title-page.html" class="sidebar-link">Title Page</a>
+    <a href="find-replace.html" class="sidebar-link">Find &amp; Replace</a>
+    <a href="spell-check.html" class="sidebar-link">Spell Check</a>
+    <a href="ai-assistant.html" class="sidebar-link">AI Assistant</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Story Planning</div>
+    <a href="scene-navigator.html" class="sidebar-link">Scene Navigator</a>
+    <a href="index-cards.html" class="sidebar-link">Index Cards</a>
+    <a href="beat-board.html" class="sidebar-link">Beat Board</a>
+    <a href="outline.html" class="sidebar-link">Outline</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Characters &amp; Notes</div>
+    <a href="characters.html" class="sidebar-link">Character Profiles</a>
+    <a href="script-notes.html" class="sidebar-link">Script Notes</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Analysis</div>
+    <a href="script-statistics.html" class="sidebar-link">Script Statistics &amp; Timing</a>
+    <a href="table-read.html" class="sidebar-link">Table Read</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Production</div>
+    <a href="tags.html" class="sidebar-link">Tags &amp; Entities</a>
+    <a href="locations.html" class="sidebar-link">Location Profiles</a>
+    <a href="scene-details.html" class="sidebar-link active">Scene Details</a>
+    <a href="revision-mode.html" class="sidebar-link">Revision Mode</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Projects &amp; Files</div>
+    <a href="projects.html" class="sidebar-link">Managing Projects</a>
+    <a href="version-history.html" class="sidebar-link">Version History</a>
+    <a href="backups.html" class="sidebar-link">Backups &amp; Recovery</a>
+    <a href="import-export.html" class="sidebar-link">Import &amp; Export</a>
+    <a href="format-compatibility.html" class="sidebar-link">Format Compatibility</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Collaboration</div>
+    <a href="collaboration.html" class="sidebar-link">Real-Time Collaboration</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Customization</div>
+    <a href="themes.html" class="sidebar-link">Themes</a>
+    <a href="page-setup.html" class="sidebar-link">Page Setup</a>
+    <a href="keyboard-shortcuts.html" class="sidebar-link">Keyboard Shortcuts</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Developers</div>
+    <a href="plugin-development.html" class="sidebar-link">Plugin &amp; Add-on Development</a>
+  </div>
+</nav>
+
+<main class="main">
+  <div class="content">
+
+    <div class="breadcrumb">
+      <a href="index.html">Home</a><span class="sep">/</span>Scene Details
+    </div>
+
+    <h1>Scene Details</h1>
+    <p class="page-subtitle">Everything in the scene you are writing: where it is set and how the place looks, who is there and what each of them wears, what is tagged, and its shots.</p>
+
+    <h2 id="open-panel">Opening Scene Details</h2>
+
+    <p>Open it from <strong>View &gt; Panels &gt; Scene Details</strong>. It docks beside the script like the other panels, and <strong>View &gt; Layout</strong> can move it to another side or group it with them. To put a button for it on the toolbar, add <strong>Scene Details</strong> in the toolbar&rsquo;s customise list.</p>
+
+    <p>The panel <strong>follows the cursor</strong>: it always shows the scene you are in. The <strong>&lsaquo;</strong> and <strong>&rsaquo;</strong> buttons move the cursor to the previous or next scene, and clicking the heading jumps to it. When the panel is wide enough, the scene&rsquo;s shots sit in a second column.</p>
+
+    <h2 id="what-comes-from-the-script">What Comes From the Script</h2>
+
+    <p>Scene Details reads most of what it shows from the script itself, so there is nothing to keep in step:</p>
+    <ul>
+      <li><strong>The location</strong> and whether it is interior or exterior, from the scene heading.</li>
+      <li><strong>The time of day</strong>, from the end of the heading (<code>- NIGHT</code>).</li>
+      <li><strong>Who speaks</strong>, and how many lines each person has.</li>
+      <li><strong>The shots</strong>: every Shot element in the scene.</li>
+      <li><strong>What is tagged</strong>: production tags inside the scene, by category.</li>
+    </ul>
+
+    <p>What the script cannot say, you add here: the costumes, the look of the location, a note on the setting, and people who are there without speaking. These are kept on the scene heading, like the synopsis and the scene colour, so they move with the scene when you cut, paste or reorder it, and collaborators see them as you make them.</p>
+
+    <h2 id="synopsis">Synopsis</h2>
+
+    <p>The same synopsis the <a href="scene-navigator.html">Navigator</a> shows. Edit it here and it is saved when you leave the field.</p>
+
+    <h2 id="location">Location and Look</h2>
+
+    <p>The location card shows the place the heading names, with its image. Click the name to open the location in <a href="locations.html">Location Profiles</a> on its Scenes tab.</p>
+
+    <ul>
+      <li><strong>Look</strong> &mdash; which of the location&rsquo;s looks this scene shows (Day, Night, Dressed for the party&hellip;). Left on <strong>As the heading says</strong>, the scene shows the look named like its time of day, so <code>INT. KITCHEN - NIGHT</code> shows the kitchen&rsquo;s Night look without you choosing it. The card&rsquo;s image follows the look.</li>
+      <li><strong>Setting in this scene</strong> &mdash; what is different about the place this time: &ldquo;After the party, bottles everywhere&rdquo;.</li>
+    </ul>
+
+    <p>If the place is not in Location Profiles yet, an <strong>Add</strong> button records it. Looks are created in Location Profiles; if the location has none, the card links there.</p>
+
+    <h2 id="characters">Characters and Costumes</h2>
+
+    <p>Everyone who speaks in the scene is listed in the order they first speak, with their role and line count. Click a name to open that character in <a href="characters.html">Character Profiles</a> on their Scenes tab.</p>
+
+    <h3 id="costumes">Costumes, In Order</h3>
+
+    <p>Under each character, choose what they wear from the costumes on their profile. A character can change during a scene, so a scene can list more than one costume:</p>
+
+    <ol class="steps">
+      <li>Choose the first costume from <strong>Choose a costume&hellip;</strong>. It is worn <strong>from the start</strong>.</li>
+      <li>Choose another from <strong>Add another costume&hellip;</strong>, and say when the change happens (&ldquo;After the fight&rdquo;).</li>
+      <li>Use <strong>&uarr;</strong> and <strong>&darr;</strong> to change the order, and <strong>&times;</strong> to remove one.</li>
+    </ol>
+
+    <p>To make a costume that does not exist yet, choose <strong>New costume&hellip;</strong>, name it, and press <strong>Add</strong>. It is added to the character&rsquo;s profile, where you can give it a reference image, and worn in this scene.</p>
+
+    <h3 id="present">People Who Do Not Speak</h3>
+
+    <p>Someone who is in the scene but has no lines &mdash; a waiter, a sleeping child &mdash; can be added from <strong>Add someone who is here but does not speak&hellip;</strong>. They then appear in the list (marked <em>does not speak</em>) with their own costumes, and in that character&rsquo;s Scenes tab. The <strong>&times;</strong> beside their name takes them out of the scene again.</p>
+
+    <h2 id="tags">Tagged in This Scene</h2>
+
+    <p>Every <a href="tags.html">production tag</a> in the scene&rsquo;s text, grouped by category &mdash; Props, Set Dressing, Sound and so on. The <strong>Production Tags</strong> link opens the Tags panel.</p>
+
+    <h2 id="shots">Shots</h2>
+
+    <p>Each Shot element in the scene is listed with the references it needs: the location and its look, and each character the shot names, with the costume they wear. Click a shot to jump to it.</p>
+
+    <p>When a character changes costume during the scene, each shot that names them has a costume picker, so you can say which costume that shot shows. Until you choose, the first shot shows the first costume and the later shots show the last one.</p>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">&#8505;&#65039;</span>
+      <div class="callout-content">
+        <p><strong>Add-ons:</strong> an add-on can put its own buttons under the scene or on each shot &mdash; for example to make a clip from the shot and its references &mdash; and show what it made beside the shot. See <a href="plugin-development.html">Plugin &amp; Add-on Development</a>.</p>
+      </div>
+    </div>
+
+    <h2 id="cross-views">Seeing It the Other Way Round</h2>
+
+    <ul>
+      <li><strong>One scene, everyone in it</strong> &mdash; this panel.</li>
+      <li><strong>One character, every scene</strong> &mdash; the character&rsquo;s <a href="characters.html#scenes-tab">Scenes tab</a> in Character Profiles: where they are, with whom, and what they wear in each.</li>
+      <li><strong>One location, every scene</strong> &mdash; the location&rsquo;s <a href="locations.html#scenes-tab">Scenes tab</a> in Location Profiles: the look and setting note for each scene, and who is there in what.</li>
+    </ul>
+
+    <p>Costumes, looks and setting notes are the same data in all three places: change one anywhere and the others show it.</p>
+
+    <div class="page-nav">
+      <a href="locations.html">
+        <span class="nav-label">&larr; Previous</span>
+        <span class="nav-title">Location Profiles</span>
+      </a>
+      <a href="revision-mode.html" class="nav-next">
+        <span class="nav-label">Next &rarr;</span>
+        <span class="nav-title">Revision Mode</span>
+      </a>
+    </div>
+
+  </div>
+  <footer class="footer">
+    OpenDraft User Manual &middot; v2.14.2 &middot; Made by Proteus Technologies
+  </footer>
+</main>
+
+<script src="search.js"></script>
+</body>
+</html>

@@ -298,9 +298,9 @@
     "storyTimeline": "ਕਹਾਣੀ ਟਾਈਮਲਾਈਨ…",
     "plotlinesAcrossTheScenesByScreen": "ਸੀਨਾਂ ਵਿੱਚ ਪਲਾਟ ਲਾਈਨਾਂ, ਸਕ੍ਰੀਨ ਸਮੇਂ ਅਨੁਸਾਰ",
     "notesPanel": "ਨੋਟ ਪੈਨਲ",
-    "characters": "ਕਿਰਦਾਰ",
+    "characters": "ਕਿਰਦਾਰ ਪ੍ਰੋਫ਼ਾਈਲਾਂ",
     "tags": "ਟੈਗ",
-    "locations": "ਲੋਕੇਸ਼ਨ",
+    "locations": "ਲੋਕੇਸ਼ਨ ਪ੍ਰੋਫ਼ਾਈਲਾਂ",
     "dialogueTuner": "ਡਾਇਲਾਗ ਟਿਊਨਰ",
     "suggestions": "ਸੁਝਾਅ",
     "highlights": "ਹਾਈਲਾਈਟ",
@@ -335,7 +335,9 @@
     "stacked": "ਉੱਪਰ-ਹੇਠਾਂ",
     "onePane": "ਇੱਕ ਪੇਨ",
     "secondPane": "ਦੂਜਾ ਪੇਨ",
-    "pageView": "ਪੰਨਾ ਝਲਕ"
+    "pageView": "ਪੰਨਾ ਝਲਕ",
+    "sceneDetails": "ਸੀਨ ਵੇਰਵੇ",
+    "sceneDetailsTip": "ਜਿਸ ਸੀਨ ਵਿੱਚ ਕਰਸਰ ਹੈ: ਉੱਥੇ ਕੌਣ ਹੈ, ਕੀ ਪਹਿਨਿਆ ਹੈ, ਥਾਂ ਕਿਹੋ ਜਿਹੀ ਦਿਸਦੀ ਹੈ, ਅਤੇ ਉਸਦੇ ਸ਼ਾਟ"
   },
   "tools": {
     "tools": "ਟੂਲ",
