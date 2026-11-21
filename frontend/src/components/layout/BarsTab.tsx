@@ -43,7 +43,6 @@ import { usePhoneScreen } from '../../hooks/usePhoneScreen';
 import { layoutCollision, useLayoutAnnouncements, useLayoutSensors } from './dndConfig';
 import DropZone from './DropZone';
 import LayoutRadioGroup from './LayoutRadioGroup';
-import { useLayoutFocus } from './useLayoutFocus';
 
 const MODES: ToolbarLabelMode[] = ['icon', 'text', 'both', 'none'];
 const BAR_MODES: ToolbarBarLabel[] = ['icon', 'text', 'both'];
@@ -145,7 +144,6 @@ interface Props {
 
 const BarsTab: React.FC<Props> = ({ state, setState }) => {
   const { t } = useTranslation('toolbar');
-  const focus = useLayoutFocus();
   const {
     toolbarPreset, applyToolbarPreset, savedToolbarLayouts, saveToolbarLayout, applySavedToolbarLayout,
     deleteSavedToolbarLayout, workspaceLayout, savedWorkspaceLayouts,
@@ -324,7 +322,7 @@ const BarsTab: React.FC<Props> = ({ state, setState }) => {
 
         <div className="layout-field">
           <span>{t('layout.toolbarTab.placeOn')}</span>
-          <LayoutRadioGroup as="span" className="layout-seg" aria-label={t('layout.toolbarTab.placeOn')}>
+          <LayoutRadioGroup manual as="span" className="layout-seg" aria-label={t('layout.toolbarTab.placeOn')}>
             {(['top', 'bottom', null] as const).map((where) => (
               <button key={String(where)} type="button" role="radio" aria-checked={bar === where}
                 className={bar === where ? 'is-on' : ''}
@@ -403,7 +401,7 @@ const BarsTab: React.FC<Props> = ({ state, setState }) => {
   return (
     <DndContext sensors={sensors} collisionDetection={layoutCollision} onDragStart={onDragStart} onDragEnd={onDragEnd}
       onDragCancel={() => setDragging(null)} accessibility={{ announcements }}>
-      <div className="bars-tab" {...focus}>
+      <div className="bars-tab">
         <div className="bars-top">
           <div className="bars-presets" role="group" aria-label={t('layout.toolbarTab.presetsHeading')}>
             <span className="layout-muted">{t('layout.toolbarTab.presetsHeading')}</span>

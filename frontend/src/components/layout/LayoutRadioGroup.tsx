@@ -1,8 +1,10 @@
 import { useLayoutEffect, useRef, type KeyboardEvent, type ReactNode } from 'react';
 
 /** Button radios keep their existing actions, with one Tab stop per group. */
-export default function LayoutRadioGroup({ as: Tag = 'div', children, ...props }: {
+export default function LayoutRadioGroup({ as: Tag = 'div', manual = false, children, ...props }: {
   as?: 'div' | 'span';
+  /** Layout-moving actions apply only on Space/Enter or click. */
+  manual?: boolean;
   className?: string;
   'aria-label': string;
   children: ReactNode;
@@ -11,12 +13,15 @@ export default function LayoutRadioGroup({ as: Tag = 'div', children, ...props }
   const radios = () => Array.from(root.current?.querySelectorAll<HTMLButtonElement>('button[role="radio"]') ?? [])
     .filter(button => !button.disabled && button.closest('[role="radiogroup"]') === root.current);
 
-  useLayoutEffect(() => {
-    const choices = radios();
-    const entry = choices.find(button => button.getAttribute('aria-checked') === 'true') ?? choices[0];
+  const setEntry = (entry: HTMLButtonElement | undefined) => {
     root.current?.querySelectorAll<HTMLButtonElement>('button[role="radio"]').forEach(button => {
       if (button.closest('[role="radiogroup"]') === root.current) button.tabIndex = button === entry ? 0 : -1;
     });
+  };
+  useLayoutEffect(() => {
+    const choices = radios();
+    const focused = choices.find(button => button === document.activeElement);
+    setEntry((manual && focused) || choices.find(button => button.getAttribute('aria-checked') === 'true') || choices[0]);
   });
 
   const onKeyDown = (event: KeyboardEvent) => {
@@ -36,8 +41,9 @@ export default function LayoutRadioGroup({ as: Tag = 'div', children, ...props }
     event.preventDefault();
     event.stopPropagation();
     const button = choices[(next + choices.length) % choices.length];
+    setEntry(button);
     button.focus();
-    button.click();
+    if (!manual) button.click();
   };
 
   return <Tag {...props} ref={node => { root.current = node; }} role="radiogroup" onKeyDown={onKeyDown}
