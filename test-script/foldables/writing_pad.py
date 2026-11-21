@@ -545,6 +545,12 @@ class WritingPad(unittest.TestCase):
         self.page.mouse.down()
         self.page.mouse.move(handle["x"] + 260, handle["y"] + 60, steps=8)
         self.page.mouse.up()
+        # The width lands with React's next commit after the release; reading
+        # it in the same tick measured the old 240px on a slow CI runner.
+        self.page.wait_for_function(
+            "() => document.querySelector('.scene-navigator')"
+            "?.getBoundingClientRect().width > 450"
+        )
         self.assertGreater(nav.bounding_box()["width"], 450)
         self.posture(951, 669, "vertical", "continuous")
         expect(self.page.locator(".editor-layout")).to_have_class(
