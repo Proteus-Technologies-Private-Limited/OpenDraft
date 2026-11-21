@@ -18,7 +18,7 @@
  */
 
 import DOMPurify from 'dompurify';
-import { hidesOtherMobilePlatforms } from './platform';
+import { getOS, hidesOtherMobilePlatforms, isMobileTauri } from './platform';
 
 const REPO = 'Proteus-Technologies-Private-Limited/OpenDraft';
 const BRANCH = 'main';
@@ -256,11 +256,15 @@ async function fetchBlob(url: string, what: string): Promise<Blob> {
  * `data-platform="android"` — a whole paragraph, a list item, or a few words
  * inside a sentence written to read correctly without them. The iOS and macOS
  * apps drop it, because App Review rejects an Apple build that shows the word
- * Android anywhere (guideline 2.3.10). The published web manual keeps it.
+ * Android anywhere (guideline 2.3.10). Text that names iPhone, iPad or iOS is
+ * marked `data-platform="apple"` the same way, and the Android app drops it,
+ * since Play's reviewers treat the reverse alike. The published web manual
+ * keeps both.
  */
 export function dropOtherPlatformText(root: ParentNode): void {
-  if (!hidesOtherMobilePlatforms()) return;
-  root.querySelectorAll('[data-platform="android"]').forEach((el) => el.remove());
+  const hidden = hidesOtherMobilePlatforms() ? 'android' : isMobileTauri() && getOS() === 'android' ? 'apple' : null;
+  if (!hidden) return;
+  root.querySelectorAll(`[data-platform="${hidden}"]`).forEach((el) => el.remove());
 }
 
 /**
