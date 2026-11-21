@@ -122,7 +122,15 @@ class Accessibility(unittest.TestCase):
         self.press("Enter")
         self.page.set_viewport_size({"width": 900, "height": 1000})
         expect(toolbar).to_be_focused()
-        expect(dialog.get_by_role("tabpanel")).to_have_attribute("tabindex", "0")
+        expect(dialog.get_by_role("tabpanel")).to_have_attribute("tabindex", "-1")
+        self.press("Tab")
+        expect(dialog.locator(".layout-dialog-close")).to_be_focused()
+        self.press("Tab")
+        expect(
+            dialog.get_by_role("tabpanel")
+            .locator("button:enabled, input:enabled, select:enabled")
+            .first
+        ).to_be_focused()
         expect(dialog.get_by_role("tab")).to_have_count(1)
         self.press("Escape")
         expect(dialog).not_to_be_visible()
@@ -309,6 +317,124 @@ class Accessibility(unittest.TestCase):
                     "theme=>document.documentElement.dataset.theme=theme", theme
                 )
                 self.audit()
+
+    def workspace_solo_group(self):
+        self.page.evaluate("""() => {
+            const s=testStore.getState();
+            const layout=JSON.parse(JSON.stringify(s.workspaceLayout));
+            layout.groups['g-navigator'].panels=layout.groups['g-navigator'].panels.filter(p=>p!=='scenes');
+            layout.groups['g-review-solo']={id:'g-review-solo',name:'Synthetic solo group',mode:'stacked',panels:['scenes']};
+            layout.docks.start.push('g-review-solo');
+            s.setWorkspaceLayout(layout);
+        }""")
+
+    def test_workspace_group_arrows_preserve_lone_group_until_activation(self):
+        self.workspace_solo_group()
+        dialog = self.workspace_dialog("panels")
+        dialog.locator(".layout-chip").filter(has_text=re.compile("^Scenes$")).focus()
+        group = dialog.get_by_role(
+            "radiogroup",
+            name=self.page.evaluate("testI18n.t('toolbar:layout.panelsTab.group')"),
+            exact=True,
+        )
+        solo = group.get_by_role("radio", name="Synthetic solo group", exact=True)
+        before = self.page.evaluate("testStore.getState().workspaceLayout")
+        for direction, backward, forward in [
+            ("ltr", "ArrowLeft", "ArrowRight"),
+            ("rtl", "ArrowRight", "ArrowLeft"),
+        ]:
+            self.page.evaluate("dir=>document.documentElement.dir=dir", direction)
+            solo.focus()
+            self.press(backward)
+            self.assertEqual(
+                self.page.evaluate("testStore.getState().workspaceLayout"), before
+            )
+            expect(solo).to_have_attribute("aria-checked", "true")
+            self.press(forward)
+            expect(solo).to_be_focused()
+            self.press("Space")
+            self.assertEqual(
+                self.page.evaluate("testStore.getState().workspaceLayout"), before
+            )
+        self.page.evaluate("document.documentElement.dir='ltr'")
+        solo.focus()
+        self.press("ArrowLeft")
+        self.press("Enter")
+        self.page.wait_for_function(
+            "!testStore.getState().workspaceLayout.groups['g-review-solo']"
+        )
+        self.assertIn(
+            "scenes",
+            self.page.evaluate(
+                "testStore.getState().workspaceLayout.groups['g-navigator'].panels"
+            ),
+        )
+
+    def test_workspace_place_arrows_preserve_bar_order_until_activation(self):
+        dialog = self.workspace_dialog()
+        dialog.locator(".bars-row").filter(
+            has=self.page.locator("strong", has_text=re.compile("^Font$"))
+        ).first.locator(".bars-row-main").focus()
+        place = dialog.get_by_role(
+            "radiogroup",
+            name=self.page.evaluate("testI18n.t('toolbar:layout.toolbarTab.placeOn')"),
+            exact=True,
+        )
+        buttons = place.get_by_role("radio")
+        before = self.page.evaluate("testStore.getState().toolbarLayout")
+        buttons.nth(0).focus()
+        for index in [1, 2, 0]:
+            self.press("ArrowRight")
+            expect(buttons.nth(index)).to_be_focused()
+            self.assertEqual(
+                self.page.evaluate("testStore.getState().toolbarLayout"), before
+            )
+            self.page.evaluate(
+                "{const s=testStore.getState();s.setToolbarLayout({...s.toolbarLayout})}"
+            )
+            expect(buttons.nth(index)).to_have_attribute("tabindex", "0")
+        self.press("ArrowRight")
+        self.press("Space")
+        expect(buttons.nth(1)).to_have_attribute("aria-checked", "true")
+        self.assertNotIn(
+            "font", self.page.evaluate("testStore.getState().toolbarLayout.bars.top")
+        )
+        self.assertIn(
+            "font", self.page.evaluate("testStore.getState().toolbarLayout.bars.bottom")
+        )
+
+    def test_workspace_deliberate_blur_is_not_undone_by_a_rerender(self):
+        dialog = self.workspace_dialog()
+        button = (
+            dialog.locator(".bars-row")
+            .filter(has=self.page.locator("strong", has_text=re.compile("^Font$")))
+            .first.locator(".bars-row-main")
+        )
+        button.focus()
+        button.evaluate("el=>el.blur()")
+        self.assertTrue(self.page.evaluate("document.activeElement===document.body"))
+        self.page.evaluate(
+            "{const s=testStore.getState();s.setToolbarLayout({...s.toolbarLayout,labels:{...s.toolbarLayout.labels,top:'both'}})}"
+        )
+        self.page.evaluate(
+            "new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))"
+        )
+        self.assertTrue(self.page.evaluate("document.activeElement===document.body"))
+        self.page.evaluate("testStore.getState().applyToolbarPreset('review')")
+        self.page.evaluate(
+            "new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))"
+        )
+        self.assertTrue(self.page.evaluate("document.activeElement===document.body"))
+
+    def test_workspace_removed_focus_uses_the_dialog_tab_fallback(self):
+        self.workspace_solo_group()
+        dialog = self.workspace_dialog("panels")
+        group = dialog.locator(".layout-group-name").filter(
+            has_text="Synthetic solo group"
+        )
+        group.focus()
+        self.page.evaluate("testStore.getState().applyWorkspacePreset('classic')")
+        expect(dialog.locator("#layout-tab-panels")).to_be_focused()
 
     def test_editor_names_states_and_theme_contrast(self):
         expect(
