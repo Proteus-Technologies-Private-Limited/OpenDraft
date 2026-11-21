@@ -114,7 +114,7 @@ pad is a labelled region inside the tabpanel, rather than a nested dialog. Docki
 does not overwrite the saved floating size/position; floating dimensions are
 clamped to the available viewport. Short dock slots scroll to keep tools and
 Insert reachable. This is browser layout coverage, not native Pencil or system
-keyboard validation. WP10's keyboard-aware toolbar placement remains separate.
+keyboard validation. WP10's keyboard-aware toolbar placement is described below.
 
 ## Review follow-ups from #236 and #247
 
@@ -279,7 +279,7 @@ releases. Physical OEM hinges, other IMEs/composition, assistive technology and
 physical Apple-device checks remain outstanding. The emulator exposed a keyboard
 overlay that did not shrink the viewport. Native keyboard-aware writing-pad
 placement and real control-tap coverage are described in [the keyboard follow-up](android-writing-pad-keyboard.md);
-the custom-toolbar arrangement remains WP10 work.
+the custom-toolbar arrangement is covered by WP10 below.
 
 Android references: [WindowInfoTracker](https://developer.android.com/reference/kotlin/androidx/window/layout/WindowInfoTracker),
 [FoldingFeature](https://developer.android.com/reference/kotlin/androidx/window/layout/FoldingFeature),
@@ -338,8 +338,8 @@ moveBefore and appendChild fallback, synopsis editing, editor typing/undo,
 scene navigation, Table Read beside planning views, panel tabs and ordinary
 stacked splits across dock breakpoints.
 These are browser checks, not physical foldable, IME, touch or screen-reader
-validation. WP10's toolbar choice line and WP11's empty right-half continuation
-remain separate.
+validation. WP10's toolbar choice line is described below; WP11's empty
+right-half continuation remains outstanding.
 
 ## Laptop toolbar (WP10)
 
