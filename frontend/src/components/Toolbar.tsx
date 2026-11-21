@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
+import { ChoiceLineBack, ChoiceLineClose } from './toolbar/ChoiceLineControls';
+import React, { useEffect, useLayoutEffect, useState, useCallback, useRef, useMemo, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Editor } from '@tiptap/react';
 import type { Mark } from '@tiptap/pm/model';
@@ -88,6 +89,9 @@ import { panelIcon, usePanelLabel } from './toolbar/toolbarMeta';
 import ZoomControl from './toolbar/ZoomControl';
 import LayoutSwitcher from './toolbar/LayoutSwitcher';
 import ViewsMenu from './toolbar/ViewsMenu';
+import { laptopToolbarPlacement } from '../utils/foldToolbar';
+import { writingViewport, subscribeWritingViewport } from '../utils/writingViewport';
+import { toolbarChoiceLine, useChoiceLineLifecycle, useChoiceLinePosition, moveChoiceFocus } from './toolbar/choiceLine';
 
 interface ToolbarProps {
   editor: Editor | null;
@@ -525,14 +529,54 @@ const ControlBar: React.FC<ControlBarProps> = ({ editor, bar, items, hidden, edi
 
   // ── Responsive overflow (toolbar only) ──────────────────────────────
   const toolbarRef = useRef<HTMLDivElement>(null);
+  const visibleViewport = useSyncExternalStore(subscribeWritingViewport, writingViewport);
+  const [menuBottom, setMenuBottom] = useState(28);
+  useLayoutEffect(() => {
+    if (!isTop) return;
+    const menu = document.querySelector<HTMLElement>('.menu-bar:not(.menu-bar--floating)');
+    if (!menu) return;
+    const measure = () => setMenuBottom(menu.getBoundingClientRect().bottom);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(menu);
+    return () => observer.disconnect();
+  }, [isTop]);
+  const laptopPlacement = useMemo(() => isTop && !focusMode && (toolbarMode !== 'hidden' || (foldState.foldable && foldState.size === 'phone'))
+    ? laptopToolbarPlacement(foldState, visibleViewport, menuBottom) : null, [isTop, focusMode, toolbarMode, foldState, visibleViewport, menuBottom]);
+  const laptopActive = !!laptopPlacement;
+  useLayoutEffect(() => {
+    if (!isTop) return;
+    const style = document.documentElement.style;
+    if (laptopPlacement) {
+      style.setProperty('--fold-laptop-script-bottom', `${laptopPlacement.scriptBottom}px`);
+      style.setProperty('--fold-laptop-panel-top', `${laptopPlacement.panelTop}px`);
+    }
+    // A native overlaid keyboard need not resize the WebView. Once the new
+    // script height is applied, reveal the typing caret without focusing an
+    // inactive editor or changing the reading position of a reader.
+    const frame = laptopPlacement && editor?.isFocused ? requestAnimationFrame(() => {
+      if (!editor.isDestroyed && editor.isFocused) editor.commands.scrollIntoView();
+    }) : 0;
+    return () => {
+      cancelAnimationFrame(frame);
+      style.removeProperty('--fold-laptop-script-bottom');
+      style.removeProperty('--fold-laptop-panel-top');
+    };
+  }, [isTop, laptopPlacement, editor]);
   const [hiddenItems, setHiddenItems] = useState<Set<string>>(new Set());
   const [overflowOpen, setOverflowOpen] = useState(false);
   const overflowRef = useRef<HTMLDivElement>(null);
+  const overflowPopup = useRef<HTMLDivElement>(null);
+  const overflowTrigger = useRef<HTMLButtonElement>(null);
+  const [overflowLine, setOverflowLine] = useState<ReturnType<typeof toolbarChoiceLine>>(null);
+  useChoiceLineLifecycle(overflowOpen && !!overflowLine, overflowTrigger, overflowPopup, useCallback(() => setOverflowOpen(false), []));
+  useChoiceLinePosition(overflowOpen && !!overflowLine, overflowTrigger, useCallback(() => { if (overflowTrigger.current) setOverflowLine(toolbarChoiceLine(overflowTrigger.current)); }, []));
 
   // Close overflow menu on outside click
   useEffect(() => {
     if (!overflowOpen) return;
     const handler = (e: MouseEvent) => {
+      if (e.target instanceof Element && e.target.closest('.toolbar-choice-line, .od-select-popup--line')) return;
       if (overflowRef.current && !overflowRef.current.contains(e.target as Node)) {
         setOverflowOpen(false);
       }
@@ -574,7 +618,7 @@ const ControlBar: React.FC<ControlBarProps> = ({ editor, bar, items, hidden, edi
   // The AV row group is the one toolbar content that comes and goes with the
   // cursor rather than with the window, so it is the one the ResizeObserver
   // below cannot see. A plugin registering a control changes it too.
-  useEffect(() => { remeasureRef.current(); }, [isInsideAvRow]);
+  useEffect(() => { remeasureRef.current(); }, [isInsideAvRow, activeElement, cursorFont, cursorSize, activeTemplate, t]);
   useEffect(() => pluginRegistry.subscribe(() => remeasureRef.current()), []);
 
   // Measure toolbar overflow and decide which controls fold into the menu
@@ -625,9 +669,9 @@ const ControlBar: React.FC<ControlBarProps> = ({ editor, bar, items, hidden, edi
       // pack into rows, so measure the wrapped layout itself, hiding groups in
       // the usual order until both rows hold what is left, with room for the
       // "…" button that then appears.
-      const twoRows = document.documentElement.classList.contains('fold-book');
+      const twoRows = document.documentElement.classList.contains('fold-book') || toolbar.classList.contains('toolbar--laptop');
       if (twoRows) {
-        const visible = () => Array.from(toolbar.children).filter((c): c is HTMLElement => (c as HTMLElement).offsetWidth > 0);
+        const visible = () => Array.from(toolbar.children).filter((c): c is HTMLElement => (c as HTMLElement).offsetWidth > 0 && (c as HTMLElement).offsetHeight > 0 && !c.classList.contains('toolbar-spacer'));
         const roomForOverflow = () => {
           if (toolbar.querySelector('.toolbar-overflow-wrap')) return true;
           const kids = visible();
@@ -635,6 +679,10 @@ const ControlBar: React.FC<ControlBarProps> = ({ editor, bar, items, hidden, edi
           const firstTop = Math.min(...kids.map(k => k.offsetTop));
           const lastTop = Math.max(...kids.map(k => k.offsetTop));
           if (lastTop - firstTop < 10) return true; // one row used: the second is free
+          if (getComputedStyle(toolbar).direction === 'rtl') {
+            const lastLeft = Math.min(...kids.filter(k => k.offsetTop >= lastTop - 2).map(k => k.offsetLeft));
+            return lastLeft >= (parseFloat(getComputedStyle(toolbar).paddingLeft) || 0) + OVERFLOW_BTN_WIDTH + 4;
+          }
           const lastRight = Math.max(...kids.filter(k => k.offsetTop >= lastTop - 2).map(k => k.offsetLeft + k.offsetWidth));
           const padRight = parseFloat(getComputedStyle(toolbar).paddingRight) || 0;
           return toolbar.clientWidth - padRight - lastRight >= OVERFLOW_BTN_WIDTH + 4;
@@ -734,7 +782,7 @@ const ControlBar: React.FC<ControlBarProps> = ({ editor, bar, items, hidden, edi
       cancelAnimationFrame(rafId);
     };
     // The layout's labels change widths without changing the item list.
-  }, [isTop, hideOrder, toolbarLayout, toolbarMode, foldState.foldable, foldState.size, foldState.fold, docksAvailable]);
+  }, [isTop, hideOrder, toolbarLayout, toolbarMode, foldState.foldable, foldState.size, foldState.fold, docksAvailable, laptopActive]);
 
   // ── Notes handler (shared between inline and overflow) ──
   const handleNotesClick = useCallback((e: React.PointerEvent | React.MouseEvent) => {
@@ -805,7 +853,13 @@ const ControlBar: React.FC<ControlBarProps> = ({ editor, bar, items, hidden, edi
 
   // ── One renderer per control. `mode` is the label the writer chose. ──
 
-  const closeOverflow = (inOverflow: boolean) => { if (inOverflow) setOverflowOpen(false); };
+  const closeOverflow = (inOverflow: boolean) => {
+    if (!inOverflow) return;
+    setOverflowOpen(false);
+    if (overflowLine) requestAnimationFrame(() => {
+      if (document.activeElement === document.body || document.activeElement === editor?.view.dom) overflowTrigger.current?.focus();
+    });
+  };
 
   const renderUndoRedo = (mode: ToolbarLabelMode) => (
     <div className="toolbar-group" key="undo-redo">
@@ -868,6 +922,7 @@ const ControlBar: React.FC<ControlBarProps> = ({ editor, bar, items, hidden, edi
     <div className="toolbar-group" key="font" style={locked.fontFamily ? { opacity: 0.5, pointerEvents: 'none' } : undefined}>
       {heading(mode, <FaFont />, t('layout.labels.font'))}
       <FontPicker
+        horizontalChoices={isTop && (laptopActive || foldState.fold === 'book')}
         value={cursorFont}
         extraFonts={extraFonts}
         onManageFonts={() => useEditorStore.getState().setFontsDialogOpen(true)}
@@ -1157,7 +1212,7 @@ const ControlBar: React.FC<ControlBarProps> = ({ editor, bar, items, hidden, edi
           {plainButton('reports', mode, <FaTable />, t('layout.labels.reports'), t('layout.labels.reports'),
             () => { requestAppCommand('reports'); closeOverflow(inOverflow); })}
         </div>;
-      case 'views': return <ViewsMenu key="views" label={mode} inOverflow={inOverflow} />;
+      case 'views': return <ViewsMenu key="views" label={mode} inOverflow={inOverflow} horizontalChoices={isTop && (laptopActive || foldState.fold === 'book')} />;
       // The switcher moves the panel docks, which a phone or narrow window does not have.
       case 'layout': return docksAvailable ? <LayoutSwitcher key="layout" label={mode} options={options} /> : null;
       case 'theme': {
@@ -1293,8 +1348,10 @@ const ControlBar: React.FC<ControlBarProps> = ({ editor, bar, items, hidden, edi
 
   return (
     <div
-      className={`toolbar${(toolbarMode === 'comfortable' || (foldState.foldable && foldState.size === 'phone' && toolbarMode === 'hidden')) ? ' toolbar-comfortable' : ''}${isInsideAvRow ? ' toolbar-av' : ''}`}
+      className={`toolbar${laptopPlacement ? ' toolbar--laptop' : ''}${(toolbarMode === 'comfortable' || (foldState.foldable && foldState.size === 'phone' && toolbarMode === 'hidden')) ? ' toolbar-comfortable' : ''}${isInsideAvRow ? ' toolbar-av' : ''}`}
       ref={toolbarRef}
+      data-fold-toolbar={laptopPlacement?.side}
+      style={laptopPlacement ? { top: laptopPlacement.top, left: visibleViewport.left, width: visibleViewport.width } : undefined}
       role="group" aria-label={t('common:accessibility.formattingControls')}
       onContextMenu={contextMenu.onContextMenu}
     >
@@ -1324,16 +1381,20 @@ const ControlBar: React.FC<ControlBarProps> = ({ editor, bar, items, hidden, edi
             }
           }}>
           <button
+            ref={overflowTrigger}
             className={`toolbar-btn toolbar-overflow-btn${overflowOpen ? ' active' : ''}`}
             title={t('toolbar.moreFormatting')}
             aria-expanded={overflowOpen}
-            onClick={() => setOverflowOpen(!overflowOpen)}
+            onClick={e => { setOverflowLine(toolbarChoiceLine(e.currentTarget)); setOverflowOpen(!overflowOpen); }}
           >
             <FaEllipsisV />
           </button>
           {overflowOpen && (
-            <div className="toolbar-overflow-menu">
-              {overflowContent}
+            <div ref={overflowPopup} onKeyDown={overflowLine ? moveChoiceFocus : undefined} className={`toolbar-overflow-menu${overflowLine ? ' toolbar-choice-line toolbar-overflow-menu--line' : ''}`}
+              style={overflowLine ? { position: 'fixed', left: overflowLine.left, top: overflowLine.top, width: overflowLine.width, height: overflowLine.height } : undefined}>
+              {overflowLine && <ChoiceLineBack label={t('toolbar.moreFormatting')} onClose={() => { setOverflowOpen(false); overflowTrigger.current?.focus(); }} />}
+              <div className={overflowLine ? 'toolbar-choice-options' : undefined}>{overflowContent}</div>
+              {overflowLine && <ChoiceLineClose onClose={() => { setOverflowOpen(false); overflowTrigger.current?.focus(); }} />}
             </div>
           )}
         </div>
