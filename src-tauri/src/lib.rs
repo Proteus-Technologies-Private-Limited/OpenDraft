@@ -2984,6 +2984,7 @@ async fn open_new_window(app: tauri::AppHandle, window: tauri::WebviewWindow) ->
         builder = builder
             .title("OpenDraft")
             .visible(false)
+            .focused(false)
             .inner_size(1280.0, 800.0)
             .min_inner_size(800.0, 600.0)
             .resizable(true);
@@ -3003,11 +3004,14 @@ async fn open_new_window(app: tauri::AppHandle, window: tauri::WebviewWindow) ->
     #[cfg(desktop)]
     {
         let target = _window.clone();
-        _window.run_on_main_thread(move || {
+        if let Err(error) = _window.run_on_main_thread(move || {
             #[cfg(target_os = "linux")]
             prepare_linux_titlebar(&target);
             desktop_windows::show_new(&target, Some(&window));
-        }).map_err(|e| format!("Failed to place window: {e}"))?;
+        }) {
+            let _ = _window.close();
+            return Err(format!("Failed to place window: {error}"));
+        }
     }
     #[cfg(target_os = "ios")]
     bind_window_scene(label.clone());
@@ -3500,18 +3504,19 @@ pub fn run() {
                         let count = WINDOW_COUNTER.fetch_add(1, Ordering::Relaxed);
                         let label = format!("main-{}", count);
                         let url = tauri::WebviewUrl::App("/".into());
+                        let origin = _app_handle.webview_windows().into_values()
+                            .find(|w| desktop_windows::tracked(w.label()) && w.is_focused().unwrap_or(false))
+                            .or_else(|| _app_handle.get_webview_window("main"));
                         match tauri::WebviewWindowBuilder::new(_app_handle, &label, url)
                             .title("OpenDraft")
                             .visible(false)
+                            .focused(false)
                             .inner_size(1280.0, 800.0)
                             .min_inner_size(800.0, 600.0)
                             .resizable(true)
                             .build()
                         {
                             Ok(_new_win) => {
-                                let origin = _app_handle.webview_windows().into_values()
-                                    .find(|w| desktop_windows::tracked(w.label()) && w.is_focused().unwrap_or(false))
-                                    .or_else(|| _app_handle.get_webview_window("main"));
                                 #[cfg(target_os = "linux")]
                                 prepare_linux_titlebar(&_new_win);
                                 desktop_windows::show_new(&_new_win, origin.as_ref());
