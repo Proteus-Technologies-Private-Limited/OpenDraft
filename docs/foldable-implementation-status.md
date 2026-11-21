@@ -18,8 +18,8 @@ planning views to the fold dock. Android WindowManager fallback is implemented i
 | WP7 | On confirmed folded foldables, Hidden keeps the phone-sized toolbar; the existing draggable menu button starts below it at the right. Focus Mode and ordinary-device Hidden retain their behavior. The button and its floating menu are clamped inside the side safe-area insets: the Duo's cover keeps its clock and status in a column down the right edge, which had covered the default position. | Physical-device check. |
 | WP8 | Fit-width page with 70% minimum, Navigator docking at 80%, one 300 px panel column with tabs, Table Read in that column, plugin panels, and Story Timeline as a bottom band. Stable portal hosts preserve mounted panel subtrees. | Long-script reading position, selection, typing/undo, panel focus (including the appendChild fallback), plugin activation and browser keyboard/ARIA regressions are covered. Physical touch targets, screen readers and native keyboard behavior still need device validation. |
 | WP9 | The existing Page View, Index Cards, Outline and Beat Board share one stable portal host. Explicit split panes follow the crease; planning-view commands keep the script visible on confirmed open/book/laptop foldables. Repeated pane requests activate its tab. Cover screens and ordinary windows keep their full-view/split choices. | Physical-device/WebView validation. Empty-companion book continuation is still WP11. |
-| WP10 | No replacement toolbar or element selector added. | The custom toolbar is already on main. Arrange the writer's items in two rows and implement the accessible horizontal choice line. Measure the native keyboard before deciding which side of the crease holds the rows. |
-| WP11 | Browser book/laptop detection, book script reflow, right/lower panel slots, larger current Table Read line, and a writing pad sharing the book/laptop companion tabs without losing its draft or selection. | Book companion panes are covered by WP9; empty-companion continuation remains; final laptop/flip layout together with WP10. The current toolbar remains at the top. This package is partial. |
+| WP10 | Reuses the customized toolbar in two 44 px rows at a horizontal crease. Measured visible/keyboard space chooses below or above the fold. Built-in dropdowns, Views, colors and overflow share the second row, retaining existing choices and translations. | Physical-device keyboard and assistive-technology validation. Browser emulation and keyboard-geometry coverage do not establish actual native IME behavior. |
+| WP11 | Browser book/laptop detection, book script reflow, right/lower panel slots, larger current Table Read line, and a writing pad sharing the book/laptop companion tabs without losing its draft or selection. | Companion panes are in #280; empty-companion continuation remains. WP10 covers laptop/flip toolbar placement here, with native keyboard/device validation still outstanding. This package is partial. |
 | WP12 | Browser Media Session controls were merged separately in #237. Android system-voice reads now have a native foreground service, MediaSession controls and an independent queue; see [implementation and automated coverage](android-background-table-read.md). | Native iOS remote commands/audio-session/background-mode support, AI-provider background audio and physical-device validation. Browser Media Session alone cannot guarantee playback after a web view is suspended. |
 | WP13 | No hardware capability is inferred from a model name. | Native Pencil capability and native refusal of New Window on a cover screen, after WP4. |
 
@@ -114,7 +114,7 @@ pad is a labelled region inside the tabpanel, rather than a nested dialog. Docki
 does not overwrite the saved floating size/position; floating dimensions are
 clamped to the available viewport. Short dock slots scroll to keep tools and
 Insert reachable. This is browser layout coverage, not native Pencil or system
-keyboard validation. WP10's keyboard-aware toolbar placement remains separate.
+keyboard validation. WP10's keyboard-aware toolbar placement is described below.
 
 ## Review follow-ups from #236 and #247
 
@@ -214,8 +214,9 @@ before; an iPhone 17 simulator running the same build showed the same layout.
   in, centred, so the button can be returned there after being moved onto the
   script; anywhere else it is clamped inside the safe area as before.
 
-Still open: WP10's full choice-line spec (leading crumb button, trailing ✕) and
-the laptop posture's toolbar at the keyboard side, both waiting on #217.
+WP10 below extends the choice line with leading/trailing close controls and
+keyboard-aware laptop placement. The custom toolbar from #217 is on main;
+physical-device checks remain outstanding.
 
 ## Android WindowManager fallback
 
@@ -278,7 +279,7 @@ releases. Physical OEM hinges, other IMEs/composition, assistive technology and
 physical Apple-device checks remain outstanding. The emulator exposed a keyboard
 overlay that did not shrink the viewport. Native keyboard-aware writing-pad
 placement and real control-tap coverage are described in [the keyboard follow-up](android-writing-pad-keyboard.md);
-the custom-toolbar arrangement remains WP10 work.
+the custom-toolbar arrangement is covered by WP10 below.
 
 Android references: [WindowInfoTracker](https://developer.android.com/reference/kotlin/androidx/window/layout/WindowInfoTracker),
 [FoldingFeature](https://developer.android.com/reference/kotlin/androidx/window/layout/FoldingFeature),
@@ -337,5 +338,33 @@ moveBefore and appendChild fallback, synopsis editing, editor typing/undo,
 scene navigation, Table Read beside planning views, panel tabs and ordinary
 stacked splits across dock breakpoints.
 These are browser checks, not physical foldable, IME, touch or screen-reader
-validation. WP10's toolbar choice line and WP11's empty right-half continuation
-remain separate.
+validation. WP10's toolbar choice line is described below; WP11's empty
+right-half continuation remains outstanding.
+
+## Laptop toolbar (WP10)
+
+The menu stays at the top. On a confirmed half-open horizontal fold, the
+customized toolbar uses two 44 px rows, with 8 px top padding, a 4 px gap and
+6 px bottom padding. It uses the reported crease and the shared visible-viewport
+measurement, including the optional native keyboard bridge. If the lower half
+has room, panels start below the toolbar. Otherwise the toolbar uses visible
+space above the crease and the script stops above it. An unusably short viewport
+keeps the ordinary toolbar rather than putting controls over the menu. A focused
+editor reveals its caret after the available script height changes; inactive
+readers keep their reading position. The narrow tabletop menu button stays in
+the upper strip rather than following the toolbar under the keyboard. Focus
+Mode and explicit Hidden on a wide window retain their existing behavior.
+
+Element, size, language and workspace-layout selects keep the same options in a
+horizontal listbox; arrows, Home/End, Enter and Escape retain their meanings.
+The font picker keeps its existing font catalog, search and manager. Back/close
+buttons frame each row. Views and overflow retain their mixed native controls
+(radio, checkbox, button) rather than incorrectly turning multiple independent
+settings into one single-select listbox. Tab dismisses choices before returning
+to ordinary controls. Posture changes dismiss an open choice without remounting
+the editor or changing the writer's saved toolbar layout.
+
+`test-script/laptop-toolbar/regressions.py` runs in the Chromium accessibility
+job. It supplements the ordinary Chromium/WebKit controls checks; it does not
+replace the existing foldable integration workflow, which also covers the
+companion panes now on main. WP11's empty-companion continuation remains separate.

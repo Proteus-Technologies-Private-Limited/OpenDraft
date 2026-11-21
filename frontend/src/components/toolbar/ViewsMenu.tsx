@@ -1,3 +1,4 @@
+import { ChoiceLineBack, ChoiceLineClose } from './ChoiceLineControls';
 /**
  * Views: one menu for the page layout, the view that owns the writing area,
  * the panels and the workspace layout (from PR #217).
@@ -9,7 +10,7 @@
  * Each copy (on the bar, in the overflow menu) is its own component with its
  * own ref, so closing on an outside click works for whichever copy is open.
  */
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FaCaretDown, FaColumns } from 'react-icons/fa';
 import { useEditorFields } from '../../stores/editorStore';
@@ -17,6 +18,9 @@ import { currentMainView, setMainView, togglePanel, usePanelOpen, type MainView 
 import { NAVIGATOR_PANELS, isNavigatorPanel, layoutPanels } from '../../utils/workspaceLayout';
 import type { ToolbarLabelMode } from '../../utils/toolbarLayout';
 import { panelIcon, usePanelLabel, useWorkspaceLayoutChoices } from './toolbarMeta';
+import { createPortal } from 'react-dom';
+import { modalPortalContainer } from '../../utils/modalAccessibility';
+import { toolbarChoiceLine, useChoiceLineLifecycle, useChoiceLinePosition, moveChoiceFocus } from './choiceLine';
 import { useWorkspaceDocksAvailable } from '../../hooks/useWorkspaceDocks';
 
 
@@ -34,9 +38,10 @@ function PanelCheck({ panel, label, onDone, onToggle }: { panel: string; label: 
 interface Props {
   label: ToolbarLabelMode;
   inOverflow?: boolean;
+  horizontalChoices?: boolean;
 }
 
-const ViewsMenu: React.FC<Props> = ({ label, inOverflow = false }) => {
+const ViewsMenu: React.FC<Props> = ({ label, inOverflow = false, horizontalChoices = false }) => {
   const { t } = useTranslation(['toolbar', 'menu', 'story']);
   const {
     viewLayout, setViewLayout, indexCardsOpen, beatBoardOpen, outlineOpen,
@@ -50,11 +55,17 @@ const ViewsMenu: React.FC<Props> = ({ label, inOverflow = false }) => {
   const docksAvailable = useWorkspaceDocksAvailable();
   const [open, setOpen] = useState(false);
   const [align, setAlign] = useState<'start' | 'end'>('end');
+  const popupId = useId();
   const ref = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const popup = useRef<HTMLDivElement>(null);
+  const [line, setLine] = useState<ReturnType<typeof toolbarChoiceLine>>(null);
+  useChoiceLineLifecycle(open && !!line, trigger, popup, useCallback(() => setOpen(false), []));
+  useChoiceLinePosition(open && !!line, trigger, useCallback(() => { if (trigger.current) setLine(toolbarChoiceLine(trigger.current)); }, []));
 
   useEffect(() => {
     if (!open) return;
-    const onDown = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    const onDown = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node) && !popup.current?.contains(e.target as Node)) setOpen(false); };
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       setOpen(false);
@@ -65,7 +76,7 @@ const ViewsMenu: React.FC<Props> = ({ label, inOverflow = false }) => {
     return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
   }, [open]);
 
-  const close = () => setOpen(false);
+  const close = () => { setOpen(false); if (line) trigger.current?.focus(); };
   const mainView = currentMainView({ indexCardsOpen, beatBoardOpen, outlineOpen });
   const views: { id: MainView; label: string }[] = [
     { id: 'script', label: t('toolbar:layout.views.script') },
@@ -82,30 +93,13 @@ const ViewsMenu: React.FC<Props> = ({ label, inOverflow = false }) => {
   const showText = label === 'text' || label === 'both';
   const name = `toolbar-views${inOverflow ? '-overflow' : ''}`;
 
-  return (
-    <div className="toolbar-group toolbar-views-wrap" ref={ref}>
-      <button
-        type="button"
-        className={`toolbar-btn toolbar-views-btn${open ? ' active' : ''}`}
-        title={t('toolbar:layout.items.views.description')}
-        aria-label={showText ? undefined : t('toolbar:layout.items.views.label')}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        onClick={(e) => {
-          if (open) { close(); return; }
-          if (!inOverflow) {
-            const rect = e.currentTarget.getBoundingClientRect();
-            setAlign(window.innerWidth - rect.left >= 260 ? 'start' : 'end');
-          }
-          setOpen(true);
-        }}
-      >
-        {showIcon && <FaColumns />}
-        {showText && <span className="toolbar-btn-label">{t('toolbar:layout.items.views.label')}</span>}
-        <FaCaretDown />
-      </button>
-      {open && (
-        <div className={`toolbar-views-menu toolbar-views-menu-${inOverflow ? 'end' : align}`} role="menu" aria-label={t('toolbar:layout.items.views.label')}>
+  const menu = (
+        <div ref={popup} id={popupId} className={`toolbar-views-menu toolbar-views-menu-${inOverflow ? 'end' : align}${line ? ' toolbar-choice-line toolbar-views-menu--line' : ''}`}
+          role={line ? undefined : 'menu'} aria-label={line ? undefined : t('toolbar:layout.items.views.label')}
+          style={line ? { position: 'fixed', left: line.left, top: line.top, width: line.width, height: line.height } : undefined}
+          onKeyDown={line ? moveChoiceFocus : undefined}>
+          {line && <ChoiceLineBack label={t('toolbar:layout.items.views.label')} onClose={() => { close(); trigger.current?.focus(); }} />}
+          <div className={line ? 'toolbar-choice-options' : undefined} role={line ? 'toolbar' : undefined} aria-label={line ? t('toolbar:layout.items.views.label') : undefined} aria-orientation={line ? 'horizontal' : undefined}>
           <div className="toolbar-views-heading">{t('menu:view.layout')}</div>
           {(['page', 'phone'] as const).map((id) => (
             <label className="toolbar-views-option" key={id}>
@@ -147,8 +141,37 @@ const ViewsMenu: React.FC<Props> = ({ label, inOverflow = false }) => {
               </button>
             </>
           )}
+          </div>
+          {line && <ChoiceLineClose onClose={() => { close(); trigger.current?.focus(); }} />}
         </div>
-      )}
+  );
+
+  return (
+    <div className="toolbar-group toolbar-views-wrap" ref={ref}>
+      <button
+        ref={trigger}
+        type="button"
+        className={`toolbar-btn toolbar-views-btn${open ? ' active' : ''}`}
+        title={t('toolbar:layout.items.views.description')}
+        aria-label={showText ? undefined : t('toolbar:layout.items.views.label')}
+        aria-haspopup={horizontalChoices ? undefined : 'menu'}
+        aria-controls={open ? popupId : undefined}
+        aria-expanded={open}
+        onClick={(e) => {
+          if (open) { close(); return; }
+          if (!inOverflow) {
+            const rect = e.currentTarget.getBoundingClientRect();
+            setAlign(window.innerWidth - rect.left >= 260 ? 'start' : 'end');
+          }
+          setLine(toolbarChoiceLine(e.currentTarget));
+          setOpen(true);
+        }}
+      >
+        {showIcon && <FaColumns />}
+        {showText && <span className="toolbar-btn-label">{t('toolbar:layout.items.views.label')}</span>}
+        <FaCaretDown />
+      </button>
+      {open && (line ? createPortal(menu, modalPortalContainer()) : menu)}
     </div>
   );
 };

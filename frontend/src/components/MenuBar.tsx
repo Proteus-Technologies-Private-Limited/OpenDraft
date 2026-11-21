@@ -5,7 +5,7 @@ import SourceBackupRecovery from './SourceBackupRecovery';
 import NotOnApple from './NotOnApple';
 import { isTauri as isNativeApp, getOS as nativeOS } from '../services/platform';
 import { ExternalSaveCancelled, externalScreenplay } from '../services/externalSave';
-import React, { useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo, useId } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect, useCallback, useSyncExternalStore, useMemo, useId } from 'react';
 import { ModalOverlay } from './ModalOverlay';
 import { useMenuKeyboard } from '../hooks/useMenuKeyboard';
 import { menuKeyShortcuts } from '../utils/menuKeyboard';
@@ -31,6 +31,8 @@ import { showToast } from './Toast';
 import { APP_COMMAND_EVENT, type AppCommand } from '../utils/appCommands';
 import { WORKSPACE_PRESET_IDS } from '../utils/workspaceLayout';
 import { useFoldState } from '../hooks/useFoldState';
+import { laptopToolbarPlacement } from '../utils/foldToolbar';
+import { subscribeWritingViewport, writingViewport } from '../utils/writingViewport';
 import { companionView, foldCompanionPlacement } from '../utils/foldCompanion';
 import { useWorkspaceDocksAvailable } from '../hooks/useWorkspaceDocks';
 import { statusColumnX, useFoldedMenuPosition } from '../hooks/useFoldedMenuPosition';
@@ -4030,7 +4032,9 @@ const MenuBar: React.FC<MenuBarProps> = ({
   });
   const fabDragRef = useRef<{ startX: number; startY: number; originX: number; originY: number; isDrag: boolean } | null>(null);
   const fabWasDragRef = useRef(false);
-  const defaultFab = useFoldedMenuPosition(foldState.foldable && foldState.size === 'phone', navPanelWidth);
+  const menuViewport = useSyncExternalStore(subscribeWritingViewport, writingViewport);
+  const laptopToolbar = laptopToolbarPlacement(foldState, menuViewport, 28);
+  const defaultFab = useFoldedMenuPosition(foldState.foldable && foldState.size === 'phone' && !laptopToolbar, navPanelWidth);
   const defaultFabRef = useRef(defaultFab);
   defaultFabRef.current = defaultFab;
   // A drag that ends over the folded cover's status column drops the button
@@ -4040,7 +4044,12 @@ const MenuBar: React.FC<MenuBarProps> = ({
     return x === null ? pos : { ...pos, x };
   }, []);
   const fabX = Math.max(0, Math.min(fabPos?.x ?? defaultFab.x, window.innerWidth - FAB_SIZE));
-  const fabY = Math.max(0, Math.min(fabPos?.y ?? defaultFab.y, window.innerHeight - FAB_SIZE));
+  // A tabletop toolbar has left the top strip. Keep the menu in that strip,
+  // including a saved drag position, while preserving the saved cover choice.
+  const fabBottom = laptopToolbar
+    ? Math.min(menuViewport.top + menuViewport.height, laptopToolbar.scriptBottom) - 8
+    : window.innerHeight;
+  const fabY = Math.max(0, Math.min(fabPos?.y ?? defaultFab.y, fabBottom - FAB_SIZE));
   // On Android the WebView extends behind the (transparent) status bar, so a
   // FAB rendered at top: 10px sits in the system-bar touch region and never
   // receives taps. Clamp the rendered top below the status bar (28dp fallback
