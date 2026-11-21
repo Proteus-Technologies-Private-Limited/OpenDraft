@@ -19,6 +19,7 @@ import {
   recordHappyMoment,
   recordSession,
   requestReviewNow,
+  resetReviewTiming,
   shouldRequestReview,
   storeReviewUrl,
   type ReviewState,
@@ -102,7 +103,11 @@ describe('recording', () => {
     vi.useFakeTimers();
     vi.setSystemTime(NOW);
   });
-  afterEach(() => vi.useRealTimers());
+  afterEach(() => {
+    resetReviewTiming();
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
 
   it('counts launches and exports on the phone apps', () => {
     recordSession(NOW);
@@ -138,6 +143,42 @@ describe('recording', () => {
     expect(after.lastAsked).toBe(NOW + REVIEW_RULES.delayMs);
   });
 
+  it('waits until the writer stops typing', async () => {
+    const page = new EventTarget();
+    vi.stubGlobal('window', page);
+    vi.stubGlobal('document', { visibilityState: 'visible', querySelector: () => null });
+    localStorage.setItem(KEY, JSON.stringify(due({ moments: REVIEW_RULES.minMoments - 1 })));
+    recordHappyMoment(NOW);
+    // Back to writing 3.5 s after the export.
+    await vi.advanceTimersByTimeAsync(3500);
+    page.dispatchEvent(new Event('keydown'));
+    await vi.advanceTimersByTimeAsync(REVIEW_RULES.delayMs - 3500 + REVIEW_RULES.retryMs);
+    expect(invoke).not.toHaveBeenCalled(); // 7 s: only 3.5 s since the last key
+    await vi.advanceTimersByTimeAsync(REVIEW_RULES.retryMs);
+    expect(invoke).toHaveBeenCalledTimes(1); // 10 s: quiet for 6.5 s
+  });
+
+  it('does not ask over an open dialog, and keeps the exports for next time', async () => {
+    let dialog: object | null = {};
+    vi.stubGlobal('window', new EventTarget());
+    vi.stubGlobal('document', { visibilityState: 'visible', querySelector: () => dialog });
+    localStorage.setItem(KEY, JSON.stringify(due({ moments: REVIEW_RULES.minMoments - 1 })));
+    const info = vi.spyOn(console, 'info').mockImplementation(() => undefined);
+    recordHappyMoment(NOW);
+    await vi.advanceTimersByTimeAsync(REVIEW_RULES.maxWaitMs + REVIEW_RULES.retryMs);
+    expect(invoke).not.toHaveBeenCalled();
+    expect(info).toHaveBeenCalledWith(expect.stringContaining('stayed busy'));
+    const kept = loadState(Date.now());
+    expect(kept.asks).toBe(0);
+    expect(kept.moments).toBe(REVIEW_RULES.minMoments);
+    // The next export, with nothing open, asks.
+    dialog = null;
+    recordHappyMoment(Date.now());
+    await vi.advanceTimersByTimeAsync(REVIEW_RULES.delayMs + 10);
+    expect(invoke).toHaveBeenCalledTimes(1);
+    info.mockRestore();
+  });
+
   it('does not ask while the app is in the background', async () => {
     localStorage.setItem(KEY, JSON.stringify(due()));
     vi.stubGlobal('document', { visibilityState: 'hidden' });
@@ -149,7 +190,9 @@ describe('recording', () => {
   it('does not count a request the platform declined to make', async () => {
     localStorage.setItem(KEY, JSON.stringify(due()));
     invoke.mockResolvedValueOnce(false);
+    const info = vi.spyOn(console, 'info').mockImplementation(() => undefined);
     expect(await requestReviewNow(NOW)).toBe(false);
+    info.mockRestore();
     expect(loadState(NOW).asks).toBe(0);
   });
 

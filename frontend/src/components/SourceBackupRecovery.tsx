@@ -36,7 +36,7 @@ export default function SourceBackupRecovery({ onClose }: { onClose(): void }) {
         name: entry.name,
       });
       const originalName = entry.originalName || entry.name.replace(/^\d+-\d+-/, '');
-      await saveFile(new Uint8Array(bytes), originalName);
+      await saveFile(new Uint8Array(bytes), originalName, undefined, { countsAsExport: false });
     } catch (e) {
       setError(String(e));
     } finally {

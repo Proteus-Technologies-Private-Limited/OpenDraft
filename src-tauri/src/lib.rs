@@ -1104,7 +1104,7 @@ extern "C" {
     fn ios_activate_other_scene() -> i32;
     fn ios_connected_scene_ids() -> *mut std::ffi::c_char;
     fn ios_activate_scene_id(identifier: *const std::ffi::c_char) -> i32;
-    fn ios_request_review();
+    fn ios_request_review() -> i32;
 }
 
 /// Ask the platform for its own rating sheet (StoreKit on iOS, Play's in-app
@@ -1115,8 +1115,9 @@ extern "C" {
 fn request_store_review() -> Result<bool, String> {
     #[cfg(target_os = "ios")]
     {
-        unsafe { ios_request_review() };
-        Ok(true)
+        // 0 when nothing was asked: the app is behind another one, or a share
+        // sheet still covers it.
+        Ok(unsafe { ios_request_review() } != 0)
     }
     #[cfg(target_os = "android")]
     {

@@ -7,24 +7,41 @@
 
 // ── App Store rating request ────────────────────────────────────────────────
 // Ask StoreKit for its own rating sheet. StoreKit decides whether to show it
-// (it shows it at most three times in 365 days, and never in TestFlight or
-// development builds), so a call is a request, not a promise. Guideline 5.6.1
+// (at most three times in 365 days in a store build, every time in a
+// development build, never in TestFlight), so a call is a request, not a promise. Guideline 5.6.1
 // asks apps to use this API rather than drawing their own rating prompt.
-// Deferred to the main queue; does nothing unless a scene is in the foreground,
-// since asking while the app is behind another one only wastes an allowance.
-void ios_request_review(void) {
-    dispatch_async(dispatch_get_main_queue(), ^{
-        @autoreleasepool {
-            for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
-                if ([scene isKindOfClass:[UIWindowScene class]] &&
-                    scene.activationState == UISceneActivationStateForegroundActive) {
-                    [SKStoreReviewController requestReviewInScene:(UIWindowScene *)scene];
-                    return;
-                }
+// Asks only when a scene is in the foreground and nothing covers the app — a
+// share sheet still open after an export, say. Asking then would put the sheet
+// over somebody mid-task, or spend an allowance on nothing. Returns 1 when a
+// request was made, 0 when it was skipped, so the caller does not count it.
+static BOOL request_review_on_main(void) {
+    for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
+        if (![scene isKindOfClass:[UIWindowScene class]] ||
+            scene.activationState != UISceneActivationStateForegroundActive) continue;
+        UIWindowScene *windowScene = (UIWindowScene *)scene;
+        for (UIWindow *window in windowScene.windows) {
+            if (window.rootViewController.presentedViewController) {
+                NSLog(@"[FileHelpers] rating request skipped: %@ is on screen",
+                      NSStringFromClass([window.rootViewController.presentedViewController class]));
+                return NO;
             }
-            NSLog(@"[FileHelpers] rating request skipped: no foreground scene");
         }
+        [SKStoreReviewController requestReviewInScene:windowScene];
+        return YES;
+    }
+    NSLog(@"[FileHelpers] rating request skipped: no foreground scene");
+    return NO;
+}
+
+int ios_request_review(void) {
+    // UIKit wants the main thread. A synchronous Tauri command may already be
+    // on it, and dispatch_sync onto the queue you are on would deadlock.
+    if (NSThread.isMainThread) return request_review_on_main() ? 1 : 0;
+    __block BOOL requested = NO;
+    dispatch_sync(dispatch_get_main_queue(), ^{
+        @autoreleasepool { requested = request_review_on_main(); }
     });
+    return requested ? 1 : 0;
 }
 
 // ── iOS Share Sheet ─────────────────────────────────────────────────────────

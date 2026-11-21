@@ -42,6 +42,12 @@ export const REVIEW_RULES = {
   maxAsks: 3,
   /** Let a share sheet or the export confirmation finish before asking. */
   delayMs: 4000,
+  /** Typing, tapping or scrolling this recently means the writer is busy. */
+  idleMs: 4000,
+  /** How often to look again while the writer is busy. */
+  retryMs: 3000,
+  /** Give up after this long; the exports stay counted for the next one. */
+  maxWaitMs: 60000,
 } as const;
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -115,9 +121,54 @@ export function recordSession(now: number = Date.now()): void {
 
 let pendingTimer: ReturnType<typeof setTimeout> | null = null;
 
+// ── Not in the writer's way ──────────────────────────────────────────────
+// The sheet covers the app, so it must never land on someone who has gone
+// back to writing, or on top of a dialog. The last keystroke, tap or scroll is
+// noted (listeners go on only once an export makes a request due) and the
+// request waits for a quiet moment.
+
+let lastActivity = 0;
+let watchingActivity = false;
+const ACTIVITY_EVENTS = ['keydown', 'beforeinput', 'pointerdown', 'touchstart', 'wheel', 'scroll'] as const;
+
+function noteActivity(): void {
+  lastActivity = Date.now();
+}
+
+function watchActivity(): void {
+  if (watchingActivity || typeof window === 'undefined') return;
+  watchingActivity = true;
+  for (const type of ACTIVITY_EVENTS) window.addEventListener(type, noteActivity, { capture: true, passive: true });
+}
+
+function stopWatchingActivity(): void {
+  if (!watchingActivity || typeof window === 'undefined') return;
+  watchingActivity = false;
+  for (const type of ACTIVITY_EVENTS) window.removeEventListener(type, noteActivity, { capture: true });
+}
+
+/** A dialog, menu or sheet of ours is open — the writer is in the middle of something. */
+function overlayOpen(): boolean {
+  if (typeof document === 'undefined') return false;
+  return !!document.querySelector('[role="dialog"], [role="alertdialog"], .dialog-overlay, [role="menu"]');
+}
+
+/** Whether now is a quiet moment: nothing typed, tapped or scrolled lately, and nothing open. */
+export function writerIsIdle(now: number = Date.now()): boolean {
+  return now - lastActivity >= REVIEW_RULES.idleMs && !overlayOpen();
+}
+
+/** Test hook: forget recorded activity and any pending request. */
+export function resetReviewTiming(): void {
+  if (pendingTimer) clearTimeout(pendingTimer);
+  pendingTimer = null;
+  lastActivity = 0;
+  stopWatchingActivity();
+}
+
 /**
  * Note that the writer just exported a script, then — if they have been around
- * long enough — ask once the moment has passed.
+ * long enough — ask once the moment has passed and the writer is not busy.
  */
 export function recordHappyMoment(now: number = Date.now()): void {
   if (!canRequestReview()) return;
@@ -126,10 +177,27 @@ export function recordHappyMoment(now: number = Date.now()): void {
   saveState(state);
   if (!shouldRequestReview(state, now, getAppVersion())) return;
   if (pendingTimer) return;
-  pendingTimer = setTimeout(() => {
+  // The export itself was a tap: the quiet period counts from here.
+  lastActivity = Date.now();
+  watchActivity();
+  const giveUpAt = Date.now() + REVIEW_RULES.maxWaitMs;
+  const attempt = () => {
     pendingTimer = null;
+    if (!writerIsIdle()) {
+      if (Date.now() + REVIEW_RULES.retryMs <= giveUpAt) {
+        pendingTimer = setTimeout(attempt, REVIEW_RULES.retryMs);
+      } else {
+        // Busy the whole time: skip this one. Nothing is marked as asked, so
+        // the next export tries again.
+        console.info('[storeReview] writer stayed busy; not asking this time');
+        stopWatchingActivity();
+      }
+      return;
+    }
+    stopWatchingActivity();
     void requestReviewNow();
-  }, REVIEW_RULES.delayMs);
+  };
+  pendingTimer = setTimeout(attempt, REVIEW_RULES.delayMs);
 }
 
 /**
@@ -146,8 +214,13 @@ export async function requestReviewNow(now: number = Date.now()): Promise<boolea
     if (!shouldRequestReview(state, now, version)) return false;
 
     const { invoke } = await import('@tauri-apps/api/core');
+    // The native side answers false when something covers the app — a share
+    // sheet still open, another app in front — and then nothing is counted.
     const requested = await invoke<boolean>('request_store_review');
-    if (!requested) return false;
+    if (!requested) {
+      console.info('[storeReview] the app was busy; not asking this time');
+      return false;
+    }
 
     // Counted as asked even though the platform may stay silent: that is its
     // rationing, and asking again sooner would not change the answer.

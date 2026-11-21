@@ -120,6 +120,13 @@ class MainActivity : TauriActivity() {
         fun requestReview(context: Context): String? {
             val activity = context as? android.app.Activity ?: return null
             if (activity.isFinishing) return null
+            // The share chooser from an export, or any other app, still in
+            // front: asking now would put the sheet over it or waste Play's
+            // quota. Report nothing asked, so the next export tries again.
+            if (!activity.hasWindowFocus()) {
+                android.util.Log.i("OpenDraft", "review request skipped: another window is in front")
+                return null
+            }
             return try {
                 activity.runOnUiThread {
                     try {

@@ -56,7 +56,15 @@ export async function saveFile(
   data: Uint8Array | string,
   defaultFilename: string,
   filters?: FileFilter[],
-  options: { preserveOriginal?: string } = {},
+  options: {
+    preserveOriginal?: string;
+    /**
+     * False for a save that is not a finished piece of work — getting a
+     * backed-up original back, say — so it never counts toward asking for a
+     * store rating.
+     */
+    countsAsExport?: boolean;
+  } = {},
 ): Promise<boolean> {
   const context: FileOperationContext = {
     operation: 'export', format: fileFormat(defaultFilename),
@@ -71,7 +79,7 @@ export async function saveFile(
   // A finished export is when a writer is most likely glad of the app, so it is
   // what counts toward asking for a store rating (phone apps only; it does
   // nothing elsewhere). It must never turn a good export into a failure.
-  if (saved) {
+  if (saved && options.countsAsExport !== false) {
     try {
       recordHappyMoment();
     } catch (err) {

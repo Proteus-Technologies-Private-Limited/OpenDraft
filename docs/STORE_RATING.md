@@ -34,9 +34,23 @@ All of these must hold, checked by `shouldRequestReview`:
 - no earlier request for this app version;
 - at least 90 days since the last request, and no more than 3 requests ever.
 
-The request goes out 4 seconds after the export, so a share sheet or the export
-confirmation has finished, and only if the app is still in the foreground. A
-failed request is logged to the console and never shown to the writer.
+## Staying out of the writer's way
+
+The sheet covers the app, so it waits for a quiet moment:
+
+- It is first considered 4 seconds after the export.
+- It goes out only when nothing has been typed, tapped or scrolled for 4
+  seconds and none of OpenDraft's dialogs or menus is open. While the writer is
+  busy it looks again every 3 seconds, and after a minute it gives up. Nothing
+  is marked as asked then, so the next export tries again.
+- The native side declines while something covers the app: on iOS a presented
+  view controller (the export's share sheet, still open), on Android another
+  window in front (the share chooser). The command then answers `false`, and
+  again nothing is counted.
+- Getting a backed-up original back (`SourceBackupRecovery`) is not an export
+  for this purpose: `saveFile(…, { countsAsExport: false })`.
+
+A failed request is logged to the console and never shown to the writer.
 
 ## Privacy
 
@@ -62,9 +76,10 @@ on iOS, the Play Store page on Android). Hidden everywhere else.
 ## Testing it
 
 - Logic: `cd frontend && npx vitest run src/services/storeReview.test.ts`.
-- iOS shows the sheet only in an App Store build: it never appears in debug,
-  simulator or TestFlight builds. To check the wiring, look for the log line
-  `rating request skipped` (no foreground scene) or no error from the command.
+- iOS: in a development build (the simulator, or a debug build on a device)
+  StoreKit shows the sheet every time it is asked, so the wiring can be seen
+  there; it never appears in TestFlight. `rating request skipped` in the log
+  means the app was behind another one or something covered it.
 - Android: Play shows the real sheet only for an install from Play (use an
   internal testing track). On a sideloaded build `requestReviewFlow` fails and
   `MainActivity` logs `review flow unavailable` under the `OpenDraft` tag.
