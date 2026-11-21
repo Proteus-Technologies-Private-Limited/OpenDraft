@@ -529,6 +529,15 @@ class WritingPad(unittest.TestCase):
         self.page.evaluate("testStore.getState().toggleNavigator()")
         nav = self.page.locator(".scene-navigator")
         nav.wait_for()
+        # The start dock grows open over 220ms (dock-open-x); measuring the
+        # handle mid-animation puts the press on the navigator's header instead.
+        self.page.wait_for_function(
+            """() => {
+                const dock = document.querySelector('.workspace-dock-start');
+                return dock && !dock.classList.contains('dock-entering')
+                    && dock.getAnimations({ subtree: true }).length === 0;
+            }"""
+        )
         handle = self.page.locator(
             ".editor-layout > .panel-resize-handle"
         ).first.bounding_box()
