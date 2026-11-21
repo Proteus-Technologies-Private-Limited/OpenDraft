@@ -240,7 +240,7 @@ pub fn setup(app: &tauri::AppHandle) {
         windows: Mutex::new(windows),
     });
     if let Some(main) = app.get_webview_window("main") {
-        let window = main.as_ref().window();
+        let window = &main.as_ref().window();
         let saved = app
             .state::<WindowDisplays>()
             .windows
@@ -270,11 +270,12 @@ pub fn setup(app: &tauri::AppHandle) {
 
 /// Called on the UI thread after construction, before showing a new window.
 pub fn show_new(window: &tauri::WebviewWindow, origin: Option<&tauri::WebviewWindow>) {
-    let target = window.as_ref().window();
+    let target = &window.as_ref().window();
     // Secondary windows skip automatic restoration and start normally. Only
     // startup restores maximized/full-screen state, after safe normal bounds.
     let result = (|| -> tauri::Result<()> {
-        let origin = origin.map(|w| w.as_ref().window());
+        let origin_windows = origin.map(|w| w.as_ref().window());
+        let origin = origin_windows.as_ref();
         let p = origin.and_then(|source| {
             let monitor = source.current_monitor().ok().flatten()?;
             let state = source.app_handle().state::<WindowDisplays>();
@@ -325,7 +326,7 @@ pub fn on_window_event(window: &tauri::Window, event: &tauri::WindowEvent) {
 
 pub fn on_exit(app: &tauri::AppHandle) {
     for window in app.webview_windows().values() {
-        remember(window.as_ref().window());
+        remember(&window.as_ref().window());
     }
     persist(app);
 }
