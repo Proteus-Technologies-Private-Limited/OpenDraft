@@ -73,6 +73,7 @@ import type { BandKind } from './HeaderFooterBand';
 import MenuBar from './MenuBar';
 import Toolbar from './Toolbar';
 import SceneNavigator from './SceneNavigator';
+import { NavigatorPopoutContext, useNavigatorPopout } from '../hooks/useNavigatorPopout';
 import StoryMap from './StoryMap';
 import ScriptStatistics from './ScriptStatistics';
 import TableReadPanel from './TableReadPanel';
@@ -3229,6 +3230,7 @@ const ScreenplayEditor: React.FC = () => {
   // see autoSaveAppliesToOpenDocument.
   const autoSaveLibrary = useSettingsStore((s) => s.autoSaveLibrary);
   const openScriptFile = useLinkedFileStore((s) => s.openScriptFile);
+  const navigatorPopout = useNavigatorPopout(editor, JSON.stringify([currentProject?.id, currentScriptId, openScriptFile?.path]));
   const scriptIsLinked = Boolean(openScriptFile && openScriptFile.scriptId === currentScriptId);
   const autoSaveIntervalSeconds = useSettingsStore((s) => s.autoSaveIntervalSeconds);
   const lastSavedJsonRef = useRef<string>('');
@@ -5903,6 +5905,7 @@ const ScreenplayEditor: React.FC = () => {
   };
 
   return (
+    <NavigatorPopoutContext.Provider value={navigatorPopout}>
     <div className={`app-container${isHistoryMode ? ' history-mode' : ''}${focusActive ? ` focus-mode${focusTypewriter ? ' focus-typewriter' : ''}${focusDim !== 'off' ? ' focus-dim' : ''}` : ''}`}>
       {isHistoryMode && (
         <div className="history-banner">
@@ -6635,6 +6638,7 @@ const ScreenplayEditor: React.FC = () => {
         </ModalOverlay>
       )}
     </div>
+    </NavigatorPopoutContext.Provider>
   );
 };
 

@@ -1,4 +1,7 @@
 mod safe_file;
+mod panel_windows;
+#[cfg(desktop)]
+mod panel_ownership;
 #[cfg(desktop)]
 mod desktop_windows;
 #[cfg(desktop)]
@@ -2709,7 +2712,7 @@ fn rebuild_window_menu(app: &tauri::AppHandle, _menu: &Menu<tauri::Wry>) {
         // Add all open windows
         let windows = app.webview_windows();
         let mut win_entries: Vec<_> = windows.iter()
-            .filter(|(label, _)| *label != "splashscreen")
+            .filter(|(label, _)| *label != "splashscreen" && !label.starts_with("panel-"))
             .collect();
         win_entries.sort_by_key(|(label, _)| label.clone());
 
@@ -2879,7 +2882,7 @@ fn ghost_window_labels() -> Vec<String> {
 async fn list_windows(app: tauri::AppHandle) -> Vec<WindowInfo> {
     app.webview_windows()
         .iter()
-        .filter(|(label, _)| *label != "splashscreen")
+        .filter(|(label, _)| *label != "splashscreen" && !label.starts_with("panel-"))
         .map(|(label, window)| WindowInfo {
             label: label.clone(),
             title: window.title().unwrap_or_else(|_| label.clone()),
@@ -3207,6 +3210,11 @@ pub fn run() {
             android_backup_delete,
             android_backup_probe,
             open_new_window,
+            panel_windows::open_panel_window,
+            panel_windows::panel_context,
+            panel_windows::publish_panel_snapshot,
+            panel_windows::panel_command,
+            panel_windows::close_panel_windows,
             supports_multiple_windows,
             list_windows,
             focus_window,
@@ -3258,13 +3266,24 @@ pub fn run() {
             .map_label(desktop_windows::state_label)
             .skip_initial_state("main")
             .skip_initial_state("secondary")
-            .with_filter(|label| label == "main" || label == "secondary")
+            .skip_initial_state("panel")
+            .with_filter(|label| label == "main" || label == "secondary" || label == "panel")
             .build(),
     );
 
+    #[cfg(desktop)]
+    let builder = builder.on_page_load(|webview, payload| {
+        if matches!(payload.event(), tauri::webview::PageLoadEvent::Started) {
+            panel_windows::close_owned(webview.app_handle(), webview.label());
+        }
+    });
+
     let builder = builder.setup(|app| {
             #[cfg(desktop)]
-            desktop_windows::setup(app.handle());
+            {
+                app.manage(panel_windows::Registry::default());
+                desktop_windows::setup(app.handle());
+            }
             // Native decorations exist now, before the splash transition and
             // independently of whether any web content commits successfully.
             // This also covers Linux file-association launches via CLI args.
@@ -3385,6 +3404,7 @@ pub fn run() {
         desktop_windows::on_window_event(window, event);
         if let tauri::WindowEvent::Destroyed = event {
             let app = window.app_handle();
+            panel_windows::destroyed(app, window.label());
             if let Some(menu) = app.menu() {
                 rebuild_window_menu(app, &menu);
             }
@@ -3505,7 +3525,7 @@ pub fn run() {
                         let label = format!("main-{}", count);
                         let url = tauri::WebviewUrl::App("/".into());
                         let origin = _app_handle.webview_windows().into_values()
-                            .find(|w| desktop_windows::tracked(w.label()) && w.is_focused().unwrap_or(false))
+                            .find(|w| panel_ownership::editor_label(w.label()) && w.is_focused().unwrap_or(false))
                             .or_else(|| _app_handle.get_webview_window("main"));
                         match tauri::WebviewWindowBuilder::new(_app_handle, &label, url)
                             .title("OpenDraft")

@@ -79,6 +79,17 @@ function trackIpadWindowMode(): void {
 }
 
 async function init() {
+  // Panel windows have no storage bootstrap, recovery sweep, editor, document
+  // claim or save hooks. Their only input is the owner's native-broker snapshot.
+  if ((window as unknown as { __TAURI_INTERNALS__?: { metadata?: { currentWindow?: { label?: string } } } })
+    .__TAURI_INTERNALS__?.metadata?.currentWindow?.label?.startsWith('panel-')) {
+    await initI18n();
+    applyAppearance(readAppearance());
+    const { default: NavigatorPopout } = await import('./components/NavigatorPopout');
+    (window as unknown as { __odBooted: boolean }).__odBooted = true;
+    createRoot(document.getElementById('root')!).render(<StrictMode><NavigatorPopout /></StrictMode>);
+    return;
+  }
   // Apply the remembered appearance before first render to avoid a flash.
   applyAppearance(readAppearance());
   // Not awaited: the native popups only need it by the time one is opened.

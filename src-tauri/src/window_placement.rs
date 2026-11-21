@@ -68,14 +68,50 @@ pub fn restore(saved: &Placement, displays: &[Display], primary: &Display) -> Op
     }
     let existing = matching_display(&saved.display, displays);
     let target = existing.unwrap_or(primary);
-    Some(fit(saved, target, existing.is_none(), 0.0))
+    Some(fit(saved, target, existing.is_none(), 0.0, (800.0, 600.0)))
 }
 
 /// New Window explicitly follows its caller, overriding any old slot's display.
 pub fn new_window(origin: &Placement) -> Option<Placement> {
     origin
         .valid()
-        .then(|| fit(origin, &origin.display, false, 32.0))
+        .then(|| fit(origin, &origin.display, false, 32.0, (800.0, 600.0)))
+}
+
+pub fn restore_panel(
+    saved: &Placement,
+    displays: &[Display],
+    primary: &Display,
+) -> Option<Placement> {
+    if !saved.valid() || !primary.valid() {
+        return None;
+    }
+    let existing = matching_display(&saved.display, displays);
+    Some(fit(
+        saved,
+        existing.unwrap_or(primary),
+        existing.is_none(),
+        0.0,
+        (260.0, 240.0),
+    ))
+}
+
+pub fn new_panel(origin: &Placement) -> Option<Placement> {
+    if !origin.valid() {
+        return None;
+    }
+    let mut panel = origin.clone();
+    let frame = (
+        origin.outer.width - origin.inner.0,
+        origin.outer.height - origin.inner.1,
+    );
+    panel.inner = (
+        pixels(440.0 * panel.display.scale),
+        pixels(720.0 * panel.display.scale),
+    );
+    panel.outer.width = panel.inner.0.saturating_add(frame.0);
+    panel.outer.height = panel.inner.1.saturating_add(frame.1);
+    Some(fit(&panel, &panel.display, false, 32.0, (260.0, 240.0)))
 }
 
 fn pixels(value: f64) -> u32 {
@@ -86,7 +122,13 @@ fn coordinate(value: f64) -> i32 {
     value.round().clamp(i32::MIN as f64, i32::MAX as f64) as i32
 }
 
-fn fit(saved: &Placement, target: &Display, center: bool, cascade: f64) -> Placement {
+fn fit(
+    saved: &Placement,
+    target: &Display,
+    center: bool,
+    cascade: f64,
+    minimum: (f64, f64),
+) -> Placement {
     let ratio = target.scale / saved.display.scale;
     let area = &target.area;
     let frame_w = ((saved.outer.width - saved.inner.0) as f64 * ratio)
@@ -99,10 +141,10 @@ fn fit(saved: &Placement, target: &Display, center: bool, cascade: f64) -> Place
     let available_h = area.height.saturating_sub(frame_h).max(1);
     let inner = (
         pixels(saved.inner.0 as f64 * ratio)
-            .max(pixels(800.0 * target.scale))
+            .max(pixels(minimum.0 * target.scale))
             .min(available_w),
         pixels(saved.inner.1 as f64 * ratio)
-            .max(pixels(600.0 * target.scale))
+            .max(pixels(minimum.1 * target.scale))
             .min(available_h),
     );
     let width = inner.0.saturating_add(frame_w).min(area.width);
@@ -229,6 +271,20 @@ mod tests {
         assert_eq!(matching_display(&b, &[a.clone(), b.clone()]), Some(&b));
         let missing = display("same", -1920, 0, 1920, 1080, 1.0);
         assert!(matching_display(&missing, &[a, b]).is_none());
+    }
+
+    #[test]
+    fn panels_remain_narrow_and_restore_safely_after_disconnect() {
+        let second = display("second", 1920, 0, 1920, 1040, 1.0);
+        let origin = window(&second, 2000, 50, 1280, 800);
+        let panel = new_panel(&origin).unwrap();
+        assert_eq!(panel.inner.0, 440);
+        assert_eq!(panel.display, second);
+        visible(&panel);
+        let primary = display("primary", 0, 24, 640, 440, 1.0);
+        let restored = restore_panel(&panel, &[primary.clone()], &primary).unwrap();
+        assert_eq!(restored.inner.0, 440);
+        visible(&restored);
     }
 
     #[test]

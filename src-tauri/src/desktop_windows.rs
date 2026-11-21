@@ -19,7 +19,9 @@ pub fn state_flags() -> StateFlags {
 // an explicit action; group their plugin cache so stale counter labels cannot
 // restore full-screen state before we place them on the caller's display.
 pub fn state_label(label: &str) -> &str {
-    if label != "main" && tracked(label) {
+    if panel_key(label).is_some() {
+        "panel"
+    } else if label != "main" && tracked(label) {
         "secondary"
     } else {
         label
@@ -27,10 +29,25 @@ pub fn state_label(label: &str) -> &str {
 }
 
 pub fn tracked(label: &str) -> bool {
-    label == "main"
+    panel_key(label).is_some()
+        || label == "main"
         || label
             .strip_prefix("main-")
             .is_some_and(|n| !n.is_empty() && n.bytes().all(|c| c.is_ascii_digit()))
+}
+
+// Persist placement by owner/panel, independent of the transient native label.
+fn panel_key(label: &str) -> Option<&str> {
+    let (key, counter) = label.rsplit_once('-')?;
+    let owner = key.strip_prefix("panel-")?.strip_suffix("-navigator")?;
+    (crate::panel_ownership::editor_label(owner)
+        && !counter.is_empty()
+        && counter.bytes().all(|c| c.is_ascii_digit()))
+    .then_some(key)
+}
+
+fn placement_key(label: &str) -> &str {
+    panel_key(label).unwrap_or(label)
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -160,7 +177,7 @@ fn remember(window: &tauri::Window) {
             .windows
             .lock()
             .unwrap()
-            .insert(window.label().into(), p.into());
+            .insert(placement_key(window.label()).into(), p.into());
     }
 }
 
@@ -188,9 +205,18 @@ fn persist(app: &tauri::AppHandle) {
 fn apply(window: &tauri::Window, p: &Placement) -> tauri::Result<()> {
     // The normal 800×600 minimum must not force a window outside a smaller
     // display. Recompute the minimum on every restore/new-window placement.
+    let (minimum_width, minimum_height) = if panel_key(window.label()).is_some() {
+        (260.0, 240.0)
+    } else {
+        (800.0, 600.0)
+    };
     window.set_min_size(Some(PhysicalSize::new(
-        (800.0 * p.display.scale).round().min(p.inner.0 as f64) as u32,
-        (600.0 * p.display.scale).round().min(p.inner.1 as f64) as u32,
+        (minimum_width * p.display.scale)
+            .round()
+            .min(p.inner.0 as f64) as u32,
+        (minimum_height * p.display.scale)
+            .round()
+            .min(p.inner.1 as f64) as u32,
     )))?;
     if can_position(window) {
         window.set_position(PhysicalPosition::new(p.outer.x, p.outer.y))?;
@@ -215,7 +241,13 @@ fn fit_saved(window: &tauri::Window, saved: &Placement) -> tauri::Result<()> {
         .primary_monitor()?
         .map(|m| display(&m))
         .or_else(|| displays.first().cloned());
-    if let Some(p) = primary.and_then(|primary| policy::restore(saved, &displays, &primary)) {
+    if let Some(p) = primary.and_then(|primary| {
+        if panel_key(window.label()).is_some() {
+            policy::restore_panel(saved, &displays, &primary)
+        } else {
+            policy::restore(saved, &displays, &primary)
+        }
+    }) {
         apply(window, &p)?;
     }
     Ok(())
@@ -291,7 +323,11 @@ pub fn show_new(window: &tauri::WebviewWindow, origin: Option<&tauri::WebviewWin
             // Rebase cached normal bounds at that display's current DPI first.
             let current = display(&monitor);
             p = policy::restore(&p, &[current.clone()], &current)?;
-            policy::new_window(&p)
+            if panel_key(window.label()).is_some() {
+                policy::new_panel(&p)
+            } else {
+                policy::new_window(&p)
+            }
         });
         if let Some(p) = p {
             apply(target, &p)?;
@@ -345,6 +381,17 @@ mod tests {
         assert_eq!(state_label("main"), "main");
         assert_eq!(state_label("main-12"), "secondary");
         assert_eq!(state_label("splashscreen"), "splashscreen");
+        assert!(tracked("panel-main-2-navigator-42"));
+        assert_eq!(state_label("panel-main-2-navigator-42"), "panel");
+        assert_eq!(
+            placement_key("panel-main-2-navigator-42"),
+            "panel-main-2-navigator"
+        );
+        assert_eq!(
+            placement_key("panel-main-2-navigator-43"),
+            "panel-main-2-navigator"
+        );
+        assert!(!tracked("panel-foreign-navigator-1"));
     }
 
     #[test]
@@ -383,5 +430,32 @@ mod tests {
         let mut bad = saved;
         bad.scale = 0.0;
         assert!(bad.placement().is_none());
+    }
+}
+
+/// Save normal panel geometry before native destruction, which has no close prompt.
+pub fn remember_panel(window: &tauri::WebviewWindow) {
+    remember(&window.as_ref().window());
+    persist(window.app_handle());
+}
+
+pub fn show_panel(window: &tauri::WebviewWindow, origin: &tauri::WebviewWindow) {
+    let saved = window
+        .app_handle()
+        .state::<WindowDisplays>()
+        .windows
+        .lock()
+        .unwrap()
+        .get(placement_key(window.label()))
+        .and_then(SavedPlacement::placement);
+    if let Some(saved) = saved {
+        if fit_saved(&window.as_ref().window(), &saved).is_err() {
+            eprintln!("[window] Could not restore panel bounds");
+        }
+        let _ = window.show();
+        let _ = window.set_focus();
+        remember(&window.as_ref().window());
+    } else {
+        show_new(window, Some(origin));
     }
 }

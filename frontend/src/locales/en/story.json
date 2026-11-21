@@ -693,5 +693,14 @@
     "emptyShot": "(empty shot)",
     "shotCostume": "Which costume {{name}} wears in shot {{n}}",
     "saveFailed": "Could not save the scene. Try again."
+  },
+  "popout": {
+    "move": "Move Scene Navigator to New Window",
+    "return": "Return to Main Window",
+    "waiting": "Waiting for the script…",
+    "unavailable": "The script window is no longer available.",
+    "failed": "Could not open the Navigator in a new window.",
+    "detached": "The Scene Navigator is in another window.",
+    "show": "Show Navigator Window"
   }
 }

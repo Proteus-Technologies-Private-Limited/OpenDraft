@@ -25,6 +25,8 @@ jobs:
         run: |
           rustc --edition=2021 --test src-tauri/src/window_placement.rs -o "$RUNNER_TEMP/window-placement-tests.exe"
           "$RUNNER_TEMP/window-placement-tests.exe"
+          rustc --edition=2021 --test src-tauri/src/panel_ownership.rs -o "$RUNNER_TEMP/panel-ownership-tests.exe"
+          "$RUNNER_TEMP/panel-ownership-tests.exe"
 
   frontend:
     name: Frontend (typecheck + unit tests)

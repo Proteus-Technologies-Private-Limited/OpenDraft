@@ -1,3 +1,6 @@
+import { useContext } from 'react';
+import { NavigatorPopoutContext } from '../hooks/useNavigatorPopout';
+import { canPopOutNavigator } from '../services/panelWindows';
 import ElementNumberDialog from './ElementNumberDialog';
 import { mapElementNumberTarget, type ElementNumberTarget } from '../editor/elementNumberTarget';
 import { collectNumberedElements, elementNumberAt, elementNumbersPluginKey } from '../editor/extensions/ElementNumbers';
@@ -388,6 +391,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
   canEditDocumentFormat = true,
   onDocumentSaved,
 }) => {
+  const navigatorPopout = useContext(NavigatorPopoutContext);
   // Re-renders the bar when the language changes; the strings come from the module-level t,
   // which also serves the handlers below at the moment they run.
   const { i18n: menuI18n } = useTranslation('menu');
@@ -3530,6 +3534,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
           icon: <FaColumns />, label: t('menu:view.panels'),
           children: [
             { icon: <FaCompass />, ...check(navigatorOpen, t('menu:view.navigator')), action: toggleNavigator },
+            ...(navigatorPopout.available && canPopOutNavigator() ? [{ icon: <FaCompass />, label: t(navigatorPopout.detached ? 'story:popout.show' : 'story:popout.move'), action: navigatorPopout.open }] : []),
             { icon: <FaTh />, ...check(indexCardsOpen, t('menu:view.indexCards')), action: toggleIndexCards },
             { icon: <FaStream />, ...check(beatBoardOpen, t('menu:view.beatBoard')), action: toggleBeatBoard },
             { icon: <FaListUl />, ...check(outlineOpen, t('menu:view.outline')), action: toggleOutline },

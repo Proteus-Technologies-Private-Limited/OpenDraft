@@ -693,5 +693,14 @@
     "emptyShot": "(boş çekim)",
     "shotCostume": "{{name}}, {{n}}. çekimde hangi kostümü giyiyor",
     "saveFailed": "Sahne kaydedilemedi. Tekrar deneyin."
+  },
+  "popout": {
+    "move": "Sahne gezginini yeni pencereye taşı",
+    "return": "Ana pencereye dön",
+    "waiting": "Senaryo bekleniyor…",
+    "unavailable": "Senaryo penceresi artık kullanılamıyor.",
+    "failed": "Gezgin yeni bir pencerede açılamadı.",
+    "detached": "Sahne gezgini başka bir pencerede.",
+    "show": "Gezgin penceresini göster"
   }
 }

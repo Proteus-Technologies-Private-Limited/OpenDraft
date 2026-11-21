@@ -1,4 +1,7 @@
+import '../styles/panelPopout.css';
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import { NavigatorPopoutContext } from '../hooks/useNavigatorPopout';
+import { FaExternalLinkAlt } from 'react-icons/fa';
 import { createPortal } from 'react-dom';
 import { Editor } from '@tiptap/react';
 import { useTranslation } from 'react-i18next';
@@ -335,6 +338,7 @@ const SectionOutline: React.FC<SectionOutlineProps> = ({
 // ── Main component ──────────────────────────────────────────────────────
 
 const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer, style, tabs, activeTab: shownTab, onTabChange, bare = false }) => {
+  const popout = React.useContext(NavigatorPopoutContext);
   const { t } = useTranslation(['story', 'common']);
   const { scenes, navigatorOpen, toggleNavigator, updateSceneSynopsis, updateSceneColor, pageLabels } = useEditorFields('scenes', 'navigatorOpen', 'toggleNavigator', 'updateSceneSynopsis', 'updateSceneColor', 'pageLabels');
   const { shouldRender, animationState } = useDelayedUnmount(navigatorOpen, 250);
@@ -962,10 +966,15 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
       )}
 
       {/* ── Scenes tab ───────────────────────────────────────────────── */}
-      {activeTab === 'scenes' && (
+      {activeTab === 'scenes' && popout.detached && <div className="navigator-detached">
+        <p>{t('popout.detached')}</p>
+        <button type="button" onClick={popout.open}>{t('popout.show')}</button>
+      </div>}
+      {activeTab === 'scenes' && !popout.detached && (
         <>
           <div className="navigator-header">
             <span className="navigator-title">{t('navigator.tabs.scenes')}</span>
+            {popout.available && <button type="button" data-panel-popout-trigger className="scene-filter-btn" aria-label={t('popout.move')} title={t('popout.move')} onClick={popout.open}><FaExternalLinkAlt aria-hidden="true" /></button>}
             <span className="scene-count">
               {(hasActiveFilter || searchQuery) ? `${filteredIndices.length}/` : ''}{scenes.length}
             </span>

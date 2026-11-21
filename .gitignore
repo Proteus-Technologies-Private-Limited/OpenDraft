@@ -81,3 +81,7 @@ fastlane/keys/
 
 # Videos
 Videos/
+
+# Temporary entry points created and removed by the panel browser tests.
+/frontend/panel-popout-test.html
+/frontend/panel-popout-harness.tsx
