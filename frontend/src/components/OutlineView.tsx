@@ -27,6 +27,8 @@ import { reorderScene } from '../editor/sceneReorder';
 
 interface Props {
   editor: Editor | null;
+  embedded?: boolean;
+  onRequestClose?: () => void;
 }
 
 interface SequenceInfo {
@@ -69,7 +71,7 @@ function currentSceneIndex(editor: Editor): number | null {
   return current >= 0 ? current : (last >= 0 ? 0 : null);
 }
 
-const OutlineView: React.FC<Props> = ({ editor }) => {
+const OutlineView: React.FC<Props> = ({ editor, embedded = false, onRequestClose }) => {
   const { t } = useTranslation(['story', 'common']);
   const setOutlineOpen = useEditorStore((s) => s.toggleOutline);
   const pageLayout = useEditorStore((s) => s.pageLayout);
@@ -126,7 +128,7 @@ const OutlineView: React.FC<Props> = ({ editor }) => {
     return [...found.values()];
   }, [structure]);
 
-  const close = useCallback(() => setOutlineOpen(), [setOutlineOpen]);
+  const close = useCallback(() => (onRequestClose ?? setOutlineOpen)(), [onRequestClose, setOutlineOpen]);
 
   const goToScene = useCallback((sceneIndex: number) => {
     if (!editor) return;
@@ -136,7 +138,7 @@ const OutlineView: React.FC<Props> = ({ editor }) => {
     // leaves the rebuilt editor at the top. The editor's DOM is re-attached a
     // frame or two after the Outline unmounts, so wait until it is connected
     // before scrolling.
-    close();
+    if (!embedded) close();
     let attempts = 0;
     const reveal = () => {
       if (editor.isDestroyed) return;
@@ -156,7 +158,7 @@ const OutlineView: React.FC<Props> = ({ editor }) => {
       }
     };
     setTimeout(() => requestAnimationFrame(reveal), 0);
-  }, [editor, close]);
+  }, [editor, close, embedded]);
 
   const insertAtSelection = useCallback((content: Record<string, unknown>) => {
     if (!editor) return;

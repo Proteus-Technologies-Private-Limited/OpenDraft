@@ -31,6 +31,7 @@ import { showToast } from './Toast';
 import { APP_COMMAND_EVENT, type AppCommand } from '../utils/appCommands';
 import { WORKSPACE_PRESET_IDS } from '../utils/workspaceLayout';
 import { useFoldState } from '../hooks/useFoldState';
+import { companionView, foldCompanionPlacement } from '../utils/foldCompanion';
 import { useWorkspaceDocksAvailable } from '../hooks/useWorkspaceDocks';
 import { statusColumnX, useFoldedMenuPosition } from '../hooks/useFoldedMenuPosition';
 import { formatFileFailure } from '../services/fileDiagnostics';
@@ -3002,6 +3003,22 @@ const MenuBar: React.FC<MenuBarProps> = ({
     return result;
   };
 
+  const foldState = useFoldState();
+  const statisticsOpen = useEditorStore(state => state.statisticsOpen);
+  const automaticCompanion = foldCompanionPlacement(foldState) !== null;
+  const companion = companionView({ outlineOpen, beatBoardOpen, indexCardsOpen,
+    statisticsOpen, splitScreenOpen, splitScreenPane }, false);
+  const splitShown = splitScreenOpen || (automaticCompanion && companion.pane !== null);
+  const shownPane = automaticCompanion ? companion.pane : splitScreenPane;
+  const closeSplit = () => {
+    if (splitScreenOpen) toggleSplitScreen();
+    else if (automaticCompanion && companion.main) {
+      if (companion.pane === 'outline') toggleOutline();
+      else if (companion.pane === 'beat-board') toggleBeatBoard();
+      else toggleIndexCards();
+    }
+  };
+
   const menus: MenuSection[] = [
     {
       id: 'File',
@@ -3516,18 +3533,20 @@ const MenuBar: React.FC<MenuBarProps> = ({
             { icon: <FaListUl />, ...check(outlineOpen, t('menu:view.outline')), action: toggleOutline },
             { icon: <FaMap />, ...check(storyMapOpen, t('menu:view.storyMap')), title: t('menu:view.storyMapTip'), action: toggleStoryMap },
             {
-              icon: <FaClone />, ...check(splitScreenOpen, t('menu:view.splitScreen')), children: [
-                { ...check(splitScreenMode === 'side-by-side' && splitScreenOpen, t('menu:view.sideBySide'), true), action: () => setSplitScreenMode('side-by-side') },
-                { ...check(splitScreenMode === 'stacked' && splitScreenOpen, t('menu:view.stacked'), true), action: () => setSplitScreenMode('stacked') },
-                { separator: true, label: '' },
-                { ...check(!splitScreenOpen, t('menu:view.onePane'), true), action: () => { if (splitScreenOpen) toggleSplitScreen(); } },
+              icon: <FaClone />, ...check(splitShown, t('menu:view.splitScreen')), children: [
+                ...(!automaticCompanion ? [
+                  { ...check(splitScreenMode === 'side-by-side' && splitScreenOpen, t('menu:view.sideBySide'), true), action: () => setSplitScreenMode('side-by-side') },
+                  { ...check(splitScreenMode === 'stacked' && splitScreenOpen, t('menu:view.stacked'), true), action: () => setSplitScreenMode('stacked') },
+                  { separator: true, label: '' },
+                ] : []),
+                { ...check(!splitShown, t('menu:view.onePane'), true), action: closeSplit },
                 { separator: true, label: '' },
                 {
                   label: t('menu:view.secondPane'), children: [
-                    { icon: <FaFileAlt />, ...check(splitScreenPane === 'page-view' && splitScreenOpen, t('menu:view.pageView'), true), action: () => setSplitScreenPane('page-view') },
-                    { icon: <FaTh />, ...check(splitScreenPane === 'index-cards' && splitScreenOpen, t('menu:view.indexCards'), true), action: () => setSplitScreenPane('index-cards') },
-                    { icon: <FaListUl />, ...check(splitScreenPane === 'outline' && splitScreenOpen, t('menu:view.outline'), true), action: () => setSplitScreenPane('outline') },
-                    { icon: <FaStream />, ...check(splitScreenPane === 'beat-board' && splitScreenOpen, t('menu:view.beatBoard'), true), action: () => setSplitScreenPane('beat-board') },
+                    { icon: <FaFileAlt />, ...check(shownPane === 'page-view' && splitShown, t('menu:view.pageView'), true), action: () => setSplitScreenPane('page-view') },
+                    { icon: <FaTh />, ...check(shownPane === 'index-cards' && splitShown, t('menu:view.indexCards'), true), action: () => setSplitScreenPane('index-cards') },
+                    { icon: <FaListUl />, ...check(shownPane === 'outline' && splitShown, t('menu:view.outline'), true), action: () => setSplitScreenPane('outline') },
+                    { icon: <FaStream />, ...check(shownPane === 'beat-board' && splitShown, t('menu:view.beatBoard'), true), action: () => setSplitScreenPane('beat-board') },
                   ],
                 },
               ],
@@ -4001,7 +4020,6 @@ const MenuBar: React.FC<MenuBarProps> = ({
   });
   const fabDragRef = useRef<{ startX: number; startY: number; originX: number; originY: number; isDrag: boolean } | null>(null);
   const fabWasDragRef = useRef(false);
-  const foldState = useFoldState();
   const defaultFab = useFoldedMenuPosition(foldState.foldable && foldState.size === 'phone', navPanelWidth);
   const defaultFabRef = useRef(defaultFab);
   defaultFabRef.current = defaultFab;

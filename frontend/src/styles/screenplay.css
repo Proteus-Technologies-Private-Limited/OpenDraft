@@ -4664,24 +4664,24 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: var(--p
 }
 .editor-main-area.split-screen.split-side-by-side { flex-direction: row; align-items: stretch; }
 .editor-main-area.split-screen.split-stacked { flex-direction: column; }
-.editor-main-area .split-pane {
+.companion-pane {
   position: relative;
-  order: 2;
   display: flex;
+  flex: 1;
   flex-direction: column;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
   background: var(--fd-navigator-bg);
 }
-.split-side-by-side .split-pane {
+.split-side-by-side .split-pane-home {
   width: 380px;
   min-width: 280px;
   max-width: 46vw;
   flex-shrink: 0;
   border-left: 1px solid var(--fd-border);
 }
-.split-stacked .split-pane {
+.split-stacked .split-pane-home {
   height: 42%;
   min-height: 200px;
   flex-shrink: 0;
@@ -4703,25 +4703,6 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: var(--p
 }
 .split-pane .outline-view { flex: 1 1 auto; }
 .split-pane .beat-board { flex: 1 1 auto; min-height: 0; }
-/* A close control for panes that do not draw one of their own. */
-.split-pane-close {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  z-index: 5;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  border: 1px solid var(--fd-border);
-  border-radius: 4px;
-  background: var(--fd-navigator-bg);
-  color: var(--fd-text-muted);
-  cursor: pointer;
-}
-.split-pane-close:hover { color: var(--fd-text); }
-
 /* Page View: the read-only pages in the split screen. */
 .page-preview-pane {
   display: flex;
@@ -16516,3 +16497,16 @@ input.sp-costume-when { border: 0; border-inline-start: 1px solid var(--fd-borde
 .sp-owned-row { display: flex; gap: 8px; align-items: center; border: 1px solid var(--fd-border); border-radius: 6px; padding: 6px 8px; }
 .sp-owned-row .sp-input { flex: 1; min-width: 0; }
 .sp-wide-overlay { position: fixed !important; inset: 0; z-index: 100; width: 100% !important; min-width: 100% !important; max-width: none !important; border-left: none; background: var(--fd-bg); }
+
+/* One stable companion view moves between these homes and the fold dock. */
+.companion-main-home, .split-pane-home { display: flex; min-width: 0; min-height: 0; }
+.companion-main-home { flex: 1; }
+.split-pane-home { order: 2; }
+.editor-main[hidden], .companion-main-home[hidden], .split-pane-home[hidden] { display: none !important; }
+.fold-panel-content .split-pane { width: 100%; min-width: 0; min-height: 0; }
+.split-pane.is-companion .index-cards-fullscreen { position: relative; inset: auto; width: 100%; height: 100%; z-index: auto; }
+/* A reported inactive crease still divides an open-flat screen. */
+.fold-companion-side .editor-center { flex: 0 0 var(--fold-left); width: var(--fold-left); min-width: 0; }
+.fold-companion-side .fold-panel-dock { flex: 1; width: auto; margin-left: var(--fold-width); }
+.fold-companion-bottom .editor-center { max-height: max(80px, calc(var(--fold-top) - var(--fold-content-top, 100px))); }
+.fold-companion-bottom .fold-panel-dock { position: fixed; top: calc(var(--fold-top) + var(--fold-height)); left: 0; right: 0; bottom: env(safe-area-inset-bottom, 0px); width: auto; }

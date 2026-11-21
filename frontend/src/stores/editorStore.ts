@@ -893,6 +893,8 @@ interface EditorState {
   setStoryMapUnits: (units: StoryMapUnits) => void;
   /** The editor and a second pane beside or below it. */
   splitScreenOpen: boolean;
+  /** Explicit requests can activate the existing companion tab again. */
+  splitScreenActivation: number;
   toggleSplitScreen: () => void;
   splitScreenMode: SplitScreenMode;
   setSplitScreenMode: (mode: SplitScreenMode) => void;
@@ -1387,8 +1389,10 @@ export const useEditorStore = create<EditorState>()(skipUnchanged((set, get) => 
   indexCardsOpen: _vs.indexCardsOpen ?? false,
   toggleIndexCards: () => set((s) => {
     const v = !s.indexCardsOpen;
-    saveViewState({ indexCardsOpen: v });
-    return { indexCardsOpen: v };
+    saveViewState(v ? { indexCardsOpen: true, beatBoardOpen: false } : { indexCardsOpen: false });
+    return v
+      ? { indexCardsOpen: true, outlineOpen: false, beatBoardOpen: false, statisticsOpen: false, splitScreenOpen: false }
+      : { indexCardsOpen: false };
   }),
   beatBoardOpen: _vs.beatBoardOpen ?? false,
   toggleBeatBoard: () => set((s) => {
@@ -1412,26 +1416,27 @@ export const useEditorStore = create<EditorState>()(skipUnchanged((set, get) => 
     set({ storyMapUnits: units });
   },
   splitScreenOpen: false,
+  splitScreenActivation: 0,
   toggleSplitScreen: () => set((s) => {
     const open = !s.splitScreenOpen;
     // The full-width views leave no editor to split.
     return open
-      ? { splitScreenOpen: true, statisticsOpen: false, beatBoardOpen: false, outlineOpen: false }
+      ? { splitScreenOpen: true, splitScreenActivation: s.splitScreenActivation + 1, statisticsOpen: false, beatBoardOpen: false, outlineOpen: false, indexCardsOpen: false }
       : { splitScreenOpen: false };
   }),
   splitScreenMode: 'side-by-side',
   setSplitScreenMode: (mode) => set((s) => (s.splitScreenOpen && s.splitScreenMode === mode
-    ? {}
+    ? { splitScreenActivation: s.splitScreenActivation + 1 }
     : {
-      splitScreenMode: mode, splitScreenOpen: true,
-      statisticsOpen: false, beatBoardOpen: false, outlineOpen: false,
+      splitScreenMode: mode, splitScreenOpen: true, splitScreenActivation: s.splitScreenActivation + 1,
+      statisticsOpen: false, beatBoardOpen: false, outlineOpen: false, indexCardsOpen: false,
     })),
   splitScreenPane: 'index-cards',
   setSplitScreenPane: (pane) => set((s) => (s.splitScreenOpen && s.splitScreenPane === pane
-    ? {}
+    ? { splitScreenActivation: s.splitScreenActivation + 1 }
     : {
-      splitScreenPane: pane, splitScreenOpen: true,
-      statisticsOpen: false, beatBoardOpen: false, outlineOpen: false,
+      splitScreenPane: pane, splitScreenOpen: true, splitScreenActivation: s.splitScreenActivation + 1,
+      statisticsOpen: false, beatBoardOpen: false, outlineOpen: false, indexCardsOpen: false,
     })),
   outlineOpen: false,
   toggleOutline: () => set((s) => {
