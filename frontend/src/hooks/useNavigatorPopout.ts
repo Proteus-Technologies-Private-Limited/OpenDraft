@@ -92,7 +92,14 @@ export function useNavigatorPopout(editor: Editor | null, documentIdentity: stri
       pending = true;
       if (!active) trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       const openingSession = session;
-      void openNavigatorPanel(session).then(() => {
+      const create = async () => {
+        const ready = await Promise.all([stopCommands.ready, stopClosed.ready]);
+        if (disposed || openingSession !== session) return null;
+        if (!ready.every(Boolean)) throw new Error('Owner listeners unavailable');
+        return openNavigatorPanel(openingSession);
+      };
+      void create().then(label => {
+        if (label === null) return;
         if (disposed || openingSession !== session) { void closeNavigatorPanels(openingSession); return; }
         active = true;
         setDetached(true);

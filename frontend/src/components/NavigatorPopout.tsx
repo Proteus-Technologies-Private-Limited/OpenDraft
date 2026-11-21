@@ -32,8 +32,12 @@ export default function NavigatorPopout() {
       }).catch(error => console.warn('[panels] language unavailable:', error));
     };
     const stop = subscribePanel<unknown>('panel-snapshot', receive);
-    void getPanelContext().then(context => {
+    void stop.ready.then(async ready => {
       if (stopped) return;
+      if (!ready) throw new Error('Panel listener unavailable');
+      return getPanelContext();
+    }).then(context => {
+      if (stopped || !context) return;
       session = context.session;
       pending.splice(0).forEach(receive);
       return sendPanelAction({ kind: 'ready' });

@@ -19,14 +19,14 @@ describe('panel bridge lifecycle', () => {
     native.listen.mockReturnValueOnce(new Promise(resolve => { ready = resolve; }));
     const receive = vi.fn(), unlisten = vi.fn();
     const stop = subscribePanel('panel-snapshot', receive);
-    stop(); ready(unlisten); await Promise.resolve();
+    stop(); ready(unlisten); expect(await stop.ready).toBe(false);
     expect(unlisten).toHaveBeenCalledOnce();
     native.listen.mock.calls[0][1]({ payload: 'late' });
     expect(receive).not.toHaveBeenCalled();
   });
   it('delivers payloads while active and stops on cleanup', async () => {
     const unlisten = vi.fn(), receive = vi.fn(); native.listen.mockResolvedValueOnce(unlisten);
-    const stop = subscribePanel('panel-command', receive); await Promise.resolve();
+    const stop = subscribePanel('panel-command', receive); expect(await stop.ready).toBe(true);
     native.listen.mock.calls[0][1]({ payload: 'current' }); expect(receive).toHaveBeenCalledWith('current');
     stop(); native.listen.mock.calls[0][1]({ payload: 'late' }); expect(receive).toHaveBeenCalledTimes(1); expect(unlisten).toHaveBeenCalledOnce();
   });

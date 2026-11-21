@@ -7,14 +7,18 @@ import type { NavigatorSnapshot, PanelMessage } from './panelProtocol';
 export const canPopOutNavigator = (): boolean => isDesktopTauri() && !!currentWindowLabel()?.match(/^main(?:-\d+)?$/);
 export const isPanelWindow = (): boolean => !!currentWindowLabel()?.startsWith('panel-');
 
-/** Async listener setup must also clean up if its component unmounts first. */
-export function subscribePanel<T>(event: string, receive: (payload: T) => void): () => void {
+export type PanelSubscription = (() => void) & { ready: Promise<boolean> };
+
+/** Await registration before the ready handshake; clean up even after unmount. */
+export function subscribePanel<T>(event: string, receive: (payload: T) => void): PanelSubscription {
   let stopped = false;
   let unlisten: (() => void) | undefined;
-  void listen<T>(event, e => { if (!stopped) receive(e.payload); }).then(stop => {
-    if (stopped) stop(); else unlisten = stop;
-  }).catch(error => console.warn('[panels] listener unavailable:', error));
-  return () => { stopped = true; unlisten?.(); };
+  const ready = listen<T>(event, e => { if (!stopped) receive(e.payload); }).then(stop => {
+    if (stopped) { stop(); return false; }
+    unlisten = stop;
+    return true;
+  }).catch(error => { console.warn('[panels] listener unavailable:', error); return false; });
+  return Object.assign(() => { stopped = true; unlisten?.(); }, { ready });
 }
 
 export const openNavigatorPanel = (session: string): Promise<string> => invoke('open_panel_window', { session });

@@ -107,6 +107,9 @@ async def run():
                 label = await page.evaluate("window.__panelLabel")
                 calls.append(command)
                 if command == "plugin:event|listen":
+                    # Force registration to lag context/open replies, exercising
+                    # the readiness handshake instead of relying on IPC order.
+                    await asyncio.sleep(0.05)
                     listeners.setdefault((label, args["event"]), []).append(
                         args["handler"]
                     )

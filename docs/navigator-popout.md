@@ -46,7 +46,9 @@ appearance, language and selected scene. While a panel is open, updates are
 coalesced at 100 ms; a selection-only update reuses the last document summary.
 Commands carry the document revision and scene index. A stale command requests a
 fresh snapshot and cannot jump using outdated positions after edits/reordering.
-Snapshot sequence numbers prevent out-of-order updates. Navigation only changes
+Snapshot sequence numbers prevent out-of-order updates. Both ends await native
+listener registration before creating/requesting a snapshot, so slow IPC cannot
+lose the initial handshake. Navigation only changes
 selection; it does not add document IDs, undo entries or another save path.
 
 ## Automated verification
