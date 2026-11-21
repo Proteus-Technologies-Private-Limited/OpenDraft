@@ -1,4 +1,5 @@
-import { Plugin, PluginKey, type EditorState } from '@tiptap/pm/state';
+import { Plugin, PluginKey, type EditorState, type Transaction } from '@tiptap/pm/state';
+import { ReplaceStep } from '@tiptap/pm/transform';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import type { EditorView } from '@tiptap/pm/view';
 import type { Node as PmNode } from '@tiptap/pm/model';
@@ -243,6 +244,34 @@ function breaksDiffer(a: PaginationState, b: PaginationState): boolean {
   return false;
 }
 
+/** Positions and node sizes shift during typing even when page geometry does not. */
+function sameOrdinaryBreakGeometry(a: PaginationState, b: PaginationState): boolean {
+  if (a.pageCount !== b.pageCount || a.breaks.length !== b.breaks.length) return false;
+  if (a.pageLabels?.length !== b.pageLabels?.length
+    || a.pageLabels?.some((label, index) => label !== b.pageLabels?.[index])) return false;
+  return a.breaks.every((old, index) => {
+    const next = b.breaks[index];
+    // Internal paragraph/dual grids need their own rebuilt line widgets.
+    if (old.contentOffset !== undefined || next.contentOffset !== undefined
+      || old.dualRow !== undefined || next.dualRow !== undefined) return false;
+    return old.nodeIndex === next.nodeIndex && old.pageNumber === next.pageNumber
+      && old.linesOnPage === next.linesOnPage && old.isDialogueSplit === next.isDialogueSplit
+      && old.characterName === next.characterName && old.isTitlePage === next.isTitlePage;
+  });
+}
+
+/** Ordinary typing/deletion inside one top-level text block, never structural edits. */
+function isSimpleTextEdit(tr: Transaction): boolean {
+  if (tr.steps.length !== 1 || tr.getMeta('forceRepaginate')) return false;
+  const step = tr.steps[0];
+  if (!(step instanceof ReplaceStep) || step.slice.openStart || step.slice.openEnd) return false;
+  const from = tr.before.resolve(step.from), to = tr.before.resolve(step.to);
+  if (from.depth !== 1 || !from.sameParent(to) || !from.parent.isTextblock) return false;
+  let textOnly = true;
+  step.slice.content.forEach(node => { if (!node.isText) textOnly = false; });
+  return textOnly;
+}
+
 /** Nearest scrollable ancestor — the editor scrolls inside a pane, not the window. */
 function scrollParent(el: HTMLElement | null): HTMLElement | null {
   let node = el?.parentElement || null;
@@ -306,10 +335,23 @@ export function createPaginationPlugin(
       },
       apply(tr, oldState, _oldEditorState, newEditorState) {
         if (!tr.docChanged && !tr.getMeta('forceRepaginate')) return oldState;
-        const result = computeBreaks(newEditorState.doc, getLayout(), getHints(), getFootnotes());
+        const layout = getLayout(), footnotes = getFootnotes();
+        const result = computeBreaks(newEditorState.doc, layout, getHints(), footnotes);
+        const last = lastDecorations;
+        const mapped = last && last.doc === tr.before && last.breaks === oldState
+          && last.layout === layout && last.plan === footnotes && !footnotes
+          && isSimpleTextEdit(tr) && sameOrdinaryBreakGeometry(oldState, result);
+        if (mapped) {
+          // Preserve unchanged decoration branches instead of rebuilding a set
+          // over the full document on every key. Mapping follows text offsets.
+          lastDecorations = {
+            ...last, doc: newEditorState.doc, breaks: result,
+            set: last.set.map(tr.mapping, newEditorState.doc),
+          };
+        }
         // Only for real edits: a template or page-layout repagination must not
         // yank the view around while the writer is looking somewhere else.
-        if (tr.docChanged && breaksDiffer(oldState, result)) revealCaret = true;
+        if (tr.docChanged && !mapped && breaksDiffer(oldState, result)) revealCaret = true;
         onUpdate(result);
         return result;
       },
