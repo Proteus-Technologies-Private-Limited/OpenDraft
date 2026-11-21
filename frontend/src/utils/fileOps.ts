@@ -20,6 +20,7 @@ import {
 import { isTauri, getOS } from '../services/platform';
 import { t } from '../i18n';
 import { fileFormat, withFileDiagnostics, type FileOperationContext } from '../services/fileDiagnostics';
+import { recordHappyMoment } from '../services/storeReview';
 
 interface FileFilter {
   name: string;
@@ -61,12 +62,23 @@ export async function saveFile(
     operation: 'export', format: fileFormat(defaultFilename),
     stage: isMobileTauri() ? 'share' : isTauri() ? 'dialog' : 'download',
   };
-  return withFileDiagnostics(context, () => {
+  const saved = await withFileDiagnostics(context, () => {
     if (isIOSTauri()) return saveFileIOS(data, defaultFilename, context);
     if (isAndroidTauri()) return saveFileAndroid(data, defaultFilename, context);
     if (isTauri()) return saveFileTauri(data, defaultFilename, filters, options, context);
     return saveFileBrowser(data, defaultFilename);
   });
+  // A finished export is when a writer is most likely glad of the app, so it is
+  // what counts toward asking for a store rating (phone apps only; it does
+  // nothing elsewhere). It must never turn a good export into a failure.
+  if (saved) {
+    try {
+      recordHappyMoment();
+    } catch (err) {
+      console.warn('[storeReview] could not record the export:', err);
+    }
+  }
+  return saved;
 }
 
 async function saveFileTauri(

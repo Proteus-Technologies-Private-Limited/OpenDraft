@@ -106,6 +106,42 @@ class MainActivity : TauriActivity() {
         private var activeDictationRequest: Int? = null
         private val dictationEvents = java.util.concurrent.ConcurrentLinkedQueue<JSONObject>()
 
+        /**
+         * Ask Google Play for its in-app review sheet.
+         *
+         * Play decides whether to show it (a quota applies, and it never says
+         * which way it went), so the reply only means the request was made.
+         * Returns null when there is no Activity to anchor the sheet to, or
+         * the Play review library fails — a missed request is not worth a crash.
+         * Must run on the main thread, so it hops there itself: Rust calls
+         * this from a worker.
+         */
+        @JvmStatic
+        fun requestReview(context: Context): String? {
+            val activity = context as? android.app.Activity ?: return null
+            if (activity.isFinishing) return null
+            return try {
+                activity.runOnUiThread {
+                    try {
+                        val manager = com.google.android.play.core.review.ReviewManagerFactory.create(activity)
+                        manager.requestReviewFlow().addOnCompleteListener { request ->
+                            if (request.isSuccessful && !activity.isFinishing) {
+                                manager.launchReviewFlow(activity, request.result)
+                            } else {
+                                android.util.Log.w("OpenDraft", "review flow unavailable", request.exception)
+                            }
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.w("OpenDraft", "review request failed", e)
+                    }
+                }
+                "requested"
+            } catch (e: Exception) {
+                android.util.Log.w("OpenDraft", "review request failed", e)
+                null
+            }
+        }
+
         private fun dictationEvent(id: String, kind: String, text: String = "", message: String = "") {
             while (dictationEvents.size > 50) dictationEvents.poll()
             dictationEvents.add(JSONObject().put("id", id).put("kind", kind).put("text", text).put("message", message))

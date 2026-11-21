@@ -143,6 +143,7 @@ import {
 } from '../utils/fileOps';
 import { isDesktopTauri, isWeb, printRoute, supportsApplePencil, supportsMultipleWindows } from '../services/platform';
 import { checkForUpdate } from '../services/updateCheck';
+import { canRequestReview, openStoreReviewPage } from '../services/storeReview';
 import { getCompatEntries } from '../services/compat';
 import { reportSaveError } from '../stores/saveErrorStore';
 import type { PluginMenuChildEntry, MenuSection as PluginMenuSection } from '../plugins/registry';
@@ -217,6 +218,7 @@ import {
   FaBars,
   FaInfoCircle,
   FaBook,
+  FaStar,
   FaStethoscope,
   FaClipboardCheck,
   FaCloudDownloadAlt,
@@ -3893,6 +3895,14 @@ const MenuBar: React.FC<MenuBarProps> = ({
         label: t('menu:help.diagnostics'),
         action: () => { void handleOpenDiagnostics(); },
       },
+      // The phone apps' own way to leave a rating, whenever the writer likes —
+      // the automatic request in services/storeReview.ts is separate and rare.
+      // There is no store page to open from the browser or a desktop build.
+      ...(canRequestReview() ? [{
+        icon: <FaStar />,
+        label: t('menu:help.rateOpenDraft'),
+        action: () => { void openStoreReviewPage(); },
+      }] : []),
     ],
   };
 

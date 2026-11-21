@@ -2,7 +2,30 @@
 #import <Foundation/Foundation.h>
 #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 #import <objc/runtime.h>
+#import <StoreKit/StoreKit.h>
 #import "DictationSupport.h"
+
+// ── App Store rating request ────────────────────────────────────────────────
+// Ask StoreKit for its own rating sheet. StoreKit decides whether to show it
+// (it shows it at most three times in 365 days, and never in TestFlight or
+// development builds), so a call is a request, not a promise. Guideline 5.6.1
+// asks apps to use this API rather than drawing their own rating prompt.
+// Deferred to the main queue; does nothing unless a scene is in the foreground,
+// since asking while the app is behind another one only wastes an allowance.
+void ios_request_review(void) {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        @autoreleasepool {
+            for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
+                if ([scene isKindOfClass:[UIWindowScene class]] &&
+                    scene.activationState == UISceneActivationStateForegroundActive) {
+                    [SKStoreReviewController requestReviewInScene:(UIWindowScene *)scene];
+                    return;
+                }
+            }
+            NSLog(@"[FileHelpers] rating request skipped: no foreground scene");
+        }
+    });
+}
 
 // ── iOS Share Sheet ─────────────────────────────────────────────────────────
 // Present the native iOS share sheet for a file.

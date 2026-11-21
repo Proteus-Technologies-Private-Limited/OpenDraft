@@ -14,6 +14,7 @@ import { detectDeviceFonts } from './utils/deviceFonts';
 import { applyAppearance, applyNativeTheme, readAppearance } from './utils/appearance';
 import { initI18n } from './i18n';
 import { watchFoldPosture, isFoldableDevice } from './utils/foldPosture';
+import { recordSession } from './services/storeReview';
 
 /**
  * Keep the `ios-windowed` class in sync with whether the app is running in an
@@ -120,6 +121,14 @@ async function init() {
     void import('@tauri-apps/api/core')
       .then(({ invoke }) => invoke<boolean>('fold_watch_start'))
       .catch((error) => console.error('[fold] Could not start native posture reports:', error));
+  }
+
+  // One more launch toward asking for a store rating (a no-op off the phone
+  // apps). Counters stay on this device; see services/storeReview.ts.
+  try {
+    recordSession();
+  } catch (error) {
+    console.warn('[storeReview] could not count this launch:', error);
   }
 
   // Only the native app has iPadOS window controls drawn over it — a Split
