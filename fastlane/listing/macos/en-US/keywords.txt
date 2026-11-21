@@ -1,1 +1,1 @@
-fountain,fdx,film,movie,tv,teleplay,stage play,table read,outline,index cards,beat board,revisions
+scriptwriting,fountain,fdx,movie,film,tv,teleplay,playwright,table read,index cards,revisions,format
