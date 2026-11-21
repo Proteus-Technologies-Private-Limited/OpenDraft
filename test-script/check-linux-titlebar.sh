@@ -11,7 +11,15 @@ compositor_pid=$!
 cleanup() {
   kill "$compositor_pid" 2>/dev/null || true
   wait "$compositor_pid" 2>/dev/null || true
-  rm -rf "$runtime_root"
+  # dbus-run-session's xdg-desktop-portal can start xdg-document-portal, which
+  # FUSE-mounts $XDG_RUNTIME_DIR/doc and may still hold it here. rm then fails
+  # on the mountpoint, and under set -e that turned a passing run red.
+  if mountpoint -q "$runtime_root/doc" 2>/dev/null; then
+    fusermount3 -uz "$runtime_root/doc" 2>/dev/null \
+      || fusermount -uz "$runtime_root/doc" 2>/dev/null || true
+  fi
+  rm -rf "$runtime_root" 2>/dev/null \
+    || echo "warning: could not remove $runtime_root" >&2
 }
 trap cleanup EXIT
 ready=false
