@@ -49,7 +49,17 @@ function escapeRegExp(s: string): string {
  */
 function namePattern(name: string): RegExp {
   const words = name.trim().split(/\s+/).map(escapeRegExp);
-  return new RegExp(`(?<![\\p{L}\\p{N}])${words.join('[ \\t]+')}(?![\\p{L}\\p{N}])`, 'giu');
+  // The leading word boundary is checked by `followsWordChar`, not a
+  // lookbehind: Safari before 16.4 (iOS 15, macOS 12) cannot compile
+  // `(?<!…)` and throws, so the rename dialog would fail there.
+  return new RegExp(`${words.join('[ \\t]+')}(?![\\p{L}\\p{N}])`, 'giu');
+}
+
+/** Whether the character just before `at` is a letter or digit (so a match there is mid-word). */
+function followsWordChar(text: string, at: number): boolean {
+  if (at <= 0) return false;
+  // Two code units so a letter outside the BMP (a surrogate pair) is read whole.
+  return /[\p{L}\p{N}]$/u.test(text.slice(Math.max(0, at - 2), at));
 }
 
 function isAllCaps(s: string): boolean {
@@ -132,6 +142,11 @@ export function findCharacterRenameMatches(doc: PMNode, oldName: string, newName
     while ((m = pattern.exec(text)) !== null) {
       const at = m.index;
       const end = at + m[0].length;
+      if (followsWordChar(text, at)) {
+        // Mid-word: retry from the next position, as the lookbehind would have.
+        pattern.lastIndex = at + 1;
+        continue;
+      }
       if (isCue) {
         // The name is the part of the cue outside its extensions.
         if (parens.some(([a, b]) => at < b && end > a)) continue;

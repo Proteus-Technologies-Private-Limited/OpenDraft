@@ -66,6 +66,15 @@ jobs:
       - name: Build
         run: npm run build
 
+      # The app's floor is iOS 15 / macOS 12, i.e. Safari 15's WebKit. One
+      # regex lookbehind or class static block in a chunk loaded at startup is
+      # a parse error there, the app never renders, and the writer sees only
+      # "Loading timed out" — an App Store review on iOS 15 (v2.13–2.14).
+      # vite.config.ts down-levels to Safari 15; this checks it held.
+      - name: Startup bundle parses on Safari 15
+        working-directory: .
+        run: node test-script/ios15_compat_scan.mjs
+
   # Nothing else compiles the Rust for Android until a release tag: the desktop
   # jobs build for the host, so every `#[cfg(target_os = "android")]` block —
   # the JNI calls behind export, print, the file picker and backups, which is

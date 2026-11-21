@@ -25,6 +25,18 @@ export interface QuickScript {
 const QUOTE_RE = /«([^»]*)»|“([^”]*)”|"([^"]*)"/g;
 const SPEECH_RE = new RegExp(`\\b(${SPEECH_VERBS.join('|')})\\b`, 'gi');
 
+/**
+ * Split prose into sentences at the whitespace after `.`, `!` or `?`, keeping
+ * the punctuation on the sentence it ends.
+ *
+ * Not `split(/(?<=[.!?])\s+/)`: Safari before 16.4 (iOS 15, macOS 12) cannot
+ * parse a lookbehind, and because this module is in the startup bundle that
+ * one regex stopped the whole app from loading there ("Loading timed out").
+ */
+function splitSentences(text: string): string[] {
+  return text.replace(/([.!?])\s+/g, '$1\u0000').split('\u0000');
+}
+
 function firstWord(text: string): string | null {
   const cleaned = text
     .replace(/^[\s,.;:!?–—-]+/, '')
@@ -194,7 +206,7 @@ export function parseSceneWithDialogue(prompt: string): QuickScript | null {
       continue;
     }
 
-    const sentences = before.split(/(?<=[.!?])\s+/).map((s) => s.trim()).filter(Boolean);
+    const sentences = splitSentences(before).map((s) => s.trim()).filter(Boolean);
     const last = sentences.pop() ?? '';
     for (const sentence of sentences) blocks.push({ type: 'action', text: sentence });
 
