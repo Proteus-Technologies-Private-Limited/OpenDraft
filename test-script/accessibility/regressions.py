@@ -86,6 +86,218 @@ class Accessibility(unittest.TestCase):
             json.dumps(report["violations"], ensure_ascii=False, indent=2),
         )
 
+    def workspace_dialog(self, tab="toolbar"):
+        self.page.locator(".toolbar").click(button="right", position={"x": 4, "y": 4})
+        command = self.page.get_by_role(
+            "menuitem",
+            name=self.page.evaluate("testI18n.t('toolbar:layout.customiseBars')"),
+            exact=True,
+        )
+        command.focus()
+        self.press("Enter")
+        dialog = self.page.locator(".layout-dialog")
+        expect(dialog).to_be_visible()
+        if tab == "panels":
+            button = dialog.locator("#layout-tab-panels")
+            button.focus()
+            self.press("Enter")
+        return dialog
+
+    def test_workspace_tabs_have_targets_and_keyboard_navigation(self):
+        dialog = self.workspace_dialog()
+        for tab in dialog.get_by_role("tab").all():
+            expect(
+                self.page.locator("#" + tab.get_attribute("aria-controls"))
+            ).to_have_count(1)
+        toolbar = dialog.locator("#layout-tab-toolbar")
+        panels = dialog.locator("#layout-tab-panels")
+        toolbar.focus()
+        self.press("Home")
+        expect(panels).to_be_focused()
+        expect(panels).to_have_attribute("aria-selected", "true")
+        self.press("End")
+        expect(toolbar).to_be_focused()
+        # Losing the Panels tab at a narrow breakpoint must leave focus in the dialog.
+        panels.focus()
+        self.press("Enter")
+        self.page.set_viewport_size({"width": 900, "height": 1000})
+        expect(toolbar).to_be_focused()
+        expect(dialog.get_by_role("tab")).to_have_count(1)
+        self.press("Escape")
+        expect(dialog).not_to_be_visible()
+        expect(self.page.locator(".ProseMirror")).to_be_focused()
+
+    def test_workspace_radios_roving_arrows_rtl_and_disabled(self):
+        dialog = self.workspace_dialog()
+        # Zoom is selected initially; all radio groups have one entry point.
+        for group in dialog.get_by_role("radiogroup").all():
+            expect(group.locator('[role="radio"][aria-checked="true"]')).to_have_count(
+                1
+            )
+            expect(group.locator('[role="radio"][tabindex="0"]')).to_have_count(1)
+        side = dialog.get_by_role(
+            "radiogroup",
+            name=self.page.evaluate("testI18n.t('toolbar:layout.toolbarTab.side')"),
+            exact=True,
+        )
+        buttons = side.get_by_role("radio")
+        buttons.nth(0).focus()
+        self.press("ArrowRight")
+        expect(buttons.nth(1)).to_be_focused()
+        expect(buttons.nth(1)).to_have_attribute("aria-checked", "true")
+        self.press("End")
+        expect(buttons.nth(2)).to_be_focused()
+        self.press("ArrowRight")
+        expect(buttons.nth(0)).to_be_focused()
+        self.page.evaluate("document.documentElement.dir='rtl'")
+        self.press("ArrowLeft")
+        expect(buttons.nth(1)).to_be_focused()
+        self.press("ArrowDown")
+        expect(buttons.nth(2)).to_be_focused()
+        self.press("ArrowUp")
+        expect(buttons.nth(1)).to_be_focused()
+        # A status item can only be on the footer; arrows skip disabled Toolbar.
+        # Use the first footer status row, independent of translated item labels.
+        row = (
+            dialog.locator(".bars-list")
+            .nth(1)
+            .locator(".bars-row")
+            .filter(has=dialog.locator("small", has_text=re.compile("^Status$")))
+            .first
+        )
+        row.locator(".bars-row-main").focus()
+        self.press("Enter")
+        place = dialog.get_by_role(
+            "radiogroup",
+            name=self.page.evaluate("testI18n.t('toolbar:layout.toolbarTab.placeOn')"),
+            exact=True,
+        )
+        expect(place.get_by_role("radio").nth(0)).to_be_disabled()
+        place.get_by_role("radio").nth(1).focus()
+        self.press("ArrowDown")
+        expect(place.get_by_role("radio").nth(2)).to_be_focused()
+        self.press("ArrowDown")
+        expect(place.get_by_role("radio").nth(1)).to_be_focused()
+
+    def test_workspace_reordering_and_removal_keep_keyboard_focus(self):
+        dialog = self.workspace_dialog()
+        row = (
+            dialog.locator(".bars-row")
+            .filter(has=self.page.locator("strong", has_text=re.compile("^Font$")))
+            .first
+        )
+        right = row.locator("button").nth(3)
+        before = self.page.evaluate(
+            "testStore.getState().toolbarLayout.bars.top.indexOf('font')"
+        )
+        right.focus()
+        self.press("Enter")
+        expect(right).to_be_focused()
+        self.assertGreater(
+            self.page.evaluate(
+                "testStore.getState().toolbarLayout.bars.top.indexOf('font')"
+            ),
+            before,
+        )
+        self.press("Enter")
+        expect(right).to_be_focused()
+        remove = row.locator("button").nth(4)
+        remove.focus()
+        self.press("Enter")
+        available = dialog.locator(".bars-row.is-available").filter(
+            has=self.page.locator("strong", has_text=re.compile("^Font$"))
+        )
+        expect(available.locator(".bars-row-main")).to_be_focused()
+        # Icon buttons use their accessible name, not visible text.
+        add = available.locator(".bars-add").first
+        add.focus()
+        self.press("Enter")
+        expect(row.locator(".bars-row-main")).to_be_focused()
+
+    def test_workspace_panel_grouping_and_save_name_focus(self):
+        dialog = self.workspace_dialog("panels")
+        mode = dialog.get_by_role(
+            "radiogroup",
+            name=self.page.evaluate("testI18n.t('toolbar:layout.panelsTab.showAs')"),
+            exact=True,
+        )
+        mode.get_by_role("radio").first.focus()
+        self.press("ArrowRight")
+        expect(mode.get_by_role("radio").last).to_have_attribute("aria-checked", "true")
+        scenes = dialog.locator(".layout-chip").filter(has_text=re.compile("^Scenes$"))
+        # Focus selects a chip; Enter/Space would start its keyboard drag.
+        scenes.focus()
+        group = dialog.get_by_role(
+            "radiogroup",
+            name=self.page.evaluate("testI18n.t('toolbar:layout.panelsTab.group')"),
+            exact=True,
+        )
+        expect(group.locator('[aria-checked="true"]')).to_have_count(1)
+        own = dialog.get_by_role(
+            "button",
+            name=self.page.evaluate("testI18n.t('toolbar:layout.panelsTab.ownGroup')"),
+            exact=True,
+        )
+        own.focus()
+        self.press("Enter")
+        expect(own).to_be_disabled()
+        expect(scenes).to_be_focused()
+        expect(group.locator('[aria-checked="true"]')).to_have_count(1)
+        for tab, key in [("panels", "panelsTab"), ("toolbar", "toolbarTab")]:
+            dialog.locator(f"#layout-tab-{tab}").focus()
+            self.press("Enter")
+            save = dialog.get_by_role(
+                "button",
+                name=self.page.evaluate(f"testI18n.t('toolbar:layout.{key}.saveAs')"),
+                exact=True,
+            )
+            save.focus()
+            self.press("Enter")
+            field = dialog.get_by_role(
+                "textbox",
+                name=self.page.evaluate(
+                    f"testI18n.t('toolbar:layout.{key}.nameLabel')"
+                ),
+                exact=True,
+            )
+            expect(field).to_be_focused()
+            field.fill("Synthetic keyboard layout")
+            self.press("Escape")
+            expect(dialog).to_be_visible()
+            expect(save).to_be_focused()
+        self.audit()
+
+    def test_workspace_keyboard_drag_escape_and_focus_trap(self):
+        dialog = self.workspace_dialog()
+        grip = dialog.locator(".bars-row .layout-grip").first
+        grip.focus()
+        self.press("Space")
+        expect(self.page.locator(".layout-drag-ghost")).to_be_visible()
+        self.press("Escape")
+        expect(self.page.locator(".layout-drag-ghost")).not_to_be_visible()
+        expect(dialog).to_be_visible()
+        done = dialog.locator(".dialog-primary")
+        done.focus()
+        self.press("Tab")
+        expect(dialog.locator("#layout-tab-toolbar")).to_be_focused()
+        self.press("Shift+Tab")
+        expect(done).to_be_focused()
+        self.press("Escape")
+        expect(dialog).not_to_be_visible()
+        expect(self.page.locator(".ProseMirror")).to_be_focused()
+
+    def test_workspace_panels_and_bars_axe_in_both_themes(self):
+        dialog = self.workspace_dialog("panels")
+        for tab in ["panels", "toolbar"]:
+            button = dialog.locator(f"#layout-tab-{tab}")
+            button.focus()
+            self.press("Enter")
+            for theme in ["light", "dark"]:
+                self.page.evaluate(
+                    "theme=>document.documentElement.dataset.theme=theme", theme
+                )
+                self.audit()
+
     def test_editor_names_states_and_theme_contrast(self):
         expect(
             self.page.get_by_role("textbox", name="Screenplay editor")

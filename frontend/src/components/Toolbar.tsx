@@ -171,9 +171,12 @@ function PanelButton({ panel, mode, onDone }: { panel: string; mode: ToolbarLabe
 }
 
 /** Right-click on either bar: customise it. */
-function BarContextMenu({ at, onClose }: { at: { x: number; y: number }; onClose: () => void }) {
+function BarContextMenu({ at, onClose, onChoose }: {
+  at: { x: number; y: number };
+  onClose: () => void;
+  onChoose: (tab: 'panels' | 'toolbar') => void;
+}) {
   const { t } = useTranslation('toolbar');
-  const setLayoutDialog = useEditorStore((s) => s.setLayoutDialog);
   const docksAvailable = useWorkspaceDocksAvailable();
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -187,12 +190,12 @@ function BarContextMenu({ at, onClose }: { at: { x: number; y: number }; onClose
   return (
     <div ref={ref} className="toolbar-context-menu" style={{ left: at.x, top: at.y }} role="menu" aria-label={t('layout.customiseBars')}
       onContextMenu={(e) => e.stopPropagation()}>
-      <button type="button" className="toolbar-context-item" role="menuitem" onClick={() => { onClose(); setLayoutDialog('toolbar'); }}>
+      <button type="button" className="toolbar-context-item" role="menuitem" onClick={() => onChoose('toolbar')}>
         <FaSlidersH /> {t('layout.customiseBars')}
       </button>
       {/* Panel layouts only where the docks exist (useWorkspaceDocks). */}
       {docksAvailable && (
-        <button type="button" className="toolbar-context-item" role="menuitem" onClick={() => { onClose(); setLayoutDialog('panels'); }}>
+        <button type="button" className="toolbar-context-item" role="menuitem" onClick={() => onChoose('panels')}>
           <FaCompass /> {t('layout.editLayouts')}
         </button>
       )}
@@ -204,16 +207,26 @@ function BarContextMenu({ at, onClose }: { at: { x: number; y: number }; onClose
  * Right-click a bar for Customise. Inputs and drop-downs keep their own menu
  * (paste into the zoom box, for instance).
  */
-function useBarContextMenu() {
+function useBarContextMenu(editor: Editor | null) {
+  const opener = useRef<HTMLElement | null>(null);
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
   const onContextMenu = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
     if (target.closest('input, textarea, select, [contenteditable="true"]')) return;
     e.preventDefault();
+    const active = document.activeElement;
+    opener.current = active instanceof HTMLElement && active !== document.body
+      ? active : editor?.view.dom ?? null;
     setMenu({ x: Math.min(e.clientX, window.innerWidth - 240), y: Math.min(e.clientY, window.innerHeight - 100) });
-  }, []);
+  }, [editor]);
   const close = useCallback(() => setMenu(null), []);
-  const element = menu ? <BarContextMenu at={menu} onClose={close} /> : null;
+  const choose = useCallback((tab: 'panels' | 'toolbar') => {
+    // The menu item disappears; let the modal record a surviving return target.
+    if (opener.current?.isConnected) opener.current.focus({ preventScroll: true });
+    setMenu(null);
+    useEditorStore.getState().setLayoutDialog(tab);
+  }, []);
+  const element = menu ? <BarContextMenu at={menu} onClose={close} onChoose={choose} /> : null;
   return { onContextMenu, element };
 }
 
@@ -1220,7 +1233,7 @@ const ControlBar: React.FC<ControlBarProps> = ({ editor, bar, items, hidden, edi
   // opens an empty popup is worse than no "…" at all.
   const hasOverflow = overflowContent !== null;
 
-  const contextMenu = useBarContextMenu();
+  const contextMenu = useBarContextMenu(editor);
 
   const avRowControls = (
     <>

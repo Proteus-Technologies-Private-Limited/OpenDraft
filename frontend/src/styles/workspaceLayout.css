@@ -274,7 +274,7 @@ html.phone .toolbar.toolbar-comfortable .has-labels .toolbar-btn,
 .layout-save-as {
   display: flex; align-items: center; gap: 6px; margin-top: 6px; padding: 8px 10px;
   border: 1px dashed var(--fd-border); border-radius: 7px; background: none;
-  color: var(--fd-accent); font-size: 12px; cursor: pointer;
+  color: var(--fd-text); font-size: 12px; cursor: pointer;
 }
 .layout-save-form { display: flex; flex-direction: column; gap: 6px; font-size: 12px; }
 .layout-save-form label { display: flex; flex-direction: column; gap: 4px; }
