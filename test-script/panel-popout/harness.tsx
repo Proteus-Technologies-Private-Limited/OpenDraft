@@ -28,6 +28,8 @@ function Owner() {
       switch: () => setIdentity(value => value === 'one' ? 'two' : 'one'),
       appearance: (appearance: 'light' | 'dark' | 'dark-pages') => useEditorStore.setState({ appearance }),
       language: (language: 'en' | 'ar') => setLanguage(language),
+      navigatorOpen: () => useEditorStore.getState().navigatorOpen,
+      hideNavigator: () => useEditorStore.setState({ navigatorOpen: false }),
     };
     return () => editor.destroy();
   }, [editor]);
@@ -35,7 +37,7 @@ function Owner() {
 }
 async function start() {
   await initI18n();
-  useEditorStore.setState({ documentTitle: 'Synthetic screenplay', appearance: 'dark' });
+  useEditorStore.setState({ documentTitle: 'Synthetic screenplay', appearance: 'dark', navigatorOpen: false });
   applyAppearance('dark');
   createRoot(document.getElementById('root')!).render(<Owner />);
 }

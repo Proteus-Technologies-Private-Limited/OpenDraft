@@ -241,12 +241,15 @@ async def run():
             )
             assert await panel.locator("h1").inner_text() == "Synthetic screenplay"
             checks.append("out-of-order snapshot is ignored")
+            assert await owner.evaluate("panelTest.navigatorOpen()")
+            await owner.evaluate("panelTest.hideNavigator()")
             await panel.get_by_role("button", name="Return to Main Window").click()
             await owner.wait_for_function(
                 "document.querySelector('#detached').textContent === 'false'"
             )
             await asyncio.wait_for(all_panels_closed.wait(), timeout=10)
             assert not panels
+            assert await owner.evaluate("panelTest.navigatorOpen()")
             checks.append("return closes panel and restores owner dock state")
             await owner.get_by_role("button", name="Open Navigator").click()
             await owner.wait_for_function(

@@ -13,7 +13,8 @@ shows the script title, searchable headings and synopses. Scene clicks move the
 owner's selection and scroll it into view; owner caret changes highlight the
 current scene in the panel. The panel follows the owner's appearance and language.
 
-Return to Main Window or the native close control restores the Scenes pane. No
+Return to Main Window or the native close control restores the Scenes pane,
+reopening the Navigator if it was hidden while its separate window was open. No
 workspace layout, group, tab placement or expansion preference is rewritten.
 The owner window is brought forward for the explicit Return action and keyboard
 focus returns to the original control, a replacement pop-out button or the editor.

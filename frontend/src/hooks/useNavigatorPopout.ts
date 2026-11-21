@@ -42,6 +42,10 @@ export function useNavigatorPopout(editor: Editor | null, documentIdentity: stri
         .catch(error => console.warn('[panels] snapshot unavailable:', error));
     };
     const schedule = () => { if (active && !timer) timer = setTimeout(publish, 100); };
+    const revealDock = () => {
+      const state = useEditorStore.getState();
+      if (!state.navigatorOpen) state.toggleNavigator();
+    };
     const close = () => {
       active = false;
       setDetached(false);
@@ -75,6 +79,7 @@ export function useNavigatorPopout(editor: Editor | null, documentIdentity: stri
       if (message?.session === session && active) {
         active = false;
         setDetached(false);
+        revealDock();
         focusFrame = requestAnimationFrame(() => {
           if (disposed) return;
           const target = trigger?.isConnected ? trigger : document.querySelector<HTMLElement>('[data-panel-popout-trigger], .ProseMirror');
@@ -103,6 +108,7 @@ export function useNavigatorPopout(editor: Editor | null, documentIdentity: stri
         if (disposed || openingSession !== session) { void closeNavigatorPanels(openingSession); return; }
         active = true;
         setDetached(true);
+        revealDock();
         publish();
       }).catch(error => {
         console.warn('[panels] could not open Navigator:', error);
