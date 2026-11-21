@@ -73,14 +73,12 @@ import type { BandKind } from './HeaderFooterBand';
 import MenuBar from './MenuBar';
 import Toolbar from './Toolbar';
 import SceneNavigator from './SceneNavigator';
-import IndexCards from './IndexCards';
 import StoryMap from './StoryMap';
-import PagePreviewPane from './PagePreviewPane';
-import BeatBoard from './BeatBoard';
-import OutlineView from './OutlineView';
 import ScriptStatistics from './ScriptStatistics';
 import TableReadPanel from './TableReadPanel';
-import FoldablePanelDock from './FoldablePanelDock';
+import FoldablePanelDock, { type FoldablePanel } from './FoldablePanelDock';
+import CompanionPane from './CompanionPane';
+import { companionView, foldCompanionPlacement } from '../utils/foldCompanion';
 import WorkspaceDock, { type DockPanelDef, type NavigatorRender } from './WorkspaceDock';
 import { useCompactViewport } from '../hooks/useWorkspaceDocks';
 /** Add-on panels come and go at runtime (an add-on switched on, or removed), and
@@ -593,7 +591,7 @@ const ScreenplayEditor: React.FC = () => {
     zoomLevel, setZoomLevel, fontFamily, fontSize, pageLayout, tagsVisible, notesVisible,
     viewLayout,
     beatBoardOpen, statisticsOpen, indexCardsOpen,
-    splitScreenOpen, toggleSplitScreen, splitScreenMode, splitScreenPane,
+    splitScreenOpen, splitScreenMode, splitScreenPane, splitScreenActivation,
     storyMapOpen, toggleStoryMap,
     outlineOpen,
     navigatorOpen, toggleNavigator, scriptNotesOpen, toggleScriptNotes,
@@ -612,6 +610,15 @@ const ScreenplayEditor: React.FC = () => {
   const [foldPlugin, setFoldPlugin] = useState<ActivePluginPanel | null>(null);
   const foldDock = foldState.foldable && (foldState.size === 'wide' || foldState.fold !== 'flat');
   const tableReadHome = useRef<HTMLDivElement>(null);
+  const companionSplitHome = useRef<HTMLDivElement>(null);
+  const companionMainHome = useRef<HTMLDivElement>(null);
+  const companion = companionView({ outlineOpen, beatBoardOpen, indexCardsOpen,
+    statisticsOpen, splitScreenOpen, splitScreenPane }, isHistoryMode);
+  const companionPlacement = foldCompanionPlacement(foldState);
+  const companionDocked = !!companion.pane && companionPlacement !== null;
+  const companionMain = !!companion.pane && companion.main && !companionDocked;
+  const companionSplit = !!companion.pane && !companionMain && !companionDocked;
+  const statisticsMain = !isHistoryMode && !outlineOpen && statisticsOpen;
   const tableReadOpen = useTableReadStore((s) => s.open);
   const storyTimelineOpen = useEditorStore((s) => s.storyTimelineOpen);
 
@@ -703,8 +710,8 @@ const ScreenplayEditor: React.FC = () => {
   const suggestionsPanelOpen = useSuggestModeStore((s) => s.panelOpen);
   const rightPanelVisible = scriptNotesOpen || characterProfilesOpen || tagsPanelOpen || locationDatabaseOpen || sceneDetailsOpen || dialogueTunerOpen || suggestionsPanelOpen;
   const foldOpen = foldState.foldable && foldState.size === 'wide' && foldState.fold === 'flat';
-  const foldRightColumnVisible = rightPanelVisible || tableReadOpen || !!foldPlugin;
-  const foldNavigatorDocked = foldOpen && foldLayout(
+  const foldRightColumnVisible = rightPanelVisible || tableReadOpen || !!foldPlugin || companionDocked;
+  const foldNavigatorDocked = foldOpen && !(companionDocked && companionPlacement === 'side') && foldLayout(
     foldState.viewportWidth, pageLayout.pageWidth * 96, navigatorOpen, foldRightColumnVisible,
   ).dockNavigator;
   const foldNavigationClass = foldOpen ? (foldNavigatorDocked ? ' fold-nav-docked' : ' fold-nav-overlay') : '';
@@ -1175,7 +1182,7 @@ const ScreenplayEditor: React.FC = () => {
       pinchFocusRef.current = focus;
       setZoomLevel(zoom);
     },
-    enabled: isTouch && !beatBoardOpen,
+    enabled: isTouch && (!beatBoardOpen || companionDocked),
   });
 
   // 3-finger touch opens context menu on touch devices
@@ -1284,7 +1291,7 @@ const ScreenplayEditor: React.FC = () => {
     if (!container || !page || typeof ResizeObserver === 'undefined') return;
     const ro = new ResizeObserver(() => {
       const anchor = zoomAnchorRef.current;
-      if (!anchor || (!postureAnchorHeldRef.current && performance.now() > zoomAnchorUntilRef.current)) return;
+      if (!container.clientWidth || !container.clientHeight || !anchor || (!postureAnchorHeldRef.current && performance.now() > zoomAnchorUntilRef.current)) return;
       try {
         restoreZoomAnchor(container, anchor);
       } catch (err) {
@@ -1311,9 +1318,9 @@ const ScreenplayEditor: React.FC = () => {
   // The Outline takes over the editor area; a Table Read docked under it would
   // have no script to read.
   useEffect(() => {
-    if (!outlineOpen) return;
+    if (!outlineOpen || companionDocked) return;
     if (useTableReadStore.getState().open) useTableReadStore.getState().setOpen(false);
-  }, [outlineOpen]);
+  }, [outlineOpen, companionDocked]);
   zoomLevelRef.current = zoomLevel;
 
   const [overlays, setOverlays] = useState<OverlayInfo[]>([]);
@@ -1346,7 +1353,7 @@ const ScreenplayEditor: React.FC = () => {
         autoZoomApplied.current = false;
         return;
       }
-      if (window.innerWidth <= 768 && editorMainRef.current) {
+      if (window.innerWidth <= 768 && editorMainRef.current?.clientWidth) {
         const containerWidth = editorMainRef.current.clientWidth - 16; // small padding
         const pageWidthPx = pageLayout.pageWidth * 96; // 1in = 96px
         const fitZoom = Math.floor((containerWidth / pageWidthPx) * 100);
@@ -1416,7 +1423,7 @@ const ScreenplayEditor: React.FC = () => {
       window.removeEventListener('resize', fit);
       window.removeEventListener('orientationchange', fit);
     };
-  }, [foldState, foldOpen, foldNavigatorDocked, foldRightColumnVisible, foldToolbarMode, navWidth, pageLayout.pageWidth, setZoomLevel, phoneView]);
+  }, [foldState, foldOpen, foldNavigatorDocked, foldRightColumnVisible, companionDocked, companionPlacement, foldToolbarMode, navWidth, pageLayout.pageWidth, setZoomLevel, phoneView]);
 
   // ── Handle /collab/:token route — resolve token to project/script, then enter collab mode ──
   const collabInitDone = useRef(false);
@@ -5816,7 +5823,7 @@ const ScreenplayEditor: React.FC = () => {
     (w === undefined ? { width: '100%', minWidth: 0 } : { width: w, minWidth: w });
   const openFlags = {
     navigatorOpen, scriptNotesOpen, characterProfilesOpen, tagsPanelOpen, locationDatabaseOpen, sceneDetailsOpen,
-    dialogueTunerOpen, suggestions: suggestionsPanelOpen, tableRead: tableReadOpen && !statisticsOpen && !beatBoardOpen,
+    dialogueTunerOpen, suggestions: suggestionsPanelOpen, tableRead: tableReadOpen && !statisticsOpen && (!beatBoardOpen || companionDocked),
   };
   const dockPanels: Record<string, DockPanelDef> = {};
   if (dockLayout) {
@@ -5871,6 +5878,29 @@ const ScreenplayEditor: React.FC = () => {
       </div>
     );
   }
+
+  const closeCompanion = () => {
+    const state = useEditorStore.getState();
+    if (!companion.main) state.toggleSplitScreen();
+    else if (companion.pane === 'outline') state.toggleOutline();
+    else if (companion.pane === 'beat-board') state.toggleBeatBoard();
+    else state.toggleIndexCards();
+    if (!companionDocked) requestAnimationFrame(() => {
+      if (document.activeElement === document.body && editorMainRef.current?.clientHeight && editor && !editor.isDestroyed) editor.view.focus();
+    });
+  };
+  const companionPanel: FoldablePanel = {
+    id: 'companion',
+    label: companion.pane === 'page-view' ? tl('story:splitScreen.pageView')
+      : companion.pane === 'outline' ? tg('menu:view.outline')
+      : companion.pane === 'beat-board' ? tg('menu:view.beatBoard') : tg('menu:view.indexCards'),
+    open: !!companion.pane && !!editor,
+    activationKey: `${companion.pane ?? ''}:${splitScreenActivation}`,
+    home: companionMain ? companionMainHome : companionSplitHome,
+    keepHomeWhenClosed: true,
+    content: companion.pane && editor ? <CompanionPane editor={editor} pane={companion.pane}
+      embedded={!companionMain} onClose={closeCompanion} /> : null,
+  };
 
   return (
     <div className={`app-container${isHistoryMode ? ' history-mode' : ''}${focusActive ? ` focus-mode${focusTypewriter ? ' focus-typewriter' : ''}${focusDim !== 'off' ? ' focus-dim' : ''}` : ''}`}>
@@ -6026,7 +6056,7 @@ const ScreenplayEditor: React.FC = () => {
       {!isHistoryMode && <MenuBar editor={editor} onDocumentSaved={handleDocumentSaved} onCollaborate={handleCollaborate} onJoinCollab={openJoinCollab} isCollabActive={collabMode} isCollabGuest={collabMode && !isCollabHost} canEditDocumentFormat={!collabMode || collabRole === 'editor'} />}
       {!isHistoryMode && <Toolbar editor={editor} />}
       {!isHistoryMode && <LayoutDialog />}
-      <div className={`editor-layout${foldDock ? ' fold-layout' : ''}${foldNavigationClass}`} style={{ '--fold-nav-width': `${FOLD_NAV_WIDTH}px` } as React.CSSProperties}>
+      <div className={`editor-layout${foldDock ? ' fold-layout' : ''}${foldNavigationClass}${companionDocked && foldState.fold === 'flat' ? ` fold-companion-${companionPlacement}` : ''}`} style={{ '--fold-nav-width': `${FOLD_NAV_WIDTH}px` } as React.CSSProperties}>
         {dockLayout ? (
           <>
             <WorkspaceDock dock="start" layout={renderLayout} panels={dockPanels} renderNavigator={renderDockNavigator} width={navWidth} />
@@ -6055,17 +6085,10 @@ const ScreenplayEditor: React.FC = () => {
           </>
         )}
         <div className="editor-center">
-          <div className={`editor-main-area${splitScreenOpen && !outlineOpen && !statisticsOpen && !beatBoardOpen && !isHistoryMode ? ` split-screen split-${splitScreenMode}` : ''}`}>
-          {!isHistoryMode && outlineOpen && editor ? (
-            <OutlineView editor={editor} />
-          ) : !isHistoryMode && statisticsOpen && editor ? (
-            <ScriptStatistics editor={editor} />
-          ) : !isHistoryMode && beatBoardOpen ? (
-            <BeatBoard editor={editor} />
-          ) : !isHistoryMode && indexCardsOpen && !splitScreenOpen && editor ? (
-            <IndexCards editor={editor} />
-          ) : (
-            <div className={`editor-main${phoneView ? ' phone-layout' : ''}`} ref={attachEditorMain} onDragOver={handleEditorDragOver} onDragLeave={handleEditorDragLeave} onDrop={handleEditorDrop}>
+          <div className={`editor-main-area${companionSplit ? ` split-screen split-${splitScreenMode}` : ''}`}>
+          <div className="companion-main-home" ref={companionMainHome} hidden={!companionMain} />
+          {statisticsMain && editor && <ScriptStatistics editor={editor} />}
+            <div className={`editor-main${phoneView ? ' phone-layout' : ''}`} hidden={companionMain || statisticsMain} ref={attachEditorMain} onDragOver={handleEditorDragOver} onDragLeave={handleEditorDragLeave} onDrop={handleEditorDrop}>
               <div
                 className="page-sizer"
                 style={phoneView ? {
@@ -6293,29 +6316,7 @@ const ScreenplayEditor: React.FC = () => {
               </div>
               </div>
             </div>
-          )}
-          {splitScreenOpen && !outlineOpen && !statisticsOpen && !beatBoardOpen && !isHistoryMode && editor && (
-            <div className={`split-pane split-pane-${splitScreenPane}`}>
-              {splitScreenPane === 'index-cards' && (
-                <IndexCards editor={editor} variant="split" onRequestClose={toggleSplitScreen} />
-              )}
-              {splitScreenPane === 'outline' && (
-                <>
-                  <button className="split-pane-close" onClick={toggleSplitScreen} title={tl('story:splitScreen.close')} aria-label={tl('story:splitScreen.close')}>&times;</button>
-                  <OutlineView editor={editor} />
-                </>
-              )}
-              {splitScreenPane === 'beat-board' && (
-                <>
-                  <button className="split-pane-close" onClick={toggleSplitScreen} title={tl('story:splitScreen.close')} aria-label={tl('story:splitScreen.close')}>&times;</button>
-                  <BeatBoard editor={editor} embedded />
-                </>
-              )}
-              {splitScreenPane === 'page-view' && (
-                <PagePreviewPane editor={editor} onRequestClose={toggleSplitScreen} />
-              )}
-            </div>
-          )}
+          <div className="split-pane-home" ref={companionSplitHome} hidden={!companionSplit} />
           </div>
           {/* The scenes as one strip under the script; the same component is
               the timeline inside the Index Cards view. */}
@@ -6355,7 +6356,7 @@ const ScreenplayEditor: React.FC = () => {
             {/* The writing pad floats; it is not a dock panel. The same key as the
                 overlay branch's dock below keeps the pad mounted, with its draft,
                 when a resize crosses the 1100px line between the two. */}
-            <FoldablePanelDock key="fold-panels" active={false} panels={[
+            <FoldablePanelDock key="fold-panels" active={false} panels={[companionPanel,
           { id: 'handwriting', label: tg('editor:scribble.title'), open: scribbleOpen, dock: scribbleDocked, activationKey: scribbleActivation,
             home: scribbleHome, keepHomeWhenClosed: true,
             content: scribbleOpen && editor ? <ScribbleInput editor={editor} docked={scribbleDocked} viewportConstrained={padPosture && !padCanDock} onClose={() => setScribbleOpen(false)} /> : null },
@@ -6373,6 +6374,7 @@ const ScreenplayEditor: React.FC = () => {
               onPointerDown={(e) => handleResizePointerDown('right', e)} style={{ touchAction: 'none' }} />
           )}
           <FoldablePanelDock key="fold-panels" active={!isHistoryMode && foldDock} panels={[
+            companionPanel,
             ...(!isHistoryMode ? [
               { id: 'notes', label: tg('menu:view.notesPanel'), open: scriptNotesOpen, content: <ScriptNotes editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} /> },
               { id: 'characters', label: tg('menu:view.characters'), open: characterProfilesOpen, content: <CharacterProfiles editor={editor} projectId={currentProject?.id || ''} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} /> },
@@ -6383,8 +6385,8 @@ const ScreenplayEditor: React.FC = () => {
               { id: 'suggestions', label: tg('menu:view.suggestions'), open: suggestionsPanelOpen, content: <SuggestionsPanel editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} /> },
               { id: 'plugin', label: foldPlugin?.label ?? tg('menu:pluginPanels.tabs'), open: !!foldPlugin, activationKey: foldPlugin?.activation, keepHomeWhenClosed: true,
                 content: <PluginPanelTabs editor={editor} width={rightPanelWidth} onResizeKeyboard={setRightPanelWidth} onActiveChange={setFoldPlugin} onResizePointerDown={(e) => handleResizePointerDown('right', e)} /> },
-              { id: 'table-read', label: tg('menu:tools.tableRead'), open: tableReadOpen && !statisticsOpen && !beatBoardOpen, home: tableReadHome,
-                content: tableReadOpen && editor && !statisticsOpen && !beatBoardOpen ? <TableReadPanel editor={editor} /> : null },
+              { id: 'table-read', label: tg('menu:tools.tableRead'), open: tableReadOpen && !statisticsOpen && (!beatBoardOpen || companionDocked), home: tableReadHome,
+                content: tableReadOpen && editor && !statisticsOpen && (!beatBoardOpen || companionDocked) ? <TableReadPanel editor={editor} /> : null },
             ] : []),
             { id: 'handwriting', label: tg('editor:scribble.title'), open: scribbleOpen, dock: scribbleDocked, activationKey: scribbleActivation,
               home: scribbleHome, keepHomeWhenClosed: true,

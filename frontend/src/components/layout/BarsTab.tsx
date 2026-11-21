@@ -42,6 +42,8 @@ import { useToolbarItemMeta } from '../toolbar/toolbarMeta';
 import { usePhoneScreen } from '../../hooks/usePhoneScreen';
 import { layoutCollision, useLayoutAnnouncements, useLayoutSensors } from './dndConfig';
 import DropZone from './DropZone';
+import LayoutRadioGroup from './LayoutRadioGroup';
+import { useLayoutFocus } from './useLayoutFocus';
 
 const MODES: ToolbarLabelMode[] = ['icon', 'text', 'both', 'none'];
 const BAR_MODES: ToolbarBarLabel[] = ['icon', 'text', 'both'];
@@ -86,7 +88,7 @@ function BarRow({ id, bar, state, selected, onSelect, onChange }: {
     : def?.kind === 'layout' ? ` · ${(state.options[id]?.layoutStyle ?? 'menu') === 'menu' ? t('layout.toolbarTab.menu') : t('layout.toolbarTab.buttons')}` : '';
   const lone = bar === 'top' && state.bars.top.length === 1;
   return (
-    <DropZone id={`row:${bar}:${id}`} className={`bars-row${selected ? ' is-selected' : ''}${def?.group === 'panels' ? ' is-panel' : ''}${isDragging ? ' is-lifted' : ''}`}>
+    <DropZone id={`row:${bar}:${id}`} data-layout-focus={`item:${id}`} className={`bars-row${selected ? ' is-selected' : ''}${def?.group === 'panels' ? ' is-panel' : ''}${isDragging ? ' is-lifted' : ''}`}>
       <button type="button" ref={setNodeRef} {...attributes} {...listeners} className="layout-grip" aria-label={t('layout.panelsTab.dragPanel', { name: meta.label })}>
         <FaGripVertical aria-hidden="true" />
       </button>
@@ -114,7 +116,7 @@ function AvailableRow({ id, selected, onSelect, onAdd }: { id: string; selected:
   const meta = useToolbarItemMeta()(id);
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: `item:${id}` });
   return (
-    <div className={`bars-row is-available${selected ? ' is-selected' : ''}${isDragging ? ' is-lifted' : ''}`}>
+    <div data-layout-focus={`item:${id}`} className={`bars-row is-available${selected ? ' is-selected' : ''}${isDragging ? ' is-lifted' : ''}`}>
       <button type="button" ref={setNodeRef} {...attributes} {...listeners} className="layout-grip" aria-label={t('layout.panelsTab.dragPanel', { name: meta.label })}>
         <FaGripVertical aria-hidden="true" />
       </button>
@@ -143,6 +145,7 @@ interface Props {
 
 const BarsTab: React.FC<Props> = ({ state, setState }) => {
   const { t } = useTranslation('toolbar');
+  const focus = useLayoutFocus();
   const {
     toolbarPreset, applyToolbarPreset, savedToolbarLayouts, saveToolbarLayout, applySavedToolbarLayout,
     deleteSavedToolbarLayout, workspaceLayout, savedWorkspaceLayouts,
@@ -301,7 +304,7 @@ const BarsTab: React.FC<Props> = ({ state, setState }) => {
           <p className="layout-muted">{t('layout.toolbarTab.phoneIconsNote')}</p>
         )}
         {def?.kind !== 'status' && !(bar === 'top' && phone) && (
-        <div className="layout-field" role="radiogroup" aria-label={t('layout.toolbarTab.showAs')}>
+        <LayoutRadioGroup as="div" className="layout-field" aria-label={t('layout.toolbarTab.showAs')}>
           <span>{t('layout.toolbarTab.showAs')}</span>
           <button type="button" role="radio" aria-checked={!options.label}
             className={`layout-radio${!options.label ? ' is-on' : ''}`} onClick={() => setOptions({ label: undefined })}>
@@ -316,12 +319,12 @@ const BarsTab: React.FC<Props> = ({ state, setState }) => {
             ))}
           </div>
           {canShowNoHeading(sel, options) && <small>{t('layout.toolbarTab.noHeadingHint')}</small>}
-        </div>
+        </LayoutRadioGroup>
         )}
 
         <div className="layout-field">
           <span>{t('layout.toolbarTab.placeOn')}</span>
-          <span className="layout-seg" role="radiogroup" aria-label={t('layout.toolbarTab.placeOn')}>
+          <LayoutRadioGroup as="span" className="layout-seg" aria-label={t('layout.toolbarTab.placeOn')}>
             {(['top', 'bottom', null] as const).map((where) => (
               <button key={String(where)} type="button" role="radio" aria-checked={bar === where}
                 className={bar === where ? 'is-on' : ''}
@@ -331,23 +334,23 @@ const BarsTab: React.FC<Props> = ({ state, setState }) => {
                 {where === 'top' ? t('layout.toolbarTab.onToolbar') : where === 'bottom' ? t('layout.toolbarTab.onFooter') : t('layout.toolbarTab.notPlaced')}
               </button>
             ))}
-          </span>
+          </LayoutRadioGroup>
         </div>
 
         <div className="layout-field">
           <span>{t('layout.toolbarTab.side')}</span>
-          <span className="layout-seg" role="radiogroup" aria-label={t('layout.toolbarTab.side')}>
+          <LayoutRadioGroup as="span" className="layout-seg" aria-label={t('layout.toolbarTab.side')}>
             {TOOLBAR_SIDES.map((s) => (
               <button key={s} type="button" role="radio" aria-checked={side === s} className={side === s ? 'is-on' : ''}
                 onClick={() => setState(bar ? placeToolbarItem(state, sel, bar, { side: s }) : setToolbarItemOptions(state, sel, { side: s }))}>
                 {sideShort(s)}
               </button>
             ))}
-          </span>
+          </LayoutRadioGroup>
         </div>
 
         {def?.kind === 'zoom' && (
-          <div className="layout-field" role="radiogroup" aria-label={t('layout.toolbarTab.zoomControl')}>
+          <LayoutRadioGroup as="div" className="layout-field" aria-label={t('layout.toolbarTab.zoomControl')}>
             <span>{t('layout.toolbarTab.zoomControl')}</span>
             {(['buttons', 'slider', 'both'] as const).map((z) => (
               <button key={z} type="button" role="radio" aria-checked={effectiveZoomStyle(bar ?? 'bottom', options) === z}
@@ -357,14 +360,14 @@ const BarsTab: React.FC<Props> = ({ state, setState }) => {
               </button>
             ))}
             <small>{t('layout.toolbarTab.zoomHint')}</small>
-          </div>
+          </LayoutRadioGroup>
         )}
 
         {def?.kind === 'layout' && (
           <>
             <div className="layout-field">
               <span>{t('layout.toolbarTab.switcherStyle')}</span>
-              <span className="layout-seg" role="radiogroup" aria-label={t('layout.toolbarTab.switcherStyle')}>
+              <LayoutRadioGroup as="span" className="layout-seg" aria-label={t('layout.toolbarTab.switcherStyle')}>
                 {(['menu', 'buttons'] as const).map((style) => (
                   <button key={style} type="button" role="radio" aria-checked={(options.layoutStyle ?? 'menu') === style}
                     className={(options.layoutStyle ?? 'menu') === style ? 'is-on' : ''}
@@ -372,7 +375,7 @@ const BarsTab: React.FC<Props> = ({ state, setState }) => {
                     {style === 'menu' ? t('layout.toolbarTab.menu') : t('layout.toolbarTab.buttons')}
                   </button>
                 ))}
-              </span>
+              </LayoutRadioGroup>
             </div>
             <fieldset className="layout-field">
               <legend>{t('layout.toolbarTab.layoutsOffered')}</legend>
@@ -400,7 +403,7 @@ const BarsTab: React.FC<Props> = ({ state, setState }) => {
   return (
     <DndContext sensors={sensors} collisionDetection={layoutCollision} onDragStart={onDragStart} onDragEnd={onDragEnd}
       onDragCancel={() => setDragging(null)} accessibility={{ announcements }}>
-      <div className="bars-tab">
+      <div className="bars-tab" {...focus}>
         <div className="bars-top">
           <div className="bars-presets" role="group" aria-label={t('layout.toolbarTab.presetsHeading')}>
             <span className="layout-muted">{t('layout.toolbarTab.presetsHeading')}</span>
@@ -421,9 +424,9 @@ const BarsTab: React.FC<Props> = ({ state, setState }) => {
               </span>
             ))}
             {naming === null ? (
-              <button type="button" className="layout-link" onClick={() => setNaming('')}>{t('layout.toolbarTab.saveAs')}</button>
+              <button type="button" data-layout-focus="save-bars" className="layout-link" onClick={() => setNaming('')}>{t('layout.toolbarTab.saveAs')}</button>
             ) : (
-              <form className="layout-inline-form" onSubmit={(e) => { e.preventDefault(); if (saveToolbarLayout(naming)) setNaming(null); }}>
+              <form data-layout-focus="save-bars" className="layout-inline-form" onSubmit={(e) => { e.preventDefault(); if (saveToolbarLayout(naming)) setNaming(null); }}>
                 <input type="text" value={naming} maxLength={40} autoFocus aria-label={t('layout.toolbarTab.nameLabel')}
                   onChange={(e) => setNaming(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setNaming(null); } }} />
@@ -436,7 +439,7 @@ const BarsTab: React.FC<Props> = ({ state, setState }) => {
             {(phone ? ['bottom'] as const : ['top', 'bottom'] as const).map((bar) => (
               <span key={bar} className="bars-default">
                 <span className="layout-muted">{bar === 'top' ? t('layout.toolbarTab.toolbarShows') : t('layout.toolbarTab.footerShows')}</span>
-                <span className="layout-seg" role="radiogroup" aria-label={bar === 'top' ? t('layout.toolbarTab.toolbarShows') : t('layout.toolbarTab.footerShows')}>
+                <LayoutRadioGroup as="span" className="layout-seg" aria-label={bar === 'top' ? t('layout.toolbarTab.toolbarShows') : t('layout.toolbarTab.footerShows')}>
                   {BAR_MODES.map((m) => (
                     <button key={m} type="button" role="radio" aria-checked={state.labels[bar] === m}
                       className={state.labels[bar] === m ? 'is-on' : ''}
@@ -444,7 +447,7 @@ const BarsTab: React.FC<Props> = ({ state, setState }) => {
                       {t(`layout.modes.${m}`)}
                     </button>
                   ))}
-                </span>
+                </LayoutRadioGroup>
               </span>
             ))}
           </div>

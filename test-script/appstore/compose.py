@@ -35,7 +35,12 @@ SIZES = {
     "iphone-medium": (1206, 2622),
     "duo": (2853, 2007),
     "ipad": (2064, 2752),
+    # Google Play: no side may be more than twice the other, so this is the tallest phone canvas it takes.
+    "play-phone": (1080, 2160),
 }
+
+# Where each set is written. Apple sets go under images/appstore/<set>; Play's under images/playstore/.
+OUT_DIR = {"play-phone": ROOT / "images" / "playstore" / "phone"}
 
 CSS = """
 @font-face { font-family: 'Courier Prime'; font-weight: 700; src: url('%(font)s'); }
@@ -111,6 +116,18 @@ def tablet(name: str, left: float, top: float, width: float) -> str:
     )
 
 
+def android_phone(name: str, left: float, top: float, width: float) -> str:
+    """A generic Android phone: thinner bezel and corner than the iPhone, a punch-hole camera."""
+    pad, radius = width * 0.02, width * 0.085
+    hole = width * 0.036
+    return (
+        f'<div class="dev" style="left:{left}px;top:{top}px;width:{width}px;padding:{pad}px;border-radius:{radius}px">'
+        f'<img class="screen" src="{raw(name)}" style="border-radius:{radius - pad}px">'
+        f'<div class="camera" style="left:calc(50% - {hole / 2}px);top:{pad + width * 0.024}px;width:{hole}px;height:{hole}px"></div>'
+        "</div>"
+    )
+
+
 def duo_open(name: str, left: float, top: float, width: float, crease: str = "v") -> str:
     """The Duo's inner screen. `crease` is 'v' held as a book, 'h' as a laptop."""
     short = width * (2007 / 2853) if crease == "v" else width
@@ -155,13 +172,13 @@ def mark(left: float, top: float, size: float) -> str:
 
 # No prices and no competitor names in captions: App Review guideline 2.3.7 covers screenshots too.
 CAPTIONS = {
-    "write": ("Fade in", "Write your\nscreenplay.", "Industry-standard formatting that takes care of itself."),
+    "write": ("Screenwriting app", "Write your\nscreenplay.", "Free screenwriting software. Industry-standard script formatting that takes care of itself."),
     "tableread": ("Table Read", "Hear every line\nread aloud.", "A voice for each character, with every word lit as it is spoken."),
     "cards": ("Index Cards", "See your story\nscene by scene.", "Colour-coded cards with a synopsis, a page count and a running time."),
     "outline": ("Outline", "Shape the\nwhole script.", "Acts, sequences and scenes in one list. Drag a scene to move it."),
     "navigator": ("Navigator", "Jump to\nany scene.", "Every scene with its synopsis, one tap away."),
     "duo": ("iPhone Duo", "Folded or open,\nit fits.", "OpenDraft lays itself out for each way you hold your iPhone Duo."),
-    "free": ("Yours to keep", "Your script,\nin any format.", "Works offline. Export to PDF, Fountain and the formats studios ask for."),
+    "free": ("Free & open source", "Your script,\nin any format.", "No subscription. Works offline. Export to PDF, Fountain and FDX."),
 }
 
 
@@ -172,6 +189,17 @@ def portrait_page(key: str, device: str, width: int, height: int) -> str:
     text = copy(eyebrow, headline, body, side, height * 0.052, width - 2 * side, width * 0.098)
     device_width = width * 0.665  # as tall as fits under the caption without leaving the canvas
     return text + phone(device, (width - device_width) / 2, height * 0.30, device_width)
+
+
+def android_portrait_page(key: str, device: str, width: int, height: int) -> str:
+    """Play-store canvas: caption on top, one Android phone under it, sized to end near the bottom edge."""
+    eyebrow, headline, body = CAPTIONS[key]
+    side = width * 0.085
+    text = copy(eyebrow, headline, body, side, height * 0.05, width - 2 * side, width * 0.098)
+    top = height * 0.27
+    # the capture is 1280x2856, so the device is about 2.27 times as tall as it is wide, bezel included
+    device_width = min(width * 0.70, (height * 0.985 - top) / 2.27)
+    return text + android_phone(device, (width - device_width) / 2, top, device_width)
 
 
 def duo_on_phone_page(width: int, height: int) -> str:
@@ -248,6 +276,18 @@ def build_pages() -> dict:
         ("03-index-cards", tablet_page("cards", "ipad-04-cards", w, h)),
         ("04-navigator", tablet_page("navigator", "ipad-02-navigator", w, h)),
     ]
+
+    # Captured from the Android emulator by android_shot.py; skipped until they exist so the Apple sets still build.
+    if (RAW / "android-01-editor.png").exists():
+        w, h = SIZES["play-phone"]
+        pages["play-phone"] = [
+            ("01-write", android_portrait_page("write", "android-01-editor", w, h)),
+            ("02-table-read", android_portrait_page("tableread", "android-02-tableread", w, h)),
+            ("03-index-cards", android_portrait_page("cards", "android-03-cards", w, h)),
+            ("04-outline", android_portrait_page("outline", "android-04-outline", w, h)),
+            ("05-navigator", android_portrait_page("navigator", "android-05-navigator", w, h)),
+            ("06-free", android_portrait_page("free", "android-06-export", w, h)),
+        ]
     return pages
 
 
@@ -262,7 +302,7 @@ def render(wanted: list) -> int:
                 if wanted and set_name not in wanted:
                     continue
                 width, height = SIZES[set_name]
-                target = OUT / set_name
+                target = OUT_DIR.get(set_name, OUT / set_name)
                 target.mkdir(parents=True, exist_ok=True)
                 page = browser.new_page(viewport={"width": width, "height": height}, device_scale_factor=1)
                 for file_name, markup in items:
@@ -295,4 +335,4 @@ if __name__ == "__main__":
         sys.exit(f"compose failed: {error}")
     if not count:
         sys.exit(f"no set matched {sys.argv[1:]}; choose from {list(SIZES)}")
-    print(f"{count} images in {OUT}")
+    print(f"{count} images written")

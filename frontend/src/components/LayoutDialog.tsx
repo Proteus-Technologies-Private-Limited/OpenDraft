@@ -11,6 +11,7 @@ import { FaTimes } from 'react-icons/fa';
 import { useEditorFields } from '../stores/editorStore';
 import { ModalOverlay } from './ModalOverlay';
 import PanelsTab from './layout/PanelsTab';
+import { useLayoutFocus } from './layout/useLayoutFocus';
 import BarsTab from './layout/BarsTab';
 import { useWorkspaceLayoutChoices } from './toolbar/toolbarMeta';
 import { useWorkspaceDocksAvailable } from '../hooks/useWorkspaceDocks';
@@ -18,6 +19,7 @@ import '../styles/workspaceLayout.css';
 
 const LayoutDialog: React.FC = () => {
   const { t } = useTranslation('toolbar');
+  const focus = useLayoutFocus();
   const {
     layoutDialog, setLayoutDialog, workspaceLayout, setWorkspaceLayout, workspacePreset, applyWorkspacePreset,
     toolbarLayout, setToolbarLayout, applyToolbarPreset,
@@ -54,7 +56,12 @@ const LayoutDialog: React.FC = () => {
 
   return (
     <ModalOverlay className="dialog-overlay layout-dialog-overlay" onClick={() => setLayoutDialog(null)} dialogLabel={t('layout.title')}>
-      <div className="layout-dialog" onClick={(e) => e.stopPropagation()}>
+      <div className="layout-dialog" {...focus} onClick={(e) => e.stopPropagation()}
+        onKeyDownCapture={(e) => {
+          // Let dnd-kit's document listener cancel the drag before the modal
+          // handles Escape. Do not stop propagation: the sensor needs the key.
+          if (e.key === 'Escape' && document.querySelector('.layout-drag-ghost')) e.preventDefault();
+        }}>
         <div className="layout-dialog-header">
           <h2 className="dialog-header">{t('layout.title')}</h2>
           <div className="layout-dialog-tabs" role="tablist" aria-label={t('layout.title')}>
@@ -71,9 +78,11 @@ const LayoutDialog: React.FC = () => {
                 className={activeTab === tab.id ? 'is-on' : ''}
                 onClick={() => setLayoutDialog(tab.id)}
                 onKeyDown={(e) => {
-                  if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+                  if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return;
                   e.preventDefault();
-                  const next = tabs[(index + 1) % tabs.length];
+                  const rtl = getComputedStyle(e.currentTarget).direction === 'rtl';
+                  const delta = (e.key === 'ArrowRight' ? 1 : -1) * (rtl ? -1 : 1);
+                  const next = tabs[e.key === 'Home' ? 0 : e.key === 'End' ? tabs.length - 1 : (index + delta + tabs.length) % tabs.length];
                   setLayoutDialog(next.id);
                   tabRefs.current[next.id]?.focus();
                 }}
@@ -97,11 +106,14 @@ const LayoutDialog: React.FC = () => {
           </button>
         </div>
 
-        <div className="layout-dialog-body" role="tabpanel" id={`layout-tabpanel-${activeTab}`} aria-labelledby={`layout-tab-${activeTab}`}>
-          {activeTab === 'panels'
-            ? <PanelsTab layout={workspaceLayout} setLayout={setWorkspaceLayout} />
-            : <BarsTab state={toolbarLayout} setState={setToolbarLayout} />}
-        </div>
+        {tabs.map(tab => (
+          <div key={tab.id} className="layout-dialog-body" role="tabpanel" id={`layout-tabpanel-${tab.id}`}
+            aria-labelledby={`layout-tab-${tab.id}`} hidden={tab.id !== activeTab} tabIndex={tab.id === activeTab ? 0 : -1}>
+            {tab.id === activeTab && (tab.id === 'panels'
+              ? <PanelsTab layout={workspaceLayout} setLayout={setWorkspaceLayout} />
+              : <BarsTab state={toolbarLayout} setState={setToolbarLayout} />)}
+          </div>
+        ))}
 
         <div className="layout-dialog-footer">
           {activeTab === 'panels' ? (

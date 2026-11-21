@@ -108,7 +108,7 @@ hover.
 | `html.phone` toggled live by `watchPhoneDevice` | `utils/phoneDevice.ts`, `main.tsx:93–99` | Already flips on fold/unfold |
 | Toolbar with priority-based overflow ("⋯") | `Toolbar.tsx` | Unchanged except the 90° two-row layout |
 | Customisable toolbar, presets, Views menu | `Toolbar.tsx`, `LayoutDialog.tsx` (from #217, on main) | Toolbar contents in every posture |
-| Split screen: script plus Page View, Index Cards, Outline or Beat Board | `PagePreviewPane.tsx`, `ScreenplayEditor.tsx` (from #214, on main) | Companion pane on the open screen and in book posture |
+| Split screen: script plus Page View, Index Cards, Outline or Beat Board | `CompanionPane.tsx`, `PagePreviewPane.tsx` (from #214, on main) | Companion pane on the open screen and in book posture |
 | Side-by-side compare | `ScriptDiffView.tsx` | One version per half |
 | Table Read panel | `TableReadPanel.tsx`, `tableRead.css` | Placed per posture |
 | Handwriting panel (Apple Pencil) | `ScribbleInput.tsx` | Placed per posture |

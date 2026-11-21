@@ -48,6 +48,15 @@ screen-reader conformance.
   zoom changes are deferred for separate phone/WebView validation. Contrast
   corrections cover the audited editor, dialog buttons, selected options and grammar severity badges.
 
+The workspace Layout dialog exposes a labelled panel for every tab, including
+inactive panel shells. Left/Right and Home/End select tabs. Its radio groups have
+one Tab stop, wrapping arrows, Home/End, disabled-choice skipping and mirrored
+horizontal arrows in RTL. Activating an already checked radio leaves its value
+and panel order unchanged. Moving, removing or regrouping a control retains focus
+on that control or its surviving entry. Cancelling a layout name returns to Save
+as; Escape during a keyboard drag cancels the drag before closing the dialog.
+Opening from a bar's context menu preserves a surviving return-focus target.
+
 ## Automated verification
 
 From the repository root, install frontend dependencies and Python Playwright,
@@ -93,7 +102,7 @@ zoom or physical-device validation. Existing menu and foldable browser suites
 provide the integration coverage for their own interactions.
 
 The accessibility workflow has independent Chromium/WebKit jobs and uploads
-engine-labelled axe evidence. Each runs 24 accessibility cases, 16 menu cases,
+engine-labelled axe evidence. Each runs 30 accessibility cases, 16 menu cases,
 and four long-script scenarios; Chromium also runs two foldable plugin cases.
 See [the long-script checks](../test-script/long-script/README.md) for the
 Navigator/spellcheck combinations. This adds Linux WebKit coverage, not native

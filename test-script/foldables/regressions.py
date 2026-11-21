@@ -88,7 +88,7 @@ class FoldableRegressions(unittest.TestCase):
 
     def locations(self):
         self.page.evaluate('testStore.getState().toggleLocationDatabase()')
-        self.page.get_by_role('tab', name='Locations', exact=True).click()
+        self.page.get_by_role('tab', name='Location Profiles', exact=True).click()
 
     def test_focused_panel_input_survives_folding(self):
         self.check_panel_focus()
@@ -114,12 +114,12 @@ class FoldableRegressions(unittest.TestCase):
         self.locations()
         self.open_plugin()
         self.page.get_by_role('textbox', name='Regression draft').wait_for(state='visible', timeout=3000)
-        self.page.get_by_role('tab', name='Locations', exact=True).click()
+        self.page.get_by_role('tab', name='Location Profiles', exact=True).click()
         self.open_plugin('probe-b')
         self.page.get_by_role('textbox', name='Regression draft').wait_for(state='visible', timeout=3000)
         self.page.evaluate("testRegistry.unregister('fold-regression')")
         self.page.locator('.plugin-panel-tabs__content').wait_for(state='detached')
-        self.assertTrue(self.page.get_by_role('tab', name='Locations', exact=True).is_visible())
+        self.assertTrue(self.page.get_by_role('tab', name='Location Profiles', exact=True).is_visible())
 
     def test_dock_keyboard_and_accessible_panels(self):
         self.locations()
@@ -143,7 +143,7 @@ class FoldableRegressions(unittest.TestCase):
             tab.press('Tab')
             self.assertTrue(panel.evaluate('el => el === document.activeElement || el.contains(document.activeElement)'))
         # Hidden panel controls must not be exposed to the accessibility tree.
-        self.page.get_by_role('tab', name='Locations', exact=True).click()
+        self.page.get_by_role('tab', name='Location Profiles', exact=True).click()
         self.assertEqual(self.page.get_by_role('textbox', name='Regression draft').count(), 0)
 
     def test_plugin_keyboard_and_close_focus(self):
@@ -172,8 +172,8 @@ class FoldableRegressions(unittest.TestCase):
         self.assertTrue(tabs.last.evaluate('el=>el===document.activeElement'))
         tabs.last.press('ArrowRight')
         self.assertTrue(tabs.first.evaluate('el=>el===document.activeElement'))
-        self.page.get_by_role('tab', name='Locations', exact=True).click()
-        self.page.locator('.fold-panel-dock .location-db-close').click()
+        self.page.get_by_role('tab', name='Location Profiles', exact=True).click()
+        self.page.locator('#fold-panel-locations').get_by_role('button', name='Close', exact=True).click()
         self.page.wait_for_function("document.activeElement?.getAttribute('role')==='tab' && document.activeElement?.textContent==='Probe A'")
         self.page.locator('.ProseMirror').click()
         self.page.evaluate("testRegistry.unregister('fold-regression')")
@@ -201,22 +201,21 @@ class FoldableRegressions(unittest.TestCase):
             const left = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--fold-left'));
             const bar = document.querySelector('.menu-bar:not(.menu-bar--floating)');
             const edge = el => { const r = el.getBoundingClientRect(); return [r.left, r.right]; };
-            const visible = el => el && getComputedStyle(el).display !== 'none';
             return {
                 left, iconsOnly: bar.classList.contains('menu-bar--icons'),
                 triggers: [...bar.querySelectorAll('[role=menuitem]')].map(edge),
                 auth: edge(bar.querySelector('.auth-indicator')),
                 page: edge(document.querySelector('.status-page')),
                 statusRow: edge(document.querySelector('.status-bar-row')),
-                centreShown: visible(document.querySelector('.status-center')),
             };
         }""")
+        # Footer slots are now customizable; verify their containing strip fits
+        # instead of assuming the old centre slot must be hidden.
         self.assertGreater(bars['left'], 300)
         self.assertTrue(bars['iconsOnly'])
         for start, end in bars['triggers'] + [bars['auth'], bars['page'], bars['statusRow']]:
             self.assertGreaterEqual(start, -1)
             self.assertLessEqual(end, bars['left'] + 1)
-        self.assertFalse(bars['centreShown'])
         # Icons only still names every menu, and Help still opens.
         for name in ('File', 'Edit', 'Format', 'View', 'Tools', 'Help'):
             self.assertTrue(self.page.get_by_role('menuitem', name=name, exact=True).is_visible())
@@ -227,7 +226,6 @@ class FoldableRegressions(unittest.TestCase):
         self.posture(width=842, height=701, axis='vertical', fold='continuous')
         self.page.wait_for_function("!document.documentElement.classList.contains('fold-book')")
         self.page.wait_for_function("!document.querySelector('.menu-bar').classList.contains('menu-bar--icons')")
-        self.assertTrue(self.page.locator('.status-center').is_visible())
 
     def test_phone_menu_bar_keeps_its_labels_and_scrolls(self):
         # 2.14.0 dropped the labels on every phone: the book-posture fit saw

@@ -65,7 +65,7 @@ with sync_playwright() as p:
  if os.environ.get('OPENDRAFT_SCREENSHOT'):page.screenshot(path=os.environ['OPENDRAFT_SCREENSHOT'])
  page.evaluate("window.__table.getState().patch({status:'paused'})")
  page.evaluate("window.__store.getState().toggleLocationDatabase()")
- page.get_by_role('tab',name='Locations',exact=True).click()
+ page.get_by_role('tab',name='Location Profiles',exact=True).click()
  page.locator('.fold-panel-dock .location-database').wait_for(state='visible')
  assert not panel.is_visible()
  page.get_by_role('tab',name='Table Read',exact=True).click()

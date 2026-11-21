@@ -39,6 +39,8 @@ import { barOf, placeToolbarItem, removeToolbarItem, TOOLBAR_PANEL_PREFIX } from
 import { panelIcon, usePanelLabel } from '../toolbar/toolbarMeta';
 import { layoutCollision, useLayoutAnnouncements, useLayoutSensors } from './dndConfig';
 import DropZone from './DropZone';
+import LayoutRadioGroup from './LayoutRadioGroup';
+import { useLayoutFocus } from './useLayoutFocus';
 
 type Selection = { kind: 'panel' | 'group'; id: string } | null;
 
@@ -77,6 +79,7 @@ function PanelChip({ panel, selected, onSelect }: { panel: string; selected: boo
   return (
     <button
       type="button"
+      data-layout-focus={`panel:${panel}`}
       ref={setNodeRef}
       {...attributes}
       {...listeners}
@@ -105,7 +108,7 @@ function GroupCard({ group, dock, selection, onSelect, onMove }: {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: `group:${group.id}` });
   const selected = selection?.kind === 'group' && selection.id === group.id;
   return (
-    <div className={`layout-group${selected ? ' is-selected' : ''}${isDragging ? ' is-lifted' : ''}`}>
+    <div data-layout-focus={`group:${group.id}`} className={`layout-group${selected ? ' is-selected' : ''}${isDragging ? ' is-lifted' : ''}`}>
       <DropZone id={`head:${group.id}`} className="layout-group-head">
         <button type="button" ref={setNodeRef} {...attributes} {...listeners} className="layout-grip"
           aria-label={t('layout.panelsTab.dragGroup', { name })} title={t('layout.panelsTab.dragGroup', { name })}>
@@ -146,6 +149,7 @@ interface Props {
 
 const PanelsTab: React.FC<Props> = ({ layout, setLayout }) => {
   const { t } = useTranslation('toolbar');
+  const focus = useLayoutFocus();
   const {
     workspacePreset, applyWorkspacePreset, savedWorkspaceLayouts, saveWorkspaceLayout, deleteSavedWorkspaceLayout,
     toolbarLayout, setToolbarLayout,
@@ -239,7 +243,7 @@ const PanelsTab: React.FC<Props> = ({ layout, setLayout }) => {
           <span className="layout-dock-meta">
             {t('layout.panelsTab.groupCount', { count: groups.length })} · {panelCount}
           </span>
-          <span className="layout-seg" role="radiogroup" aria-label={t('layout.panelsTab.groupsArrange')}>
+          <LayoutRadioGroup as="span" className="layout-seg" aria-label={t('layout.panelsTab.groupsArrange')}>
             {(['rows', 'columns'] as const).map((arrange) => (
               <button key={arrange} type="button" role="radio" aria-checked={layout.arrange[dock] === arrange}
                 className={layout.arrange[dock] === arrange ? 'is-on' : ''}
@@ -247,7 +251,7 @@ const PanelsTab: React.FC<Props> = ({ layout, setLayout }) => {
                 {arrange === 'rows' ? t('layout.panelsTab.arrangeRows') : t('layout.panelsTab.arrangeColumns')}
               </button>
             ))}
-          </span>
+          </LayoutRadioGroup>
         </div>
         <div className={`layout-dock-groups dock-arrange-${layout.arrange[dock]}`}>
           {groups.map((group) => (
@@ -273,7 +277,7 @@ const PanelsTab: React.FC<Props> = ({ layout, setLayout }) => {
     const groupId = groupOfPanel(layout, panel);
     const group = groupId ? layout.groups[groupId] : undefined;
     return (
-      <div className="layout-settings-body">
+      <div className="layout-settings-body" data-layout-focus={`panel:${panel}`}>
         <div className="layout-settings-title">
           <span aria-hidden="true">{panelIcon(panel)}</span>
           <strong>{panelLabel(panel)}</strong>
@@ -292,16 +296,18 @@ const PanelsTab: React.FC<Props> = ({ layout, setLayout }) => {
           </select>
         </label>
         {place !== 'hidden' && (
-          <div className="layout-field" role="radiogroup" aria-label={t('layout.panelsTab.group')}>
+          <div className="layout-field">
             <span>{t('layout.panelsTab.group')}</span>
-            {docksFor(place as DockId).map((g) => (
-              <button key={g.id} type="button" role="radio" aria-checked={g.id === groupId}
-                className={`layout-radio${g.id === groupId ? ' is-on' : ''}`}
-                onClick={() => setLayout(movePanelToGroup(layout, panel, g.id))}>
-                {groupName(g)}
-              </button>
-            ))}
-            <button type="button" role="radio" aria-checked={!!group && group.panels.length === 1}
+            <LayoutRadioGroup className="layout-field" aria-label={t('layout.panelsTab.group')}>
+              {docksFor(place as DockId).map((g) => (
+                <button key={g.id} type="button" role="radio" aria-checked={g.id === groupId}
+                  className={`layout-radio${g.id === groupId ? ' is-on' : ''}`}
+                  onClick={() => setLayout(movePanelToGroup(layout, panel, g.id))}>
+                  {groupName(g)}
+                </button>
+              ))}
+            </LayoutRadioGroup>
+            <button type="button" disabled={!!group && group.panels.length === 1}
               className={`layout-radio${group && group.panels.length === 1 ? ' is-on' : ''}`}
               onClick={() => setLayout(movePanelToNewGroup(layout, panel, place as DockId))}>
               {t('layout.panelsTab.ownGroup')}
@@ -323,7 +329,7 @@ const PanelsTab: React.FC<Props> = ({ layout, setLayout }) => {
   const renderGroupSettings = (group: PanelGroup) => {
     const dock = dockOfGroup(layout, group.id) ?? 'end';
     return (
-      <div className="layout-settings-body">
+      <div className="layout-settings-body" data-layout-focus={`group:${group.id}`}>
         <label className="layout-field">
           <span>{t('layout.panelsTab.groupName')}</span>
           <input type="text" value={group.name ?? ''} placeholder={groupName({ ...group, name: undefined })} maxLength={40}
@@ -337,20 +343,20 @@ const PanelsTab: React.FC<Props> = ({ layout, setLayout }) => {
         </label>
         <div className="layout-field">
           <span>{t('layout.panelsTab.showAs')}</span>
-          <span className="layout-seg" role="radiogroup" aria-label={t('layout.panelsTab.showAs')}>
+          <LayoutRadioGroup as="span" className="layout-seg" aria-label={t('layout.panelsTab.showAs')}>
             {(['tabs', 'stacked'] as const).map((mode) => (
               <button key={mode} type="button" role="radio" aria-checked={group.mode === mode}
                 className={group.mode === mode ? 'is-on' : ''} onClick={() => setLayout(setGroupMode(layout, group.id, mode))}>
                 {mode === 'tabs' ? t('layout.panelsTab.tabs') : t('layout.panelsTab.stacked')}
               </button>
             ))}
-          </span>
+          </LayoutRadioGroup>
         </div>
         <div className="layout-field">
           <span>{t('layout.panelsTab.panelsInGroup')}</span>
           <ul className="layout-order-list">
             {group.panels.map((panel, index) => (
-              <li key={panel}>
+              <li key={panel} data-layout-focus={`order:${panel}`}>
                 <span aria-hidden="true">{panelIcon(panel)}</span>
                 <span className="layout-order-name">{panelLabel(panel)}</span>
                 <button type="button" disabled={index === 0} aria-label={t('layout.panelsTab.moveUp', { name: panelLabel(panel) })}
@@ -372,7 +378,7 @@ const PanelsTab: React.FC<Props> = ({ layout, setLayout }) => {
   return (
     <DndContext sensors={sensors} collisionDetection={layoutCollision} onDragStart={onDragStart} onDragEnd={onDragEnd}
       onDragCancel={() => setDragging(null)} accessibility={{ announcements }}>
-      <div className="layout-panels">
+      <div className="layout-panels" {...focus}>
         <aside className="layout-presets" aria-label={t('layout.panelsTab.presetsHeading')}>
           <h3>{t('layout.panelsTab.presetsHeading')}</h3>
           {presets.map((preset) => (
@@ -396,11 +402,11 @@ const PanelsTab: React.FC<Props> = ({ layout, setLayout }) => {
             </div>
           ))}
           {naming === null ? (
-            <button type="button" className="layout-save-as" onClick={() => setNaming('')}>
+            <button type="button" data-layout-focus="save-panels" className="layout-save-as" onClick={() => setNaming('')}>
               <FaPlus aria-hidden="true" /> {t('layout.panelsTab.saveAs')}
             </button>
           ) : (
-            <form className="layout-save-form" onSubmit={(e) => {
+            <form data-layout-focus="save-panels" className="layout-save-form" onSubmit={(e) => {
               e.preventDefault();
               if (saveWorkspaceLayout(naming)) setNaming(null);
             }}>

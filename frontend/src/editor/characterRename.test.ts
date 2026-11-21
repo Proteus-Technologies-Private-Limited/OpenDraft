@@ -43,6 +43,19 @@ describe('character rename', () => {
     ]);
   });
 
+  it('does not match the name at the end of a longer word', () => {
+    const s = state(
+      block('action', 'ROSARAH and AnnaSarah wave. Élan Sarah, 2SARAH, Sarah.'),
+      block('action', '𝐀SARAH stays.'),
+    );
+    const { mentions } = findCharacterRenameMatches(s.doc, 'SARAH', 'Sam');
+    expect(mentions.map((m) => m.text)).toEqual(['Sarah', 'Sarah']);
+    expect(texts(rename(s, 'SARAH', 'Sam'))).toEqual([
+      'ROSARAH and AnnaSarah wave. Élan Sam, 2SARAH, Sam.',
+      '𝐀SARAH stays.',
+    ]);
+  });
+
   it('finds a cue by its key whatever its case or extension', () => {
     const s = state(block('character', "Sarah (cont'd)"));
     const { cues } = findCharacterRenameMatches(s.doc, 'SARAH', 'Sam');

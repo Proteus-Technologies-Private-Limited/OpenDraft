@@ -210,6 +210,9 @@ true, and wrap anything that has to say Android:
 - `user-manual/*.html`: `data-platform="android"` on the element (a `<span>`
   for a few words, an `<li>`, or a whole section), worded so the sentence still
   reads correctly without it
+- the reverse for the Android app: `data-platform="apple"` on manual text that
+  names iPhone, iPad or iOS, and `<NotOnApple apple="…iPhone…">` in
+  `MenuBar.tsx` so the Android app shows the neutral wording
 
 `src/services/appleReviewText.test.ts` fails, quoting the text, if a release
 note or manual page names Android outside those. Run

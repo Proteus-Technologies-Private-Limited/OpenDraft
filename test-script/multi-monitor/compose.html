@@ -1,0 +1,118 @@
+<!doctype html>
+<!-- Multi-monitor mockup board. Rendered to PNG by compose.py from the shots
+     capture.py writes to test-script/output/multi-monitor/. -->
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  :root { --ink: #1d2330; --muted: #5d6675; --accent: #2563eb; --bg: #eef0f4; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 15px/1.45 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  .board { width: 1800px; padding: 44px 56px 52px; }
+  h1 { margin: 0 0 4px; font-size: 30px; letter-spacing: -0.01em; }
+  .sub { margin: 0 0 30px; color: var(--muted); font-size: 16px; }
+  .desk { position: relative; display: flex; gap: 170px; align-items: flex-end; justify-content: center; }
+  .monitor { position: relative; width: 760px; }
+  .shot { position: relative; }
+  .bezel { background: #16191f; border-radius: 14px; padding: 14px 14px 18px; box-shadow: 0 18px 40px rgba(20,25,35,.25); }
+  .screen { position: relative; border-radius: 4px; overflow: hidden; background: #000; }
+  .win { border-radius: 8px; overflow: hidden; margin: 10px; box-shadow: 0 6px 20px rgba(0,0,0,.45); background: #fff; }
+  .titlebar { height: 24px; display: flex; align-items: center; gap: 6px; padding: 0 9px; background: #e7e9ed;
+              border-bottom: 1px solid #cfd3d9; font-size: 11.5px; color: #3a404b; }
+  .titlebar i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .titlebar .t { flex: 1; text-align: center; margin-right: 46px; }
+  .win img { display: block; width: 100%; }
+  .wallpaper { background: linear-gradient(135deg, #3b4a6b, #1f2a3f); padding: 1px 0; }
+  .stand { width: 120px; height: 46px; margin: 0 auto; background: linear-gradient(#2a2e36, #1b1e24);
+           clip-path: polygon(30% 0, 70% 0, 82% 100%, 18% 100%); }
+  .foot { width: 260px; height: 10px; margin: 0 auto; border-radius: 6px; background: #1b1e24; }
+  .label { text-align: center; margin-top: 12px; font-weight: 600; }
+  .label span { display: block; font-weight: 400; color: var(--muted); font-size: 14px; }
+  .sync { position: absolute; top: 150px; left: 50%; transform: translateX(-50%); width: 150px; z-index: 3;
+          text-align: center; }
+  .sync .pill { background: var(--accent); color: #fff; border-radius: 999px; padding: 8px 10px; font-weight: 600;
+                font-size: 13.5px; box-shadow: 0 6px 16px rgba(37,99,235,.35); }
+  .sync .arrow { font-size: 30px; color: var(--accent); line-height: 1; margin: 4px 0; }
+  .sync small { display: block; color: var(--muted); font-size: 12.5px; margin-top: 6px; line-height: 1.35; }
+  .callout { position: absolute; z-index: 4; background: #fff; border: 2px solid var(--accent); border-radius: 8px;
+             padding: 7px 10px; font-size: 12.5px; line-height: 1.35; box-shadow: 0 6px 16px rgba(20,25,35,.18); width: 210px; }
+  .callout b { color: var(--accent); }
+  .num { display: inline-flex; width: 20px; height: 20px; border-radius: 50%; background: var(--accent); color: #fff;
+         font-size: 12px; font-weight: 700; align-items: center; justify-content: center; margin-right: 6px; }
+  .ring { position: absolute; z-index: 4; border: 3px solid var(--accent); border-radius: 8px; pointer-events: none; }
+  .insets { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 28px; margin-top: 46px; }
+  .inset { background: #fff; border-radius: 12px; padding: 16px; box-shadow: 0 4px 14px rgba(20,25,35,.08); }
+  .inset h3 { margin: 0 0 4px; font-size: 16px; }
+  .inset p { margin: 0 0 12px; color: var(--muted); font-size: 13.5px; }
+  .crop { position: relative; overflow: hidden; border-radius: 8px; border: 1px solid #d8dce2; height: 300px; }
+  .crop img { position: absolute; }
+  ul.rules { margin: 0; padding-left: 18px; font-size: 13.5px; color: var(--ink); }
+  ul.rules li { margin-bottom: 7px; }
+  ul.rules li b { font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="board">
+  <h1>Panels on a second display</h1>
+  <p class="sub">Proposal for OpenDraft: move any panel (Index Cards, Navigator, Outline, Page View…) into its own window, put it on another monitor, and keep it live with the script.</p>
+
+  <div class="desk">
+    <div class="monitor">
+      <div class="bezel"><div class="screen wallpaper">
+        <div class="win">
+          <div class="titlebar"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i><span class="t">The Last Reel — OpenDraft</span></div>
+          <div class="shot"><img src="../output/multi-monitor/main.png"></div>
+        </div>
+      </div></div>
+      <div class="stand"></div><div class="foot"></div>
+      <div class="label">Display 1: main window<span>Script, Navigator, menus and toolbar, as today</span></div>
+    </div>
+
+    <div class="sync">
+      <div class="pill">Same script, live</div>
+      <div class="arrow">⇄</div>
+      <small>Click a card and the script jumps to that scene. Edit a synopsis or reorder cards and the script changes too.</small>
+    </div>
+
+    <div class="monitor">
+      <div class="bezel"><div class="screen wallpaper">
+        <div class="win">
+          <div class="titlebar"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i><span class="t">Index Cards — The Last Reel</span></div>
+          <div class="shot"><img src="../output/multi-monitor/cards.png"><div class="ring" style="left:87.4%;top:0.4%;width:12%;height:3%;"></div><div class="ring" style="left:35.3%;top:88.1%;width:10.3%;height:9%;"></div></div>
+        </div>
+      </div></div>
+      <div class="stand"></div><div class="foot"></div>
+      <div class="callout" style="right: -10px; top: -58px; width: 250px;"><span class="num">3</span><b>Return to Main Window</b> docks the panel back where it was</div>
+      <div class="callout" style="left: 190px; top: 300px; width: 250px;"><span class="num">4</span>Follows the caret: the scene being written in the main window is highlighted here</div>
+      <div class="label">Display 2: Index Cards window<span>Panel only: no menu bar or toolbar, a slim header instead</span></div>
+    </div>
+
+  </div>
+
+  <div class="insets">
+    <div class="inset">
+      <h3><span class="num">1</span>Pop out from the panel</h3>
+      <p>A new button in the header of any panel or split-screen pane.</p>
+      <div class="crop"><img src="../output/multi-monitor/popout.png" style="width: 1330px; left: -800px; top: -30px;"></div>
+    </div>
+    <div class="inset">
+      <h3><span class="num">2</span>Or from the menu</h3>
+      <p>View ▸ Panels ▸ Move to New Window, with a shortcut.</p>
+      <div class="crop"><img src="../output/multi-monitor/menu.png" style="width: 1100px; left: -330px; top: -10px;"></div>
+    </div>
+    <div class="inset">
+      <h3>Behaviour</h3>
+      <p>What the panel window should do.</p>
+      <ul class="rules">
+        <li><b>Remembers its display, position and size</b>, and reopens there next time. If that display is unplugged, it opens on the main one.</li>
+        <li><b>Belongs to one script.</b> Closing the main window closes its panel windows.</li>
+        <li><b>Any panel</b>, several at once: e.g. Navigator on display 2, Page View on display 3.</li>
+        <li><b>Follows the theme</b> and language of the main window.</li>
+        <li><b>Desktop first</b> (macOS, Windows, Linux). Tablets can follow later.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+</body>
+</html>

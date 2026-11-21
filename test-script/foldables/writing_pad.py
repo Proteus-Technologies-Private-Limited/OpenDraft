@@ -69,7 +69,7 @@ class WritingPad(unittest.TestCase):
         self.request()
         self.field().fill("A retained writing draft")
         self.page.evaluate("testStore.getState().toggleLocationDatabase()")
-        locations = self.page.get_by_role("tab", name="Locations", exact=True)
+        locations = self.page.get_by_role("tab", name="Location Profiles", exact=True)
         locations.click()
         expect(self.field()).to_be_hidden()
         # Escape in another pane must not silently throw away the pad draft.
@@ -529,6 +529,15 @@ class WritingPad(unittest.TestCase):
         self.page.evaluate("testStore.getState().toggleNavigator()")
         nav = self.page.locator(".scene-navigator")
         nav.wait_for()
+        # The start dock grows open over 220ms (dock-open-x); measuring the
+        # handle mid-animation puts the press on the navigator's header instead.
+        self.page.wait_for_function(
+            """() => {
+                const dock = document.querySelector('.workspace-dock-start');
+                return dock && !dock.classList.contains('dock-entering')
+                    && dock.getAnimations({ subtree: true }).length === 0;
+            }"""
+        )
         handle = self.page.locator(
             ".editor-layout > .panel-resize-handle"
         ).first.bounding_box()
@@ -536,6 +545,12 @@ class WritingPad(unittest.TestCase):
         self.page.mouse.down()
         self.page.mouse.move(handle["x"] + 260, handle["y"] + 60, steps=8)
         self.page.mouse.up()
+        # The width lands with React's next commit after the release; reading
+        # it in the same tick measured the old 240px on a slow CI runner.
+        self.page.wait_for_function(
+            "() => document.querySelector('.scene-navigator')"
+            "?.getBoundingClientRect().width > 450"
+        )
         self.assertGreater(nav.bounding_box()["width"], 450)
         self.posture(951, 669, "vertical", "continuous")
         expect(self.page.locator(".editor-layout")).to_have_class(

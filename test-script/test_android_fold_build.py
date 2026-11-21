@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from android_fold_build import ROOT, WINDOW_DEPENDENCY, patch_window_dependency
+from android_fold_build import ROOT, REVIEW_DEPENDENCY, WINDOW_DEPENDENCY, patch_window_dependency
 
 
 class AndroidFoldBuild(unittest.TestCase):
@@ -23,6 +23,13 @@ class AndroidFoldBuild(unittest.TestCase):
             self.assertEqual(build.read_text(), once)
             self.assertTrue(once.startswith(original))
             self.assertEqual(once.count(WINDOW_DEPENDENCY), 1)
+            self.assertEqual(once.count(REVIEW_DEPENDENCY), 1)
+
+    def test_release_workflow_adds_the_same_review_dependency(self):
+        # CI patches the generated project itself rather than calling the helper,
+        # so the two copies of the version have to be kept in step by hand.
+        workflow = (ROOT / ".github/workflows/release.yml").read_text()
+        self.assertIn(REVIEW_DEPENDENCY, workflow)
 
     def test_local_and_release_copy_bridge_with_the_other_sources(self):
         spec = importlib.util.spec_from_file_location(

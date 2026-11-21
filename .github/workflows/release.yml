@@ -708,6 +708,11 @@ jobs:
           if dependency not in content:
               content += '\n// Native fold posture (#231).\ndependencies {\n    ' + dependency + '\n}\n'
 
+          # Google Play's in-app review sheet (MainActivity.requestReview).
+          review = 'implementation("com.google.android.play:review:2.0.2")'
+          if review not in content:
+              content += '\n// Play in-app review.\ndependencies {\n    ' + review + '\n}\n'
+
           signing = '''    signingConfigs {
               create("release") {
                   storeFile = file(System.getenv("KEYSTORE_PATH") ?: "/dev/null")

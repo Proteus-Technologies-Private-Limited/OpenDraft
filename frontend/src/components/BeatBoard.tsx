@@ -870,9 +870,10 @@ interface BeatBoardProps {
   /** Drawn as the split screen's second pane, where the board is not "open"
    *  in the full-view sense. */
   embedded?: boolean;
+  onRequestClose?: () => void;
 }
 
-const BeatBoard: React.FC<BeatBoardProps> = ({ editor = null, embedded = false }) => {
+const BeatBoard: React.FC<BeatBoardProps> = ({ editor = null, embedded = false, onRequestClose }) => {
   const { t } = useTranslation(['story', 'common']);
   const {
     beats, beatBoardOpen, beatColumns, beatArrangeMode,
@@ -898,12 +899,12 @@ const BeatBoard: React.FC<BeatBoardProps> = ({ editor = null, embedded = false }
     // The document may have changed while the board was closed.
     setDocVersion((v) => v + 1);
     return () => { editor.off('transaction', bump); };
-  }, [editor, beatBoardOpen]);
+  }, [editor, beatBoardOpen, embedded]);
   const scenes = useMemo<LinkableScene[]>(
-    () => (editor && !editor.isDestroyed && beatBoardOpen ? linkableScenes(editor.state.doc) : []),
+    () => (editor && !editor.isDestroyed && (beatBoardOpen || embedded) ? linkableScenes(editor.state.doc) : []),
     // docVersion stands for editor.state.doc, which is not a React value.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [editor, docVersion, beatBoardOpen],
+    [editor, docVersion, beatBoardOpen, embedded],
   );
 
   const sceneLinks = useMemo<BeatScenesApi>(() => ({
@@ -956,7 +957,7 @@ const BeatBoard: React.FC<BeatBoardProps> = ({ editor = null, embedded = false }
       }
       // The board stands in for the script; close it, then go to the scene
       // once the script is back on screen.
-      if (useEditorStore.getState().beatBoardOpen) toggleBeatBoard();
+      if (!embedded && useEditorStore.getState().beatBoardOpen) toggleBeatBoard();
       setTimeout(() => requestAnimationFrame(() => {
         if (editor.isDestroyed) return;
         const scene = findSceneByUid(editor.state.doc, sceneId);
@@ -968,7 +969,7 @@ const BeatBoard: React.FC<BeatBoardProps> = ({ editor = null, embedded = false }
         }
       }), 0);
     },
-  }), [editor, scenes, updateBeat, toggleBeatBoard, t]);
+  }), [editor, scenes, updateBeat, toggleBeatBoard, embedded, t]);
 
   const boardRef = useRef<HTMLDivElement>(null);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
@@ -979,15 +980,18 @@ const BeatBoard: React.FC<BeatBoardProps> = ({ editor = null, embedded = false }
 
   // Undo/redo + Escape keyboard shortcuts — only when focus is inside the beat board
   useEffect(() => {
-    if (!beatBoardOpen) return;
+    if (!beatBoardOpen && !embedded) return;
     const handler = (e: KeyboardEvent) => {
-      // Escape restores maximized column
-      if (e.key === 'Escape' && maximizedColumnId) {
+      const focusInBoard = !!boardRef.current?.contains(document.activeElement);
+      // Escape restores maximized column. The full view owns the screen, so it
+      // answers even when focus has dropped to <body>; an embedded board shares
+      // the screen with the script and only answers while focus is inside it.
+      if (e.key === 'Escape' && maximizedColumnId && (focusInBoard || !embedded)) {
         e.preventDefault();
         setMaximizedColumnId(null);
         return;
       }
-      if (!boardRef.current?.contains(document.activeElement)) return;
+      if (!focusInBoard) return;
       const mod = e.metaKey || e.ctrlKey;
       if (mod && e.key === 'z' && !e.shiftKey) {
         e.preventDefault();
@@ -1001,7 +1005,7 @@ const BeatBoard: React.FC<BeatBoardProps> = ({ editor = null, embedded = false }
     };
     document.addEventListener('keydown', handler, true);
     return () => document.removeEventListener('keydown', handler, true);
-  }, [beatBoardOpen, beatUndo, beatRedo, maximizedColumnId]);
+  }, [beatBoardOpen, embedded, beatUndo, beatRedo, maximizedColumnId]);
 
   const sortedColumns = [...beatColumns].sort((a, b) => a.position - b.position);
   const isSingleColumn = sortedColumns.length === 1;
@@ -1116,7 +1120,7 @@ const BeatBoard: React.FC<BeatBoardProps> = ({ editor = null, embedded = false }
             that opened it is not an obvious way back out. */}
         <button
           className="panel-close-btn"
-          onClick={toggleBeatBoard}
+          onClick={onRequestClose ?? toggleBeatBoard}
           title={t('beatBoard.close')}
           aria-label={t('beatBoard.close')}
         >

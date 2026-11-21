@@ -1104,6 +1104,29 @@ extern "C" {
     fn ios_activate_other_scene() -> i32;
     fn ios_connected_scene_ids() -> *mut std::ffi::c_char;
     fn ios_activate_scene_id(identifier: *const std::ffi::c_char) -> i32;
+    fn ios_request_review() -> i32;
+}
+
+/// Ask the platform for its own rating sheet (StoreKit on iOS, Play's in-app
+/// review on Android). Returns whether a request was made — the platform still
+/// decides whether anything is shown, so `true` is not "the sheet appeared".
+/// Every other platform answers `false`: those builds have no store to rate in.
+#[tauri::command]
+fn request_store_review() -> Result<bool, String> {
+    #[cfg(target_os = "ios")]
+    {
+        // 0 when nothing was asked: the app is behind another one, or a share
+        // sheet still covers it.
+        Ok(unsafe { ios_request_review() } != 0)
+    }
+    #[cfg(target_os = "android")]
+    {
+        android_static_call("requestReview", &[]).map(|reply| reply.is_some())
+    }
+    #[cfg(not(any(target_os = "ios", target_os = "android")))]
+    {
+        Ok(false)
+    }
 }
 
 /// Take ownership of a string returned by the Objective-C helpers.
@@ -3118,6 +3141,7 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            request_store_review,
             same_file_path,
             save_text_to_path,
             save_binary_to_path,

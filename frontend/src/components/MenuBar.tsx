@@ -33,6 +33,7 @@ import { WORKSPACE_PRESET_IDS } from '../utils/workspaceLayout';
 import { useFoldState } from '../hooks/useFoldState';
 import { laptopToolbarPlacement } from '../utils/foldToolbar';
 import { subscribeWritingViewport, writingViewport } from '../utils/writingViewport';
+import { companionView, foldCompanionPlacement } from '../utils/foldCompanion';
 import { useWorkspaceDocksAvailable } from '../hooks/useWorkspaceDocks';
 import { statusColumnX, useFoldedMenuPosition } from '../hooks/useFoldedMenuPosition';
 import { formatFileFailure } from '../services/fileDiagnostics';
@@ -145,6 +146,7 @@ import {
 } from '../utils/fileOps';
 import { isDesktopTauri, isWeb, printRoute, supportsApplePencil, supportsMultipleWindows } from '../services/platform';
 import { checkForUpdate } from '../services/updateCheck';
+import { canRequestReview, openStoreReviewPage } from '../services/storeReview';
 import { getCompatEntries } from '../services/compat';
 import { reportSaveError } from '../stores/saveErrorStore';
 import type { PluginMenuChildEntry, MenuSection as PluginMenuSection } from '../plugins/registry';
@@ -219,6 +221,7 @@ import {
   FaBars,
   FaInfoCircle,
   FaBook,
+  FaStar,
   FaStethoscope,
   FaClipboardCheck,
   FaCloudDownloadAlt,
@@ -3004,6 +3007,22 @@ const MenuBar: React.FC<MenuBarProps> = ({
     return result;
   };
 
+  const foldState = useFoldState();
+  const statisticsOpen = useEditorStore(state => state.statisticsOpen);
+  const automaticCompanion = foldCompanionPlacement(foldState) !== null;
+  const companion = companionView({ outlineOpen, beatBoardOpen, indexCardsOpen,
+    statisticsOpen, splitScreenOpen, splitScreenPane }, false);
+  const splitShown = splitScreenOpen || (automaticCompanion && companion.pane !== null);
+  const shownPane = automaticCompanion ? companion.pane : splitScreenPane;
+  const closeSplit = () => {
+    if (splitScreenOpen) toggleSplitScreen();
+    else if (automaticCompanion && companion.main) {
+      if (companion.pane === 'outline') toggleOutline();
+      else if (companion.pane === 'beat-board') toggleBeatBoard();
+      else toggleIndexCards();
+    }
+  };
+
   const menus: MenuSection[] = [
     {
       id: 'File',
@@ -3518,18 +3537,20 @@ const MenuBar: React.FC<MenuBarProps> = ({
             { icon: <FaListUl />, ...check(outlineOpen, t('menu:view.outline')), action: toggleOutline },
             { icon: <FaMap />, ...check(storyMapOpen, t('menu:view.storyMap')), title: t('menu:view.storyMapTip'), action: toggleStoryMap },
             {
-              icon: <FaClone />, ...check(splitScreenOpen, t('menu:view.splitScreen')), children: [
-                { ...check(splitScreenMode === 'side-by-side' && splitScreenOpen, t('menu:view.sideBySide'), true), action: () => setSplitScreenMode('side-by-side') },
-                { ...check(splitScreenMode === 'stacked' && splitScreenOpen, t('menu:view.stacked'), true), action: () => setSplitScreenMode('stacked') },
-                { separator: true, label: '' },
-                { ...check(!splitScreenOpen, t('menu:view.onePane'), true), action: () => { if (splitScreenOpen) toggleSplitScreen(); } },
+              icon: <FaClone />, ...check(splitShown, t('menu:view.splitScreen')), children: [
+                ...(!automaticCompanion ? [
+                  { ...check(splitScreenMode === 'side-by-side' && splitScreenOpen, t('menu:view.sideBySide'), true), action: () => setSplitScreenMode('side-by-side') },
+                  { ...check(splitScreenMode === 'stacked' && splitScreenOpen, t('menu:view.stacked'), true), action: () => setSplitScreenMode('stacked') },
+                  { separator: true, label: '' },
+                ] : []),
+                { ...check(!splitShown, t('menu:view.onePane'), true), action: closeSplit },
                 { separator: true, label: '' },
                 {
                   label: t('menu:view.secondPane'), children: [
-                    { icon: <FaFileAlt />, ...check(splitScreenPane === 'page-view' && splitScreenOpen, t('menu:view.pageView'), true), action: () => setSplitScreenPane('page-view') },
-                    { icon: <FaTh />, ...check(splitScreenPane === 'index-cards' && splitScreenOpen, t('menu:view.indexCards'), true), action: () => setSplitScreenPane('index-cards') },
-                    { icon: <FaListUl />, ...check(splitScreenPane === 'outline' && splitScreenOpen, t('menu:view.outline'), true), action: () => setSplitScreenPane('outline') },
-                    { icon: <FaStream />, ...check(splitScreenPane === 'beat-board' && splitScreenOpen, t('menu:view.beatBoard'), true), action: () => setSplitScreenPane('beat-board') },
+                    { icon: <FaFileAlt />, ...check(shownPane === 'page-view' && splitShown, t('menu:view.pageView'), true), action: () => setSplitScreenPane('page-view') },
+                    { icon: <FaTh />, ...check(shownPane === 'index-cards' && splitShown, t('menu:view.indexCards'), true), action: () => setSplitScreenPane('index-cards') },
+                    { icon: <FaListUl />, ...check(shownPane === 'outline' && splitShown, t('menu:view.outline'), true), action: () => setSplitScreenPane('outline') },
+                    { icon: <FaStream />, ...check(shownPane === 'beat-board' && splitShown, t('menu:view.beatBoard'), true), action: () => setSplitScreenPane('beat-board') },
                   ],
                 },
               ],
@@ -3895,6 +3916,14 @@ const MenuBar: React.FC<MenuBarProps> = ({
         label: t('menu:help.diagnostics'),
         action: () => { void handleOpenDiagnostics(); },
       },
+      // The phone apps' own way to leave a rating, whenever the writer likes —
+      // the automatic request in services/storeReview.ts is separate and rare.
+      // There is no store page to open from the browser or a desktop build.
+      ...(canRequestReview() ? [{
+        icon: <FaStar />,
+        label: t('menu:help.rateOpenDraft'),
+        action: () => { void openStoreReviewPage(); },
+      }] : []),
     ],
   };
 
@@ -4003,7 +4032,6 @@ const MenuBar: React.FC<MenuBarProps> = ({
   });
   const fabDragRef = useRef<{ startX: number; startY: number; originX: number; originY: number; isDrag: boolean } | null>(null);
   const fabWasDragRef = useRef(false);
-  const foldState = useFoldState();
   const menuViewport = useSyncExternalStore(subscribeWritingViewport, writingViewport);
   const laptopToolbar = laptopToolbarPlacement(foldState, menuViewport, 28);
   const defaultFab = useFoldedMenuPosition(foldState.foldable && foldState.size === 'phone' && !laptopToolbar, navPanelWidth);
@@ -4541,6 +4569,13 @@ const MenuBar: React.FC<MenuBarProps> = ({
               <div className="about-section-title">What's New in 2.14.2</div>
               <div className="about-changelog">
               {/* i18n-ignore-start: release notes stay English in phase 1 */}
+              <div className="about-subsection-title">v2.15.0</div>
+              <ul className="about-list">
+                <li><strong>Planning Views Beside the Script on Foldables</strong> &mdash; On a foldable held open, like a book or like a laptop, the Page View, Index Cards, Outline and Beat Board open in the companion area while the script stays on screen, across the fold or below it. Folding or unfolding keeps the same view, its draft and where you were typing, and asking for the same view again brings its tab forward. <em>View &rarr; Split Screen</em> follows the fold too, and <em>One Pane</em> closes whichever companion is open. Phones, desktops and a folded cover screen keep the full-screen and split views they had, with the orientation you chose (#231).</li>
+                <li><strong>Planning Views Behave More Predictably</strong> &mdash; Opening Index Cards now closes the Outline, Beat Board, Statistics and split screen, and opening a split screen closes Index Cards, so only one planning view is open at a time. Clicking a scene in an Outline shown in a split pane goes to that scene instead of opening the full Outline, scene details and navigation work inside every embedded planning view, and undo in a planning view no longer undoes the script.</li>
+                <li><strong>Customise the Workspace by Keyboard</strong> &mdash; In <em>View &rarr; Layout &rarr; Edit layouts&hellip;</em>, each group of choices is a single Tab stop and the arrow keys, <kbd>Home</kbd> and <kbd>End</kbd> move through it, skipping choices that are unavailable. The tabs take <kbd>Home</kbd> and <kbd>End</kbd> too. Focus stays on the control you were using when you reorder, remove or add toolbar controls, regroup panels or cancel a layout name, <kbd>Esc</kbd> cancels a keyboard drag without closing the dialog, and <em>Save current layout as</em> is readable in the dark theme.</li>
+                <li><strong>Opens on Older Devices Again</strong> &mdash; <NotOnApple apple="On iPhones and iPads with iOS 15, or iOS 16 before 16.4, and on Macs with a Safari older than 16.4,">In web browsers older than Safari 16.4, such as Safari 15 on a Mac,</NotOnApple> OpenDraft stopped at &ldquo;Loading timed out&rdquo; instead of opening. It starts normally there again, and renaming a character and importing a PDF work there too.</li>
+              </ul>
               <div className="about-subsection-title">v2.14.2</div>
               <ul className="about-list">
                 <li><strong>A Footer That Follows Your Layout</strong> &mdash; The status bar&rsquo;s lines &mdash; the script&rsquo;s name, save state, current element, acts, running time, words, revision colour, writing goal and page &mdash; are now items you place like any control: take one off, put it back, or move it to the start, centre or end in <em>View &rarr; Menu &amp; Toolbar &rarr; Customise toolbar&hellip;</em>. At every size of window or screen the footer shows what you placed, where you placed it, in your order, for as long as it fits. What does not fit opens above the footer from the arrow at its end, wrapping onto more lines, instead of being cut off at the edge. On a phone or a narrow window the script&rsquo;s name and save state shorten to fit.</li>

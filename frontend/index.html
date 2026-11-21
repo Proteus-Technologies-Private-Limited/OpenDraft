@@ -14,6 +14,128 @@
          unaffected. -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>Open Draft - Screenwriting</title>
+    <script>
+      // Built-ins the app and its libraries call that Safari 15.0–15.3 lacks
+      // (iOS 15 and macOS 12 web views that have not taken 15.4) — and, for
+      // Promise.withResolvers, everything before Safari 17.4. Without them
+      // the first call throws and the app never renders.
+      //
+      // A classic script so it runs before any module chunk is evaluated;
+      // `import './polyfills'` from main.tsx would run after the shared
+      // chunks that main.tsx imports. Syntax is ES5-safe on purpose.
+      // test-script/ios15_compat_scan.mjs lists what the build relies on.
+      (function () {
+        function define(obj, name, fn) {
+          if (obj && !(name in obj)) {
+            Object.defineProperty(obj, name, { value: fn, writable: true, configurable: true, enumerable: false });
+          }
+        }
+        function toIndex(len, i) {
+          i = Math.trunc(Number(i)) || 0;
+          return i < 0 ? len + i : i;
+        }
+        function at(i) {
+          var len = this.length >>> 0;
+          var k = toIndex(len, i);
+          return k < 0 || k >= len ? undefined : (typeof this === 'string' ? this.charAt(k) : this[k]);
+        }
+        function findLast(fn, thisArg) {
+          for (var i = (this.length >>> 0) - 1; i >= 0; i--) if (fn.call(thisArg, this[i], i, this)) return this[i];
+          return undefined;
+        }
+        function findLastIndex(fn, thisArg) {
+          for (var i = (this.length >>> 0) - 1; i >= 0; i--) if (fn.call(thisArg, this[i], i, this)) return i;
+          return -1;
+        }
+        var typed = typeof Int8Array === 'function' ? Object.getPrototypeOf(Int8Array.prototype) : null;
+        [Array.prototype, typed].forEach(function (proto) {
+          define(proto, 'at', at);
+          define(proto, 'findLast', findLast);
+          define(proto, 'findLastIndex', findLastIndex);
+        });
+        define(String.prototype, 'at', function (i) { return at.call(String(this), i); });
+
+        define(Object, 'hasOwn', function (obj, key) {
+          if (obj == null) throw new TypeError('Cannot convert undefined or null to object');
+          return Object.prototype.hasOwnProperty.call(Object(obj), key);
+        });
+
+        define(Promise, 'withResolvers', function () {
+          var out = {};
+          out.promise = new this(function (resolve, reject) { out.resolve = resolve; out.reject = reject; });
+          return out;
+        });
+
+        var c = window.crypto;
+        if (c && typeof c.getRandomValues === 'function') {
+          define(c, 'randomUUID', function () {
+            var b = c.getRandomValues(new Uint8Array(16));
+            b[6] = (b[6] & 0x0f) | 0x40;
+            b[8] = (b[8] & 0x3f) | 0x80;
+            var h = [];
+            for (var i = 0; i < 16; i++) h.push((b[i] + 0x100).toString(16).slice(1));
+            return h.slice(0, 4).join('') + '-' + h.slice(4, 6).join('') + '-' + h.slice(6, 8).join('') + '-'
+              + h.slice(8, 10).join('') + '-' + h.slice(10).join('');
+          });
+        }
+
+        // Covers what the app clones (plain data, Dates, Maps, Sets, typed
+        // arrays, Blobs), keeping shared and circular references, and throws
+        // like the real one on what it cannot clone.
+        define(window, 'structuredClone', function (value) {
+          var seen = new Map();
+          function cloneError() {
+            try { return new DOMException('The object can not be cloned.', 'DataCloneError'); }
+            catch (_) { return new Error('The object can not be cloned.'); }
+          }
+          function clone(v) {
+            if (v === null || (typeof v !== 'object' && typeof v !== 'function')) {
+              if (typeof v === 'symbol') throw cloneError();
+              return v;
+            }
+            if (typeof v === 'function') throw cloneError();
+            if (seen.has(v)) return seen.get(v);
+            var out, tag = Object.prototype.toString.call(v);
+            if (tag === '[object Date]') out = new Date(v.getTime());
+            else if (tag === '[object RegExp]') out = new RegExp(v.source, v.flags);
+            else if (tag === '[object Boolean]' || tag === '[object Number]' || tag === '[object String]') out = Object(v.valueOf());
+            else if (typeof Blob !== 'undefined' && v instanceof Blob) out = v;
+            else if (typeof ImageData !== 'undefined' && v instanceof ImageData) out = new ImageData(new Uint8ClampedArray(v.data), v.width, v.height);
+            else if (v instanceof ArrayBuffer) out = v.slice(0);
+            else if (ArrayBuffer.isView(v)) {
+              var buf = clone(v.buffer);
+              out = v instanceof DataView
+                ? new DataView(buf, v.byteOffset, v.byteLength)
+                : new v.constructor(buf, v.byteOffset, v.length);
+            } else if (v instanceof Map) {
+              out = new Map(); seen.set(v, out);
+              v.forEach(function (val, key) { out.set(clone(key), clone(val)); });
+              return out;
+            } else if (v instanceof Set) {
+              out = new Set(); seen.set(v, out);
+              v.forEach(function (val) { out.add(clone(val)); });
+              return out;
+            } else if (Array.isArray(v)) {
+              out = new Array(v.length); seen.set(v, out);
+              for (var i = 0; i < v.length; i++) if (i in v) out[i] = clone(v[i]);
+              return out;
+            } else if (v instanceof Error) {
+              out = new (window[v.name] || Error)(v.message);
+              if (v.stack) out.stack = v.stack;
+            } else if (typeof Node !== 'undefined' && v instanceof Node) {
+              throw cloneError();
+            } else {
+              out = {}; seen.set(v, out);
+              Object.keys(v).forEach(function (k) { out[k] = clone(v[k]); });
+              return out;
+            }
+            seen.set(v, out);
+            return out;
+          }
+          return clone(value);
+        });
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

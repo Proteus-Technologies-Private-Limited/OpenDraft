@@ -1,11 +1,11 @@
 {
-  "version": "c56027cb1785988e",
+  "version": "3c9670a8dbc9c37f",
   "pages": [
     {
       "slug": "index.html",
       "title": "Home",
       "section": "Getting Started",
-      "hash": "dc1020ebe867afdf"
+      "hash": "80bbfe4418130d1e"
     },
     {
       "slug": "getting-started.html",
@@ -23,7 +23,7 @@
       "slug": "writing-screenplay.html",
       "title": "Writing Your Screenplay",
       "section": "Writing",
-      "hash": "bc7a3ad84cf8b25e"
+      "hash": "fc7fc7bff0d36db4"
     },
     {
       "slug": "formatting.html",
