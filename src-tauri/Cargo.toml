@@ -74,6 +74,8 @@ tauri-runtime-wry = { version = "2.11", default-features = false }
 # fontdb; it is named here so the cmap can be read without relying on a
 # re-export.
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+# Native persistence only; the webview does not invoke plugin commands.
+tauri-plugin-window-state = "=2.4.1"
 fontdb = { version = "0.23", default-features = false, features = ["std", "fs", "memmap", "fontconfig"] }
 ttf-parser = { version = "0.25", default-features = false, features = ["std"] }
 
