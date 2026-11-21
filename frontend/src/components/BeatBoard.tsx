@@ -982,13 +982,16 @@ const BeatBoard: React.FC<BeatBoardProps> = ({ editor = null, embedded = false, 
   useEffect(() => {
     if (!beatBoardOpen && !embedded) return;
     const handler = (e: KeyboardEvent) => {
-      if (!boardRef.current?.contains(document.activeElement)) return;
-      // Escape restores maximized column
-      if (e.key === 'Escape' && maximizedColumnId) {
+      const focusInBoard = !!boardRef.current?.contains(document.activeElement);
+      // Escape restores maximized column. The full view owns the screen, so it
+      // answers even when focus has dropped to <body>; an embedded board shares
+      // the screen with the script and only answers while focus is inside it.
+      if (e.key === 'Escape' && maximizedColumnId && (focusInBoard || !embedded)) {
         e.preventDefault();
         setMaximizedColumnId(null);
         return;
       }
+      if (!focusInBoard) return;
       const mod = e.metaKey || e.ctrlKey;
       if (mod && e.key === 'z' && !e.shiftKey) {
         e.preventDefault();
