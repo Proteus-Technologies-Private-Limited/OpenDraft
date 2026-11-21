@@ -140,7 +140,7 @@ export function setMainView(view: MainView): void {
   const s = useEditorStore.getState();
   if (s.statisticsOpen) s.setStatisticsOpen(false);
   if ((view === 'index-cards') !== s.indexCardsOpen) s.toggleIndexCards();
-  if ((view === 'beat-board') !== s.beatBoardOpen) s.toggleBeatBoard();
+  if ((view === 'beat-board') !== useEditorStore.getState().beatBoardOpen) s.toggleBeatBoard();
   if ((view === 'outline') !== useEditorStore.getState().outlineOpen) useEditorStore.getState().toggleOutline();
 }
 

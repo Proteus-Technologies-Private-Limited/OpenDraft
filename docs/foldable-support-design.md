@@ -107,8 +107,8 @@ hover.
 | View › Layout: Page / Phone; `followDevice` | `editorStore.ts:1745–1770` | Remembered per posture |
 | `html.phone` toggled live by `watchPhoneDevice` | `utils/phoneDevice.ts`, `main.tsx:93–99` | Already flips on fold/unfold |
 | Toolbar with priority-based overflow ("⋯") | `Toolbar.tsx` | Unchanged except the 90° two-row layout |
-| Customisable toolbar, presets, Views menu | **PR #217** (open) | Toolbar contents in every posture |
-| Split screen: script plus Page View, Index Cards, Outline or Beat Board | **PR #214** (open) | Companion pane on the open screen and in book posture |
+| Customisable toolbar, presets, Views menu | `Toolbar.tsx`, `LayoutDialog.tsx` (from #217, on main) | Toolbar contents in every posture |
+| Split screen: script plus Page View, Index Cards, Outline or Beat Board | `CompanionPane.tsx`, `PagePreviewPane.tsx` (from #214, on main) | Companion pane on the open screen and in book posture |
 | Side-by-side compare | `ScriptDiffView.tsx` | One version per half |
 | Table Read panel | `TableReadPanel.tsx`, `tableRead.css` | Placed per posture |
 | Handwriting panel (Apple Pencil) | `ScribbleInput.tsx` | Placed per posture |
@@ -449,8 +449,8 @@ have and need no foldable.
 | WP6 | Per-posture memory for Menu & Toolbar mode and layout (7.2) | WP3 or WP5 | M | Zustand store | Unit tests |
 | WP7 | Hidden keeps the toolbar on a folded foldable; ☰ default position (6.1) | WP6 | S | React/CSS | Partly |
 | WP8 | Open layout: fit-width zoom, Navigator docking, right column for panels and Table Read (6.2) | WP3 | L | React/CSS | Wide touch window |
-| WP9 | Companion panes on the split screen from #214, defaulting to the crease | #214 merged, WP3 | M | React | Wide window |
-| WP10 | Laptop posture: toolbar in two rows at the fold, dropdowns opening in row 2 (6.3) | #217 merged, WP3/WP4 | L | React, a11y | DevTools posture emulation |
+| WP9 | Companion panes on the split screen from #214, defaulting to the crease | #214 implementation on main, WP3 | M | React | Wide window |
+| WP10 | Laptop posture: toolbar in two rows at the fold, dropdowns opening in row 2 (6.3) | #217 implementation on main, WP3/WP4 | L | React, a11y | DevTools posture emulation |
 | WP11 | Book posture and flip tabletop slots (6.4, 6.5) | WP3/WP4 | M | React/CSS | DevTools emulation |
 | WP12 | Table Read media controls + background audio (10) | — | M | Swift / Kotlin, Tauri | Any phone, **now** |
 | WP13 | Duo fixes: Pencil detection, New Window on the cover (11.2, 11.3) | WP4 | S | Swift/TS | Duo simulator |

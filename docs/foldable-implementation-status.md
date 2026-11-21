@@ -5,8 +5,8 @@ Tracks implementation against [the design](foldable-support-design.md) and
 The proposal remains the acceptance checklist; this document does not mark
 untested native behavior as complete. Browser foundations (#235, #236, #237)
 and writing-pad placement/review fixes (#247) are merged. The iOS hinge bridge (WP4) is in;
-native background execution beyond Android system voices and the split-screen/custom-toolbar dependencies remain open. Android WindowManager
-fallback is implemented in #260; physical OEM validation remains outstanding.
+native background execution beyond Android system voices remains open. Split screen and the custom toolbar are now on main; WP9 connects the existing
+planning views to the fold dock. Android WindowManager fallback is implemented in #260; physical OEM validation remains outstanding.
 
 | Package | Implemented here | Remaining work |
 | --- | --- | --- |
@@ -17,9 +17,9 @@ fallback is implemented in #260; physical OEM validation remains outstanding.
 | WP6 | Independent folded/open preferences; one-time migration of explicit legacy choices into both postures; selecting an already-active layout still records a choice. Automatic geometry changes do not overwrite choices or reset zoom in the same layout. | Native posture-event validation after WP4. |
 | WP7 | On confirmed folded foldables, Hidden keeps the phone-sized toolbar; the existing draggable menu button starts below it at the right. Focus Mode and ordinary-device Hidden retain their behavior. The button and its floating menu are clamped inside the side safe-area insets: the Duo's cover keeps its clock and status in a column down the right edge, which had covered the default position. | Physical-device check. |
 | WP8 | Fit-width page with 70% minimum, Navigator docking at 80%, one 300 px panel column with tabs, Table Read in that column, plugin panels, and Story Timeline as a bottom band. Stable portal hosts preserve mounted panel subtrees. | Long-script reading position, selection, typing/undo, panel focus (including the appendChild fallback), plugin activation and browser keyboard/ARIA regressions are covered. Physical touch targets, screen readers and native keyboard behavior still need device validation. |
-| WP9 | No split-screen implementation duplicated. | Merge #214, then connect its companion panes and crease default. |
-| WP10 | No replacement toolbar or element selector added. | Merge #217, then arrange the writer's items in two rows and implement the accessible horizontal choice line. Measure the native keyboard before deciding which side of the crease holds the rows. |
-| WP11 | Browser book/laptop detection, book script reflow, right/lower panel slots, larger current Table Read line, and a writing pad sharing the book/laptop companion tabs without losing its draft or selection. | Book companion panes and empty-companion continuation; final laptop/flip layout together with WP10. The current toolbar remains at the top. This package is partial. |
+| WP9 | The existing Page View, Index Cards, Outline and Beat Board share one stable portal host. Explicit split panes follow the crease; planning-view commands keep the script visible on confirmed open/book/laptop foldables. Repeated pane requests activate its tab. Cover screens and ordinary windows keep their full-view/split choices. | Physical-device/WebView validation. Empty-companion book continuation is still WP11. |
+| WP10 | No replacement toolbar or element selector added. | The custom toolbar is already on main. Arrange the writer's items in two rows and implement the accessible horizontal choice line. Measure the native keyboard before deciding which side of the crease holds the rows. |
+| WP11 | Browser book/laptop detection, book script reflow, right/lower panel slots, larger current Table Read line, and a writing pad sharing the book/laptop companion tabs without losing its draft or selection. | Book companion panes are covered by WP9; empty-companion continuation remains; final laptop/flip layout together with WP10. The current toolbar remains at the top. This package is partial. |
 | WP12 | Browser Media Session controls were merged separately in #237. Android system-voice reads now have a native foreground service, MediaSession controls and an independent queue; see [implementation and automated coverage](android-background-table-read.md). | Native iOS remote commands/audio-session/background-mode support, AI-provider background audio and physical-device validation. Browser Media Session alone cannot guarantee playback after a web view is suspended. |
 | WP13 | No hardware capability is inferred from a model name. | Native Pencil capability and native refusal of New Window on a cover screen, after WP4. |
 
@@ -54,6 +54,7 @@ OPENDRAFT_TEST_URL=http://127.0.0.1:5173/ python test-script/foldables/posture.p
 OPENDRAFT_TEST_URL=http://127.0.0.1:5173/ python test-script/foldables/regressions.py
 OPENDRAFT_TEST_URL=http://127.0.0.1:5173/ python test-script/foldables/review_regressions.py
 OPENDRAFT_TEST_URL=http://127.0.0.1:5173/ python test-script/foldables/writing_pad.py
+OPENDRAFT_TEST_URL=http://127.0.0.1:5173/ python test-script/foldables/companions.py
 OPENDRAFT_TEST_URL=http://127.0.0.1:5173/ python test-script/foldables/diagnostics_keyboard.py
 OPENDRAFT_TEST_URL=http://127.0.0.1:5173/ OPENDRAFT_MENU_FOLDABLE=1 python test-script/menu-keyboard/regressions.py
 # From PR #235:
@@ -307,3 +308,34 @@ The release workflow copies the bridge beside the existing Activity sources and
 patches its Gradle dependency alongside signing; production builds do not invoke
 the test helper. Emulator key-input/lifecycle coverage is described above;
 physical OEM and broader native keyboard validation remain outstanding.
+
+## Split-screen companions (WP9)
+
+The split-screen, Index Cards, Outline and Beat Board implementations from
+#212–#215 and the toolbar/layout work from #217 are already on main; their PRs
+were closed after integration rather than merged as their original stack.
+
+On confirmed foldables, opening a planning view leaves the script visible and
+selects its companion tab. Page View remains available from View → Split Screen.
+An explicit split uses a reported vertical or horizontal crease, including an
+inactive crease on an open-flat screen. With no crease, an open wide foldable
+uses the existing right column; no hinge position is guessed from device size.
+Other panels and Table Read remain a tab away. Closing a companion uses its
+existing view command, and repeating an explicit pane request activates its tab.
+
+One mounted view moves between the full-view home, ordinary split home and fold
+dock. Posture changes preserve its DOM, local input draft/selection and focus,
+along with the editor and its document. Chosen split orientation is kept for
+ordinary windows. Cards and the board read live scene data while embedded; scene
+navigation keeps a companion open, and card reorder undo does not intercept the
+script's undo. Selecting Index Cards from another planning view now closes the
+previous view consistently, including through the Views control.
+
+The companion browser suite uses synthetic text and real Chromium CDP posture
+signals. It covers retained flat creases, book/laptop/cover transitions, native
+moveBefore and appendChild fallback, synopsis editing, editor typing/undo,
+scene navigation, Table Read beside planning views, panel tabs and ordinary
+stacked splits across dock breakpoints.
+These are browser checks, not physical foldable, IME, touch or screen-reader
+validation. WP10's toolbar choice line and WP11's empty right-half continuation
+remain separate.

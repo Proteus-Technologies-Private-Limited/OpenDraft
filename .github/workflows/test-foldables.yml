@@ -7,6 +7,7 @@ on:
       - 'frontend/src/utils/foldPosture*.ts'
       - 'frontend/src/utils/androidFoldPosture*.ts'
       - 'frontend/src/utils/foldLayout*.ts'
+      - 'frontend/src/utils/foldCompanion*.ts'
       - 'frontend/src/utils/foldPanelSelection*.ts'
       - 'frontend/src/utils/movePanelHost*.ts'
       - 'frontend/src/utils/posturePreferences*.ts'
@@ -18,6 +19,7 @@ on:
       - 'frontend/src/services/foldDiagnostics*.ts'
       - 'frontend/src/services/diagnostics*.ts'
       - 'frontend/src/components/FoldablePanelDock.tsx'
+      - 'frontend/src/components/CompanionPane.tsx'
       - 'frontend/src/components/ScribbleInput.tsx'
       - 'frontend/src/components/TextareaCaret.tsx'
       - 'frontend/src/components/PluginPanelTabs.tsx'
@@ -71,6 +73,7 @@ jobs:
           python test-script/foldables/regressions.py
           python test-script/foldables/review_regressions.py
           python test-script/foldables/writing_pad.py
+          python test-script/foldables/companions.py
           python test-script/foldables/diagnostics_keyboard.py
           python test-script/foldables/android_bridge.py
       - name: Check application menus on a confirmed browser foldable

@@ -69,7 +69,7 @@ class WritingPad(unittest.TestCase):
         self.request()
         self.field().fill("A retained writing draft")
         self.page.evaluate("testStore.getState().toggleLocationDatabase()")
-        locations = self.page.get_by_role("tab", name="Locations", exact=True)
+        locations = self.page.get_by_role("tab", name="Location Profiles", exact=True)
         locations.click()
         expect(self.field()).to_be_hidden()
         # Escape in another pane must not silently throw away the pad draft.

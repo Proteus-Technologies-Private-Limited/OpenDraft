@@ -19,7 +19,7 @@ interface IndexCardsProps {
 const IndexCards: React.FC<IndexCardsProps> = ({ editor, variant = 'view', onRequestClose }) => {
   const { t } = useTranslation(['story', 'common']);
   const { scenes, indexCardsOpen, updateSceneSynopsis, updateSceneColor, toggleIndexCards, pageLayout } = useEditorFields('scenes', 'indexCardsOpen', 'updateSceneSynopsis', 'updateSceneColor', 'toggleIndexCards', 'pageLayout');
-  const doc = useEditorDoc(editor, indexCardsOpen);
+  const doc = useEditorDoc(editor, indexCardsOpen || variant === 'split');
 
   const [fullscreen, setFullscreen] = useState(false);
   /** The scene timeline under the cards, open until the writer collapses it. */
@@ -66,6 +66,7 @@ const IndexCards: React.FC<IndexCardsProps> = ({ editor, variant = 'view', onReq
   useEffect(() => {
     if (!dragMode) return;
     const handleKey = (e: KeyboardEvent) => {
+      if (variant === 'split' && !containerRef.current?.contains(document.activeElement)) return;
       const mod = e.metaKey || e.ctrlKey;
       if (mod && e.key === 'z' && !e.shiftKey) {
         e.preventDefault();
@@ -84,7 +85,7 @@ const IndexCards: React.FC<IndexCardsProps> = ({ editor, variant = 'view', onReq
     // Capture phase fires before ProseMirror's editor keymap handlers
     window.addEventListener('keydown', handleKey, true);
     return () => window.removeEventListener('keydown', handleKey, true);
-  }, [dragMode, undo, redo]);
+  }, [dragMode, undo, redo, variant]);
 
   // Custom drag state
   const [dragIdx, setDragIdx] = useState<number | null>(null);
