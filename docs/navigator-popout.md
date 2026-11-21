@@ -57,7 +57,7 @@ selection; it does not add document IDs, undo entries or another save path.
 - `panelProtocol.test.ts` checks summary contents, immutability, validation and
   stale navigation rejection. The existing translation suite checks all 19 locales.
 - `test-script/panel-popout/regressions.py` runs real Chromium/WebKit windows,
-  React application components/hooks and TipTap with an **explicitly simulated
+  the actual panel startup entry, React components/hooks and TipTap with an **explicitly simulated
   native IPC broker**. It checks keyboard navigation, unchanged document/undo,
   caret/heading/search sync, stale revisions and snapshots, theme/language changes,
   return, document switch/replacement and the absence of SQL/save initialization.

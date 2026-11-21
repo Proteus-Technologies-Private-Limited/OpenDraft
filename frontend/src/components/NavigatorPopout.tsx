@@ -6,7 +6,7 @@ import { isSnapshot, type NavigatorSnapshot } from '../services/panelProtocol';
 import { getPanelContext, sendPanelAction, subscribePanel } from '../services/panelWindows';
 import '../styles/panelPopout.css';
 
-/** A read-only route. It never mounts an editor, storage bootstrap or save hooks. */
+/** A read-only entry. It never mounts an editor, storage bootstrap or save hooks. */
 export default function NavigatorPopout() {
   const { t } = useTranslation(['story', 'menu']);
   const [snapshot, setSnapshot] = useState<NavigatorSnapshot | null>(null);

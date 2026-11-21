@@ -58,7 +58,7 @@ pub async fn open_panel_window(
         let result = tauri::WebviewWindowBuilder::new(
             &app,
             &label,
-            tauri::WebviewUrl::App("/panel/navigator".into()),
+            tauri::WebviewUrl::App("/".into()),
         )
         .title("OpenDraft")
         .inner_size(440.0, 720.0)
