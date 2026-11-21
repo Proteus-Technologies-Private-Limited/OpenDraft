@@ -122,6 +122,7 @@ class Accessibility(unittest.TestCase):
         self.press("Enter")
         self.page.set_viewport_size({"width": 900, "height": 1000})
         expect(toolbar).to_be_focused()
+        expect(dialog.get_by_role("tabpanel")).to_have_attribute("tabindex", "0")
         expect(dialog.get_by_role("tab")).to_have_count(1)
         self.press("Escape")
         expect(dialog).not_to_be_visible()
@@ -162,7 +163,7 @@ class Accessibility(unittest.TestCase):
             dialog.locator(".bars-list")
             .nth(1)
             .locator(".bars-row")
-            .filter(has=dialog.locator("small", has_text=re.compile("^Status$")))
+            .filter(has=self.page.locator("small", has_text=re.compile("^Status$")))
             .first
         )
         row.locator(".bars-row-main").focus()
@@ -233,6 +234,17 @@ class Accessibility(unittest.TestCase):
             exact=True,
         )
         expect(group.locator('[aria-checked="true"]')).to_have_count(1)
+        before = self.page.evaluate(
+            "testStore.getState().workspaceLayout.groups['g-navigator'].panels"
+        )
+        group.locator('[aria-checked="true"]').focus()
+        self.press("Space")
+        self.assertEqual(
+            self.page.evaluate(
+                "testStore.getState().workspaceLayout.groups['g-navigator'].panels"
+            ),
+            before,
+        )
         own = dialog.get_by_role(
             "button",
             name=self.page.evaluate("testI18n.t('toolbar:layout.panelsTab.ownGroup')"),

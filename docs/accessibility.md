@@ -51,7 +51,8 @@ screen-reader conformance.
 The workspace Layout dialog exposes a labelled panel for every tab, including
 inactive panel shells. Left/Right and Home/End select tabs. Its radio groups have
 one Tab stop, wrapping arrows, Home/End, disabled-choice skipping and mirrored
-horizontal arrows in RTL. Moving, removing or regrouping a control retains focus
+horizontal arrows in RTL. Activating an already checked radio leaves its value
+and panel order unchanged. Moving, removing or regrouping a control retains focus
 on that control or its surviving entry. Cancelling a layout name returns to Save
 as; Escape during a keyboard drag cancels the drag before closing the dialog.
 Opening from a bar's context menu preserves a surviving return-focus target.

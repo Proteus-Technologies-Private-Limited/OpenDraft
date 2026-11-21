@@ -40,5 +40,14 @@ export default function LayoutRadioGroup({ as: Tag = 'div', children, ...props }
     button.click();
   };
 
-  return <Tag {...props} ref={node => { root.current = node; }} role="radiogroup" onKeyDown={onKeyDown}>{children}</Tag>;
+  return <Tag {...props} ref={node => { root.current = node; }} role="radiogroup" onKeyDown={onKeyDown}
+    onClickCapture={event => {
+      const button = event.target instanceof Element ? event.target.closest<HTMLButtonElement>('button[role="radio"]') : null;
+      // Space/click on an already checked radio must not run its action again
+      // (moving a panel to its current group would otherwise reorder it).
+      if (button?.closest('[role="radiogroup"]') === root.current && button?.getAttribute('aria-checked') === 'true') {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    }}>{children}</Tag>;
 }

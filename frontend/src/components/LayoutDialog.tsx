@@ -108,7 +108,7 @@ const LayoutDialog: React.FC = () => {
 
         {tabs.map(tab => (
           <div key={tab.id} className="layout-dialog-body" role="tabpanel" id={`layout-tabpanel-${tab.id}`}
-            aria-labelledby={`layout-tab-${tab.id}`} hidden={tab.id !== activeTab}>
+            aria-labelledby={`layout-tab-${tab.id}`} hidden={tab.id !== activeTab} tabIndex={tab.id === activeTab ? 0 : -1}>
             {tab.id === activeTab && (tab.id === 'panels'
               ? <PanelsTab layout={workspaceLayout} setLayout={setWorkspaceLayout} />
               : <BarsTab state={toolbarLayout} setState={setToolbarLayout} />)}
