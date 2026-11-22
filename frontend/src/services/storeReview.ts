@@ -147,10 +147,20 @@ function stopWatchingActivity(): void {
   for (const type of ACTIVITY_EVENTS) window.removeEventListener(type, noteActivity, { capture: true });
 }
 
-/** A dialog, menu or sheet of ours is open — the writer is in the middle of something. */
+/** A dialog, menu or sheet of ours is on screen — the writer is in the middle of something. */
 function overlayOpen(): boolean {
   if (typeof document === 'undefined') return false;
-  return !!document.querySelector('[role="dialog"], [role="alertdialog"], .dialog-overlay, [role="menu"]');
+  const found = document.querySelectorAll?.('[role="dialog"], [role="alertdialog"], .dialog-overlay, [role="menu"]');
+  if (!found) return !!document.querySelector?.('[role="dialog"], [role="alertdialog"], .dialog-overlay, [role="menu"]');
+  // Only what is shown: a closed submenu can stay in the DOM.
+  for (const el of Array.from(found)) {
+    if (typeof (el as Element).getClientRects !== 'function' || (el as Element).getClientRects().length > 0) return true;
+  }
+  return false;
+}
+
+function pageHidden(): boolean {
+  return typeof document !== 'undefined' && document.visibilityState === 'hidden';
 }
 
 /** Whether now is a quiet moment: nothing typed, tapped or scrolled lately, and nothing open. */
@@ -181,23 +191,41 @@ export function recordHappyMoment(now: number = Date.now()): void {
   lastActivity = Date.now();
   watchActivity();
   const giveUpAt = Date.now() + REVIEW_RULES.maxWaitMs;
-  const attempt = () => {
+  const retryOrGiveUp = () => {
+    if (Date.now() + REVIEW_RULES.retryMs <= giveUpAt) {
+      pendingTimer = setTimeout(attempt, REVIEW_RULES.retryMs);
+    } else {
+      // Busy the whole time: skip this one. Nothing is marked as asked, so
+      // the next export tries again.
+      console.info('[storeReview] writer stayed busy; not asking this time');
+      stopWatchingActivity();
+    }
+  };
+  const attempt = async () => {
     pendingTimer = null;
-    if (!writerIsIdle()) {
-      if (Date.now() + REVIEW_RULES.retryMs <= giveUpAt) {
-        pendingTimer = setTimeout(attempt, REVIEW_RULES.retryMs);
-      } else {
-        // Busy the whole time: skip this one. Nothing is marked as asked, so
-        // the next export tries again.
-        console.info('[storeReview] writer stayed busy; not asking this time');
-        stopWatchingActivity();
-      }
+    // Hidden is busy, not finished: on Android the export's share chooser is
+    // another activity, and the page reports hidden until it closes.
+    if (pageHidden() || !writerIsIdle()) {
+      retryOrGiveUp();
+      return;
+    }
+    const asked = await requestReviewNow();
+    // Still due but not asked means the native side found the app covered —
+    // most often the export's own share sheet, still open while the writer
+    // picks where to save. Ask once it closes, within the same minute.
+    if (!asked && isStillDue()) {
+      retryOrGiveUp();
       return;
     }
     stopWatchingActivity();
-    void requestReviewNow();
   };
-  pendingTimer = setTimeout(attempt, REVIEW_RULES.delayMs);
+  pendingTimer = setTimeout(() => { void attempt(); }, REVIEW_RULES.delayMs);
+}
+
+/** Whether the rules still call for a request (visibility aside: hidden is waited out). */
+function isStillDue(): boolean {
+  if (!canRequestReview()) return false;
+  return shouldRequestReview(loadState(), Date.now(), getAppVersion());
 }
 
 /**
