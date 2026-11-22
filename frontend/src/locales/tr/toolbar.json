@@ -1,6 +1,13 @@
 {
   "status": {
     "save": {
+      "cloudSynced": "Bulutla eşitlendi",
+      "cloudSyncing": "Bulutla eşitleniyor…",
+      "cloudPending": "Bu cihaza kaydedildi · Eşitleme bekleniyor",
+      "cloudConflict": "Bulutta çakışma · Kopyanız bu cihazda",
+      "cloudProblem": "Bulut eşitlemesini kontrol edin",
+      "cloudUnavailable": "Bu bulut senaryosu henüz çevrimdışı kullanılamıyor.",
+      "cloudLastSync": "Son eşitleme {{time}}",
       "unsaved": "Kaydedilmemiş değişiklikler",
       "saving": "Kaydediliyor…",
       "saved": "Kaydedildi",

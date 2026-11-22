@@ -1,6 +1,13 @@
 {
   "status": {
     "save": {
+      "cloudSynced": "Sincronizado com a nuvem",
+      "cloudSyncing": "Sincronizando com a nuvem…",
+      "cloudPending": "Salvo neste dispositivo · Aguardando sincronização",
+      "cloudConflict": "Conflito na nuvem · Sua cópia está neste dispositivo",
+      "cloudProblem": "A sincronização com a nuvem requer atenção",
+      "cloudUnavailable": "Este roteiro na nuvem ainda não está disponível offline.",
+      "cloudLastSync": "Última sincronização {{time}}",
       "unsaved": "Alterações não salvas",
       "saving": "Salvando…",
       "saved": "Salvo",

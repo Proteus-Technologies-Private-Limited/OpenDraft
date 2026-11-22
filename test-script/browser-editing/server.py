@@ -19,6 +19,7 @@ parser.add_argument(
     "state_dir", type=Path,
     help="A NEW directory for disposable data and auth.json",
 )
+parser.add_argument("--port", type=int, default=8137)
 args = parser.parse_args()
 root = args.state_dir.resolve()
 # Refuse existing directories, so a run cannot overwrite another user's data.
@@ -59,4 +60,4 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "backend"))
 from app.main import app  # noqa: E402
 
 print(f"Synthetic fixture credentials: {root / 'auth.json'}", flush=True)
-uvicorn.run(app, host="127.0.0.1", port=8137, log_level="warning")
+uvicorn.run(app, host="127.0.0.1", port=args.port, log_level="warning")

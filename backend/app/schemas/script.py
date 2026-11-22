@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ScriptCreate(BaseModel):
@@ -16,6 +16,11 @@ class ScriptUpdate(BaseModel):
     # Opt-in to overwriting a non-empty script with an empty body (intentional
     # clear). Defaults False so an accidental empty save is rejected.
     allow_empty_body: bool = False
+
+
+class OfflineScriptUpdate(BaseModel):
+    content: dict
+    expected_content_revision: str = Field(pattern=r"^[a-f0-9]{64}$")
 
 
 class ScriptMeta(BaseModel):
@@ -36,3 +41,4 @@ class ScriptMeta(BaseModel):
 class ScriptResponse(BaseModel):
     meta: ScriptMeta
     content: dict | None = None
+    content_revision: str | None = None

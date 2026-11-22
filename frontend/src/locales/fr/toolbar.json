@@ -1,6 +1,13 @@
 {
   "status": {
     "save": {
+      "cloudSynced": "Synchronisé avec le cloud",
+      "cloudSyncing": "Synchronisation avec le cloud…",
+      "cloudPending": "Enregistré sur cet appareil · En attente de synchronisation",
+      "cloudConflict": "Conflit dans le cloud · Votre copie est sur cet appareil",
+      "cloudProblem": "La synchronisation avec le cloud nécessite votre attention",
+      "cloudUnavailable": "Ce scénario du cloud n’est pas encore disponible hors ligne.",
+      "cloudLastSync": "Dernière synchronisation {{time}}",
       "unsaved": "Modifications non enregistrées",
       "saving": "Enregistrement…",
       "saved": "Enregistré",

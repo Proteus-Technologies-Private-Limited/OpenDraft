@@ -1,8 +1,13 @@
+import hashlib
 import json
+import os
+import tempfile
 import logging
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
+
+from filelock import FileLock
 
 from app.config import get_projects_dir
 
@@ -14,6 +19,41 @@ class EmptyOverwriteError(Exception):
 
     The blank-document data-loss guard. Routes map this to HTTP 409.
     """
+
+
+class ScriptRevisionConflict(Exception):
+    """The cloud script changed after the device downloaded it."""
+
+
+def _revision(content: dict) -> str:
+    body = json.dumps(content, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(body.encode("utf-8")).hexdigest()
+
+
+def _write_json(path: Path, value: dict) -> None:
+    """Publish the complete file at once, including for unlocked readers."""
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w", encoding="utf-8", dir=path.parent, delete=False,
+        ) as stream:
+            temporary = Path(stream.name)
+            json.dump(value, stream, indent=2)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, path)
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
+
+
+def _script_lock(project_id: str, script_id: str) -> FileLock:
+    # The lock lives outside the project, so deletion and version snapshots
+    # do not remove or commit it. Hash the IDs to keep it a single path part.
+    key = hashlib.sha256(f"{project_id}/{script_id}".encode()).hexdigest()
+    directory = get_projects_dir() / ".locks"
+    directory.mkdir(exist_ok=True)
+    return FileLock(str(directory / key), timeout=10)
 
 
 def _scripts_dir(project_id: str) -> Path:
@@ -125,7 +165,7 @@ def get_script(project_id: str, script_id: str) -> dict:
     meta = json.loads(meta_file.read_text(encoding="utf-8"))
     content = json.loads(content_file.read_text(encoding="utf-8")) if content_file.exists() else {}
 
-    return {"meta": meta, "content": content}
+    return {"meta": meta, "content": content, "content_revision": _revision(content)}
 
 
 def _has_body_text(content: dict | None) -> bool:
@@ -157,27 +197,33 @@ def update_script(
     pinned: bool | None = None,
     sort_order: int | None = None,
     allow_empty_body: bool = False,
+    expected_content_revision: str | None = None,
 ) -> dict:
     """Update a script's title and/or content."""
-    scripts_path = _scripts_dir(project_id)
+    with _script_lock(project_id, script_id):
+        scripts_path = _scripts_dir(project_id)
 
-    meta_file = scripts_path / f"{script_id}.meta.json"
-    content_file = scripts_path / f"{script_id}.json"
+        meta_file = scripts_path / f"{script_id}.meta.json"
+        content_file = scripts_path / f"{script_id}.json"
 
-    if not meta_file.exists():
-        raise FileNotFoundError(f"Script '{script_id}' not found")
+        if not meta_file.exists():
+            raise FileNotFoundError(f"Script '{script_id}' not found")
 
-    # Data-loss guard: refuse to overwrite a script that has real content with an
-    # empty/textless body (the blank-document bug). Callers that intentionally
-    # clear a document must pass allow_empty_body=True. Checked before any write
-    # so a rejected save leaves the script (and updated_at) untouched.
-    if content is not None and not allow_empty_body and not _has_body_text(content):
-        existing = (
-            json.loads(content_file.read_text(encoding="utf-8"))
-            if content_file.exists()
-            else None
-        )
-        if _has_body_text(existing):
+        meta = json.loads(meta_file.read_text(encoding="utf-8"))
+        existing = None
+        if expected_content_revision is not None or (
+            content is not None and not allow_empty_body and not _has_body_text(content)
+        ):
+            existing = json.loads(content_file.read_text(encoding="utf-8")) if content_file.exists() else {}
+        if expected_content_revision is not None:
+            current_revision = _revision(existing)
+            if current_revision != expected_content_revision:
+                # A retry following a lost response is already applied if the
+                # authoritative content exactly matches the queued copy.
+                if content == existing:
+                    return {"meta": meta, "content": existing, "content_revision": current_revision}
+                raise ScriptRevisionConflict()
+        if content is not None and not allow_empty_body and not _has_body_text(content) and _has_body_text(existing):
             raise EmptyOverwriteError(
                 f"Refusing to overwrite script '{script_id}' with an empty document — "
                 "the saved script has content but the incoming one has none. This "
@@ -185,31 +231,35 @@ def update_script(
                 "delete the script instead."
             )
 
-    meta = json.loads(meta_file.read_text(encoding="utf-8"))
+        if title is not None:
+            meta["title"] = title
+        if color is not None:
+            meta["color"] = color
+        if pinned is not None:
+            meta["pinned"] = pinned
+        if sort_order is not None:
+            meta["sort_order"] = sort_order
 
-    if title is not None:
-        meta["title"] = title
-    if color is not None:
-        meta["color"] = color
-    if pinned is not None:
-        meta["pinned"] = pinned
-    if sort_order is not None:
-        meta["sort_order"] = sort_order
+        meta["updated_at"] = datetime.now(timezone.utc).isoformat()
 
-    meta["updated_at"] = datetime.now(timezone.utc).isoformat()
+        if content is not None:
+            _write_json(content_file, content)
+        _write_json(meta_file, meta)
 
-    meta_file.write_text(json.dumps(meta, indent=2), encoding="utf-8")
+        current_content = content if content is not None else (
+            existing if existing is not None else (
+                json.loads(content_file.read_text(encoding="utf-8")) if content_file.exists() else {}
+            )
+        )
 
-    if content is not None:
-        content_file.write_text(json.dumps(content, indent=2), encoding="utf-8")
+        meta.setdefault("color", "")
+        meta.setdefault("pinned", False)
+        meta.setdefault("sort_order", 0)
 
-    current_content = json.loads(content_file.read_text(encoding="utf-8")) if content_file.exists() else {}
-
-    meta.setdefault("color", "")
-    meta.setdefault("pinned", False)
-    meta.setdefault("sort_order", 0)
-
-    return {"meta": meta, "content": current_content}
+        result = {"meta": meta, "content": current_content}
+        if expected_content_revision is not None:
+            result["content_revision"] = _revision(current_content)
+        return result
 
 
 def duplicate_script(project_id: str, script_id: str) -> dict:
@@ -250,14 +300,15 @@ def duplicate_script(project_id: str, script_id: str) -> dict:
 
 def delete_script(project_id: str, script_id: str) -> None:
     """Delete a script's content and metadata files."""
-    scripts_path = _scripts_dir(project_id)
+    with _script_lock(project_id, script_id):
+        scripts_path = _scripts_dir(project_id)
 
-    meta_file = scripts_path / f"{script_id}.meta.json"
-    content_file = scripts_path / f"{script_id}.json"
+        meta_file = scripts_path / f"{script_id}.meta.json"
+        content_file = scripts_path / f"{script_id}.json"
 
-    if not meta_file.exists():
-        raise FileNotFoundError(f"Script '{script_id}' not found")
+        if not meta_file.exists():
+            raise FileNotFoundError(f"Script '{script_id}' not found")
 
-    meta_file.unlink()
-    if content_file.exists():
-        content_file.unlink()
+        meta_file.unlink()
+        if content_file.exists():
+            content_file.unlink()

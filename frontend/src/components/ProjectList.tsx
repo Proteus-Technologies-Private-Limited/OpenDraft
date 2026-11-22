@@ -20,6 +20,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { FaCloud, FaDesktop, FaArrowLeft, FaFolder } from 'react-icons/fa';
 import { api } from '../services/api';
 import { cloudApi } from '../services/cloudApi';
+import { offlineCloud } from '../services/offlineCloud';
 import { isWeb, isDesktopTauri } from '../services/platform';
 import { getApiBase } from '../config';
 import { useProjectStore } from '../stores/projectStore';
@@ -307,8 +308,10 @@ const ProjectList: React.FC = () => {
   const [errorMsg, setErrorMsg] = useState<string>('');
 
   const accessToken = useSettingsStore((s) => s.collabAuth.accessToken);
+  const cloudUserId = useSettingsStore((s) => s.collabAuth.user?.id);
   const authVerified = useSettingsStore((s) => s.authVerified);
   const signedIn = Boolean(accessToken && authVerified);
+  const canBrowseCloud = signedIn || (!WEB_ONLY_CLOUD && !!accessToken && !!cloudUserId);
   const syncCloudProjects = useProjectStore((s) => s.syncCloudProjects);
   const markCloudProject = useProjectStore((s) => s.markCloudProject);
   const unmarkCloudProject = useProjectStore((s) => s.unmarkCloudProject);
@@ -329,20 +332,20 @@ const ProjectList: React.FC = () => {
     setLoading(true);
     setErrorMsg('');
     try {
-      // Cloud listing requires a verified login. Empty state with a hint is
-      // better than a confusing "no projects" when the user just hasn't
-      // signed in yet.
-      if (source === 'cloud' && !signedIn) {
+      // A native saved session can still browse its cached library before
+      // the server has verified the token at startup.
+      if (source === 'cloud' && !canBrowseCloud) {
         setProjects([]);
         setLoading(false);
         return;
       }
-      const client = source === 'cloud' ? cloudApi : api;
+      const client = source === 'cloud' ? offlineCloud : api;
       const projectList = await client.listProjects();
       // Keep the cloud-project marker set in sync with what the server
       // currently returns. ProjectView reads this to dispatch reads/writes
       // to cloudApi.
       if (source === 'cloud') {
+        if (useSettingsStore.getState().collabAuth.user?.id !== cloudUserId) return;
         syncCloudProjects(projectList.map((p) => p.id));
       }
       const withCounts: ProjectWithCount[] = await Promise.all(
@@ -355,13 +358,14 @@ const ProjectList: React.FC = () => {
           }
         }),
       );
-      setProjects(withCounts);
+      if (source !== 'cloud' || useSettingsStore.getState().collabAuth.user?.id === cloudUserId) setProjects(withCounts);
     } catch (err) {
+      if (source === 'cloud' && useSettingsStore.getState().collabAuth.user?.id !== cloudUserId) return;
       setProjects([]);
       setErrorMsg(err instanceof Error ? err.message : t('list.loadFailed'));
     }
     setLoading(false);
-  }, [source, signedIn, syncCloudProjects]);
+  }, [source, canBrowseCloud, cloudUserId, syncCloudProjects]);
 
   useEffect(() => {
     fetchProjects();
@@ -699,7 +703,7 @@ const ProjectList: React.FC = () => {
 
       {loading ? (
         <div className="project-list-loading">{t('list.loading')}</div>
-      ) : source === 'cloud' && !signedIn ? (
+      ) : source === 'cloud' && !canBrowseCloud ? (
         <div className="project-list-empty">
           <div className="project-list-empty-icon">&#9729;</div>
           <div>{t('list.signInPrompt')}</div>

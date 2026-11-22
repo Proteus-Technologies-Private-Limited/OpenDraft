@@ -1,6 +1,13 @@
 {
   "status": {
     "save": {
+      "cloudSynced": "Sincronizado con la nube",
+      "cloudSyncing": "Sincronizando con la nube…",
+      "cloudPending": "Guardado en este dispositivo · Pendiente de sincronización",
+      "cloudConflict": "Conflicto en la nube · Tu copia está en este dispositivo",
+      "cloudProblem": "La sincronización con la nube requiere atención",
+      "cloudUnavailable": "Este guion de la nube aún no está disponible sin conexión.",
+      "cloudLastSync": "Última sincronización {{time}}",
       "unsaved": "Cambios sin guardar",
       "saving": "Guardando…",
       "saved": "Guardado",

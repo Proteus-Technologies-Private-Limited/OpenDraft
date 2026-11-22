@@ -12,6 +12,7 @@
 import { useProjectStore } from '../stores/projectStore';
 import { api } from './api';
 import { cloudApi } from './cloudApi';
+import { offlineCloud } from './offlineCloud';
 import type { ScriptResponse } from './api';
 
 function pickFor(projectId: string, scriptId: string) {
@@ -21,7 +22,7 @@ function pickFor(projectId: string, scriptId: string) {
 
 export const scriptApi = {
   getScript: (projectId: string, scriptId: string): Promise<ScriptResponse> =>
-    pickFor(projectId, scriptId).getScript(projectId, scriptId),
+    (pickFor(projectId, scriptId) === cloudApi ? offlineCloud : api).getScript(projectId, scriptId),
 
   saveScript: (
     projectId: string,
@@ -33,8 +34,14 @@ export const scriptApi = {
       pinned?: boolean;
       sort_order?: number;
     },
-  ): Promise<ScriptResponse> =>
-    pickFor(projectId, scriptId).saveScript(projectId, scriptId, data),
+  ): Promise<ScriptResponse> => {
+    const client = pickFor(projectId, scriptId);
+    if (client === cloudApi && data.content !== undefined
+      && data.title === undefined && data.color === undefined && data.pinned === undefined && data.sort_order === undefined) {
+      return offlineCloud.saveScript(projectId, scriptId, data.content);
+    }
+    return client.saveScript(projectId, scriptId, data);
+  },
 
   deleteScript: async (
     projectId: string,

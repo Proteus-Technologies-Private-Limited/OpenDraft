@@ -12,16 +12,17 @@
 import { useProjectStore } from '../stores/projectStore';
 import { api, type ProjectProperties } from './api';
 import { cloudApi } from './cloudApi';
+import { offlineCloud } from './offlineCloud';
 
 function pick(projectId: string) {
   return useProjectStore.getState().isCloudProject(projectId) ? cloudApi : api;
 }
 
 export const projectApi = {
-  getProject: (id: string) => pick(id).getProject(id),
+  getProject: (id: string) => (pick(id) === cloudApi ? offlineCloud : api).getProject(id),
 
   listScripts: (projectId: string, includePreview: boolean = false) =>
-    pick(projectId).listScripts(projectId, includePreview),
+    (pick(projectId) === cloudApi ? offlineCloud : api).listScripts(projectId, includePreview),
 
   updateProject: (
     id: string,

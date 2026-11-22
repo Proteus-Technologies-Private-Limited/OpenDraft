@@ -1,6 +1,13 @@
 {
   "status": {
     "save": {
+      "cloudSynced": "Synced to cloud",
+      "cloudSyncing": "Syncing to cloud…",
+      "cloudPending": "Saved on this device · Waiting to sync",
+      "cloudConflict": "Cloud conflict · Your copy is on this device",
+      "cloudProblem": "Cloud sync needs attention",
+      "cloudUnavailable": "This cloud script is not available offline yet.",
+      "cloudLastSync": "Last synced {{time}}",
       "unsaved": "Unsaved changes",
       "saving": "Saving…",
       "saved": "Saved",

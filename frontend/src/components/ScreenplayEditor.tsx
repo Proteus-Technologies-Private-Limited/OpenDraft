@@ -267,6 +267,7 @@ import { startCollabSync, stopCollabSync } from '../services/collabSync';
 import { collabAuthApi, setLogoutCollabTeardown, setLogoutEditorReset, ensureCollabAuthenticated, collabAuthUnavailableMessage } from '../services/collabAuth';
 import { platformFetch, isTauri, isDesktopTauri, needsSelectionHandles } from '../services/platform';
 import { reportSaveError } from '../stores/saveErrorStore';
+import { offlineCloudStatus, subscribeOfflineCloud } from '../services/offlineCloud';
 import { pluginRegistry } from '../plugins/registry';
 import { createTrackChangesPlugin, trackChangesPluginKey } from '../editor/trackChanges';
 import type { VersionInfo } from '../services/api';
@@ -623,6 +624,8 @@ const ScreenplayEditor: React.FC = () => {
   const storyTimelineOpen = useEditorStore((s) => s.storyTimelineOpen);
 
   const { currentProject, currentScriptId, setCurrentProject, setCurrentScriptId, scriptReloadKey, markCloudScript, isCloudScript } = useProjectStore();
+  const cloudSync = useSyncExternalStore(subscribeOfflineCloud, () =>
+    offlineCloudStatus(currentProject?.id, currentScriptId));
 
   // ── Collaboration state ──
   const [collabMode, setCollabMode] = useState(false);
@@ -5988,6 +5991,14 @@ const ScreenplayEditor: React.FC = () => {
           <button className="collab-banner-btn collab-banner-btn-stop" onClick={handleStopCollab}>
             {isCollabHost ? tl('collab.endSession') : tl('collab.disconnect')}
           </button>
+        </div>
+      )}
+      {(cloudSync?.state === 'conflict' || cloudSync?.state === 'problem') && (
+        <div className="save-failure-banner" role="status">
+          <span className="save-failure-icon" aria-hidden="true">&#9888;</span>
+          <span className="save-failure-text">
+            {tg(cloudSync.state === 'conflict' ? 'toolbar:status.save.cloudConflict' : 'toolbar:status.save.cloudProblem')}
+          </span>
         </div>
       )}
       {saveStatus === 'error' && currentProject && currentScriptId && (

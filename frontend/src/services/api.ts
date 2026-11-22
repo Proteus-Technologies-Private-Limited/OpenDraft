@@ -51,7 +51,7 @@ export function dispatchApiEvent(name: string, detail?: unknown): void {
  * an ApiError carrying the status + parsed body. Shared by api.ts, cloudApi.ts,
  * and any other backend caller.
  */
-export async function handleNonOkResponse(res: Response, label: string): Promise<never> {
+export async function handleNonOkResponse(res: Response, label: string, stillCurrent?: () => boolean): Promise<never> {
   let parsedBody: unknown = null;
   const rawText = await res.text().catch(() => '');
   try {
@@ -59,6 +59,8 @@ export async function handleNonOkResponse(res: Response, label: string): Promise
   } catch {
     parsedBody = rawText;
   }
+
+  if (stillCurrent && !stillCurrent()) throw new Error('Cloud account or server changed');
 
   // Track whether we surface this error via a dedicated dialog so callers
   // know to suppress their own toast.
@@ -210,6 +212,7 @@ export interface ScriptMeta {
 export interface ScriptResponse {
   meta: ScriptMeta;
   content: Record<string, unknown> | null;
+  content_revision?: string | null;
 }
 
 export interface VersionInfo {

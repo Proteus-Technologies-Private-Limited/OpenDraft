@@ -1,10 +1,11 @@
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.concurrency import run_in_threadpool
 
 from app.dependencies import require_verified_user
 from app.schemas.project import ProjectCreate, ProjectUpdate, ProjectResponse, ProjectList, ReorderRequest
-from app.schemas.script import ScriptCreate, ScriptUpdate, ScriptMeta, ScriptResponse
+from app.schemas.script import OfflineScriptUpdate, ScriptCreate, ScriptUpdate, ScriptMeta, ScriptResponse
 from app.plugins import run_hooks, run_gate_hooks
 from app.services import project_service, script_service
 from app.services.auth_service import AuthUser
@@ -128,7 +129,7 @@ async def reorder_scripts(project_id: str, body: ReorderRequest):
     """Batch-update sort_order for scripts in a project."""
     for item in body.items:
         try:
-            script_service.update_script(project_id, item.id, sort_order=item.sort_order)
+            await run_in_threadpool(script_service.update_script, project_id, item.id, sort_order=item.sort_order)
         except FileNotFoundError:
             logger.warning(
                 "Skipping missing script during reorder: project=%s script=%s",
@@ -145,8 +146,8 @@ async def update_script(project_id: str, script_id: str, body: ScriptUpdate):
         if is_content_save:
             await run_hooks("script:before_save", project_id=project_id,
                             script_id=script_id, content=body.content)
-        result = script_service.update_script(
-            project_id, script_id, body.title, body.content,
+        result = await run_in_threadpool(
+            script_service.update_script, project_id, script_id, body.title, body.content,
             color=body.color, pinned=body.pinned, sort_order=body.sort_order,
             allow_empty_body=body.allow_empty_body,
         )
@@ -160,10 +161,34 @@ async def update_script(project_id: str, script_id: str, body: ScriptUpdate):
         raise HTTPException(status_code=409, detail=str(exc))
 
 
+@router.put("/{project_id}/scripts/{script_id}/offline-content", response_model=ScriptResponse)
+async def update_offline_content(
+    project_id: str, script_id: str, body: OfflineScriptUpdate,
+    user: AuthUser = Depends(require_verified_user),
+):
+    # A distinct route ensures older servers cannot ignore the precondition.
+    try:
+        await run_hooks("script:before_save", project_id=project_id,
+                        script_id=script_id, content=body.content)
+        result = await run_in_threadpool(
+            script_service.update_script, project_id, script_id, content=body.content,
+            expected_content_revision=body.expected_content_revision,
+        )
+        await run_hooks("script:after_save", project_id=project_id,
+                        script_id=script_id, content=body.content)
+        return result
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except script_service.EmptyOverwriteError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    except script_service.ScriptRevisionConflict:
+        raise HTTPException(status_code=412, detail="The cloud script changed")
+
+
 @router.delete("/{project_id}/scripts/{script_id}")
 async def delete_script(project_id: str, script_id: str):
     try:
-        script_service.delete_script(project_id, script_id)
+        await run_in_threadpool(script_service.delete_script, project_id, script_id)
         return {"message": f"Script '{script_id}' deleted"}
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
