@@ -40,7 +40,6 @@ import { panelIcon, usePanelLabel } from '../toolbar/toolbarMeta';
 import { layoutCollision, useLayoutAnnouncements, useLayoutSensors } from './dndConfig';
 import DropZone from './DropZone';
 import LayoutRadioGroup from './LayoutRadioGroup';
-import { useLayoutFocus } from './useLayoutFocus';
 
 type Selection = { kind: 'panel' | 'group'; id: string } | null;
 
@@ -149,7 +148,6 @@ interface Props {
 
 const PanelsTab: React.FC<Props> = ({ layout, setLayout }) => {
   const { t } = useTranslation('toolbar');
-  const focus = useLayoutFocus();
   const {
     workspacePreset, applyWorkspacePreset, savedWorkspaceLayouts, saveWorkspaceLayout, deleteSavedWorkspaceLayout,
     toolbarLayout, setToolbarLayout,
@@ -298,7 +296,7 @@ const PanelsTab: React.FC<Props> = ({ layout, setLayout }) => {
         {place !== 'hidden' && (
           <div className="layout-field">
             <span>{t('layout.panelsTab.group')}</span>
-            <LayoutRadioGroup className="layout-field" aria-label={t('layout.panelsTab.group')}>
+            <LayoutRadioGroup manual className="layout-field" aria-label={t('layout.panelsTab.group')}>
               {docksFor(place as DockId).map((g) => (
                 <button key={g.id} type="button" role="radio" aria-checked={g.id === groupId}
                   className={`layout-radio${g.id === groupId ? ' is-on' : ''}`}
@@ -378,7 +376,7 @@ const PanelsTab: React.FC<Props> = ({ layout, setLayout }) => {
   return (
     <DndContext sensors={sensors} collisionDetection={layoutCollision} onDragStart={onDragStart} onDragEnd={onDragEnd}
       onDragCancel={() => setDragging(null)} accessibility={{ announcements }}>
-      <div className="layout-panels" {...focus}>
+      <div className="layout-panels">
         <aside className="layout-presets" aria-label={t('layout.panelsTab.presetsHeading')}>
           <h3>{t('layout.panelsTab.presetsHeading')}</h3>
           {presets.map((preset) => (
@@ -398,7 +396,12 @@ const PanelsTab: React.FC<Props> = ({ layout, setLayout }) => {
                 <span>{t('layout.presetHints.saved')}</span>
               </button>
               <button type="button" className="layout-icon-btn" aria-label={t('layout.panelsTab.deleteNamed', { name: saved.label })}
-                onClick={() => deleteSavedWorkspaceLayout(saved.id)}><FaTrashAlt aria-hidden="true" /></button>
+                onClick={event => {
+                  const save = event.currentTarget.closest('[role="tabpanel"]')
+                    ?.querySelector<HTMLButtonElement>('button[data-layout-focus="save-panels"]');
+                  save?.focus();
+                  deleteSavedWorkspaceLayout(saved.id);
+                }}><FaTrashAlt aria-hidden="true" /></button>
             </div>
           ))}
           {naming === null ? (
