@@ -418,7 +418,12 @@ const BarsTab: React.FC<Props> = ({ state, setState }) => {
                 <button type="button" className="layout-pill" aria-pressed={toolbarPreset === saved.id}
                   onClick={() => applySavedToolbarLayout(saved.id)}>{saved.label}</button>
                 <button type="button" className="layout-icon-btn" aria-label={t('layout.panelsTab.deleteNamed', { name: saved.label })}
-                  onClick={() => deleteSavedToolbarLayout(saved.id)}><FaTrashAlt aria-hidden="true" /></button>
+                  onClick={event => {
+                  const save = event.currentTarget.closest('[role="tabpanel"]')
+                    ?.querySelector<HTMLButtonElement>('button[data-layout-focus="save-bars"]');
+                  save?.focus();
+                  deleteSavedToolbarLayout(saved.id);
+                }}><FaTrashAlt aria-hidden="true" /></button>
               </span>
             ))}
             {naming === null ? (

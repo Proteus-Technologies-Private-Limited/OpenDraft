@@ -396,7 +396,12 @@ const PanelsTab: React.FC<Props> = ({ layout, setLayout }) => {
                 <span>{t('layout.presetHints.saved')}</span>
               </button>
               <button type="button" className="layout-icon-btn" aria-label={t('layout.panelsTab.deleteNamed', { name: saved.label })}
-                onClick={() => deleteSavedWorkspaceLayout(saved.id)}><FaTrashAlt aria-hidden="true" /></button>
+                onClick={event => {
+                  const save = event.currentTarget.closest('[role="tabpanel"]')
+                    ?.querySelector<HTMLButtonElement>('button[data-layout-focus="save-panels"]');
+                  save?.focus();
+                  deleteSavedWorkspaceLayout(saved.id);
+                }}><FaTrashAlt aria-hidden="true" /></button>
             </div>
           ))}
           {naming === null ? (
