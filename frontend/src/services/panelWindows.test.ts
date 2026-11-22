@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 const native = vi.hoisted(() => ({ listen: vi.fn(), desktop: true, label: 'main' as string | null }));
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }));
-vi.mock('@tauri-apps/api/event', () => ({ listen: native.listen }));
+vi.mock('@tauri-apps/api/webviewWindow', () => ({ getCurrentWebviewWindow: () => ({ listen: native.listen }) }));
 vi.mock('./platform', () => ({ isDesktopTauri: () => native.desktop }));
 vi.mock('./openDocuments', () => ({ currentWindowLabel: () => native.label }));
 import { canPopOutNavigator, subscribePanel } from './panelWindows';

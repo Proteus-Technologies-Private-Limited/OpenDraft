@@ -10,5 +10,4 @@
 .navigator-popout-scenes button { display: flex; flex-direction: column; gap: 6px; text-align: start; width: 100%; border-inline-start-width: 4px; overflow-wrap: anywhere; }
 .navigator-popout-scenes button[aria-current] { outline: 2px solid var(--fd-accent, #679df6); outline-offset: -2px; font-weight: 600; }
 .navigator-popout-synopsis { font-weight: 400; color: var(--fd-text-muted); white-space: pre-wrap; }
-.navigator-detached { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
 @media (forced-colors: active) { .navigator-popout-scenes button[aria-current] { outline-color: Highlight; } }

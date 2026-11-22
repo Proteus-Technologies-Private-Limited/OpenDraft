@@ -40,7 +40,7 @@ editor route. It does not instantiate a TipTap editor, claim an open document,
 join collaboration, save or own undo history. Panel labels are also filtered out
 of editor-window lists and document claims as a second guard. Its capability file
 only allows event listener registration/removal; it adds no SQL/filesystem access.
-Native custom commands perform the broker operations.
+Native custom commands perform the broker operations. This capability limits plugin grants. The app-wide custom command policy still applies to panel windows.
 
 The owner sends heading/synopsis summaries (not document bodies or paths), plus
 appearance, language and selected scene. While a panel is open, updates are

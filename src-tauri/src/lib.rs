@@ -2712,7 +2712,7 @@ fn rebuild_window_menu(app: &tauri::AppHandle, _menu: &Menu<tauri::Wry>) {
         // Add all open windows
         let windows = app.webview_windows();
         let mut win_entries: Vec<_> = windows.iter()
-            .filter(|(label, _)| *label != "splashscreen" && !label.starts_with("panel-"))
+            .filter(|(label, _)| *label != "splashscreen")
             .collect();
         win_entries.sort_by_key(|(label, _)| label.clone());
 
@@ -3374,8 +3374,7 @@ pub fn run() {
                     std::thread::sleep(std::time::Duration::from_millis(500));
 
                     if let Some(main) = main_window {
-                        let _ = main.show();
-                        let _ = main.set_focus();
+                        desktop_windows::show_startup(&main);
                     }
                     if let Some(sp) = splash {
                         let _ = sp.close();

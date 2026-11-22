@@ -98,3 +98,6 @@ opt-level = "s"
 # desktop binary but does not affect runtime performance.
 strip = false
 debug = "line-tables-only"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+dispatch2 = "=0.3.1"

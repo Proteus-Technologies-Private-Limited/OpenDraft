@@ -83,7 +83,7 @@ async function init() {
   // claim or save hooks. Their only input is the owner's native-broker snapshot.
   if ((window as unknown as { __TAURI_INTERNALS__?: { metadata?: { currentWindow?: { label?: string } } } })
     .__TAURI_INTERNALS__?.metadata?.currentWindow?.label?.startsWith('panel-')) {
-    await initI18n();
+    try { await initI18n(); } catch (error) { console.warn('[panels] Language initialization failed', error); }
     applyAppearance(readAppearance());
     const { default: NavigatorPopout } = await import('./components/NavigatorPopout');
     (window as unknown as { __odBooted: boolean }).__odBooted = true;

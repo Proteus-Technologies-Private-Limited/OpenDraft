@@ -30,7 +30,10 @@ pub async fn open_panel_window(
         let app = window.app_handle().clone();
         let registry = app.state::<Registry>();
         let (label, previous) = {
-            let mut panels = registry.0.lock().unwrap();
+            let mut panels = registry
+                .0
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
             if let Some(label) = panels.targets(window.label(), &session).first().cloned() {
                 drop(panels);
                 if let Some(existing) = app.get_webview_window(&label) {
@@ -55,26 +58,33 @@ pub async fn open_panel_window(
             (label, previous)
         };
         destroy_panels(&app, previous);
-        let result = tauri::WebviewWindowBuilder::new(
-            &app,
-            &label,
-            tauri::WebviewUrl::App("/".into()),
-        )
-        .title("OpenDraft")
-        .inner_size(440.0, 720.0)
-        .min_inner_size(260.0, 240.0)
-        .visible(false)
-        .focused(false)
-        .resizable(true)
-        .build();
+        let result =
+            tauri::WebviewWindowBuilder::new(&app, &label, tauri::WebviewUrl::App("/".into()))
+                .title("OpenDraft")
+                .inner_size(440.0, 720.0)
+                .min_inner_size(260.0, 240.0)
+                .visible(false)
+                .focused(false)
+                .resizable(true)
+                .build();
         let panel = match result {
             Ok(panel) => panel,
             Err(error) => {
-                registry.0.lock().unwrap().0.remove(&label);
+                registry
+                    .0
+                    .lock()
+                    .unwrap_or_else(|poisoned| poisoned.into_inner())
+                    .0
+                    .remove(&label);
                 return Err(error.to_string());
             }
         };
-        if !registry.0.lock().unwrap().0.contains_key(&label)
+        if !registry
+            .0
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .0
+            .contains_key(&label)
             || app.get_webview_window(window.label()).is_none()
         {
             let _ = panel.destroy();
@@ -88,7 +98,12 @@ pub async fn open_panel_window(
             crate::prepare_linux_titlebar(&target);
             crate::desktop_windows::show_panel(&target, &window);
         }) {
-            registry.0.lock().unwrap().0.remove(&label);
+            registry
+                .0
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner())
+                .0
+                .remove(&label);
             let _ = panel.destroy();
             return Err(error.to_string());
         }
@@ -106,7 +121,10 @@ pub fn panel_context(window: tauri::WebviewWindow) -> Result<serde_json::Value, 
     #[cfg(desktop)]
     {
         let state = window.app_handle().state::<Registry>();
-        let guard = state.0.lock().unwrap();
+        let guard = state
+            .0
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         let panel = guard
             .0
             .get(window.label())
@@ -121,7 +139,7 @@ pub fn panel_context(window: tauri::WebviewWindow) -> Result<serde_json::Value, 
 }
 
 #[tauri::command]
-pub fn publish_panel_snapshot(
+pub async fn publish_panel_snapshot(
     window: tauri::WebviewWindow,
     session: String,
     snapshot: serde_json::Value,
@@ -138,10 +156,25 @@ pub fn publish_panel_snapshot(
             .state::<Registry>()
             .0
             .lock()
-            .unwrap()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
             .targets(window.label(), &session);
         for label in labels {
             if let Some(target) = app.get_webview_window(&label) {
+                if let Some(title) = snapshot.get("title").and_then(|v| v.as_str()) {
+                    let title = if title.is_empty() {
+                        "Scene Navigator".into()
+                    } else {
+                        format!("{title} — OpenDraft")
+                    };
+                    if target.title().ok().as_ref() != Some(&title) {
+                        if target.set_title(&title).is_ok() {
+                            #[cfg(target_os = "macos")]
+                            if let Some(menu) = app.menu() {
+                                crate::rebuild_window_menu(app, &menu);
+                            }
+                        }
+                    }
+                }
                 let theme = match snapshot.get("appearance").and_then(|v| v.as_str()) {
                     Some("light") => Some(tauri::Theme::Light),
                     Some("dark" | "dark-pages") => Some(tauri::Theme::Dark),
@@ -184,7 +217,7 @@ pub fn panel_command(
             .state::<Registry>()
             .0
             .lock()
-            .unwrap()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
             .0
             .get(window.label())
             .cloned()
@@ -223,7 +256,7 @@ pub fn close_panel_windows(window: tauri::WebviewWindow, session: String) {
             .state::<Registry>()
             .0
             .lock()
-            .unwrap()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
             .take_owned(window.label(), Some(&session));
         destroy_panels(app, panels);
     }
@@ -236,7 +269,11 @@ pub fn close_owned(app: &tauri::AppHandle, owner: &str) {
     let Some(registry) = app.try_state::<Registry>() else {
         return;
     };
-    let panels = registry.0.lock().unwrap().take_owned(owner, None);
+    let panels = registry
+        .0
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .take_owned(owner, None);
     destroy_panels(app, panels);
 }
 
@@ -259,7 +296,12 @@ fn destroy_panels(app: &tauri::AppHandle, panels: Vec<(String, Panel)>) {
 pub fn destroyed(app: &tauri::AppHandle, label: &str) {
     close_owned(app, label);
     if let Some(state) = app.try_state::<Registry>() {
-        let panel = state.0.lock().unwrap().0.remove(label);
+        let panel = state
+            .0
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .0
+            .remove(label);
         if let Some(panel) = panel {
             let _ = app.emit_to(
                 &panel.owner,

@@ -2953,6 +2953,7 @@ name = "opendraft"
 version = "2.14.2"
 dependencies = [
  "cc",
+ "dispatch2",
  "fontdb",
  "gtk",
  "jni",

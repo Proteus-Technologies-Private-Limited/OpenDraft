@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { applyAppearance } from '../utils/appearance';
 import { applyDocumentLanguage, i18next, loadLanguage } from '../i18n';
-import { isSnapshot, type NavigatorSnapshot } from '../services/panelProtocol';
+import { isNavigatorUpdate, type NavigatorSnapshot } from '../services/panelProtocol';
 import { getPanelContext, sendPanelAction, subscribePanel } from '../services/panelWindows';
 import '../styles/panelPopout.css';
 
@@ -16,14 +16,21 @@ export default function NavigatorPopout() {
   useEffect(() => {
     let stopped = false, session: string | undefined;
     let latestSequence = -1, appearanceRequest = 0;
+    let current: NavigatorSnapshot | null = null;
+    let requestedLanguage = i18next.language;
     const pending: unknown[] = [];
     const receive = (value: unknown) => {
       if (!session) { if (pending.length < 4) pending.push(value); return; }
-      if (!isSnapshot(value) || value.session !== session || value.sequence <= latestSequence) return;
+      if (!isNavigatorUpdate(value) || value.session !== session || value.sequence <= latestSequence) return;
+      const scenes = value.scenes ?? (current?.revision === value.revision ? current.scenes : undefined);
+      if (!scenes || value.active >= scenes.length) return;
       latestSequence = value.sequence;
-      setSnapshot(value);
+      current = { ...value, scenes };
+      setSnapshot(current);
       setUnavailable(false);
       applyAppearance(value.appearance);
+      if (value.language === requestedLanguage) return;
+      requestedLanguage = value.language;
       const request = ++appearanceRequest;
       void loadLanguage(value.language as Parameters<typeof loadLanguage>[0]).then(async () => {
         if (stopped || request !== appearanceRequest) return;
@@ -66,7 +73,7 @@ export default function NavigatorPopout() {
               aria-current={scene.index === snapshot.active ? 'location' : undefined}
               style={scene.color ? { borderInlineStartColor: scene.color } : undefined}
               onClick={() => command({ kind: 'navigate', revision: snapshot.revision, index: scene.index })}>
-              <span>{scene.number}. {scene.heading}</span>
+              <span>{scene.number}. {scene.heading || t('tags.untitledScene')}</span>
               {scene.synopsis && <span className="navigator-popout-synopsis">{scene.synopsis}</span>}
             </button>
           </li>)}</ol> : <p>{t(snapshot.scenes.length ? 'navigator.noMatch' : 'navigator.noScenes')}</p>}

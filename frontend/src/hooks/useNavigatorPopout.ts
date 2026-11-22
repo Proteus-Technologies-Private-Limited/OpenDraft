@@ -1,6 +1,5 @@
 import { createContext, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Editor } from '@tiptap/react';
-import { ReplaceStep } from '@tiptap/pm/transform';
 import { useEditorStore } from '../stores/editorStore';
 import { getLanguage, subscribeLanguage, t } from '../i18n';
 import { sceneSummary, navigationPosition, type PanelMessage } from '../services/panelProtocol';
@@ -8,6 +7,12 @@ import { canPopOutNavigator, closeNavigatorPanels, openNavigatorPanel, publishNa
 import { showToast } from '../components/Toast';
 
 export const NavigatorPopoutContext = createContext<{ detached: boolean; available: boolean; open: () => void }>({ detached: false, available: false, open: () => {} });
+
+const documentReplacement = 'opendraft:panel-document-replacement';
+
+export function notifyPanelDocumentReplacement(editor: Editor | null) {
+  if (editor && !editor.isDestroyed) editor.view.dom.dispatchEvent(new Event(documentReplacement));
+}
 
 /** The owner remains the sole editor, undo history and persistence authority. */
 export function useNavigatorPopout(editor: Editor | null, documentIdentity: string): { detached: boolean; available: boolean; open: () => void } {
@@ -24,53 +29,57 @@ export function useNavigatorPopout(editor: Editor | null, documentIdentity: stri
     let positions: number[] = [];
     let scenes: ReturnType<typeof sceneSummary>['scenes'] = [];
     let summaryRevision = -1;
-    const publish = () => {
+    let sentRevision = -1;
+    const publish = (force = false) => {
       if (timer) clearTimeout(timer);
       timer = undefined;
       if (!active || disposed || editor.isDestroyed) return;
+      const state = useEditorStore.getState();
       if (summaryRevision !== revision) {
-        const summary = sceneSummary(editor.state.doc, editor.state.selection.from);
+        const summary = sceneSummary(editor.state.doc, editor.state.selection.from, { visible: state.sceneNumbersVisible, locked: state.sceneNumbersLocked });
         positions = summary.positions;
         scenes = summary.scenes;
         summaryRevision = revision;
       }
       let activeScene = -1;
       positions.forEach((position, index) => { if (position - 1 <= editor.state.selection.from) activeScene = index; });
-      const state = useEditorStore.getState();
+      const includeScenes = force || sentRevision !== revision;
+      const publishedRevision = revision;
+      sentRevision = revision;
       void publishNavigator({ session, revision, sequence: ++sequence, title: state.documentTitle,
-        scenes, active: activeScene, appearance: state.appearance, language: getLanguage() })
-        .catch(error => console.warn('[panels] snapshot unavailable:', error));
+        ...(includeScenes ? { scenes } : {}), active: activeScene, appearance: state.appearance, language: getLanguage() })
+        .catch(error => {
+          if (sentRevision === publishedRevision) sentRevision = -1;
+          console.warn('[panels] snapshot unavailable:', error);
+        });
     };
     const schedule = () => { if (active && !timer) timer = setTimeout(publish, 100); };
     const revealDock = () => {
       const state = useEditorStore.getState();
-      if (!state.navigatorOpen) state.toggleNavigator();
+      if (!state.navigatorOpen) useEditorStore.setState({ navigatorOpen: true });
     };
     const close = () => {
       active = false;
       setDetached(false);
       void closeNavigatorPanels(session).catch(error => console.warn('[panels] close unavailable:', error));
     };
+    const onReplacement = () => {
+      close();
+      session = crypto.randomUUID();
+      revision++;
+      positions = [];
+    };
+    const editorDom = editor.view.dom;
+    editorDom.addEventListener(documentReplacement, onReplacement);
     const onTransaction = ({ transaction: tr }: { transaction: import('@tiptap/pm/state').Transaction }) => {
-      if (tr.docChanged) {
-        revision++;
-        // Import/New/restore can replace a document while reusing the editor
-        // and route. Never carry a panel across that document boundary.
-        if (tr.steps.some(step => step instanceof ReplaceStep && step.from === 0 && step.to >= tr.before.content.size)) {
-          close();
-          session = crypto.randomUUID();
-          revision = 0;
-          positions = [];
-          summaryRevision = -1;
-        }
-      }
-      schedule();
+      if (tr.docChanged) revision++;
+      if (tr.docChanged || tr.selectionSet) schedule();
     };
     const stopCommands = subscribePanel<PanelMessage>('panel-command', message => {
       if (!active || disposed || message?.session !== session) return;
-      if (message.action?.kind === 'ready') { publish(); return; }
+      if (message.action?.kind === 'ready') { publish(true); return; }
       const position = navigationPosition(message, session, revision, positions);
-      if (position === null) { publish(); return; }
+      if (position === null) { publish(true); return; }
       // A selection-only transaction: no document change or undo entry.
       editor.chain().setTextSelection(position).scrollIntoView().run();
       schedule();
@@ -88,6 +97,10 @@ export function useNavigatorPopout(editor: Editor | null, documentIdentity: stri
       }
     });
     const stopStore = useEditorStore.subscribe((state, previous) => {
+      if (state.sceneNumbersVisible !== previous.sceneNumbersVisible || state.sceneNumbersLocked !== previous.sceneNumbersLocked) {
+        revision++;
+        schedule();
+      }
       if (state.appearance !== previous.appearance || state.documentTitle !== previous.documentTitle) schedule();
     });
     const stopLanguage = subscribeLanguage(schedule);
@@ -108,11 +121,10 @@ export function useNavigatorPopout(editor: Editor | null, documentIdentity: stri
         if (disposed || openingSession !== session) { void closeNavigatorPanels(openingSession); return; }
         active = true;
         setDetached(true);
-        revealDock();
-        publish();
+        publish(true);
       }).catch(error => {
         console.warn('[panels] could not open Navigator:', error);
-        if (!disposed) showToast(t('story:popout.failed'), 'error');
+        if (!disposed && openingSession === session) showToast(t('story:popout.failed'), 'error');
       }).finally(() => { pending = false; });
     };
     return () => {
@@ -121,6 +133,7 @@ export function useNavigatorPopout(editor: Editor | null, documentIdentity: stri
       if (timer) clearTimeout(timer);
       if (focusFrame !== undefined) cancelAnimationFrame(focusFrame);
       editor.off('transaction', onTransaction);
+      editorDom.removeEventListener(documentReplacement, onReplacement);
       stopCommands(); stopClosed(); stopStore(); stopLanguage();
       void closeNavigatorPanels(session).catch(error => console.warn('[panels] cleanup unavailable:', error));
     };
