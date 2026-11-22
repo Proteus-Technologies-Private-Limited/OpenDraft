@@ -88,6 +88,12 @@ jni = "0.21"
 # `tauri::tao::platform::android::prelude::main_android_context()`, which
 # returns an Option rather than panicking. Do not add it back.
 
+[target.'cfg(target_os = "macos")'.dependencies]
+dispatch2 = "=0.3.1"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "=0.61.3", features = ["Win32_Graphics_Dwm", "Win32_UI_WindowsAndMessaging"] }
+
 [profile.release]
 panic = "abort"
 codegen-units = 1
@@ -98,6 +104,3 @@ opt-level = "s"
 # desktop binary but does not affect runtime performance.
 strip = false
 debug = "line-tables-only"
-
-[target.'cfg(target_os = "macos")'.dependencies]
-dispatch2 = "=0.3.1"

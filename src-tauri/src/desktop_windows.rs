@@ -1,7 +1,7 @@
 //! Desktop window persistence and native integration for issue #281, Part 1.
-//! The official plugin owns size/maximized/full-screen state. The companion
+//! The official plugin owns maximized/full-screen state. The companion
 //! file records normal bounds plus display identity/work area for safe placement.
-use crate::window_placement::{self as policy, Display, Placement, Rect};
+use crate::window_placement::{self as policy, Display, FrameInsets, Placement, Rect};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, path::PathBuf, sync::Mutex};
 use tauri::{Manager, PhysicalPosition, PhysicalSize};
@@ -12,7 +12,7 @@ const FILE_NAME: &str = "window-displays.json";
 pub fn state_flags() -> StateFlags {
     // Visibility belongs to the splash transition. Decorations belong to the
     // platform. Position is handled here, and is never requested on Wayland.
-    StateFlags::SIZE | StateFlags::MAXIMIZED | StateFlags::FULLSCREEN
+    StateFlags::MAXIMIZED | StateFlags::FULLSCREEN
 }
 
 // The startup window has persistent state. Secondary windows are created by
@@ -137,6 +137,46 @@ fn can_position(window: &tauri::Window) -> bool {
     }
 }
 
+fn invisible_frame(window: &tauri::Window) -> FrameInsets {
+    #[cfg(target_os = "windows")]
+    {
+        use windows::Win32::{
+            Foundation::RECT,
+            Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_EXTENDED_FRAME_BOUNDS},
+            UI::WindowsAndMessaging::GetWindowRect,
+        };
+        if let Ok(hwnd) = window.hwnd() {
+            let mut outer = RECT::default();
+            let mut visible = RECT::default();
+            // Both APIs return rectangles in physical screen pixels for this
+            // DPI-aware window. The difference is the invisible resize border.
+            let valid = unsafe {
+                GetWindowRect(hwnd, &mut outer).is_ok()
+                    && DwmGetWindowAttribute(
+                        hwnd,
+                        DWMWA_EXTENDED_FRAME_BOUNDS,
+                        (&mut visible as *mut RECT).cast(),
+                        std::mem::size_of::<RECT>() as u32,
+                    )
+                    .is_ok()
+            };
+            if valid && visible.right > visible.left && visible.bottom > visible.top {
+                let scale = window.scale_factor().unwrap_or(1.0);
+                let margin = |physical: i32| physical.clamp(0, 32) as f64 / scale;
+                return FrameInsets {
+                    left: margin(visible.left - outer.left),
+                    top: margin(visible.top - outer.top),
+                    right: margin(outer.right - visible.right),
+                    bottom: margin(outer.bottom - visible.bottom),
+                };
+            }
+        }
+    }
+    #[cfg(not(target_os = "windows"))]
+    let _ = window;
+    FrameInsets::default()
+}
+
 fn snapshot(window: &tauri::Window) -> Option<Placement> {
     if window.is_minimized().ok()? || window.is_maximized().ok()? || window.is_fullscreen().ok()? {
         return None;
@@ -148,7 +188,8 @@ fn snapshot(window: &tauri::Window) -> Option<Placement> {
         .or_else(|| window.primary_monitor().ok().flatten())?;
     let inner = window.inner_size().ok()?;
     let outer = window.outer_size().ok()?;
-    let pos = if can_position(window) {
+    let positioned = can_position(window);
+    let pos = if positioned {
         window.outer_position().ok()?
     } else {
         PhysicalPosition::new(0, 0)
@@ -163,7 +204,9 @@ fn snapshot(window: &tauri::Window) -> Option<Placement> {
         inner: (inner.width, inner.height),
         display: display(&monitor),
     };
-    p.valid().then_some(p)
+    (p.valid()
+        && !policy::fills_work_area(&p.outer, &p.display, invisible_frame(window), positioned))
+    .then_some(p)
 }
 
 fn remember(window: &tauri::Window) {
@@ -181,8 +224,11 @@ fn remember(window: &tauri::Window) {
 
 fn record(window: &tauri::Window, p: Placement) {
     if let Some(state) = window.app_handle().try_state::<WindowDisplays>() {
-        if let Ok(mut windows) = state.windows.lock() {
-            windows.insert(placement_key(window.label()).into(), p.into());
+        match state.windows.lock() {
+            Ok(mut windows) => {
+                windows.insert(placement_key(window.label()).into(), p.into());
+            }
+            Err(error) => eprintln!("[window] Could not record normal bounds: {error}"),
         }
     }
 }
@@ -195,13 +241,22 @@ fn persist(app: &tauri::AppHandle) {
         return;
     };
     // Serialize writes, including the temporary file, across close/exit events.
-    let Ok(windows) = state.windows.lock() else {
-        return;
+    let windows = match state.windows.lock() {
+        Ok(windows) => windows,
+        Err(error) => {
+            eprintln!("[window] Could not lock display placement for saving: {error}");
+            return;
+        }
     };
+    // Secondary geometry is only a session-local reference for New Window.
+    let saved: HashMap<_, _> = windows
+        .iter()
+        .filter(|(label, _)| label.as_str() == "main" || panel_key(label).is_some())
+        .collect();
     let result = (|| -> Result<(), Box<dyn std::error::Error>> {
         std::fs::create_dir_all(path.parent().ok_or("no config directory")?)?;
         let temporary = path.with_extension("json.tmp");
-        std::fs::write(&temporary, serde_json::to_vec_pretty(&*windows)?)?;
+        std::fs::write(&temporary, serde_json::to_vec_pretty(&saved)?)?;
         std::fs::rename(temporary, path)?;
         Ok(())
     })();
@@ -234,6 +289,15 @@ fn apply(window: &tauri::Window, p: &Placement) -> tauri::Result<()> {
     if positioned {
         window.set_position(position)?;
     }
+    // Wayland chooses the output when the window is mapped. Request logical
+    // dimensions so Tao does not divide physical values by the pre-map scale.
+    #[cfg(target_os = "linux")]
+    if positioned {
+        window.set_size(size)?;
+    } else {
+        window.set_size(size.to_logical::<f64>(scale))?;
+    }
+    #[cfg(not(target_os = "linux"))]
     window.set_size(size)?;
     if positioned {
         window.set_position(position)?;
@@ -253,11 +317,12 @@ fn fit_saved(window: &tauri::Window, saved: &Placement) -> tauri::Result<()> {
         .primary_monitor()?
         .map(|m| display(&m))
         .or_else(|| displays.first().cloned());
+    let frame = invisible_frame(window);
     if let Some(p) = primary.and_then(|primary| {
         if panel_key(window.label()).is_some() {
-            policy::restore_panel(saved, &displays, &primary)
+            policy::restore_panel(saved, &displays, &primary, frame)
         } else {
-            policy::restore(saved, &displays, &primary)
+            policy::restore(saved, &displays, &primary, frame)
         }
     }) {
         apply(window, &p)?;
@@ -302,9 +367,9 @@ pub fn setup(app: &tauri::AppHandle) {
             .state::<WindowDisplays>()
             .windows
             .lock()
-            .unwrap()
-            .get("main")
-            .and_then(SavedPlacement::placement);
+            .map_err(|error| eprintln!("[window] Could not lock saved normal bounds: {error}"))
+            .ok()
+            .and_then(|windows| windows.get("main").and_then(SavedPlacement::placement));
         let result = (|| -> tauri::Result<()> {
             if let Some(saved) = saved {
                 fit_saved(window, &saved)?;
@@ -344,11 +409,12 @@ pub fn show_new(window: &tauri::WebviewWindow, origin: Option<&tauri::WebviewWin
             // Maximizing/full-screening can move a window to another display.
             // Rebase cached normal bounds at that display's current DPI first.
             let current = display(&monitor);
-            p = policy::restore(&p, &[current.clone()], &current)?;
+            let frame = invisible_frame(source);
+            p = policy::restore(&p, &[current.clone()], &current, frame)?;
             if panel_key(window.label()).is_some() {
-                policy::new_panel(&p)
+                policy::new_panel(&p, frame)
             } else {
-                policy::new_window(&p)
+                policy::new_window(&p, frame)
             }
         });
         if let Some(p) = p {
@@ -385,10 +451,13 @@ fn show_after_placement(window: &tauri::WebviewWindow) {
 }
 
 pub fn show_startup(window: &tauri::WebviewWindow) {
+    #[cfg(not(target_os = "windows"))]
     show_and_focus(window);
     if let Err(error) = window.restore_state(StateFlags::MAXIMIZED | StateFlags::FULLSCREEN) {
         eprintln!("[window] Could not restore window mode: {error}");
     }
+    #[cfg(target_os = "windows")]
+    show_and_focus(window);
 }
 
 pub fn file_open_origin(app: &tauri::AppHandle) -> Option<tauri::WebviewWindow> {
@@ -473,7 +542,8 @@ mod tests {
     #[test]
     fn plugin_does_not_restore_visibility_decorations_or_wayland_positions() {
         let flags = state_flags();
-        assert!(flags.contains(StateFlags::SIZE | StateFlags::MAXIMIZED | StateFlags::FULLSCREEN));
+        assert!(flags.contains(StateFlags::MAXIMIZED | StateFlags::FULLSCREEN));
+        assert!(!flags.contains(StateFlags::SIZE));
         assert!(
             !flags.intersects(StateFlags::VISIBLE | StateFlags::DECORATIONS | StateFlags::POSITION)
         );

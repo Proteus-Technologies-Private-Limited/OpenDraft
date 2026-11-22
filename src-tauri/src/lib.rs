@@ -2987,7 +2987,6 @@ async fn open_new_window(app: tauri::AppHandle, window: tauri::WebviewWindow) ->
         builder = builder
             .title("OpenDraft")
             .visible(false)
-            .focused(false)
             .inner_size(1280.0, 800.0)
             .min_inner_size(800.0, 600.0)
             .resizable(true);
@@ -3527,15 +3526,12 @@ pub fn run() {
                         match tauri::WebviewWindowBuilder::new(_app_handle, &label, url)
                             .title("OpenDraft")
                             .visible(false)
-                            .focused(false)
                             .inner_size(1280.0, 800.0)
                             .min_inner_size(800.0, 600.0)
                             .resizable(true)
                             .build()
                         {
                             Ok(_new_win) => {
-                                #[cfg(target_os = "linux")]
-                                prepare_linux_titlebar(&_new_win);
                                 desktop_windows::show_new(&_new_win, origin.as_ref());
                                 // Use emit_to with the label to target ONLY the new window.
                                 // WebviewWindow::emit() broadcasts to all windows.
