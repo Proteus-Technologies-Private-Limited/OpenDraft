@@ -12,6 +12,7 @@ import { useEditorFields } from '../stores/editorStore';
 import { ModalOverlay } from './ModalOverlay';
 import PanelsTab from './layout/PanelsTab';
 import { useLayoutFocus } from './layout/useLayoutFocus';
+import { focusableElements } from '../utils/modalAccessibility';
 import BarsTab from './layout/BarsTab';
 import { useWorkspaceLayoutChoices } from './toolbar/toolbarMeta';
 import { useWorkspaceDocksAvailable } from '../hooks/useWorkspaceDocks';
@@ -19,7 +20,6 @@ import '../styles/workspaceLayout.css';
 
 const LayoutDialog: React.FC = () => {
   const { t } = useTranslation('toolbar');
-  const focus = useLayoutFocus();
   const {
     layoutDialog, setLayoutDialog, workspaceLayout, setWorkspaceLayout, workspacePreset, applyWorkspacePreset,
     toolbarLayout, setToolbarLayout, applyToolbarPreset,
@@ -27,6 +27,7 @@ const LayoutDialog: React.FC = () => {
     'layoutDialog', 'setLayoutDialog', 'workspaceLayout', 'setWorkspaceLayout', 'workspacePreset', 'applyWorkspacePreset',
     'toolbarLayout', 'setToolbarLayout', 'applyToolbarPreset',
   );
+  const focus = useLayoutFocus(!!layoutDialog);
   const layouts = useWorkspaceLayoutChoices();
   // On a phone or narrow window the panels are overlays, not docks, so the
   // Panels tab and the layout switch would change nothing: only the bars.
@@ -108,7 +109,17 @@ const LayoutDialog: React.FC = () => {
 
         {tabs.map(tab => (
           <div key={tab.id} className="layout-dialog-body" role="tabpanel" id={`layout-tabpanel-${tab.id}`}
-            aria-labelledby={`layout-tab-${tab.id}`} hidden={tab.id !== activeTab} tabIndex={tab.id === activeTab ? 0 : -1}>
+            aria-labelledby={`layout-tab-${tab.id}`} hidden={tab.id !== activeTab} tabIndex={-1}
+            onKeyDown={event => {
+              if (event.key !== 'Tab' || event.target !== event.currentTarget) return;
+              const target = event.shiftKey
+                ? tabRefs.current[tab.id]
+                : focusableElements(event.currentTarget)[0] ?? tabRefs.current[tab.id];
+              if (target) {
+                event.preventDefault();
+                target.focus();
+              }
+            }}>
             {tab.id === activeTab && (tab.id === 'panels'
               ? <PanelsTab layout={workspaceLayout} setLayout={setWorkspaceLayout} />
               : <BarsTab state={toolbarLayout} setState={setToolbarLayout} />)}
