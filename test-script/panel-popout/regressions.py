@@ -107,6 +107,7 @@ async def run():
                 label = await page.evaluate("window.__panelLabel")
                 calls.append(command)
                 if command == "plugin:event|listen":
+                    assert args["target"] == {"kind": "WebviewWindow", "label": label}
                     # Force registration to lag context/open replies, exercising
                     # the readiness handshake instead of relying on IPC order.
                     await asyncio.sleep(0.05)
@@ -189,7 +190,8 @@ async def run():
             await panel.locator('[aria-current="location"]').filter(
                 has_text="INT. ROOM"
             ).wait_for()
-            checks.append("owner caret follows into panel highlight")
+            assert "scenes" not in snapshots[-1]
+            checks.append("owner caret updates without sending scene summaries")
             await panel.get_by_role("searchbox").fill("Footsteps")
             assert await panel.locator("nav button").count() == 1
             await panel.locator("nav button").click()
@@ -201,7 +203,16 @@ async def run():
             await panel.get_by_role(
                 "button", name="1. INT. UPDATED ROOM - DAY"
             ).wait_for()
+            await owner.evaluate("panelTest.rewriteSameDocument()")
+            await panel.get_by_role(
+                "button", name="1. INT. UPDATED ROOM - DAY"
+            ).wait_for()
             position = await owner.evaluate("panelTest.selection()")
+            assert await owner.locator("#detached").inner_text() == "true"
+            assert not panel.is_closed()
+            checks.append(
+                "whole-document edit in the same session keeps the panel open"
+            )
             await deliver(
                 "main",
                 "panel-command",

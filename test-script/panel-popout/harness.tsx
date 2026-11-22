@@ -25,6 +25,7 @@ function Owner() {
       select: (pos: number) => editor.commands.setTextSelection(pos), selection: () => editor.state.selection.from,
       insert: (text: string) => editor.commands.insertContent(text),
       replace: () => { notifyPanelDocumentReplacement(editor); editor.commands.setContent({ type: 'doc', content: [{ type: 'paragraph' }] }); },
+      rewriteSameDocument: () => editor.commands.setContent(editor.getJSON()),
       switch: () => setIdentity(value => value === 'one' ? 'two' : 'one'),
       appearance: (appearance: 'light' | 'dark' | 'dark-pages') => useEditorStore.setState({ appearance }),
       language: (language: 'en' | 'ar') => setLanguage(language),
