@@ -10,6 +10,41 @@ pub struct Rect {
     pub height: u32,
 }
 
+/// Invisible native frame margins, expressed in logical pixels.
+#[derive(Clone, Copy, Default)]
+pub struct FrameInsets {
+    pub left: f64,
+    pub top: f64,
+    pub right: f64,
+    pub bottom: f64,
+}
+
+impl FrameInsets {
+    fn physical(self, scale: f64) -> [i64; 4] {
+        [self.left, self.top, self.right, self.bottom].map(|value| (value * scale).round() as i64)
+    }
+}
+
+/// Reject resize events that already have maximized geometry before the
+/// platform reports the corresponding window state.
+pub fn fills_work_area(
+    rect: &Rect,
+    display: &Display,
+    frame: FrameInsets,
+    positioned: bool,
+) -> bool {
+    let [left, top, right, bottom] = frame.physical(display.scale);
+    let area = &display.area;
+    let x = i64::from(rect.x) + left;
+    let y = i64::from(rect.y) + top;
+    let width = i64::from(rect.width) - left - right;
+    let height = i64::from(rect.height) - top - bottom;
+    let close = |a: i64, b: i32| (a - i64::from(b)).abs() <= 1;
+    (width - i64::from(area.width)).abs() <= 1
+        && (height - i64::from(area.height)).abs() <= 1
+        && (!positioned || (close(x, area.x) && close(y, area.y)))
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct Display {
     pub name: Option<String>,
@@ -62,20 +97,25 @@ pub fn matching_display<'a>(saved: &Display, displays: &'a [Display]) -> Option<
 /// Fit a normal window inside one display's work area (excluding taskbars/docks).
 /// Retain logical dimensions and offset across DPI changes; center after a
 /// disconnect, rather than leaving the title bar or resize edge off screen.
-pub fn restore(saved: &Placement, displays: &[Display], primary: &Display) -> Option<Placement> {
+pub fn restore(
+    saved: &Placement,
+    displays: &[Display],
+    primary: &Display,
+    frame: FrameInsets,
+) -> Option<Placement> {
     if !saved.valid() || !primary.valid() {
         return None;
     }
     let existing = matching_display(&saved.display, displays);
     let target = existing.unwrap_or(primary);
-    Some(fit(saved, target, existing.is_none(), 0.0))
+    Some(fit(saved, target, existing.is_none(), 0.0, frame))
 }
 
 /// New Window explicitly follows its caller, overriding any old slot's display.
-pub fn new_window(origin: &Placement) -> Option<Placement> {
+pub fn new_window(origin: &Placement, frame: FrameInsets) -> Option<Placement> {
     origin
         .valid()
-        .then(|| fit(origin, &origin.display, false, 32.0))
+        .then(|| fit(origin, &origin.display, false, 32.0, frame))
 }
 
 fn pixels(value: f64) -> u32 {
@@ -86,17 +126,30 @@ fn coordinate(value: f64) -> i32 {
     value.round().clamp(i32::MIN as f64, i32::MAX as f64) as i32
 }
 
-fn fit(saved: &Placement, target: &Display, center: bool, cascade: f64) -> Placement {
+fn fit(
+    saved: &Placement,
+    target: &Display,
+    center: bool,
+    cascade: f64,
+    frame: FrameInsets,
+) -> Placement {
     let ratio = target.scale / saved.display.scale;
     let area = &target.area;
+    let [left, top, right, bottom] = frame.physical(target.scale);
+    let bounds = Rect {
+        x: area.x.saturating_sub(left as i32),
+        y: area.y.saturating_sub(top as i32),
+        width: area.width.saturating_add((left + right) as u32),
+        height: area.height.saturating_add((top + bottom) as u32),
+    };
     let frame_w = ((saved.outer.width - saved.inner.0) as f64 * ratio)
         .round()
-        .min(area.width.saturating_sub(1) as f64) as u32;
+        .min(bounds.width.saturating_sub(1) as f64) as u32;
     let frame_h = ((saved.outer.height - saved.inner.1) as f64 * ratio)
         .round()
-        .min(area.height.saturating_sub(1) as f64) as u32;
-    let available_w = area.width.saturating_sub(frame_w).max(1);
-    let available_h = area.height.saturating_sub(frame_h).max(1);
+        .min(bounds.height.saturating_sub(1) as f64) as u32;
+    let available_w = bounds.width.saturating_sub(frame_w).max(1);
+    let available_h = bounds.height.saturating_sub(frame_h).max(1);
     let inner = (
         pixels(saved.inner.0 as f64 * ratio)
             .max(pixels(800.0 * target.scale))
@@ -105,17 +158,17 @@ fn fit(saved: &Placement, target: &Display, center: bool, cascade: f64) -> Place
             .max(pixels(600.0 * target.scale))
             .min(available_h),
     );
-    let width = inner.0.saturating_add(frame_w).min(area.width);
-    let height = inner.1.saturating_add(frame_h).min(area.height);
+    let width = inner.0.saturating_add(frame_w).min(bounds.width);
+    let height = inner.1.saturating_add(frame_h).min(bounds.height);
     let x = if center {
-        area.x as f64 + (area.width - width) as f64 / 2.0
+        bounds.x as f64 + (bounds.width - width) as f64 / 2.0
     } else {
         area.x as f64
             + (saved.outer.x as f64 - saved.display.area.x as f64) * ratio
             + cascade * target.scale
     };
     let y = if center {
-        area.y as f64 + (area.height - height) as f64 / 2.0
+        bounds.y as f64 + (bounds.height - height) as f64 / 2.0
     } else {
         area.y as f64
             + (saved.outer.y as f64 - saved.display.area.y as f64) * ratio
@@ -123,8 +176,14 @@ fn fit(saved: &Placement, target: &Display, center: bool, cascade: f64) -> Place
     };
     Placement {
         outer: Rect {
-            x: coordinate(x.clamp(area.x as f64, area.x as f64 + (area.width - width) as f64)),
-            y: coordinate(y.clamp(area.y as f64, area.y as f64 + (area.height - height) as f64)),
+            x: coordinate(x.clamp(
+                bounds.x as f64,
+                bounds.x as f64 + (bounds.width - width) as f64,
+            )),
+            y: coordinate(y.clamp(
+                bounds.y as f64,
+                bounds.y as f64 + (bounds.height - height) as f64,
+            )),
             width,
             height,
         },
@@ -171,11 +230,39 @@ mod tests {
     }
 
     #[test]
+    fn invisible_frame_stays_outside_the_snapped_visible_edge() {
+        let screen = display("primary", 0, 0, 1920, 1040, 1.0);
+        let insets = FrameInsets {
+            left: 7.0,
+            top: 0.0,
+            right: 7.0,
+            bottom: 7.0,
+        };
+        let saved = window(&screen, -7, 0, 959, 1015);
+        let result = restore(&saved, &[screen.clone()], &screen, insets).unwrap();
+        assert_eq!(result.outer.x, -7);
+        assert!(!fills_work_area(&result.outer, &screen, insets, true));
+        let maximized = Rect {
+            x: -7,
+            y: 0,
+            width: 1934,
+            height: 1047,
+        };
+        assert!(fills_work_area(&maximized, &screen, insets, true));
+    }
+
+    #[test]
     fn restores_on_secondary_and_negative_coordinate_displays() {
         let primary = display("primary", 0, 0, 1920, 1040, 1.0);
         let second = display("second", -1920, -200, 1920, 1040, 1.0);
         let saved = window(&second, -1800, -100, 1000, 700);
-        let restored = restore(&saved, &[primary.clone(), second], &primary).unwrap();
+        let restored = restore(
+            &saved,
+            &[primary.clone(), second],
+            &primary,
+            FrameInsets::default(),
+        )
+        .unwrap();
         assert_eq!(restored, saved);
         visible(&restored);
     }
@@ -185,7 +272,8 @@ mod tests {
         let primary = display("primary", 0, 40, 1024, 700, 1.0);
         let second = display("second", 1920, 0, 3840, 2160, 2.0);
         let saved = window(&second, 2100, 100, 2400, 1600);
-        let restored = restore(&saved, &[primary.clone()], &primary).unwrap();
+        let restored =
+            restore(&saved, &[primary.clone()], &primary, FrameInsets::default()).unwrap();
         assert_eq!(restored.display, primary);
         visible(&restored);
     }
@@ -195,7 +283,7 @@ mod tests {
         let old = display("primary", 0, 0, 1920, 1080, 1.0);
         let now = display("primary", 0, 24, 640, 440, 1.0);
         let saved = window(&old, 1800, 1000, 1280, 800);
-        let restored = restore(&saved, &[now.clone()], &now).unwrap();
+        let restored = restore(&saved, &[now.clone()], &now, FrameInsets::default()).unwrap();
         visible(&restored);
         assert!(restored.inner.0 < 800 && restored.inner.1 < 600);
     }
@@ -205,7 +293,7 @@ mod tests {
         let old = display("second", 1920, 0, 1920, 1080, 1.0);
         let now = display("second", -3840, 0, 3840, 2160, 2.0);
         let saved = window(&old, 2020, 100, 1000, 700);
-        let restored = restore(&saved, &[now.clone()], &now).unwrap();
+        let restored = restore(&saved, &[now.clone()], &now, FrameInsets::default()).unwrap();
         assert_eq!(restored.inner, (2000, 1400));
         assert_eq!((restored.outer.x, restored.outer.y), (-3640, 200));
         visible(&restored);
@@ -215,11 +303,17 @@ mod tests {
     fn new_window_uses_originating_display_and_cascades_within_it() {
         let second = display("second", 1920, 0, 1920, 1040, 1.0);
         let origin = window(&second, 2000, 50, 1000, 700);
-        let new = new_window(&origin).unwrap();
+        let new = new_window(&origin, FrameInsets::default()).unwrap();
         assert_eq!(new.display, second);
         assert_eq!((new.outer.x, new.outer.y), (2032, 82));
         visible(&new);
-        visible(&new_window(&window(&new.display, 3700, 900, 1000, 700)).unwrap());
+        visible(
+            &new_window(
+                &window(&new.display, 3700, 900, 1000, 700),
+                FrameInsets::default(),
+            )
+            .unwrap(),
+        );
     }
 
     #[test]
@@ -239,7 +333,8 @@ mod tests {
                 let now = display("primary", -1600, 30, width, height, scale);
                 for (x, y) in [(i32::MIN, i32::MAX), (-5000, -2000), (0, 0), (4000, 2000)] {
                     let saved = window(&old, x, y, 1280, 800);
-                    let restored = restore(&saved, &[now.clone()], &now).unwrap();
+                    let restored =
+                        restore(&saved, &[now.clone()], &now, FrameInsets::default()).unwrap();
                     assert!(restored.valid());
                     visible(&restored);
                 }
@@ -251,11 +346,11 @@ mod tests {
     fn invalid_geometry_is_ignored_and_extreme_offsets_do_not_overflow() {
         let d = display("primary", 0, 0, 1920, 1040, 1.0);
         let mut saved = window(&d, i32::MAX, i32::MIN, 1000, 700);
-        visible(&restore(&saved, &[d.clone()], &d).unwrap());
+        visible(&restore(&saved, &[d.clone()], &d, FrameInsets::default()).unwrap());
         saved.display.scale = f64::NAN;
-        assert!(restore(&saved, &[d.clone()], &d).is_none());
+        assert!(restore(&saved, &[d.clone()], &d, FrameInsets::default()).is_none());
         saved.display.scale = 1.0;
         saved.inner.0 = 0;
-        assert!(new_window(&saved).is_none());
+        assert!(new_window(&saved, FrameInsets::default()).is_none());
     }
 }

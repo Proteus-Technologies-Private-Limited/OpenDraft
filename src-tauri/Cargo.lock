@@ -2971,6 +2971,7 @@ dependencies = [
  "tauri-plugin-window-state",
  "tauri-runtime-wry",
  "ttf-parser",
+ "windows",
 ]
 
 [[package]]

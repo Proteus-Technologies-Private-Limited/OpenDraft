@@ -1,5 +1,5 @@
 {
-  "version": "a07e2f2075b3699b",
+  "version": "0f41977936cb3360",
   "pages": [
     {
       "slug": "index.html",
@@ -11,7 +11,7 @@
       "slug": "getting-started.html",
       "title": "Getting Started",
       "section": "Getting Started",
-      "hash": "9fae6b24ec5e8486"
+      "hash": "1a7961ee8b2e1adb"
     },
     {
       "slug": "installation.html",
