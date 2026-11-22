@@ -86,6 +86,7 @@ impl SavedPlacement {
 struct WindowDisplays {
     path: Option<PathBuf>,
     windows: Mutex<HashMap<String, SavedPlacement>>,
+    last_focused: Mutex<Option<String>>,
 }
 
 fn display(monitor: &tauri::Monitor) -> Display {
@@ -152,6 +153,10 @@ fn remember(window: &tauri::Window) {
     if !tracked(window.label()) {
         return;
     }
+    // Initial frame setters can emit intermediate geometry while still hidden.
+    if !window.is_visible().unwrap_or(false) {
+        return;
+    }
     if let Some(p) = snapshot(window) {
         record(window, p);
     }
@@ -173,7 +178,9 @@ fn persist(app: &tauri::AppHandle) {
         return;
     };
     // Serialize writes, including the temporary file, across close/exit events.
-    let windows = state.windows.lock().unwrap();
+    let Ok(windows) = state.windows.lock() else {
+        return;
+    };
     let result = (|| -> Result<(), Box<dyn std::error::Error>> {
         std::fs::create_dir_all(path.parent().ok_or("no config directory")?)?;
         let temporary = path.with_extension("json.tmp");
@@ -259,6 +266,7 @@ pub fn setup(app: &tauri::AppHandle) {
     app.manage(WindowDisplays {
         path,
         windows: Mutex::new(windows),
+        last_focused: Mutex::new(None),
     });
     if let Some(main) = app.get_webview_window("main") {
         let window = &main.as_ref().window();
@@ -273,7 +281,6 @@ pub fn setup(app: &tauri::AppHandle) {
             if let Some(saved) = saved {
                 fit_saved(window, &saved)?;
             } else {
-                window.restore_state(StateFlags::SIZE)?;
                 if let Some(current) = snapshot(window) {
                     fit_saved(window, &current)?;
                 }
@@ -352,11 +359,38 @@ pub fn show_startup(window: &tauri::WebviewWindow) {
     }
 }
 
+pub fn file_open_origin(app: &tauri::AppHandle) -> Option<tauri::WebviewWindow> {
+    let last = app
+        .try_state::<WindowDisplays>()
+        .and_then(|state| state.last_focused.lock().ok()?.clone());
+    last.and_then(|label| app.get_webview_window(&label))
+        .or_else(|| app.get_webview_window("main"))
+        .or_else(|| {
+            app.webview_windows()
+                .into_values()
+                .find(|window| tracked(window.label()))
+        })
+}
+
 pub fn on_window_event(window: &tauri::Window, event: &tauri::WindowEvent) {
     if !tracked(window.label()) {
         return;
     }
     match event {
+        tauri::WindowEvent::Focused(true) => {
+            if let Some(state) = window.app_handle().try_state::<WindowDisplays>() {
+                if let Ok(mut last) = state.last_focused.lock() {
+                    *last = Some(window.label().into());
+                }
+            }
+        }
+        tauri::WindowEvent::Destroyed if window.label() != "main" => {
+            if let Some(state) = window.app_handle().try_state::<WindowDisplays>() {
+                if let Ok(mut windows) = state.windows.lock() {
+                    windows.remove(window.label());
+                }
+            }
+        }
         tauri::WindowEvent::Moved(_)
         | tauri::WindowEvent::Resized(_)
         | tauri::WindowEvent::ScaleFactorChanged { .. } => remember(window),

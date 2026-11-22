@@ -3503,9 +3503,7 @@ pub fn run() {
                         let count = WINDOW_COUNTER.fetch_add(1, Ordering::Relaxed);
                         let label = format!("main-{}", count);
                         let url = tauri::WebviewUrl::App("/".into());
-                        let origin = _app_handle.webview_windows().into_values()
-                            .find(|w| desktop_windows::tracked(w.label()) && w.is_focused().unwrap_or(false))
-                            .or_else(|| _app_handle.get_webview_window("main"));
+                        let origin = desktop_windows::file_open_origin(_app_handle);
                         match tauri::WebviewWindowBuilder::new(_app_handle, &label, url)
                             .title("OpenDraft")
                             .visible(false)
