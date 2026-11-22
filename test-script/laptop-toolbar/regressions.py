@@ -58,10 +58,12 @@ class LaptopToolbar(unittest.TestCase):
         self.page.keyboard.press("ArrowRight")
         self.page.keyboard.press("Enter")
         expect(line).to_have_count(0)
-        expect(trigger).to_be_focused()
+        expect(self.page.locator(".ProseMirror")).to_be_focused()
         self.assertNotEqual(
             self.page.evaluate("testStore.getState().activeElement"), "action"
         )
+        self.page.keyboard.type("ALICE")
+        self.assertIn("ALICE", self.page.evaluate("testEditor.getText()"))
         trigger.click()
         line.get_by_role("button", name="Close", exact=True).click()
         expect(trigger).to_be_focused()
@@ -107,7 +109,7 @@ class LaptopToolbar(unittest.TestCase):
         self.page.keyboard.press("ArrowRight")
         self.page.keyboard.press("Enter")
         expect(line).to_have_count(0)
-        expect(trigger).to_be_focused()
+        expect(self.page.locator(".ProseMirror")).to_be_focused()
 
     def test_posture_switch_preserves_editor_and_toolbar_choices(self):
         saved = self.page.evaluate("JSON.stringify(testStore.getState().toolbarLayout)")
@@ -156,7 +158,7 @@ class LaptopToolbar(unittest.TestCase):
         self.assertEqual(picker.bounding_box()["height"], 44)
         picker.locator(".color-picker-swatch").nth(6).click()
         expect(picker).to_have_count(0)
-        expect(color).to_be_focused()
+        expect(self.page.locator(".ProseMirror")).to_be_focused()
         self.assertEqual(
             self.page.evaluate("testEditor.getAttributes('textStyle').color"), "#ff0000"
         )
@@ -225,7 +227,7 @@ class LaptopToolbar(unittest.TestCase):
         choices.get_by_role("option", name="16pt", exact=True).click()
         expect(choices).to_have_count(0)
         expect(line).to_have_count(0)
-        expect(button).to_be_focused()
+        expect(self.page.locator(".ProseMirror")).to_be_focused()
         self.assertEqual(
             self.page.evaluate("testEditor.getAttributes('textStyle').fontSize"), "16pt"
         )
@@ -329,7 +331,7 @@ class LaptopToolbar(unittest.TestCase):
         self.page.keyboard.press("ArrowDown")
         self.page.keyboard.press("Enter")
         expect(popup).to_have_count(0)
-        expect(overflow).to_be_focused()
+        expect(self.page.locator(".ProseMirror")).to_be_focused()
 
 
 if __name__ == "__main__":

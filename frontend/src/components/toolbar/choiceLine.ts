@@ -8,16 +8,21 @@ export interface ChoiceLineAnchor {
 
 /** The same second row for every built-in toolbar popup, including overflow. */
 export function toolbarChoiceLine(trigger: HTMLElement): ChoiceLineAnchor | null {
-  const toolbar = trigger.closest<HTMLElement>('.toolbar');
-  if (!toolbar || !(toolbar.classList.contains('toolbar--laptop')
-    || document.documentElement.classList.contains('fold-book'))) return null;
-  const box = toolbar.getBoundingClientRect();
-  const style = getComputedStyle(toolbar);
-  const left = parseFloat(style.paddingLeft) || 0;
-  const right = parseFloat(style.paddingRight) || 0;
-  const width = box.width - left - right;
-  if (width <= 0) return null;
-  return { left: box.left + left, top: box.top + (parseFloat(style.paddingTop) || 0) + 44 + 4, width, height: 44 };
+  try {
+    const toolbar = trigger.closest<HTMLElement>('.toolbar');
+    if (!toolbar || !(toolbar.classList.contains('toolbar--laptop')
+      || document.documentElement.classList.contains('fold-book'))) return null;
+    const box = toolbar.getBoundingClientRect();
+    const style = getComputedStyle(toolbar);
+    const left = parseFloat(style.paddingLeft) || 0;
+    const right = parseFloat(style.paddingRight) || 0;
+    const width = box.width - left - right;
+    if (width <= 0) return null;
+    return { left: box.left + left, top: box.top + (parseFloat(style.paddingTop) || 0) + 44 + (parseFloat(style.rowGap) || 0), width, height: 44 };
+  } catch (error) {
+    console.warn("[toolbar] Could not measure the choice row", error);
+    return null;
+  }
 }
 
 /** Follow native geometry too. Close on a posture change, preserving focus
@@ -94,6 +99,6 @@ export function restoreChoiceFocus(trigger: RefObject<HTMLElement | null>) {
   requestAnimationFrame(() => {
     const active = document.activeElement;
     if (!trigger.current?.isConnected || document.querySelector('[aria-modal="true"]')) return;
-    if (active === document.body || active === trigger.current || active?.closest('.ProseMirror')) trigger.current.focus();
+    if (active === document.body || active === trigger.current) trigger.current.focus();
   });
 }

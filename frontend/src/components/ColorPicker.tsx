@@ -1,6 +1,6 @@
 import { ChoiceLineBack, ChoiceLineClose } from './toolbar/ChoiceLineControls';
 import React, { useEffect, useLayoutEffect, useCallback, useRef, useState } from 'react';
-import { toolbarChoiceLine, useChoiceLineLifecycle, useChoiceLinePosition, moveChoiceFocus, restoreChoiceFocus } from './toolbar/choiceLine';
+import { toolbarChoiceLine, useChoiceLineLifecycle, useChoiceLinePosition, moveChoiceFocus } from './toolbar/choiceLine';
 import { useTranslation } from 'react-i18next';
 
 interface ColorPickerProps {
@@ -27,7 +27,7 @@ const ColorPicker: React.FC<ColorPickerProps> = ({ label, value, onChange, onClo
   useChoiceLineLifecycle(!!line, opener, ref, onClose);
   useChoiceLinePosition(!!line, ref, useCallback(() => { if (ref.current) setLine(toolbarChoiceLine(ref.current)); }, []));
   const close = () => { onClose(); opener.current?.focus(); };
-  const choose = (color: string | null) => { onChange(color); if (line) restoreChoiceFocus(opener); };
+  const choose = (color: string | null) => { onChange(color); };
   const validColor = /^#[0-9a-f]{6}$/i.test(customColor);
 
   useEffect(() => {

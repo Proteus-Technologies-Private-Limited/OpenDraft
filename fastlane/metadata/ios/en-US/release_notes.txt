@@ -1,25 +1,16 @@
-Arrange your workspace your way, write side by side with your pages or cards, and draft in one continuous scroll.
+Build your characters and places in detail, see everything about the scene you are writing, and open OpenDraft again on older iPhones and iPads.
 
-YOUR WORKSPACE, YOUR WAY
-Choose what sits on the toolbar and the status bar, and in what order. Whatever doesn't fit on the screen is one tap away, just above the status bar. On a larger screen, put the Navigator and every panel where you want them and save layouts you can switch between in one tap.
+CHARACTERS, LOCATIONS AND SCENE DETAILS
+Give each character a profile with pictures, their story, voice, relationships and the costumes they wear. Give each location a description, looks such as Day and Night, and reference pictures. Scene Details shows the scene you are in: where it is set, who is there and what each of them wears. Your existing profiles and pictures carry over.
 
-ONE ZOOM CONTROL
-Zoom with buttons, a slider or both, and fit the page to the width of the screen in one tap. Keep it on the status bar or move it to the toolbar.
+WORKS ON iOS 15 AGAIN
+If OpenDraft stopped at "Loading timed out" on iOS 15 or an early version of iOS 16, it opens normally again.
 
-SPLIT SCREEN
-Keep the printed page, your index cards, the outline or the beat board open beside the script.
+PLANNING VIEWS ON FOLDABLES
+On a foldable held open, the page view, index cards, outline and beat board open beside the script.
 
-SPEED VIEW
-Write in one continuous scroll without page breaks. Your page count and exports stay exactly the same.
-
-STORY MAP
-See your whole story as a strip of scenes, sized by pages or screen time, and jump to any scene.
-
-A HANDIER NAVIGATOR
-Edit synopses right in the list, colour scenes, and see the page each scene starts on.
-
-LINE SPACING AND FONT SIZE
-Open up the spacing or change the script's font size, and the pages and PDF follow.
+EASIER BY KEYBOARD
+Customising your workspace now works fully from the keyboard.
 
 ALSO IMPROVED
-Settings are easier to find, PDFs print accented letters and more languages correctly, foldable layouts fit better, and Table Read keeps its place while you edit.
+Typing in long scripts is faster, panels fit better on smaller screens, and you can rate OpenDraft from the Help menu.

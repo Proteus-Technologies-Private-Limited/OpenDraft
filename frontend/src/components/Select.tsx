@@ -193,7 +193,9 @@ const Select: React.FC<SelectProps> = ({
     [items],
   );
 
-  const openList = useCallback(() => {
+  const openedByKeyboard = useRef(false);
+  const openList = useCallback((keyboard: boolean) => {
+    openedByKeyboard.current = keyboard;
     if (disabled || !buttonRef.current) return;
     setAnchor(anchorTo(buttonRef.current));
     setActiveIndex(choosable(selectedIndex) ? selectedIndex : options.find(choosable) ?? -1);
@@ -211,7 +213,7 @@ const Select: React.FC<SelectProps> = ({
   const commit = useCallback((index: number) => {
     const it = items[index];
     if (!it || it.kind !== 'option' || it.disabled) return;
-    close(true);
+    close(!anchor?.line || openedByKeyboard.current);
     // Like a native select, a change event only when the value actually changes.
     if (it.value === current) return;
     if (!controlled) setUncontrolledValue(it.value);
@@ -222,7 +224,7 @@ const Select: React.FC<SelectProps> = ({
     } catch (err) {
       console.error('[Select] onChange handler failed', err);
     }
-    if (anchor?.line) restoreChoiceFocus(buttonRef);
+    if (anchor?.line && openedByKeyboard.current) restoreChoiceFocus(buttonRef);
   }, [items, current, controlled, onChange, name, close, anchor]);
 
 
@@ -310,7 +312,7 @@ const Select: React.FC<SelectProps> = ({
     if (!open) {
       if (['ArrowDown', 'ArrowUp', 'Enter', ' '].includes(e.key)) {
         e.preventDefault();
-        openList();
+        openList(true);
       } else if (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey) {
         // Typing on a closed native select picks the matching option outright.
         const hit = findTyped(e.key, selectedIndex);
@@ -351,7 +353,7 @@ const Select: React.FC<SelectProps> = ({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={open ? listId : undefined}
-        onClick={() => (open ? close(false) : openList())}
+        onClick={event => (open ? close(false) : openList(event.detail === 0))}
         onKeyDown={onKeyDown}
         onBlur={onBlur}
       >

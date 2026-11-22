@@ -577,6 +577,9 @@ const ControlBar: React.FC<ControlBarProps> = ({ editor, bar, items, hidden, edi
     };
   }, [isTop, laptopPlacement, editor]);
   const [hiddenItems, setHiddenItems] = useState<Set<string>>(new Set());
+  const overflowKeyboard = useRef(false);
+  const closeTextColor = useCallback(() => setTextColorOpen(false), []);
+  const closeBgColor = useCallback(() => setBgColorOpen(false), []);
   const [overflowOpen, setOverflowOpen] = useState(false);
   const overflowRef = useRef<HTMLDivElement>(null);
   const overflowPopup = useRef<HTMLDivElement>(null);
@@ -631,7 +634,8 @@ const ControlBar: React.FC<ControlBarProps> = ({ editor, bar, items, hidden, edi
   // The AV row group is the one toolbar content that comes and goes with the
   // cursor rather than with the window, so it is the one the ResizeObserver
   // below cannot see. A plugin registering a control changes it too.
-  useEffect(() => { remeasureRef.current(); }, [isInsideAvRow, activeElement, cursorFont, cursorSize, activeTemplate, t]);
+  useEffect(() => { remeasureRef.current(); }, [isInsideAvRow]);
+  useEffect(() => { if (laptopActive) remeasureRef.current(); }, [laptopActive, activeElement, cursorFont, cursorSize, activeTemplate, t]);
   useEffect(() => pluginRegistry.subscribe(() => remeasureRef.current()), []);
 
   // Measure toolbar overflow and decide which controls fold into the menu
@@ -869,8 +873,8 @@ const ControlBar: React.FC<ControlBarProps> = ({ editor, bar, items, hidden, edi
   const closeOverflow = (inOverflow: boolean) => {
     if (!inOverflow) return;
     setOverflowOpen(false);
-    if (overflowLine) requestAnimationFrame(() => {
-      if (document.activeElement === document.body || document.activeElement === editor?.view.dom) overflowTrigger.current?.focus();
+    if (overflowLine && overflowKeyboard.current) requestAnimationFrame(() => {
+      if (document.activeElement === document.body) overflowTrigger.current?.focus();
     });
   };
 
@@ -1073,7 +1077,7 @@ const ControlBar: React.FC<ControlBarProps> = ({ editor, bar, items, hidden, edi
               }
               setTextColorOpen(false);
             }}
-            onClose={() => setTextColorOpen(false)}
+            onClose={closeTextColor}
           />
         )}
 
@@ -1100,7 +1104,7 @@ const ControlBar: React.FC<ControlBarProps> = ({ editor, bar, items, hidden, edi
               }
               setBgColorOpen(false);
             }}
-            onClose={() => setBgColorOpen(false)}
+            onClose={closeBgColor}
           />
         )}
       </div>
@@ -1398,7 +1402,7 @@ const ControlBar: React.FC<ControlBarProps> = ({ editor, bar, items, hidden, edi
             className={`toolbar-btn toolbar-overflow-btn${overflowOpen ? ' active' : ''}`}
             title={t('toolbar.moreFormatting')}
             aria-expanded={overflowOpen}
-            onClick={e => { setOverflowLine(toolbarChoiceLine(e.currentTarget)); setOverflowOpen(!overflowOpen); }}
+            onClick={e => { overflowKeyboard.current = e.detail === 0; setOverflowLine(toolbarChoiceLine(e.currentTarget)); setOverflowOpen(!overflowOpen); }}
           >
             <FaEllipsisV />
           </button>

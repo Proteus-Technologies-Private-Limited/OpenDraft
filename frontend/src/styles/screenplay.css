@@ -12070,6 +12070,10 @@ body.selection-bands-active .page .ProseMirror::selection { background: transpar
     padding: env(safe-area-inset-top, 0) env(safe-area-inset-right, 0) 0 env(safe-area-inset-left, 0);
     align-items: flex-start;
   }
+  /* Android under-reports the top inset (see the note by .app-container), so a
+     top-anchored sheet's title, "Recover unsaved changes?" among them, sat
+     under the status bar. Same clearance as the panels get. */
+  html.android .dialog-overlay { padding-top: max(env(safe-area-inset-top, 0px), 28px); }
   /* Edge to edge between the side insets (the iPhone Duo cover screen has a
      status column down its right edge), not across them. */
   .dialog-box {
@@ -16470,6 +16474,15 @@ input.sp-costume-when { border: 0; border-inline-start: 1px solid var(--fd-borde
 .sp-md > .sp-master { width: 270px; flex: none; border-inline-end: 1px solid var(--fd-border); display: flex; flex-direction: column; min-height: 0; }
 .sp-md > .sp-detail { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
 .sp-narrow .sp-md > .sp-master { width: auto; flex: 1; border-inline-end: 0; }
+/* A flex item will not shrink below its widest child by default, and the Sort
+   picker is as wide as its longest option: in a 300px dock the list grew to
+   361px, cutting off Build from Script, the descriptions and each row's ring. */
+.sp-md > .sp-master { min-width: 0; }
+/* The same dock has no room for a record's name beside all its buttons. Let the
+   buttons take a second line rather than cut the name to "SAR…" and push Close
+   out of the panel. */
+.sp-narrow .sp-head { flex-wrap: wrap; row-gap: 4px; }
+.sp-narrow .sp-title.sp-title-record { flex-basis: 110px; }
 .sp-list { flex: 1; overflow: auto; min-height: 0; }
 .sp-row {
   display: flex; align-items: center; gap: 10px; width: 100%; background: none; border: 0; border-inline-start: 3px solid transparent;
@@ -16494,9 +16507,27 @@ input.sp-costume-when { border: 0; border-inline-start: 1px solid var(--fd-borde
 .sp-table th { font-size: 10.5px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--fd-text-muted); padding: 6px 8px; border-bottom: 1px solid var(--fd-border); text-align: start; white-space: nowrap; }
 .sp-table td { padding: 8px; border-bottom: 1px solid var(--fd-border); vertical-align: top; }
 .sp-owned { display: flex; flex-direction: column; gap: 6px; }
-.sp-owned-row { display: flex; gap: 8px; align-items: center; border: 1px solid var(--fd-border); border-radius: 6px; padding: 6px 8px; }
-.sp-owned-row .sp-input { flex: 1; min-width: 0; }
+/* A costume or look: picture, name, scene count, remove. In a docked panel the
+   empty picture slot's two links take most of the row, so the row wraps and the
+   name keeps room to be read instead of shrinking to a sliver. */
+.sp-owned-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; border: 1px solid var(--fd-border); border-radius: 6px; padding: 6px 8px; }
+.sp-owned-row .sp-input { flex: 1 1 120px; min-width: 0; }
 .sp-wide-overlay { position: fixed !important; inset: 0; z-index: 100; width: 100% !important; min-width: 100% !important; max-width: none !important; border-left: none; background: var(--fd-bg); }
+/* Full screen, so it keeps clear of the system bars like every other
+   full-bleed sheet. At top: 0 its header, and the buttons that leave the wide
+   view, sat under the iPad's clock and battery. */
+.sp-wide-overlay {
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px)
+           env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+}
+html.android .sp-wide-overlay {
+  padding-top: max(env(safe-area-inset-top, 0px), 28px);
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), 24px);
+}
+/* The whole picture in the wide view, as the old full-screen view showed it:
+   at the full width of the record, cover cropped a portrait to a strip across
+   the middle and cut the face off. */
+.sp-wide-overlay .char-profile-image-main { max-height: 400px; object-fit: contain; }
 
 /* One stable companion view moves between these homes and the fold dock. */
 .companion-main-home, .split-pane-home { display: flex; min-width: 0; min-height: 0; }

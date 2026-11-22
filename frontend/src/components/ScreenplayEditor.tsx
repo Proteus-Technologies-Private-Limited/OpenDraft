@@ -1399,9 +1399,15 @@ const ScreenplayEditor: React.FC = () => {
       const root = document.querySelector<HTMLElement>('.editor-layout');
       if (root) root.style.setProperty('--fold-content-top', `${root.getBoundingClientRect().top}px`);
     };
+    const toolbar = document.querySelector('.app-container .toolbar');
+    const observer = new MutationObserver(measure);
+    if (toolbar) observer.observe(toolbar, { attributes: true, attributeFilter: ['class', 'style'] });
     window.addEventListener(FOLD_CHANGE_EVENT, measure);
-    return () => window.removeEventListener(FOLD_CHANGE_EVENT, measure);
-  }, []);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener(FOLD_CHANGE_EVENT, measure);
+    };
+  }, [foldState.foldable]);
 
   // Foldable panel/toolbar changes must never refit an ordinary user's page.
   useEffect(() => {

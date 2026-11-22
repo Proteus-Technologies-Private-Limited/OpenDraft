@@ -164,7 +164,9 @@ const FontPicker: React.FC<FontPickerProps> = ({
     [rows],
   );
 
-  const openList = useCallback(() => {
+  const openedByKeyboard = useRef(false);
+  const openList = useCallback((keyboard: boolean) => {
+    openedByKeyboard.current = keyboard;
     // Fixed positioning: the picker sits inside toolbars and dialogs that clip
     // their own overflow, and a dropdown that gets cut off is unusable.
     if (buttonRef.current) setAnchor(anchorTo(buttonRef.current));
@@ -185,8 +187,8 @@ const FontPicker: React.FC<FontPickerProps> = ({
     if (row.entry) loadFont(row.entry);
     onChange(row.isEmpty ? '' : row.label);
     setOpen(false);
-    buttonRef.current?.focus();
-    if (anchor?.line) restoreChoiceFocus(buttonRef);
+    if (!anchor?.line || openedByKeyboard.current) buttonRef.current?.focus();
+    if (anchor?.line && openedByKeyboard.current) restoreChoiceFocus(buttonRef);
   }, [onChange, anchor?.line]);
 
   // Typing filters the list, so on a keyboard the search field takes focus as
@@ -286,7 +288,7 @@ const FontPicker: React.FC<FontPickerProps> = ({
     if (!open) {
       if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
-        openList();
+        openList(true);
       }
       return;
     }
@@ -328,12 +330,12 @@ const FontPicker: React.FC<FontPickerProps> = ({
         className={`${className} font-picker-trigger`}
         title={triggerTitle}
         aria-label={`${triggerTitle}: ${triggerLabel}`}
-        role={horizontalChoices ? "combobox" : undefined}
+        role={(anchor?.line ?? horizontalChoices) ? "combobox" : undefined}
         aria-activedescendant={open && anchor?.line && rows[activeIndex]?.kind === 'font' ? `${listId}-${activeIndex}` : undefined}
-        aria-haspopup={horizontalChoices ? "listbox" : "dialog"}
+        aria-haspopup={(open ? !!anchor?.line : horizontalChoices) ? "listbox" : "dialog"}
         aria-controls={open ? (anchor?.line ? listId : `${listId}-dialog`) : undefined}
         aria-expanded={open}
-        onClick={() => (open ? setOpen(false) : openList())}
+        onClick={event => (open ? setOpen(false) : openList(event.detail === 0))}
         onKeyDown={onKeyDown}
         style={value ? { fontFamily: fontStack(value) } : undefined}
       >

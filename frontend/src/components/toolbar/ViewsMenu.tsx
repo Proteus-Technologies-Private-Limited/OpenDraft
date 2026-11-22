@@ -154,7 +154,7 @@ const ViewsMenu: React.FC<Props> = ({ label, inOverflow = false, horizontalChoic
         className={`toolbar-btn toolbar-views-btn${open ? ' active' : ''}`}
         title={t('toolbar:layout.items.views.description')}
         aria-label={showText ? undefined : t('toolbar:layout.items.views.label')}
-        aria-haspopup={horizontalChoices ? undefined : 'menu'}
+        aria-haspopup={(open ? !!line : horizontalChoices) ? undefined : 'menu'}
         aria-controls={open ? popupId : undefined}
         aria-expanded={open}
         onClick={(e) => {
