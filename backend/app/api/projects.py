@@ -1,4 +1,5 @@
 import logging
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.concurrency import run_in_threadpool
@@ -33,6 +34,16 @@ async def create_project(body: ProjectCreate):
 async def list_projects():
     projects = project_service.list_projects()
     return {"projects": projects}
+
+
+@router.put("/device-sync/{binding_id}", response_model=ProjectResponse)
+async def ensure_device_project(
+    binding_id: UUID, body: ProjectCreate, user: AuthUser = Depends(require_verified_user),
+):
+    try:
+        return await run_in_threadpool(project_service.ensure_device_project, str(binding_id), body.name)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
 
 @router.get("/{project_id}", response_model=ProjectResponse)
@@ -89,6 +100,30 @@ async def create_script(
     try:
         return script_service.create_script(
             project_id, body.title, body.content, body.format
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+
+@router.put("/{project_id}/device-scripts/{script_id}", response_model=ScriptResponse)
+async def ensure_device_script(
+    project_id: str, script_id: UUID, body: ScriptCreate,
+    user: AuthUser = Depends(require_verified_user),
+):
+    try:
+        binding = UUID(project_id.removeprefix("sync-"))
+        if project_id != f"sync-{binding}":
+            raise ValueError()
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Device sync project not found")
+    try:
+        return await run_in_threadpool(script_service.get_script, project_id, str(script_id))
+    except FileNotFoundError:
+        await run_gate_hooks(QUOTA_CHECK_CREATE_SCRIPT, user=user)
+    try:
+        return await run_in_threadpool(
+            script_service.ensure_device_script, project_id, str(script_id),
+            body.title, body.content, body.format,
         )
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc))

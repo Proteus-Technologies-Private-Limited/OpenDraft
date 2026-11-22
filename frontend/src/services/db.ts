@@ -86,6 +86,31 @@ async function migrate(db: Database): Promise<void> {
     );
   `);
 
+  // Keep the device project and its cloud counterpart distinct. Stopping sync
+  // disables the relationship while retaining its last acknowledged bases.
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS device_project_sync (
+      project_id TEXT PRIMARY KEY REFERENCES projects(id) ON DELETE CASCADE,
+      scope TEXT NOT NULL,
+      binding_id TEXT NOT NULL,
+      enabled INTEGER NOT NULL,
+      generation TEXT NOT NULL,
+      published INTEGER NOT NULL DEFAULT 0,
+      last_synced INTEGER NOT NULL DEFAULT 0
+    );
+  `);
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS device_script_sync (
+      project_id TEXT NOT NULL REFERENCES device_project_sync(project_id) ON DELETE CASCADE,
+      script_id TEXT NOT NULL,
+      content_hash TEXT NOT NULL,
+      cloud_revision TEXT NOT NULL,
+      device_updated TEXT NOT NULL,
+      cloud_updated TEXT NOT NULL,
+      PRIMARY KEY (project_id, script_id)
+    );
+  `);
+
   // ── Delta versioning ──────────────────────────────────────────────────────
   // Each commit only stores scripts that changed. Unchanged scripts are
   // referenced by setting inherited=1 (content is NULL).
@@ -355,6 +380,35 @@ async function migrateFromOldSchema(db: Database): Promise<void> {
       console.error('[db] could not recognise existing treatments', err);
     }
   }
+
+  // One transaction publishes a newly downloaded screenplay and its body.
+  // The SQL plugin can use a different connection for each execute() call.
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS device_script_import (
+      script_id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL,
+      generation TEXT NOT NULL,
+      title TEXT NOT NULL,
+      format TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      size_bytes INTEGER NOT NULL,
+      body TEXT NOT NULL
+    );
+  `);
+  await db.execute(`
+    CREATE TRIGGER IF NOT EXISTS import_device_script AFTER INSERT ON device_script_import
+    BEGIN
+      INSERT INTO scripts (id, project_id, title, format, created_at, updated_at, size_bytes)
+      SELECT NEW.script_id, NEW.project_id, NEW.title, NEW.format, NEW.created_at, NEW.updated_at, NEW.size_bytes
+      FROM device_project_sync
+      WHERE project_id = NEW.project_id AND generation = NEW.generation AND enabled = 1
+      ON CONFLICT(id) DO NOTHING;
+      INSERT INTO script_content (script_id, content)
+      SELECT NEW.script_id, NEW.body WHERE changes() = 1;
+      DELETE FROM device_script_import WHERE script_id = NEW.script_id;
+    END;
+  `);
 
   // Formatting templates gained per-element page-break rules (JSON array of
   // element ids that must start a new page).

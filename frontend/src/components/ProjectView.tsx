@@ -26,6 +26,8 @@ import { CSS } from '@dnd-kit/utilities';
 import { api } from '../services/api';
 import { cloudApi } from '../services/cloudApi';
 import { projectApi } from '../services/projectApi';
+import { supportsDeviceSync } from '../services/deviceProjectSync';
+import { DeviceProjectSyncControl } from './DeviceProjectSyncControl';
 import { useGoBackTo } from '../hooks/useGoBack';
 import type { ProjectInfo, ScriptMeta, VersionInfo } from '../services/api';
 import {
@@ -654,6 +656,8 @@ const ProjectView: React.FC = () => {
       return null;
     }
   }, [projectId]);
+
+  const refreshSyncedScripts = useCallback(() => { void fetchScripts(); }, [fetchScripts]);
 
   const fetchFileLinks = useCallback(async () => {
     if (!projectId || !canLinkFiles) { setFileLinks({}); return; }
@@ -1301,6 +1305,9 @@ const ProjectView: React.FC = () => {
       <div className="project-view-body">
         {activeTab === 'scripts' && (
           <div className="project-scripts-tab">
+            {!isCloud && project && supportsDeviceSync() && (
+              <DeviceProjectSyncControl key={project.id} projectId={project.id} onSync={refreshSyncedScripts} />
+            )}
             <div className="project-scripts-actions">
               <NewDocumentButton
                 onCreateScreenplay={handleCreateScript}

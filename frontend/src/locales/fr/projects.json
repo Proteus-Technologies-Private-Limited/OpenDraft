@@ -1,4 +1,13 @@
 {
+  "sync": {
+    "start": "Synchroniser avec OpenDraft Cloud",
+    "stop": "Arrêter la synchronisation",
+    "description": "Synchronisez les scénarios avec votre compte cloud. La copie sur cet appareil reste ici.",
+    "waiting": "En attente de synchronisation avec le cloud",
+    "conflict": "Certains scénarios ont des copies en conflit. Les deux copies sont conservées.",
+    "account": "Connectez-vous au même compte cloud pour reprendre la synchronisation.",
+    "linked": "Les projets contenant des fichiers liés ne peuvent pas être synchronisés avec le cloud."
+  },
   "welcome": {
     "subtitle": "L’écriture de scénario professionnelle, en open source.",
     "tipClick": "Cliquez dans l’éditeur et commencez à écrire",

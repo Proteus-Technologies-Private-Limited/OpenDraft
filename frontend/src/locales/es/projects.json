@@ -1,4 +1,13 @@
 {
+  "sync": {
+    "start": "Sincronizar con OpenDraft Cloud",
+    "stop": "Dejar de sincronizar",
+    "description": "Sincroniza guiones con tu cuenta en la nube. La copia del dispositivo se queda aquí.",
+    "waiting": "Esperando la sincronización con la nube",
+    "conflict": "Algunos guiones tienen copias en conflicto. Se conservan ambas.",
+    "account": "Inicia sesión en la misma cuenta para reanudar la sincronización.",
+    "linked": "Los proyectos con archivos enlazados no se pueden sincronizar con la nube."
+  },
   "welcome": {
     "subtitle": "Escritura de guiones profesional, de código abierto.",
     "tipClick": "Haz clic en el editor y empieza a escribir",

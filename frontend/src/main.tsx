@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App.tsx';
 import { initStorage } from './services/api';
 import { startOfflineCloudSync } from './services/offlineCloud';
+import { startDeviceProjectSync } from './services/deviceProjectSync';
 import { initScratchAssets } from './services/scratchAssets';
 import { scheduleScratchSweep } from './services/scratchSweep';
 import { initDemoInfo } from './services/demoInfo';
@@ -219,6 +220,7 @@ async function init() {
   // no additional wrapping needed here.
   await initStorage();
   startOfflineCloudSync();
+  startDeviceProjectSync();
 
   // Where images go for a document that has no project yet, so the bytes never
   // sit inside the document (and never inside a recovery snapshot). Awaited:

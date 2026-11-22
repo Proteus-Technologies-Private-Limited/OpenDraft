@@ -32,7 +32,7 @@ function scopeKey(): string | null {
   return auth.user?.id && auth.accessToken ? JSON.stringify([getApiBase(), auth.user.id]) : null;
 }
 
-function scopeForCloud(): Scope | null {
+export function scopeForCloud(): Scope | null {
   const key = scopeKey();
   return key ? { key, base: getApiBase(), isCurrent: () => scopeKey() === key } : null;
 }

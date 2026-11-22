@@ -13,6 +13,7 @@ import { useProjectStore } from '../stores/projectStore';
 import { api } from './api';
 import { cloudApi } from './cloudApi';
 import { offlineCloud } from './offlineCloud';
+import { refreshDeviceScript, wakeDeviceProjectSync } from './deviceProjectSync';
 import type { ScriptResponse } from './api';
 
 function pickFor(projectId: string, scriptId: string) {
@@ -21,10 +22,13 @@ function pickFor(projectId: string, scriptId: string) {
 }
 
 export const scriptApi = {
-  getScript: (projectId: string, scriptId: string): Promise<ScriptResponse> =>
-    (pickFor(projectId, scriptId) === cloudApi ? offlineCloud : api).getScript(projectId, scriptId),
+  getScript: async (projectId: string, scriptId: string): Promise<ScriptResponse> => {
+    if (pickFor(projectId, scriptId) === cloudApi) return offlineCloud.getScript(projectId, scriptId);
+    await refreshDeviceScript(projectId, scriptId).catch(error => console.warn('[cloud] local script refresh:', error));
+    return api.getScript(projectId, scriptId);
+  },
 
-  saveScript: (
+  saveScript: async (
     projectId: string,
     scriptId: string,
     data: {
@@ -40,7 +44,9 @@ export const scriptApi = {
       && data.title === undefined && data.color === undefined && data.pinned === undefined && data.sort_order === undefined) {
       return offlineCloud.saveScript(projectId, scriptId, data.content);
     }
-    return client.saveScript(projectId, scriptId, data);
+    const result = await client.saveScript(projectId, scriptId, data);
+    if (client === api && data.content !== undefined) wakeDeviceProjectSync(projectId);
+    return result;
   },
 
   deleteScript: async (

@@ -74,6 +74,23 @@ def create_script(
     scripts_path = _scripts_dir(project_id)
 
     script_id = str(uuid.uuid4())
+    return _create_script(scripts_path, script_id, title, content, format)
+
+
+def ensure_device_script(
+    project_id: str, script_id: str, title: str, content: dict | None, format: str,
+) -> dict:
+    """A retry returns the existing cloud document without replacing it."""
+    with _script_lock(project_id, script_id):
+        scripts_path = _scripts_dir(project_id)
+        if (scripts_path / f"{script_id}.meta.json").exists():
+            return get_script(project_id, script_id)
+        return _create_script(scripts_path, script_id, title, content, format)
+
+
+def _create_script(
+    scripts_path: Path, script_id: str, title: str, content: dict | None, format: str,
+) -> dict:
     now = datetime.now(timezone.utc).isoformat()
 
     meta = {
@@ -87,14 +104,9 @@ def create_script(
 
     script_content = content if content is not None else {}
 
-    (scripts_path / f"{script_id}.meta.json").write_text(
-        json.dumps(meta, indent=2), encoding="utf-8"
-    )
-    (scripts_path / f"{script_id}.json").write_text(
-        json.dumps(script_content, indent=2), encoding="utf-8"
-    )
-
-    return {"meta": meta, "content": script_content}
+    _write_json(scripts_path / f"{script_id}.json", script_content)
+    _write_json(scripts_path / f"{script_id}.meta.json", meta)
+    return {"meta": meta, "content": script_content, "content_revision": _revision(script_content)}
 
 
 def _extract_preview(content: dict, max_chars: int = 200) -> str:
