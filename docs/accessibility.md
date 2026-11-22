@@ -51,7 +51,7 @@ screen-reader conformance.
 The workspace Layout dialog exposes a labelled panel for every tab, including
 inactive panel shells. Left/Right and Home/End select tabs. Its radio groups have
 one Tab stop, wrapping arrows, Home/End, disabled-choice skipping and mirrored
-horizontal arrows in RTL. Group and Place on use manual activation: arrows
+horizontal arrows in RTL. Group, Place on and Side of the bar use manual activation: arrows
 only move focus, and Space/Enter or a click applies the move. Other choice
 groups keep automatic selection. Activating an already checked radio leaves its value
 and panel order unchanged. Moving, removing or regrouping a control retains focus
@@ -62,6 +62,10 @@ One dialog focus owner observes removed, hidden or disabled controls, including
 local name-form edits. It does not revive a deliberately blurred control; when
 no matching control survives, the selected dialog tab is the fallback. Tab
 panels contain controls and do not add a separate Tab stop.
+
+[Group focus without activation](screenshots/accessibility/workspace-manual-group.png)
+and [bar placement focus without activation](screenshots/accessibility/workspace-manual-place.png)
+show how the selected choice stays in place as focus moves.
 
 ## Automated verification
 
