@@ -322,6 +322,15 @@ class Accessibility(unittest.TestCase):
                     "theme=>document.documentElement.dataset.theme=theme", theme
                 )
                 self.audit()
+                if tab == "panels":
+                    picker = dialog.get_by_role("combobox", name="Opens in", exact=True)
+                    picker.focus()
+                    self.press("ArrowDown")
+                    expect(
+                        dialog.get_by_role("listbox", name="Opens in")
+                    ).to_be_visible()
+                    self.audit()
+                    self.press("Escape")
 
     def workspace_solo_group(self):
         self.page.evaluate("""() => {
@@ -373,6 +382,103 @@ class Accessibility(unittest.TestCase):
             self.page.evaluate(
                 "testStore.getState().workspaceLayout.groups['g-navigator'].panels"
             ),
+        )
+
+    def test_workspace_panel_opens_in_does_not_remove_the_named_group_while_browsing(
+        self,
+    ):
+        self.workspace_solo_group()
+        dialog = self.workspace_dialog("panels")
+        dialog.locator(".layout-chip").filter(has_text=re.compile("^Scenes$")).focus()
+        picker = dialog.get_by_role("combobox", name="Opens in", exact=True)
+        before = self.page.evaluate("testStore.getState().workspaceLayout")
+        picker.focus()
+        self.press("ArrowDown")
+        self.press("ArrowDown")
+        self.press("ArrowUp")
+        self.assertEqual(
+            self.page.evaluate("testStore.getState().workspaceLayout"), before
+        )
+
+        self.press("End")
+        self.press("Escape")
+        expect(dialog.get_by_role("listbox")).to_have_count(0)
+        expect(picker).to_be_focused()
+        self.assertEqual(
+            self.page.evaluate("testStore.getState().workspaceLayout"), before
+        )
+
+        self.press("Space")
+        self.press("End")
+        self.press("Space")
+        self.page.wait_for_function(
+            "testStore.getState().workspaceLayout.hidden.includes('scenes')"
+        )
+        after = self.page.evaluate("testStore.getState().workspaceLayout")
+        self.assertNotIn("g-review-solo", after["groups"])
+        expect(picker).to_be_focused()
+
+    def test_workspace_group_opens_in_preserves_dock_order_until_enter(self):
+        self.workspace_solo_group()
+        dialog = self.workspace_dialog("panels")
+        dialog.get_by_role("button", name="Synthetic solo group", exact=True).click()
+        picker = dialog.get_by_role("combobox", name="Opens in", exact=True)
+        before = self.page.evaluate("testStore.getState().workspaceLayout")
+        picker.focus()
+        self.press("ArrowDown")
+        self.press("End")
+        self.press("ArrowUp")
+        self.assertEqual(
+            self.page.evaluate("testStore.getState().workspaceLayout"), before
+        )
+        self.press("Tab")
+        expect(dialog.get_by_role("listbox")).to_have_count(0)
+        self.assertEqual(
+            self.page.evaluate("testStore.getState().workspaceLayout"), before
+        )
+
+        picker.focus()
+        self.press("Enter")
+        self.press("End")
+        self.press("ArrowUp")
+        self.press("Enter")
+        self.page.wait_for_function(
+            "testStore.getState().workspaceLayout.docks.bottom.includes('g-review-solo')"
+        )
+        before["docks"]["start"].remove("g-review-solo")
+        before["docks"]["bottom"].append("g-review-solo")
+        self.assertEqual(
+            self.page.evaluate("testStore.getState().workspaceLayout"), before
+        )
+        expect(picker).to_be_focused()
+
+    def test_workspace_group_card_move_picker_requires_confirmation(self):
+        self.workspace_solo_group()
+        dialog = self.workspace_dialog("panels")
+        picker = dialog.get_by_role(
+            "combobox", name="Where the Synthetic solo group group opens", exact=True
+        )
+        before = self.page.evaluate("testStore.getState().workspaceLayout")
+        picker.focus()
+        self.press("n")
+        expect(dialog.get_by_role("listbox")).to_be_visible()
+        active = dialog.get_by_role("option", name="Not placed", exact=True)
+        expect(picker).to_have_attribute(
+            "aria-activedescendant", active.get_attribute("id")
+        )
+        self.assertEqual(
+            self.page.evaluate("testStore.getState().workspaceLayout"), before
+        )
+        self.press("Escape")
+        expect(picker).to_be_focused()
+        picker.click()
+        dialog.get_by_role("option", name="Bottom", exact=True).click()
+        self.page.wait_for_function(
+            "testStore.getState().workspaceLayout.docks.bottom.includes('g-review-solo')"
+        )
+        after = self.page.evaluate("testStore.getState().workspaceLayout")
+        self.assertEqual(
+            after["groups"]["g-review-solo"], before["groups"]["g-review-solo"]
         )
 
     def test_workspace_place_arrows_preserve_bar_order_until_activation(self):

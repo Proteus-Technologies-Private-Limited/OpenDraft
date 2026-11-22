@@ -40,8 +40,11 @@ import { panelIcon, usePanelLabel } from '../toolbar/toolbarMeta';
 import { layoutCollision, useLayoutAnnouncements, useLayoutSensors } from './dndConfig';
 import DropZone from './DropZone';
 import LayoutRadioGroup from './LayoutRadioGroup';
+import Select from '../Select';
 
 type Selection = { kind: 'panel' | 'group'; id: string } | null;
+
+const DOCK_CHOICES: readonly PanelPlace[] = ['start', 'end', 'bottom', 'hidden'];
 
 function isRtl(): boolean {
   return typeof document !== 'undefined' && document.documentElement.dir === 'rtl';
@@ -119,16 +122,16 @@ function GroupCard({ group, dock, selection, onSelect, onMove }: {
         <span className="layout-group-meta">
           {group.mode === 'stacked' ? t('layout.panelsTab.stacked') : group.panels.length > 1 ? t('layout.panelsTab.tabCount', { count: group.panels.length }) : ''}
         </span>
-        <select
+        <Select manual
           className="layout-group-move"
           aria-label={t('layout.panelsTab.moveGroupTo', { name })}
           value={dock}
           onChange={(e) => onMove(group.id, e.target.value as PanelPlace)}
         >
-          {(['start', 'end', 'bottom', 'hidden'] as PanelPlace[]).map((place) => (
+          {DOCK_CHOICES.map((place) => (
             <option key={place} value={place}>{dockName(place)}</option>
           ))}
-        </select>
+        </Select>
       </DropZone>
       <DropZone id={`tabs:${group.id}`} className={`layout-group-tabs${group.mode === 'stacked' ? ' is-stacked' : ''}`}>
         {group.panels.map((panel) => (
@@ -284,14 +287,14 @@ const PanelsTab: React.FC<Props> = ({ layout, setLayout }) => {
         </div>
         <label className="layout-field">
           <span>{t('layout.panelsTab.opensIn')}</span>
-          <select value={place} onChange={(e) => {
+          <Select manual aria-label={t('layout.panelsTab.opensIn')} value={place} onChange={(e) => {
             const to = e.target.value as PanelPlace;
             if (to === 'hidden') { setLayout(hidePanel(layout, panel)); return; }
             const first = layout.docks[to][0];
             setLayout(first ? movePanelToGroup(layout, panel, first) : movePanelToNewGroup(layout, panel, to));
           }}>
-            {(['start', 'end', 'bottom', 'hidden'] as PanelPlace[]).map((p) => <option key={p} value={p}>{dockName(p)}</option>)}
-          </select>
+            {DOCK_CHOICES.map((p) => <option key={p} value={p}>{dockName(p)}</option>)}
+          </Select>
         </label>
         {place !== 'hidden' && (
           <div className="layout-field">
@@ -335,9 +338,9 @@ const PanelsTab: React.FC<Props> = ({ layout, setLayout }) => {
         </label>
         <label className="layout-field">
           <span>{t('layout.panelsTab.opensIn')}</span>
-          <select value={dock} onChange={(e) => moveGroupTo(group.id, e.target.value as PanelPlace)}>
-            {(['start', 'end', 'bottom', 'hidden'] as PanelPlace[]).map((p) => <option key={p} value={p}>{dockName(p)}</option>)}
-          </select>
+          <Select manual aria-label={t('layout.panelsTab.opensIn')} value={dock} onChange={(e) => moveGroupTo(group.id, e.target.value as PanelPlace)}>
+            {DOCK_CHOICES.map((p) => <option key={p} value={p}>{dockName(p)}</option>)}
+          </Select>
         </label>
         <div className="layout-field">
           <span>{t('layout.panelsTab.showAs')}</span>
