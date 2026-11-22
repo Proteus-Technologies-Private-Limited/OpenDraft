@@ -180,16 +180,20 @@ const FontPicker: React.FC<FontPickerProps> = ({
     setOpen(true);
   }, [buildRows, value]);
 
-  useChoiceLineLifecycle(open && !!anchor?.line, buttonRef, popupRef, useCallback(() => setOpen(false), []));
+  const closeList = useCallback(() => {
+    setOpen(false);
+    setAnchor(null);
+  }, []);
+  useChoiceLineLifecycle(open && !!anchor?.line, buttonRef, popupRef, closeList);
   useChoiceLinePosition(open && !!anchor?.line, buttonRef, useCallback(() => { if (buttonRef.current) setAnchor(anchorTo(buttonRef.current)); }, []));
 
   const commit = useCallback((row: Row) => {
     if (row.entry) loadFont(row.entry);
     onChange(row.isEmpty ? '' : row.label);
-    setOpen(false);
+    closeList();
     if (!anchor?.line || openedByKeyboard.current) buttonRef.current?.focus();
     if (anchor?.line && openedByKeyboard.current) restoreChoiceFocus(buttonRef);
-  }, [onChange, anchor?.line]);
+  }, [onChange, anchor?.line, closeList]);
 
   // Typing filters the list, so on a keyboard the search field takes focus as
   // it appears. Never on a touch screen: focusing it raises the soft keyboard,
@@ -210,7 +214,7 @@ const FontPicker: React.FC<FontPickerProps> = ({
       // it, and closing on mousedown unmounted the button before its click
       // could land — so the item did nothing at all.
       if (popupRef.current?.contains(target) || buttonRef.current?.contains(target)) return;
-      setOpen(false);
+      closeList();
     };
     // The popup is measured against the trigger, so anything that moves the
     // trigger has to move the popup. Following it beats closing: a soft keyboard
@@ -237,7 +241,7 @@ const FontPicker: React.FC<FontPickerProps> = ({
       window.visualViewport?.removeEventListener('resize', reposition);
       window.visualViewport?.removeEventListener('scroll', reposition);
     };
-  }, [open]);
+  }, [open, closeList]);
 
   // Portalled out of the trigger's DOM, a press in the popup reads as
   // "outside" to every document-level click-away handler — the toolbar's
@@ -313,7 +317,7 @@ const FontPicker: React.FC<FontPickerProps> = ({
     } else if (e.key === 'Escape') {
       e.preventDefault();
       e.stopPropagation();
-      setOpen(false);
+      closeList();
       buttonRef.current?.focus();
     }
   };
@@ -330,12 +334,12 @@ const FontPicker: React.FC<FontPickerProps> = ({
         className={`${className} font-picker-trigger`}
         title={triggerTitle}
         aria-label={`${triggerTitle}: ${triggerLabel}`}
-        role={(anchor?.line ?? horizontalChoices) ? "combobox" : undefined}
+        role={(open ? !!anchor?.line : horizontalChoices) ? "combobox" : undefined}
         aria-activedescendant={open && anchor?.line && rows[activeIndex]?.kind === 'font' ? `${listId}-${activeIndex}` : undefined}
         aria-haspopup={(open ? !!anchor?.line : horizontalChoices) ? "listbox" : "dialog"}
         aria-controls={open ? (anchor?.line ? listId : `${listId}-dialog`) : undefined}
         aria-expanded={open}
-        onClick={event => (open ? setOpen(false) : openList(event.detail === 0))}
+        onClick={event => (open ? closeList() : openList(event.detail === 0))}
         onKeyDown={onKeyDown}
         style={value ? { fontFamily: fontStack(value) } : undefined}
       >
@@ -360,7 +364,7 @@ const FontPicker: React.FC<FontPickerProps> = ({
           role={anchor.line ? undefined : "dialog"} aria-label={anchor.line ? undefined : t('fontPicker.searchLabel')}
           onKeyDown={event => { if (event.key === 'Escape') onKeyDown(event); }}
         >
-          {anchor.line && <ChoiceLineBack label={triggerTitle} onClose={() => { setOpen(false); buttonRef.current?.focus(); }} />}
+          {anchor.line && <ChoiceLineBack label={triggerTitle} onClose={() => { closeList(); buttonRef.current?.focus(); }} />}
           <div className="font-picker-search-row">
             <input
               ref={searchRef}
@@ -421,13 +425,13 @@ const FontPicker: React.FC<FontPickerProps> = ({
               );
             })}
           </div>
-          {anchor.line && <ChoiceLineClose onClose={() => { setOpen(false); buttonRef.current?.focus(); }} />}
+          {anchor.line && <ChoiceLineClose onClose={() => { closeList(); buttonRef.current?.focus(); }} />}
           {onManageFonts && (
             <button
               type="button"
               className="font-picker-manage"
               title={t('fontPicker.manage')}
-              onClick={() => { setOpen(false); onManageFonts(); }}
+              onClick={() => { closeList(); onManageFonts(); }}
             >
               {t('fontPicker.manage')}
             </button>

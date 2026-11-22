@@ -1,5 +1,5 @@
 import { ChoiceLineBack, ChoiceLineClose } from './toolbar/ChoiceLineControls';
-import React, { useEffect, useLayoutEffect, useState, useCallback, useRef, useMemo, useSyncExternalStore } from 'react';
+import React, { useEffect, useLayoutEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Editor } from '@tiptap/react';
 import type { Mark } from '@tiptap/pm/model';
@@ -90,7 +90,7 @@ import ZoomControl from './toolbar/ZoomControl';
 import LayoutSwitcher from './toolbar/LayoutSwitcher';
 import ViewsMenu from './toolbar/ViewsMenu';
 import { laptopToolbarPlacement } from '../utils/foldToolbar';
-import { writingViewport, subscribeWritingViewport } from '../utils/writingViewport';
+import { useWritingViewport } from '../utils/writingViewport';
 import { toolbarChoiceLine, useChoiceLineLifecycle, useChoiceLinePosition, moveChoiceFocus } from './toolbar/choiceLine';
 
 interface ToolbarProps {
@@ -542,20 +542,33 @@ const ControlBar: React.FC<ControlBarProps> = ({ editor, bar, items, hidden, edi
 
   // ── Responsive overflow (toolbar only) ──────────────────────────────
   const toolbarRef = useRef<HTMLDivElement>(null);
-  const visibleViewport = useSyncExternalStore(subscribeWritingViewport, writingViewport);
+  const laptopEligible = isTop && foldState.foldable && foldState.fold === 'laptop'
+    && !focusMode && (toolbarMode !== 'hidden' || foldState.size === 'phone');
+  const visibleViewport = useWritingViewport(laptopEligible);
   const [menuBottom, setMenuBottom] = useState(28);
   useLayoutEffect(() => {
-    if (!isTop) return;
-    const menu = document.querySelector<HTMLElement>('.menu-bar:not(.menu-bar--floating)');
-    if (!menu) return;
-    const measure = () => setMenuBottom(menu.getBoundingClientRect().bottom);
+    if (!laptopEligible) return;
+    const container = document.querySelector('.app-container');
+    if (!container) return;
+    let menu: HTMLElement | null = null;
+    const measure = () => setMenuBottom(menu?.getBoundingClientRect().bottom ?? 28);
+    const resize = new ResizeObserver(measure);
+    const observeMenu = () => {
+      const next = container.querySelector<HTMLElement>('.menu-bar:not(.menu-bar--floating)');
+      if (next === menu) return;
+      resize.disconnect();
+      menu = next;
+      if (menu) resize.observe(menu);
+      measure();
+    };
     measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(menu);
-    return () => observer.disconnect();
-  }, [isTop]);
-  const laptopPlacement = useMemo(() => isTop && !focusMode && (toolbarMode !== 'hidden' || (foldState.foldable && foldState.size === 'phone'))
-    ? laptopToolbarPlacement(foldState, visibleViewport, menuBottom) : null, [isTop, focusMode, toolbarMode, foldState, visibleViewport, menuBottom]);
+    observeMenu();
+    const children = new MutationObserver(observeMenu);
+    children.observe(container, { childList: true });
+    return () => { children.disconnect(); resize.disconnect(); };
+  }, [laptopEligible]);
+  const laptopPlacement = useMemo(() => visibleViewport
+    ? laptopToolbarPlacement(foldState, visibleViewport, menuBottom) : null, [foldState, visibleViewport, menuBottom]);
   const laptopActive = !!laptopPlacement;
   useLayoutEffect(() => {
     if (!isTop) return;
@@ -1368,7 +1381,7 @@ const ControlBar: React.FC<ControlBarProps> = ({ editor, bar, items, hidden, edi
       className={`toolbar${laptopPlacement ? ' toolbar--laptop' : ''}${(toolbarMode === 'comfortable' || (foldState.foldable && foldState.size === 'phone' && toolbarMode === 'hidden')) ? ' toolbar-comfortable' : ''}${isInsideAvRow ? ' toolbar-av' : ''}`}
       ref={toolbarRef}
       data-fold-toolbar={laptopPlacement?.side}
-      style={laptopPlacement ? { top: laptopPlacement.top, left: visibleViewport.left, width: visibleViewport.width } : undefined}
+      style={laptopPlacement && visibleViewport ? { top: laptopPlacement.top, left: visibleViewport.left, width: visibleViewport.width } : undefined}
       role="group" aria-label={t('common:accessibility.formattingControls')}
       onContextMenu={contextMenu.onContextMenu}
     >
@@ -1410,7 +1423,7 @@ const ControlBar: React.FC<ControlBarProps> = ({ editor, bar, items, hidden, edi
             <div ref={overflowPopup} onKeyDown={overflowLine ? moveChoiceFocus : undefined} className={`toolbar-overflow-menu${overflowLine ? ' toolbar-choice-line toolbar-overflow-menu--line' : ''}`}
               style={overflowLine ? { position: 'fixed', left: overflowLine.left, top: overflowLine.top, width: overflowLine.width, height: overflowLine.height } : undefined}>
               {overflowLine && <ChoiceLineBack label={t('toolbar.moreFormatting')} onClose={() => { setOverflowOpen(false); overflowTrigger.current?.focus(); }} />}
-              <div className={overflowLine ? 'toolbar-choice-options' : undefined}>{overflowContent}</div>
+              {overflowLine ? <div className="toolbar-choice-options">{overflowContent}</div> : overflowContent}
               {overflowLine && <ChoiceLineClose onClose={() => { setOverflowOpen(false); overflowTrigger.current?.focus(); }} />}
             </div>
           )}

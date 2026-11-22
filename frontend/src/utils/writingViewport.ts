@@ -1,3 +1,5 @@
+import { useSyncExternalStore } from 'react';
+
 /** The writing pad's visible layout-CSS rectangle. Android edge-to-edge IME
  * insets supplement VisualViewport, which can remain full-height. Intersect
  * the two rather than subtracting the keyboard twice on resizing WebViews. */
@@ -91,4 +93,14 @@ export function subscribeWritingViewport(notify: () => void, win: Window = windo
       stores.delete(win);
     }
   };
+}
+
+const subscribeNothing = () => () => {};
+const noViewport = () => null;
+
+export function useWritingViewport(enabled: boolean) {
+  return useSyncExternalStore(
+    enabled ? subscribeWritingViewport : subscribeNothing,
+    enabled ? writingViewport : noViewport,
+  );
 }

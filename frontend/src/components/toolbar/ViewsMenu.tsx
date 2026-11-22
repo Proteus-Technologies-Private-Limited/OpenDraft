@@ -93,55 +93,61 @@ const ViewsMenu: React.FC<Props> = ({ label, inOverflow = false, horizontalChoic
   const showText = label === 'text' || label === 'both';
   const name = `toolbar-views${inOverflow ? '-overflow' : ''}`;
 
+  const options = (
+    <>
+      <div className="toolbar-views-heading">{t('menu:view.layout')}</div>
+      {(['page', 'phone'] as const).map((id) => (
+        <label className="toolbar-views-option" key={id}>
+          <input type="radio" name={`${name}-page`} checked={viewLayout === id} onChange={() => { setViewLayout(id); close(); }} />
+          {t(`menu:view.${id}`)}
+        </label>
+      ))}
+
+      <div className="toolbar-views-sep" />
+      <div className="toolbar-views-heading">{t('toolbar:layout.views.view')}</div>
+      {views.map((view) => (
+        <label className="toolbar-views-option" key={view.id}>
+          <input type="radio" name={`${name}-main`} checked={mainView === view.id} onChange={() => { setMainView(view.id); close(); }} />
+          {view.label}
+        </label>
+      ))}
+
+      <div className="toolbar-views-sep" />
+      <div className="toolbar-views-heading">{t('menu:view.panels')}</div>
+      {navigatorPlaced && firstNavigatorPanel && (
+        <PanelCheck panel={firstNavigatorPanel} label={t('menu:view.navigator')} onDone={close} onToggle={toggleNavigator} />
+      )}
+      {toolPanels.map((panel) => <PanelCheck key={panel} panel={panel} label={panelLabel(panel)} onDone={close} />)}
+
+      {/* Panel layouts only where the docks exist (useWorkspaceDocks). */}
+      {docksAvailable && (
+        <>
+          <div className="toolbar-views-sep" />
+          <div className="toolbar-views-heading">{t('toolbar:layout.items.layout.label')}</div>
+          {layouts.map((choice) => (
+            <label className="toolbar-views-option" key={choice.id}>
+              <input type="radio" name={`${name}-layout`} checked={workspacePreset === choice.id}
+                onChange={() => { applyWorkspacePreset(choice.id); close(); }} />
+              {choice.label}
+            </label>
+          ))}
+          <button type="button" className="toolbar-views-action" onClick={() => { setLayoutDialog('panels'); close(); }}>
+            {t('toolbar:layout.editLayouts')}
+          </button>
+        </>
+      )}
+    </>
+  );
+
   const menu = (
         <div ref={popup} id={popupId} className={`toolbar-views-menu toolbar-views-menu-${inOverflow ? 'end' : align}${line ? ' toolbar-choice-line toolbar-views-menu--line' : ''}`}
           role={line ? undefined : 'menu'} aria-label={line ? undefined : t('toolbar:layout.items.views.label')}
           style={line ? { position: 'fixed', left: line.left, top: line.top, width: line.width, height: line.height } : undefined}
           onKeyDown={line ? moveChoiceFocus : undefined}>
           {line && <ChoiceLineBack label={t('toolbar:layout.items.views.label')} onClose={() => { close(); trigger.current?.focus(); }} />}
-          <div className={line ? 'toolbar-choice-options' : undefined} role={line ? 'toolbar' : undefined} aria-label={line ? t('toolbar:layout.items.views.label') : undefined} aria-orientation={line ? 'horizontal' : undefined}>
-          <div className="toolbar-views-heading">{t('menu:view.layout')}</div>
-          {(['page', 'phone'] as const).map((id) => (
-            <label className="toolbar-views-option" key={id}>
-              <input type="radio" name={`${name}-page`} checked={viewLayout === id} onChange={() => { setViewLayout(id); close(); }} />
-              {t(`menu:view.${id}`)}
-            </label>
-          ))}
-
-          <div className="toolbar-views-sep" />
-          <div className="toolbar-views-heading">{t('toolbar:layout.views.view')}</div>
-          {views.map((view) => (
-            <label className="toolbar-views-option" key={view.id}>
-              <input type="radio" name={`${name}-main`} checked={mainView === view.id} onChange={() => { setMainView(view.id); close(); }} />
-              {view.label}
-            </label>
-          ))}
-
-          <div className="toolbar-views-sep" />
-          <div className="toolbar-views-heading">{t('menu:view.panels')}</div>
-          {navigatorPlaced && firstNavigatorPanel && (
-            <PanelCheck panel={firstNavigatorPanel} label={t('menu:view.navigator')} onDone={close} onToggle={toggleNavigator} />
-          )}
-          {toolPanels.map((panel) => <PanelCheck key={panel} panel={panel} label={panelLabel(panel)} onDone={close} />)}
-
-          {/* Panel layouts only where the docks exist (useWorkspaceDocks). */}
-          {docksAvailable && (
-            <>
-              <div className="toolbar-views-sep" />
-              <div className="toolbar-views-heading">{t('toolbar:layout.items.layout.label')}</div>
-              {layouts.map((choice) => (
-                <label className="toolbar-views-option" key={choice.id}>
-                  <input type="radio" name={`${name}-layout`} checked={workspacePreset === choice.id}
-                    onChange={() => { applyWorkspacePreset(choice.id); close(); }} />
-                  {choice.label}
-                </label>
-              ))}
-              <button type="button" className="toolbar-views-action" onClick={() => { setLayoutDialog('panels'); close(); }}>
-                {t('toolbar:layout.editLayouts')}
-              </button>
-            </>
-          )}
-          </div>
+          {line ? <div className="toolbar-choice-options" role="toolbar" aria-label={t('toolbar:layout.items.views.label')} aria-orientation="horizontal">
+            {options}
+          </div> : options}
           {line && <ChoiceLineClose onClose={() => { close(); trigger.current?.focus(); }} />}
         </div>
   );

@@ -211,6 +211,20 @@ class LaptopToolbar(unittest.TestCase):
         self.page.keyboard.press("Escape")
         expect(trigger).to_be_focused()
 
+    def test_standard_overflow_and_views_keep_their_direct_children(self):
+        self.posture(1000, 850, None)
+        self.arrange(["undo-redo", "views", "format"])
+        self.page.locator(".toolbar-views-btn").click()
+        views = self.page.locator(".toolbar-views-menu")
+        expect(views.locator(":scope > .toolbar-views-heading").first).to_be_visible()
+        self.page.locator(".toolbar-views-btn").click()
+
+        self.page.evaluate("testStore.getState().applyToolbarPreset('everything')")
+        self.posture(390, 850, None)
+        self.page.locator(".toolbar-overflow-btn").click()
+        overflow = self.page.locator(".toolbar-overflow-menu")
+        expect(overflow.locator(":scope > .toolbar-group").first).to_be_visible()
+
     def test_overflow_uses_row_two_and_nested_size_picker(self):
         self.page.evaluate("testStore.getState().applyToolbarPreset('everything')")
         self.posture(390, 1000, "horizontal", "folded")
