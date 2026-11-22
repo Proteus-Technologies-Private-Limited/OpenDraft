@@ -152,15 +152,16 @@ fn remember(window: &tauri::Window) {
     if !tracked(window.label()) {
         return;
     }
-    if let (Some(state), Some(p)) = (
-        window.app_handle().try_state::<WindowDisplays>(),
-        snapshot(window),
-    ) {
-        state
-            .windows
-            .lock()
-            .unwrap()
-            .insert(window.label().into(), p.into());
+    if let Some(p) = snapshot(window) {
+        record(window, p);
+    }
+}
+
+fn record(window: &tauri::Window, p: Placement) {
+    if let Some(state) = window.app_handle().try_state::<WindowDisplays>() {
+        if let Ok(mut windows) = state.windows.lock() {
+            windows.insert(window.label().into(), p.into());
+        }
     }
 }
 
@@ -180,27 +181,35 @@ fn persist(app: &tauri::AppHandle) {
         std::fs::rename(temporary, path)?;
         Ok(())
     })();
-    if result.is_err() {
-        eprintln!("[window] Could not save display placement; using defaults next time");
+    if let Err(error) = result {
+        eprintln!("[window] Could not save display placement: {error}");
     }
 }
 
 fn apply(window: &tauri::Window, p: &Placement) -> tauri::Result<()> {
-    // The normal 800×600 minimum must not force a window outside a smaller
-    // display. Recompute the minimum on every restore/new-window placement.
-    window.set_min_size(Some(PhysicalSize::new(
-        (800.0 * p.display.scale).round().min(p.inner.0 as f64) as u32,
-        (600.0 * p.display.scale).round().min(p.inner.1 as f64) as u32,
+    let scale = p.display.scale;
+    window.set_min_size(Some(tauri::LogicalSize::new(
+        800.0_f64.min(p.inner.0 as f64 / scale),
+        600.0_f64.min(p.inner.1 as f64 / scale),
     )))?;
-    if can_position(window) {
-        window.set_position(PhysicalPosition::new(p.outer.x, p.outer.y))?;
+    let position = PhysicalPosition::new(p.outer.x, p.outer.y);
+    let size = PhysicalSize::new(p.inner.0, p.inner.1);
+    // Cocoa converts physical values using the current window's scale. Use
+    // the destination scale explicitly before crossing displays.
+    #[cfg(target_os = "macos")]
+    let (position, size) = (
+        position.to_logical::<f64>(scale),
+        size.to_logical::<f64>(scale),
+    );
+    let positioned = can_position(window);
+    if positioned {
+        window.set_position(position)?;
     }
-    window.set_size(PhysicalSize::new(p.inner.0, p.inner.1))?;
-    // A window manager can adjust the first move to accommodate the old size.
-    // Apply the final position after resizing as well.
-    if can_position(window) {
-        window.set_position(PhysicalPosition::new(p.outer.x, p.outer.y))?;
+    window.set_size(size)?;
+    if positioned {
+        window.set_position(position)?;
     }
+    record(window, p.clone());
     Ok(())
 }
 
@@ -225,14 +234,26 @@ pub fn setup(app: &tauri::AppHandle) {
     let path = app.path().app_config_dir().ok().map(|p| p.join(FILE_NAME));
     let windows = path
         .as_ref()
-        .and_then(|path| {
-            // Treat corrupt/oversized metadata like a first launch, without blocking
-            // the splash transition. The plugin independently reads its own file.
-            if std::fs::metadata(path).ok()?.len() > 1024 * 1024 {
-                return None;
+        .map(|path| {
+            let load = || -> Result<HashMap<String, SavedPlacement>, Box<dyn std::error::Error>> {
+                let file = std::fs::File::open(path)?;
+                if file.metadata()?.len() > 1024 * 1024 {
+                    return Err("placement file exceeds size limit".into());
+                }
+                Ok(serde_json::from_reader(std::io::BufReader::new(file))?)
+            };
+            match load() {
+                Ok(windows) => windows,
+                Err(error) => {
+                    if error
+                        .downcast_ref::<std::io::Error>()
+                        .is_none_or(|e| e.kind() != std::io::ErrorKind::NotFound)
+                    {
+                        eprintln!("[window] Could not read display placement: {error}");
+                    }
+                    HashMap::new()
+                }
             }
-            let bytes = std::fs::read(path).ok()?;
-            serde_json::from_slice::<HashMap<String, SavedPlacement>>(&bytes).ok()
         })
         .unwrap_or_default();
     app.manage(WindowDisplays {
@@ -257,13 +278,10 @@ pub fn setup(app: &tauri::AppHandle) {
                     fit_saved(window, &current)?;
                 }
             }
-            // Preserve normal bounds before entering a mode whose dimensions
-            // must never replace the next normal-window restore rectangle.
-            remember(window);
-            window.restore_state(StateFlags::MAXIMIZED | StateFlags::FULLSCREEN)
+            Ok(())
         })();
-        if result.is_err() {
-            eprintln!("[window] Could not restore all window state; using available defaults");
+        if let Err(error) = result {
+            eprintln!("[window] Could not restore normal bounds: {error}");
         }
     }
 }
@@ -278,12 +296,13 @@ pub fn show_new(window: &tauri::WebviewWindow, origin: Option<&tauri::WebviewWin
         let origin = origin_windows.as_ref();
         let p = origin.and_then(|source| {
             let monitor = source.current_monitor().ok().flatten()?;
-            let state = source.app_handle().state::<WindowDisplays>();
+            let state = source.app_handle().try_state::<WindowDisplays>();
             let mut p = snapshot(source).or_else(|| {
                 state
+                    .as_ref()?
                     .windows
                     .lock()
-                    .unwrap()
+                    .ok()?
                     .get(source.label())
                     .and_then(SavedPlacement::placement)
             })?;
@@ -298,14 +317,39 @@ pub fn show_new(window: &tauri::WebviewWindow, origin: Option<&tauri::WebviewWin
         } else if let Some(p) = snapshot(target) {
             fit_saved(target, &p)?;
         }
-        remember(target);
         Ok(())
     })();
-    if result.is_err() {
-        eprintln!("[window] Could not apply new-window placement; using platform defaults");
+    if let Err(error) = result {
+        eprintln!("[window] Could not apply new-window placement: {error}");
     }
-    let _ = window.show();
-    let _ = window.set_focus();
+    show_after_placement(window);
+}
+
+fn show_and_focus(window: &tauri::WebviewWindow) {
+    if let Err(error) = window.show() {
+        eprintln!("[window] Could not show window: {error}");
+    }
+    if let Err(error) = window.set_focus() {
+        eprintln!("[window] Could not focus window: {error}");
+    }
+}
+
+fn show_after_placement(window: &tauri::WebviewWindow) {
+    #[cfg(target_os = "macos")]
+    {
+        // Tao queues Cocoa frame changes on the main dispatch queue.
+        let window = window.clone();
+        dispatch2::DispatchQueue::main().exec_async(move || show_and_focus(&window));
+    }
+    #[cfg(not(target_os = "macos"))]
+    show_and_focus(window);
+}
+
+pub fn show_startup(window: &tauri::WebviewWindow) {
+    show_and_focus(window);
+    if let Err(error) = window.restore_state(StateFlags::MAXIMIZED | StateFlags::FULLSCREEN) {
+        eprintln!("[window] Could not restore window mode: {error}");
+    }
 }
 
 pub fn on_window_event(window: &tauri::Window, event: &tauri::WindowEvent) {

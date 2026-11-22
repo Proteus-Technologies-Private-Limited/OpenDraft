@@ -36,6 +36,122 @@ IMAGES = Path(os.environ.get("OD_TEST_IMAGES", ""))  # folder with sarah.jpg, ma
 PROJECT = "Upgrade Check"
 
 
+class PersistentIOS:
+    """One web-inspector session kept open across evaluations.
+
+    run_inspector opens a session per call, and webinspectord stalls on a
+    session opened right after another closed — up to 20 s a call. Here the
+    session is set up once; a reload (new target) or a dropped socket sets it
+    up again.
+    """
+
+    def __init__(self, device: str):
+        from sim_webinspector import APP_BUNDLE, Inspector, find_socket
+        self.udid, self.path, self.bundle, self.Inspector = device, find_socket(), APP_BUNDLE, Inspector
+        self.ins = None
+        self.base = None
+        self.target = None
+        self.next_id = 10
+
+    def _connect(self) -> None:
+        self.close()
+        ins = self.Inspector(self.path, timeout=15.0)
+        ins.send("_rpc_reportIdentifier:", {"WIRConnectionIdentifierKey": ins.conn})
+        app_id, deadline = None, time.time() + 15
+        while app_id is None:
+            if time.time() > deadline:
+                raise RuntimeError("OpenDraft never appeared in the inspector's application list")
+            msg = ins.recv()
+            sel, arg = msg.get("__selector"), msg.get("__argument", {})
+            if sel == "_rpc_reportConnectedApplicationList:":
+                apps = arg.get("WIRApplicationDictionaryKey", {})
+            elif sel in ("_rpc_applicationConnected:", "_rpc_applicationUpdated:"):
+                apps = {arg.get("WIRApplicationIdentifierKey"): arg}
+            else:
+                continue
+            app_id = next((k for k, v in apps.items() if v.get("WIRApplicationBundleIdentifierKey") == self.bundle), None)
+        ins.send("_rpc_forwardGetListing:", {"WIRConnectionIdentifierKey": ins.conn, "WIRApplicationIdentifierKey": app_id})
+        listing, deadline = None, time.time() + 15
+        while not listing:
+            if time.time() > deadline:
+                raise RuntimeError("OpenDraft has no inspectable page yet")
+            listing = ins.wait_for("_rpc_applicationSentListing:").get("WIRListingKey")
+        page_id = next(iter(listing.values()))["WIRPageIdentifierKey"]
+        self.base = {"WIRConnectionIdentifierKey": ins.conn, "WIRApplicationIdentifierKey": app_id,
+                     "WIRPageIdentifierKey": page_id, "WIRSenderKey": ins.sender}
+        ins.send("_rpc_forwardSocketSetup:", {**self.base, "WIRAutomaticallyPause": False})
+        self.ins = ins
+        deadline = time.time() + 15
+        while self.target is None:
+            if time.time() > deadline:
+                raise RuntimeError("no inspector target")
+            self._pump()
+
+    def _pump(self):
+        """Read one message; note targets; return a target reply if it is one."""
+        msg = self.ins.recv()
+        if msg.get("__selector") != "_rpc_applicationSentData:":
+            return None
+        data = json.loads(msg["__argument"]["WIRMessageDataKey"])
+        method = data.get("method")
+        if method == "Target.targetCreated":
+            self.target = data["params"]["targetInfo"]["targetId"]
+        elif method == "Target.targetDestroyed" and data.get("params", {}).get("targetId") == self.target:
+            self.target = None
+        elif method == "Target.dispatchMessageFromTarget":
+            return json.loads(data["params"]["message"])
+        return None
+
+    def _evaluate(self, expression: str) -> str:
+        if self.ins is None or self.target is None:
+            self._connect()
+        self.next_id += 1
+        my_id = self.next_id
+        request = {"id": my_id, "method": "Runtime.evaluate", "params": {"expression": expression, "returnByValue": True}}
+        outer = {"id": my_id + 100000, "method": "Target.sendMessageToTarget",
+                 "params": {"targetId": self.target, "message": json.dumps(request)}}
+        self.ins.send("_rpc_forwardSocketData:", {**self.base, "WIRSocketDataKey": json.dumps(outer).encode()})
+        deadline = time.time() + 60
+        while time.time() < deadline:
+            inner = self._pump()
+            if self.target is None:
+                raise ConnectionError("page went away (reload)")
+            if not inner or inner.get("id") != my_id:
+                continue
+            result = inner.get("result", {})
+            if inner.get("error") or result.get("wasThrown"):
+                from sim import JavaScriptError
+                raise JavaScriptError(result.get("result", {}).get("description") or json.dumps(inner))
+            value = result.get("result", {}).get("value")
+            return value if isinstance(value, str) else json.dumps(value)
+        raise TimeoutError("no reply")
+
+    def evaluate(self, expression: str) -> str:
+        from sim import JavaScriptError
+        last = None
+        for attempt in range(4):
+            try:
+                return self._evaluate(expression)
+            except JavaScriptError:
+                raise
+            except (OSError, KeyError, ValueError, RuntimeError, StopIteration) as error:
+                last = error
+                self.close()
+                time.sleep(1.5 + attempt)
+        raise RuntimeError(f"inspector failed: {last!r}")
+
+    def close(self) -> None:
+        if self.ins is not None:
+            try:
+                self.ins.close(self.base)
+            except Exception:  # noqa: BLE001 — closing a dead session
+                pass
+        self.ins, self.target = None, None
+
+    def screenshot(self, path: str) -> None:
+        subprocess.run(["xcrun", "simctl", "io", self.udid, "screenshot", path], check=True, capture_output=True, timeout=30)
+
+
 def udid() -> str:
     if os.environ.get("OD_SIM_UDID"):
         return os.environ["OD_SIM_UDID"]
@@ -103,17 +219,37 @@ class App(Smoke):
 
     def menu(self, top: str, *path: str) -> bool:
         """Open a menu-bar menu and click through submenus by their labels."""
-        return bool(self.js(f"""
-          const path = {json.dumps(list(path))};
+        self.js("document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); return true;")
+        time.sleep(0.4)
+        if not self.js(f"""
           const top = [...document.querySelectorAll('.menu-bar [role=menuitem]')].find(b => b.textContent.trim() === {json.dumps(top)});
           if (!top) return false;
           top.click();
-          let scope = document;
+          return true;
+        """):
+            return False
+        time.sleep(0.8)
+        # The click toggles: if that menu was already open it just closed.
+        if self.js("return [...document.querySelectorAll('[role=menuitem]')].filter(e => e.offsetParent).length;") <= 6:
+            self.js(f"[...document.querySelectorAll('.menu-bar [role=menuitem]')].find(b => b.textContent.trim() === {json.dumps(top)}).click(); return true;")
+            time.sleep(0.8)
+        return bool(self.js(f"""
+          const path = {json.dumps(list(path))};
+          let scope = null;
           for (const label of path) {{
-            const leaf = [...scope.querySelectorAll('*')].find(e => e.offsetParent !== null && e.children.length === 0 && e.textContent.trim() === label)
-              || [...scope.querySelectorAll('[role=menuitem]')].find(e => e.offsetParent !== null && e.textContent.trim().startsWith(label));
-            if (!leaf) return false;
-            const item = leaf.closest('[role=menuitem], [role=menuitemcheckbox], [role=menuitemradio]') || leaf;
+            let item;
+            if (!scope) {{
+              // First level: the open menu's own items (not the bar's).
+              item = [...document.querySelectorAll('[role=menuitem], [role=menuitemcheckbox]')]
+                .find(e => e.offsetParent !== null && e.textContent.trim().startsWith(label)
+                           && !['File','Edit','Format','View','Tools','Help'].includes(e.textContent.trim()));
+            }} else {{
+              // Inside a submenu, which is in the DOM before it is shown.
+              // A ticked item reads "✓ Label".
+              const leaf = [...scope.querySelectorAll('*')].find(e => e.children.length === 0 && e.textContent.trim().replace(/^✓\\s*/, '') === label);
+              item = leaf && (leaf.closest('[role=menuitemcheckbox], [role=menuitem], [role=menuitemradio], button') || leaf);
+            }}
+            if (!item) return false;
             item.click();
             scope = item;
           }}
@@ -171,12 +307,14 @@ def populate_214(app: App) -> dict:
     # Save it into a new project, the way a writer starts one.
     if not app.js("return /^\\/project\\//.test(location.pathname);"):
         app.menu("File", "Save Script As…")
-        time.sleep(1.5)
+        if not app.wait_for("[...document.querySelectorAll('.dialog-box')].some(b => b.offsetParent && b.querySelector('input[placeholder=\"Project name\"]'))", 15):
+            raise SystemExit("Save As dialog did not open")
         app.js("""
-          const d = [...document.querySelectorAll('.dialog-box')].find(b => b.offsetParent);
+          const d = [...document.querySelectorAll('.dialog-box')].find(b => b.offsetParent && b.querySelector('input[placeholder="Project name"]'));
           const set = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })); };
-          const ins = d.querySelectorAll('input[type=text]');
-          set(ins[0], %s); set(ins[1], 'The Nightfall File');
+          // Picked by placeholder: these inputs carry no type attribute.
+          set(d.querySelector('input[placeholder="Project name"]'), %s);
+          set(d.querySelector('input[placeholder="First Draft"]'), 'The Nightfall File');
           return true;
         """ % json.dumps(PROJECT))
         time.sleep(0.8)
@@ -247,11 +385,213 @@ def populate_214(app: App) -> dict:
     return manifest
 
 
+IMAGES_LOADED = """
+  (root) => [...(root || document).querySelectorAll('img')].filter(i => i.offsetParent !== null)
+    .map(i => ({ cls: i.className, ok: i.complete && i.naturalWidth > 0, w: i.naturalWidth }))
+"""
+
+
+class Verify:
+    def __init__(self, app: App):
+        self.app = app
+        self.results: list[tuple[str, bool, str]] = []
+
+    def check(self, name: str, ok: bool, detail: str = "") -> bool:
+        self.results.append((name, bool(ok), detail))
+        print(f"{'PASS' if ok else 'FAIL'}  {name}  — {detail}")
+        return bool(ok)
+
+    def dismiss_dialogs(self) -> list[str]:
+        """Close anything the upgrade puts up (What's New, recovery), noting what it was."""
+        seen = []
+        for _ in range(3):
+            title = self.app.js("""
+              const box = [...document.querySelectorAll('.dialog-box')].find(b => b.offsetParent);
+              if (!box) return null;
+              const t = (box.querySelector('.dialog-header')?.textContent || box.textContent).trim().slice(0, 80);
+              const btn = [...box.querySelectorAll('button')].find(b => /^(Close|OK|Got it|Discard|Not now|Later|Cancel)$/.test(b.textContent.trim()));
+              if (btn) btn.click();
+              return t;
+            """)
+            if not title:
+                break
+            seen.append(title)
+            time.sleep(1)
+        return seen
+
+    def open_script(self, path: str) -> bool:
+        if self.app.js("return location.pathname;") != path:
+            self.app.navigate(path)
+        return self.app.wait_for("document.querySelectorAll('.ProseMirror [data-type=character]').length > 3", 30)
+
+    def open_panel(self, label: str, selector: str) -> bool:
+        if self.app.js(f"return !!document.querySelector({json.dumps(selector)});"):
+            return True
+        self.app.menu("View", "Panels", label)
+        return self.app.wait_for(f"document.querySelector({json.dumps(selector)})", 10)
+
+    def character_rows(self) -> dict:
+        self.app.wait_for("[...document.querySelectorAll('.sp-row[data-char-name] img.sp-avatar')].every(i => i.complete)", 10)
+        return self.app.js("""
+          const out = {};
+          for (const r of document.querySelectorAll('.sp-row[data-char-name]')) {
+            const img = r.querySelector('img.sp-avatar');
+            out[r.dataset.charName] = img ? { image: true, ok: img.complete && img.naturalWidth > 0 }
+                                          : { image: false, initials: r.querySelector('.sp-avatar')?.textContent || '' };
+          }
+          return out;
+        """)
+
+    def open_character(self, name: str) -> dict:
+        self.app.js("const r=document.querySelector('.sp-row[data-char-name=\"%s\"]'); r && r.click(); return !!r;" % name)
+        time.sleep(1.2)
+        self.app.click_text("Profile", "[role=tab]")
+        time.sleep(0.8)
+        profile = self.app.js("""
+          const root = document.querySelector('.char-profiles, .character-profiles, .story-panel') || document.body;
+          return {
+            inputs: [...document.querySelectorAll('input[type=text], input:not([type])')].filter(i => i.offsetParent).map(i => i.value),
+            text: [...document.querySelectorAll('.mini-rt-editor, [contenteditable=true]')].filter(e => e.offsetParent && !e.closest('.ProseMirror-editor-root')).map(e => e.textContent.trim()),
+            images: (%s)(null).filter(i => !/sp-avatar|sp-row-thumb/.test(i.cls)),
+            header: (%s)(null).filter(i => /sp-avatar/.test(i.cls) && !i.cls.includes('row')),
+          };
+        """ % (IMAGES_LOADED, IMAGES_LOADED))
+        self.app.click_text("Story", "[role=tab]")
+        time.sleep(0.8)
+        profile["story"] = self.app.js("return [...document.querySelectorAll('.mini-rt-editor, [contenteditable=true]')].filter(e => e.offsetParent).map(e => e.textContent.trim());")
+        self.app.click_text("Profile", "[role=tab]")
+        return profile
+
+    def back_to_list(self, panel: str = ".char-profiles-panel") -> None:
+        # Scoped: with two panels open, the other one's back button is also on screen.
+        self.app.js("""
+          const back = [...(document.querySelector(%s) || document).querySelectorAll('button')]""" % json.dumps(panel) + """.find(b => b.offsetParent && /^(‹|←|Back)/.test(b.textContent.trim()) || /Back to/.test(b.getAttribute('aria-label') || b.title || ''));
+          if (back) back.click();
+          return !!back;
+        """)
+        time.sleep(0.8)
+
+
+def verify_upgrade(app: App, label: str) -> int:
+    m = json.loads(MANIFEST.read_text())
+    v = Verify(app)
+    v.check("starts", app.wait_for("window.__odBooted === true && !document.getElementById('_fatal')", 45))
+    time.sleep(2)
+    print("  dialogs on start:", v.dismiss_dialogs())
+    v.check("script opens", v.open_script(m["path"]), m["path"])
+    v.check("Character Profiles opens", v.open_panel("Character Profiles", ".sp-row[data-char-name]"))
+    rows = v.character_rows()
+    for name in m["characters"]:
+        r = rows.get(name, {})
+        v.check(f"{name}: portrait is the list icon", r.get("image") and r.get("ok"), json.dumps(r))
+    others = {k: r for k, r in rows.items() if k not in m["characters"]}
+    v.check("others keep their initials", all(not r["image"] for r in others.values()), json.dumps(others)[:160])
+    for name, data in m["characters"].items():
+        p = v.open_character(name)
+        flat = " | ".join(p["inputs"] + p["text"] + p["story"])
+        for field in ("gender", "age", "description", "backstory"):
+            v.check(f"{name}: {field} kept", data[field] in flat, data[field])
+        v.check(f"{name}: portrait shown in the profile", any(i["ok"] for i in p["images"]), json.dumps(p["images"]))
+        v.check(f"{name}: portrait in the profile header", any(i["ok"] for i in p["header"]), json.dumps(p["header"]))
+        app.shot(f"{label}_character_{name.lower()}")
+        v.back_to_list()
+    app.shot(f"{label}_characters")
+    passed = sum(ok for _, ok, _ in v.results)
+    print(f"\n{label}: {passed}/{len(v.results)} passed")
+    (OUT / f"{label}.json").write_text(json.dumps(v.results, indent=1))
+    return 0 if passed == len(v.results) else 1
+
+
+def location_rows(app: App) -> dict:
+    app.wait_for("[...document.querySelectorAll('.location-database img.sp-row-thumb')].every(i => i.complete)", 10)
+    return app.js("""
+      const out = {};
+      for (const r of document.querySelectorAll('.location-database .sp-row')) {
+        const name = r.querySelector('.sp-row-name')?.firstChild?.textContent?.trim() || r.textContent.trim().slice(0, 30);
+        const img = r.querySelector('img.sp-row-thumb');
+        out[name] = img ? { image: true, ok: img.complete && img.naturalWidth > 0 } : { image: false };
+      }
+      return out;
+    """)
+
+
+def new_features(app: App) -> int:
+    """On the current app: Location Profiles with images, a new portrait, then a relaunch."""
+    m = json.loads(MANIFEST.read_text())
+    v = Verify(app)
+    v.open_script(m["path"])
+    v.check("Location Profiles opens", v.open_panel("Location Profiles", ".location-database"))
+    if not app.js("return document.querySelectorAll('.location-database .sp-row').length;"):
+        app.click_text("⟳ Discover")
+        app.wait_for("document.querySelectorAll('.location-database .sp-row').length > 0", 15)
+    rows = location_rows(app)
+    v.check("Discover finds the script's locations on the device", len(rows) >= 2, ", ".join(rows))
+    target = next(iter(rows), None)
+    app.stub_file_picker(True)
+    try:
+        if target:
+            app.js("const r=[...document.querySelectorAll('.location-database .sp-row')].find(r=>r.textContent.includes(%s)); r.click(); return true;" % json.dumps(target))
+            time.sleep(1.2)
+            app.click_text("Details", "[role=tab]")
+            time.sleep(0.6)
+            app.js("const b=[...document.querySelectorAll('.location-database .char-profile-img-btn')].find(b=>b.offsetParent && /Upload/.test(b.textContent)); b && b.click(); return !!b;")
+            time.sleep(0.4)
+            app.attach_file('.location-database input[type=file]', IMAGES / "loc_day.jpg")
+            v.check(f"{target}: image uploads in Location Profiles",
+                    app.wait_for("[...document.querySelectorAll('.location-database .sp-body img, .location-database .location-db-images img')].some(i => i.complete && i.naturalWidth > 0)", 15))
+            app.shot("new_location_record")
+            v.back_to_list(".location-database")
+            r = location_rows(app).get(target, {})
+            v.check(f"{target}: image is the list thumbnail", r.get("image") and r.get("ok"), json.dumps(r))
+        # A portrait added in the new version, to a character that had none.
+        v.open_panel("Character Profiles", ".sp-row[data-char-name]")
+        app.js("const r=document.querySelector('.sp-row[data-char-name=\"HOODED FIGURE\"]'); r && r.click(); return !!r;")
+        time.sleep(1.2)
+        app.click_text("Upload Image")
+        time.sleep(0.4)
+        app.attach_file('.char-profiles-panel input[type=file]', IMAGES / "loc_night.jpg")
+        v.check("HOODED FIGURE: new portrait uploads",
+                app.wait_for("[...document.querySelectorAll('.char-profiles-panel .sp-body img')].some(i => i.complete && i.naturalWidth > 0)", 15))
+        v.back_to_list()
+        r = v.character_rows().get("HOODED FIGURE", {})
+        v.check("HOODED FIGURE: new portrait is the list icon", r.get("image") and r.get("ok"), json.dumps(r))
+    finally:
+        app.stub_file_picker(False)
+    app.menu("File", "Save Script")
+    time.sleep(3)
+
+    # Relaunch: what is on disk, not what is in memory.
+    app.backend.close()
+    subprocess.run(["xcrun", "simctl", "terminate", app.backend.udid, "com.proteus.opendraft"], capture_output=True)
+    time.sleep(1)
+    subprocess.run(["xcrun", "simctl", "launch", app.backend.udid, "com.proteus.opendraft"], capture_output=True)
+    time.sleep(6)
+    v.check("starts again", app.wait_for("window.__odBooted === true", 45))
+    v.dismiss_dialogs()
+    v.check("script reopens", v.open_script(m["path"]))
+    v.open_panel("Character Profiles", ".sp-row[data-char-name]")
+    chars = v.character_rows()
+    for name in list(m["characters"]) + ["HOODED FIGURE"]:
+        r = chars.get(name, {})
+        v.check(f"after relaunch: {name} icon", r.get("image") and r.get("ok"), json.dumps(r))
+    v.open_panel("Location Profiles", ".location-database")
+    locs = location_rows(app)
+    if target:
+        r = locs.get(target, {})
+        v.check(f"after relaunch: {target} thumbnail", r.get("image") and r.get("ok"), json.dumps(r))
+    v.check("after relaunch: locations kept", len(locs) == len(rows), f"{len(locs)} of {len(rows)}")
+    app.shot("after_relaunch")
+    passed = sum(ok for _, ok, _ in v.results)
+    print(f"\nnew_features: {passed}/{len(v.results)} passed")
+    (OUT / "new_features.json").write_text(json.dumps(v.results, indent=1))
+    return 0 if passed == len(v.results) else 1
+
+
 def main() -> int:
     if len(sys.argv) < 2:
         print(__doc__)
         return 2
-    app = App(IOSBackend(udid()))
+    app = App(PersistentIOS(udid()))
     cmd = sys.argv[1]
     if cmd == "eval":
         print(json.dumps(app.js(sys.argv[2]), indent=1, ensure_ascii=False))
@@ -259,6 +599,10 @@ def main() -> int:
     if cmd == "populate":
         print(json.dumps(populate_214(app), indent=1, ensure_ascii=False))
         return 0
+    if cmd == "features":
+        return new_features(app)
+    if cmd == "verify":
+        return verify_upgrade(app, sys.argv[2] if len(sys.argv) > 2 else "after_upgrade")
     print(f"unknown command {cmd}")
     return 2
 

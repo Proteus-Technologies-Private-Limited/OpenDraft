@@ -179,6 +179,47 @@ describe('recording', () => {
     info.mockRestore();
   });
 
+  it('asks once the share sheet that covered the app has closed', async () => {
+    vi.stubGlobal('window', new EventTarget());
+    vi.stubGlobal('document', { visibilityState: 'visible', querySelector: () => null });
+    localStorage.setItem(KEY, JSON.stringify(due({ moments: REVIEW_RULES.minMoments - 1 })));
+    const info = vi.spyOn(console, 'info').mockImplementation(() => undefined);
+    // The native side reports the app covered twice, then free.
+    invoke.mockResolvedValueOnce(false).mockResolvedValueOnce(false);
+    recordHappyMoment(NOW);
+    await vi.advanceTimersByTimeAsync(REVIEW_RULES.delayMs + 10);
+    expect(invoke).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(REVIEW_RULES.retryMs * 2);
+    expect(invoke).toHaveBeenCalledTimes(3);
+    expect(loadState(Date.now()).asks).toBe(1);
+    await vi.advanceTimersByTimeAsync(REVIEW_RULES.maxWaitMs);
+    expect(invoke).toHaveBeenCalledTimes(3); // asked: no more tries
+    info.mockRestore();
+  });
+
+  it('waits out a share chooser that hides the page, then asks', async () => {
+    const page = { visibilityState: 'hidden', querySelectorAll: () => [] as Element[] };
+    vi.stubGlobal('window', new EventTarget());
+    vi.stubGlobal('document', page);
+    localStorage.setItem(KEY, JSON.stringify(due({ moments: REVIEW_RULES.minMoments - 1 })));
+    recordHappyMoment(NOW);
+    await vi.advanceTimersByTimeAsync(REVIEW_RULES.delayMs + REVIEW_RULES.retryMs * 3);
+    expect(invoke).not.toHaveBeenCalled();
+    page.visibilityState = 'visible';
+    await vi.advanceTimersByTimeAsync(REVIEW_RULES.retryMs + 10);
+    expect(invoke).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores a closed menu left in the page', async () => {
+    const hiddenMenu = { getClientRects: () => [] };
+    vi.stubGlobal('window', new EventTarget());
+    vi.stubGlobal('document', { visibilityState: 'visible', querySelectorAll: () => [hiddenMenu] });
+    localStorage.setItem(KEY, JSON.stringify(due({ moments: REVIEW_RULES.minMoments - 1 })));
+    recordHappyMoment(NOW);
+    await vi.advanceTimersByTimeAsync(REVIEW_RULES.delayMs + 10);
+    expect(invoke).toHaveBeenCalledTimes(1);
+  });
+
   it('does not ask while the app is in the background', async () => {
     localStorage.setItem(KEY, JSON.stringify(due()));
     vi.stubGlobal('document', { visibilityState: 'hidden' });

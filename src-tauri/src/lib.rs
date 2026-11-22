@@ -3355,8 +3355,7 @@ pub fn run() {
                     std::thread::sleep(std::time::Duration::from_millis(500));
 
                     if let Some(main) = main_window {
-                        let _ = main.show();
-                        let _ = main.set_focus();
+                        desktop_windows::show_startup(&main);
                     }
                     if let Some(sp) = splash {
                         let _ = sp.close();

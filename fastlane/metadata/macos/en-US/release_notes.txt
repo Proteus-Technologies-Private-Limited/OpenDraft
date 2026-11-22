@@ -1,25 +1,13 @@
-Arrange your workspace your way, write side by side with your pages or cards, and draft in one continuous scroll.
+Build your characters and places in detail, and see everything about the scene you are writing.
 
-YOUR WORKSPACE, YOUR WAY
-Put the Navigator and every panel in the left, right or bottom dock, choose what sits on the toolbar and status bar and in what order, and save layouts you can switch between in one click. Whatever doesn't fit in the window is one click away, just above the status bar.
+CHARACTERS, LOCATIONS AND SCENE DETAILS
+Give each character a profile with pictures, their story, voice, relationships and the costumes they wear. Give each location a description, looks such as Day and Night, and reference pictures. Scene Details shows the scene you are in: where it is set, who is there and what each of them wears. Your existing profiles and pictures carry over.
 
-ONE ZOOM CONTROL
-Zoom with buttons, a slider or both, and fit the page to the width of the window in one click. Keep it on the status bar or move it to the toolbar.
+OPENS ON OLDER MACS AGAIN
+If OpenDraft stopped at "Loading timed out" on a Mac with an older version of Safari, it opens normally again.
 
-SPLIT SCREEN
-Keep the printed page, your index cards, the outline or the beat board open beside the script.
-
-SPEED VIEW
-Write in one continuous scroll without page breaks. Your page count and exports stay exactly the same.
-
-STORY MAP
-See your whole story as a strip of scenes, sized by pages or screen time, and jump to any scene.
-
-A HANDIER NAVIGATOR
-Edit synopses right in the list, colour scenes, and see the page each scene starts on.
-
-LINE SPACING AND FONT SIZE
-Open up the spacing or change the script's font size, and the pages and PDF follow.
+EASIER BY KEYBOARD
+Customising your workspace now works fully from the keyboard.
 
 ALSO IMPROVED
-Settings are sorted into sections with search, PDFs print accented letters and more languages correctly, and Table Read keeps its place while you edit.
+Typing in long scripts is faster, and panels fit better in a narrow window.
