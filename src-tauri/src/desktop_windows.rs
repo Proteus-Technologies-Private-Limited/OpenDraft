@@ -9,6 +9,10 @@ use tauri_plugin_window_state::{StateFlags, WindowExt};
 
 const FILE_NAME: &str = "window-displays.json";
 
+fn persistent_placement(key: &str) -> bool {
+    matches!(key, "main" | "panel-main-navigator")
+}
+
 pub fn state_flags() -> StateFlags {
     // Visibility belongs to the splash transition. Decorations belong to the
     // platform. Position is handled here, and is never requested on Wayland.
@@ -36,7 +40,7 @@ pub fn tracked(label: &str) -> bool {
             .is_some_and(|n| !n.is_empty() && n.bytes().all(|c| c.is_ascii_digit()))
 }
 
-// Persist placement by owner/panel, independent of the transient native label.
+// Keep placement by owner/panel for the current session.
 fn panel_key(label: &str) -> Option<&str> {
     let (key, counter) = label.rsplit_once('-')?;
     let owner = key.strip_prefix("panel-")?.strip_suffix("-navigator")?;
@@ -248,10 +252,10 @@ fn persist(app: &tauri::AppHandle) {
             return;
         }
     };
-    // Secondary geometry is only a session-local reference for New Window.
+    // Secondary editor and panel placements belong only to the current session.
     let saved: HashMap<_, _> = windows
         .iter()
-        .filter(|(label, _)| label.as_str() == "main" || panel_key(label).is_some())
+        .filter(|(label, _)| persistent_placement(label))
         .collect();
     let result = (|| -> Result<(), Box<dyn std::error::Error>> {
         std::fs::create_dir_all(path.parent().ok_or("no config directory")?)?;
@@ -332,7 +336,7 @@ fn fit_saved(window: &tauri::Window, saved: &Placement) -> tauri::Result<()> {
 
 pub fn setup(app: &tauri::AppHandle) {
     let path = app.path().app_config_dir().ok().map(|p| p.join(FILE_NAME));
-    let windows = path
+    let mut windows = path
         .as_ref()
         .map(|path| {
             let load = || -> Result<HashMap<String, SavedPlacement>, Box<dyn std::error::Error>> {
@@ -356,6 +360,7 @@ pub fn setup(app: &tauri::AppHandle) {
             }
         })
         .unwrap_or_default();
+    windows.retain(|key, _| persistent_placement(key));
     app.manage(WindowDisplays {
         path,
         windows: Mutex::new(windows),
@@ -491,6 +496,9 @@ pub fn on_window_event(window: &tauri::Window, event: &tauri::WindowEvent) {
             if let Some(state) = window.app_handle().try_state::<WindowDisplays>() {
                 if let Ok(mut windows) = state.windows.lock() {
                     windows.remove(window.label());
+                    if crate::panel_ownership::editor_label(window.label()) {
+                        windows.remove(&format!("panel-{}-navigator", window.label()));
+                    }
                 }
             }
         }
@@ -591,9 +599,13 @@ pub fn show_panel(window: &tauri::WebviewWindow, origin: &tauri::WebviewWindow) 
         .state::<WindowDisplays>()
         .windows
         .lock()
-        .unwrap()
-        .get(placement_key(window.label()))
-        .and_then(SavedPlacement::placement);
+        .map_err(|error| eprintln!("[window] Could not lock saved panel bounds: {error}"))
+        .ok()
+        .and_then(|windows| {
+            windows
+                .get(placement_key(window.label()))
+                .and_then(SavedPlacement::placement)
+        });
     if let Some(saved) = saved {
         if fit_saved(&window.as_ref().window(), &saved).is_err() {
             eprintln!("[window] Could not restore panel bounds");

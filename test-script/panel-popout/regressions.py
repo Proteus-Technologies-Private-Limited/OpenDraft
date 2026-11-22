@@ -129,6 +129,7 @@ async def run():
                             and info["session"] == args["session"]
                         ):
                             return existing
+                    assert args["title"].endswith(" — Synthetic screenplay")
                     counter += 1
                     child = f"panel-{label}-navigator-{counter}"
                     all_panels_closed.clear()
@@ -192,6 +193,21 @@ async def run():
             ).wait_for()
             assert "scenes" not in snapshots[-1]
             checks.append("owner caret updates without sending scene summaries")
+            first_revision = snapshots[-1]["revision"]
+            await owner.evaluate("panelTest.saveToLibrary(); panelTest.saveToFile()")
+            await owner.evaluate("panelTest.saveCopy()")
+            await owner.evaluate("panelTest.insertInBody(); panelTest.select(2)")
+            for _ in range(100):
+                if snapshots[-1]["revision"] > first_revision:
+                    break
+                await asyncio.sleep(0.02)
+            assert snapshots[-1]["revision"] > first_revision
+            assert "scenes" not in snapshots[-1]
+            assert await owner.locator("#detached").inner_text() == "true"
+            assert not panel.is_closed()
+            await panel.get_by_role("button", name="2. EXT. STREET - NIGHT").click()
+            await owner.wait_for_function("panelTest.selection() > 20")
+            checks.append("saving or linking the current document keeps the panel open and body edits omit scenes")
             await panel.get_by_role("searchbox").fill("Footsteps")
             assert await panel.locator("nav button").count() == 1
             await panel.locator("nav button").click()
@@ -266,7 +282,7 @@ async def run():
             await owner.wait_for_function(
                 "document.querySelector('#detached').textContent === 'true'"
             )
-            await owner.evaluate("panelTest.switch()")
+            await owner.evaluate("panelTest.hideNavigator(); panelTest.switch()")
             await owner.wait_for_function(
                 "document.querySelector('#detached').textContent === 'false'"
             )
@@ -276,13 +292,15 @@ async def run():
             await owner.wait_for_function(
                 "document.querySelector('#detached').textContent === 'true'"
             )
-            await owner.evaluate("panelTest.replace()")
+            assert await owner.evaluate("panelTest.navigatorOpen()")
+            await owner.evaluate("panelTest.hideNavigator(); panelTest.replace()")
             await owner.wait_for_function(
                 "document.querySelector('#detached').textContent === 'false'"
             )
             await asyncio.wait_for(all_panels_closed.wait(), timeout=10)
             assert not panels
-            checks.append("script switch and full replacement close their old panels")
+            assert await owner.evaluate("panelTest.navigatorOpen()")
+            checks.append("switch and replacement close the old window and restore the dock")
             assert not errors, errors
             assert not any("sql" in call or "save" in call for call in calls), calls
             checks.append("no save or SQL initialization in the panel flow")

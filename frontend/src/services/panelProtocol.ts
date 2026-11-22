@@ -10,7 +10,9 @@ export interface NavigatorSnapshot {
   session: string;
   revision: number;
   sequence: number;
+  sceneRevision: number;
   title: string;
+  windowTitle: string;
   scenes: PanelScene[];
   active: number;
   appearance: Appearance;
@@ -35,11 +37,20 @@ export function sceneSummary(doc: PMNode, selection: number, numbering = { visib
   return { scenes, positions, active };
 }
 
+export function sameSceneSummary(left: readonly PanelScene[], right: readonly PanelScene[]): boolean {
+  return left.length === right.length && left.every((scene, index) => {
+    const other = right[index];
+    return scene.heading === other.heading && scene.synopsis === other.synopsis
+      && scene.number === other.number && scene.color === other.color;
+  });
+}
+
 export function isNavigatorUpdate(value: unknown): value is NavigatorUpdate {
   if (!value || typeof value !== 'object') return false;
   const s = value as NavigatorUpdate;
   return typeof s.session === 'string' && Number.isSafeInteger(s.revision) && s.revision >= 0
-    && Number.isSafeInteger(s.sequence) && s.sequence >= 0 && typeof s.title === 'string'
+    && Number.isSafeInteger(s.sequence) && s.sequence >= 0 && Number.isSafeInteger(s.sceneRevision) && s.sceneRevision >= 0
+    && typeof s.title === 'string' && typeof s.windowTitle === 'string'
     && isAppearance(s.appearance) && typeof s.language === 'string' && languageInfo(s.language).code === s.language
     && Number.isInteger(s.active) && s.active >= -1
     && (s.scenes === undefined || (Array.isArray(s.scenes) && s.active < s.scenes.length

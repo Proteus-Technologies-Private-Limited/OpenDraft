@@ -2,7 +2,7 @@ import { createContext, useCallback, useEffect, useMemo, useRef, useState } from
 import type { Editor } from '@tiptap/react';
 import { useEditorStore } from '../stores/editorStore';
 import { getLanguage, subscribeLanguage, t } from '../i18n';
-import { sceneSummary, navigationPosition, type PanelMessage } from '../services/panelProtocol';
+import { sceneSummary, sameSceneSummary, navigationPosition, type PanelMessage, type PanelScene } from '../services/panelProtocol';
 import { canPopOutNavigator, closeNavigatorPanels, openNavigatorPanel, publishNavigator, subscribePanel } from '../services/panelWindows';
 import { showToast } from '../components/Toast';
 
@@ -14,10 +14,17 @@ export function notifyPanelDocumentReplacement(editor: Editor | null) {
   if (editor && !editor.isDestroyed) editor.view.dom.dispatchEvent(new Event(documentReplacement));
 }
 
+function navigatorWindowTitle(scriptTitle: string) {
+  const navigator = t('menu:view.navigator');
+  return scriptTitle.trim() ? `${navigator} — ${scriptTitle}` : navigator;
+}
+
 /** The owner remains the sole editor, undo history and persistence authority. */
-export function useNavigatorPopout(editor: Editor | null, documentIdentity: string): { detached: boolean; available: boolean; open: () => void } {
+export function useNavigatorPopout(editor: Editor | null, scriptId: string | null) {
   const [detached, setDetached] = useState(false);
   const openRef = useRef<() => void>(() => {});
+  const replaceRef = useRef<(() => void) | null>(null);
+  const previousScriptId = useRef(scriptId);
   useEffect(() => {
     setDetached(false);
     if (!editor || !canPopOutNavigator()) return;
@@ -29,7 +36,9 @@ export function useNavigatorPopout(editor: Editor | null, documentIdentity: stri
     let positions: number[] = [];
     let scenes: ReturnType<typeof sceneSummary>['scenes'] = [];
     let summaryRevision = -1;
-    let sentRevision = -1;
+    let sceneRevision = 0;
+    let lastSceneSequence = -1;
+    let sentScenes: readonly PanelScene[] | undefined;
     const publish = (force = false) => {
       if (timer) clearTimeout(timer);
       timer = undefined;
@@ -43,13 +52,19 @@ export function useNavigatorPopout(editor: Editor | null, documentIdentity: stri
       }
       let activeScene = -1;
       positions.forEach((position, index) => { if (position - 1 <= editor.state.selection.from) activeScene = index; });
-      const includeScenes = force || sentRevision !== revision;
-      const publishedRevision = revision;
-      sentRevision = revision;
-      void publishNavigator({ session, revision, sequence: ++sequence, title: state.documentTitle,
+      const changed = !sentScenes || !sameSceneSummary(sentScenes, scenes);
+      const includeScenes = force || changed;
+      if (changed) sceneRevision++;
+      const publishedSequence = ++sequence;
+      if (includeScenes) {
+        sentScenes = scenes;
+        lastSceneSequence = publishedSequence;
+      }
+      void publishNavigator({ session, revision, sequence: publishedSequence, sceneRevision, title: state.documentTitle,
+        windowTitle: navigatorWindowTitle(state.documentTitle),
         ...(includeScenes ? { scenes } : {}), active: activeScene, appearance: state.appearance, language: getLanguage() })
         .catch(error => {
-          if (sentRevision === publishedRevision) sentRevision = -1;
+          if (includeScenes && lastSceneSequence === publishedSequence) sentScenes = undefined;
           console.warn('[panels] snapshot unavailable:', error);
         });
     };
@@ -59,6 +74,7 @@ export function useNavigatorPopout(editor: Editor | null, documentIdentity: stri
       if (!state.navigatorOpen) useEditorStore.setState({ navigatorOpen: true });
     };
     const close = () => {
+      if (active) revealDock();
       active = false;
       setDetached(false);
       void closeNavigatorPanels(session).catch(error => console.warn('[panels] close unavailable:', error));
@@ -68,7 +84,9 @@ export function useNavigatorPopout(editor: Editor | null, documentIdentity: stri
       session = crypto.randomUUID();
       revision++;
       positions = [];
+      sentScenes = undefined;
     };
+    replaceRef.current = onReplacement;
     const editorDom = editor.view.dom;
     editorDom.addEventListener(documentReplacement, onReplacement);
     const onTransaction = ({ transaction: tr }: { transaction: import('@tiptap/pm/state').Transaction }) => {
@@ -114,7 +132,7 @@ export function useNavigatorPopout(editor: Editor | null, documentIdentity: stri
         const ready = await Promise.all([stopCommands.ready, stopClosed.ready]);
         if (disposed || openingSession !== session) return null;
         if (!ready.every(Boolean)) throw new Error('Owner listeners unavailable');
-        return openNavigatorPanel(openingSession);
+        return openNavigatorPanel(openingSession, navigatorWindowTitle(useEditorStore.getState().documentTitle));
       };
       void create().then(label => {
         if (label === null) return;
@@ -129,6 +147,8 @@ export function useNavigatorPopout(editor: Editor | null, documentIdentity: stri
     };
     return () => {
       disposed = true;
+      if (active) revealDock();
+      replaceRef.current = null;
       openRef.current = () => {};
       if (timer) clearTimeout(timer);
       if (focusFrame !== undefined) cancelAnimationFrame(focusFrame);
@@ -137,8 +157,18 @@ export function useNavigatorPopout(editor: Editor | null, documentIdentity: stri
       stopCommands(); stopClosed(); stopStore(); stopLanguage();
       void closeNavigatorPanels(session).catch(error => console.warn('[panels] cleanup unavailable:', error));
     };
-  }, [editor, documentIdentity]);
+  }, [editor]);
+  useEffect(() => {
+    const previous = previousScriptId.current;
+    previousScriptId.current = scriptId;
+    // The first library save assigns an ID to the document already on screen.
+    // File linking never changes this ID. Content replacement has its own event.
+    if (previous !== null && previous !== scriptId) replaceRef.current?.();
+  }, [scriptId]);
+  const keepForSavedScript = useCallback((id: string) => {
+    previousScriptId.current = id;
+  }, []);
   const open = useCallback(() => openRef.current(), []);
   const available = !!editor && !editor.isDestroyed && canPopOutNavigator();
-  return useMemo(() => ({ detached, available, open }), [detached, available, open]);
+  return useMemo(() => ({ detached, available, open, keepForSavedScript }), [detached, available, open, keepForSavedScript]);
 }

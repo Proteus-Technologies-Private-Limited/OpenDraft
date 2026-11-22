@@ -21,7 +21,7 @@ export function subscribePanel<T>(event: string, receive: (payload: T) => void):
   return Object.assign(() => { stopped = true; unlisten?.(); }, { ready });
 }
 
-export const openNavigatorPanel = (session: string): Promise<string> => invoke('open_panel_window', { session });
+export const openNavigatorPanel = (session: string, title: string): Promise<string> => invoke('open_panel_window', { session, title });
 export const closeNavigatorPanels = (session: string): Promise<void> => invoke('close_panel_windows', { session });
 export const publishNavigator = (snapshot: NavigatorUpdate): Promise<void> => invoke('publish_panel_snapshot', { session: snapshot.session, snapshot });
 export const sendPanelAction = (action: PanelMessage['action'] | { kind: 'return' }): Promise<void> => invoke('panel_command', { action });

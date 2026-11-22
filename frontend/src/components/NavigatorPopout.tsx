@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { applyAppearance } from '../utils/appearance';
 import { applyDocumentLanguage, i18next, loadLanguage } from '../i18n';
@@ -13,6 +13,7 @@ export default function NavigatorPopout() {
   const [unavailable, setUnavailable] = useState(false);
   const [search, setSearch] = useState('');
   const activeRef = useRef<HTMLButtonElement>(null);
+  const currentRevision = useRef(0);
   useEffect(() => {
     let stopped = false, session: string | undefined;
     let latestSequence = -1, appearanceRequest = 0;
@@ -22,13 +23,17 @@ export default function NavigatorPopout() {
     const receive = (value: unknown) => {
       if (!session) { if (pending.length < 4) pending.push(value); return; }
       if (!isNavigatorUpdate(value) || value.session !== session || value.sequence <= latestSequence) return;
-      const scenes = value.scenes ?? (current?.revision === value.revision ? current.scenes : undefined);
+      const scenes = value.scenes ?? (current?.sceneRevision === value.sceneRevision ? current.scenes : undefined);
       if (!scenes || value.active >= scenes.length) return;
       latestSequence = value.sequence;
+      currentRevision.current = value.revision;
+      const previous = current;
       current = { ...value, scenes };
-      setSnapshot(current);
+      if (previous?.scenes !== scenes || previous.active !== value.active || previous.title !== value.title) {
+        setSnapshot(current);
+      }
       setUnavailable(false);
-      applyAppearance(value.appearance);
+      if (previous?.appearance !== value.appearance) applyAppearance(value.appearance);
       if (value.language === requestedLanguage) return;
       requestedLanguage = value.language;
       const request = ++appearanceRequest;
@@ -56,8 +61,9 @@ export default function NavigatorPopout() {
     void sendPanelAction(action).catch(() => setUnavailable(true));
   };
   const needle = search.toLocaleLowerCase();
-  const scenes = snapshot?.scenes.map((scene, index) => ({ ...scene, index }))
-    .filter(scene => `${scene.heading} ${scene.synopsis}`.toLocaleLowerCase().includes(needle)) ?? [];
+  const summary = snapshot?.scenes;
+  const scenes = useMemo(() => summary?.map((scene, index) => ({ ...scene, index }))
+    .filter(scene => `${scene.heading} ${scene.synopsis}`.toLocaleLowerCase().includes(needle)) ?? [], [summary, needle]);
   return (
     <main className="navigator-popout">
       <header className="navigator-popout-header">
@@ -72,7 +78,7 @@ export default function NavigatorPopout() {
             <button type="button" ref={scene.index === snapshot.active ? activeRef : undefined}
               aria-current={scene.index === snapshot.active ? 'location' : undefined}
               style={scene.color ? { borderInlineStartColor: scene.color } : undefined}
-              onClick={() => command({ kind: 'navigate', revision: snapshot.revision, index: scene.index })}>
+              onClick={() => command({ kind: 'navigate', revision: currentRevision.current, index: scene.index })}>
               <span>{scene.number}. {scene.heading || t('tags.untitledScene')}</span>
               {scene.synopsis && <span className="navigator-popout-synopsis">{scene.synopsis}</span>}
             </button>

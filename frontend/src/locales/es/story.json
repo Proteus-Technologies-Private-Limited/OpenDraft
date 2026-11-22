@@ -717,7 +717,6 @@
     "waiting": "Esperando el guion…",
     "unavailable": "La ventana del guion ya no está disponible.",
     "failed": "No se pudo abrir el navegador en una ventana nueva.",
-    "detached": "El navegador de escenas está en otra ventana.",
     "show": "Mostrar la ventana del navegador"
   }
 }

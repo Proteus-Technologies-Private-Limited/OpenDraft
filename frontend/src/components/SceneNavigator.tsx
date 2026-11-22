@@ -966,6 +966,9 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
       )}
 
       {/* ── Scenes tab ───────────────────────────────────────────────── */}
+      {activeTab === 'scenes' && popout.detached && (
+        <button type="button" className="scene-filter-btn" onClick={popout.open}>{t('popout.show')}</button>
+      )}
       {activeTab === 'scenes' && !popout.detached && (
         <>
           <div className="navigator-header">

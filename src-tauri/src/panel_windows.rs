@@ -20,6 +20,7 @@ pub struct Registry(Mutex<Panels>);
 pub async fn open_panel_window(
     window: tauri::WebviewWindow,
     session: String,
+    title: String,
 ) -> Result<String, String> {
     #[cfg(desktop)]
     {
@@ -60,11 +61,10 @@ pub async fn open_panel_window(
         destroy_panels(&app, previous);
         let result =
             tauri::WebviewWindowBuilder::new(&app, &label, tauri::WebviewUrl::App("/".into()))
-                .title("OpenDraft")
+                .title(title)
                 .inner_size(440.0, 720.0)
                 .min_inner_size(260.0, 240.0)
                 .visible(false)
-                .focused(false)
                 .resizable(true)
                 .build();
         let panel = match result {
@@ -111,7 +111,7 @@ pub async fn open_panel_window(
     }
     #[cfg(not(desktop))]
     {
-        let _ = (window, session);
+        let _ = (window, session, title);
         Err("Panel windows require the desktop app".into())
     }
 }
@@ -160,14 +160,9 @@ pub async fn publish_panel_snapshot(
             .targets(window.label(), &session);
         for label in labels {
             if let Some(target) = app.get_webview_window(&label) {
-                if let Some(title) = snapshot.get("title").and_then(|v| v.as_str()) {
-                    let title = if title.is_empty() {
-                        "Scene Navigator".into()
-                    } else {
-                        format!("{title} — OpenDraft")
-                    };
-                    if target.title().ok().as_ref() != Some(&title) {
-                        if target.set_title(&title).is_ok() {
+                if let Some(title) = snapshot.get("windowTitle").and_then(|v| v.as_str()) {
+                    if target.title().ok().as_deref() != Some(title) {
+                        if target.set_title(title).is_ok() {
                             #[cfg(target_os = "macos")]
                             if let Some(menu) = app.menu() {
                                 crate::rebuild_window_menu(app, &menu);

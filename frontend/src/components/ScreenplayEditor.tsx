@@ -3230,7 +3230,8 @@ const ScreenplayEditor: React.FC = () => {
   // see autoSaveAppliesToOpenDocument.
   const autoSaveLibrary = useSettingsStore((s) => s.autoSaveLibrary);
   const openScriptFile = useLinkedFileStore((s) => s.openScriptFile);
-  const navigatorPopout = useNavigatorPopout(editor, JSON.stringify([currentProject?.id, currentScriptId, scriptReloadKey, openScriptFile?.path]));
+  const navigatorPopout = useNavigatorPopout(editor, currentScriptId);
+  const { keepForSavedScript } = navigatorPopout;
   const scriptIsLinked = Boolean(openScriptFile && openScriptFile.scriptId === currentScriptId);
   const autoSaveIntervalSeconds = useSettingsStore((s) => s.autoSaveIntervalSeconds);
   const lastSavedJsonRef = useRef<string>('');
@@ -4129,6 +4130,7 @@ const ScreenplayEditor: React.FC = () => {
   // Reset the guard when the editor instance changes so we reload
   // content if TipTap recreates the editor.
   const loadedScriptRef = useRef<string | null>(null);
+  const savedRouteRef = useRef<{ editor: Editor; key: string } | null>(null);
   const [historyVersionLabel, setHistoryVersionLabel] = useState('');
   useEffect(() => {
     // Allow re-load for new editor instance, but NOT during collab —
@@ -4167,6 +4169,9 @@ const ScreenplayEditor: React.FC = () => {
     // (the editor only holds its default empty content, which would overwrite
     // the stored script if saved).
     const prevLoadKey = loadedScriptRef.current;
+    const savedHere = savedRouteRef.current?.editor === editor && savedRouteRef.current.key === loadKey;
+    savedRouteRef.current = null;
+    const notifyReplacement = () => { if (!savedHere) notifyPanelDocumentReplacement(editor); };
     loadedScriptRef.current = loadKey;
     clearTrackChanges();
     scriptSwitchingRef.current = true;
@@ -4226,19 +4231,19 @@ const ScreenplayEditor: React.FC = () => {
 
         try {
           if (pmDoc && Array.isArray(pmDoc.content) && pmDoc.content.length > 0) {
-            notifyPanelDocumentReplacement(editor);
+            notifyReplacement();
             editor.commands.setContent(pmDoc);
           } else if (content && typeof content === 'object' && Object.keys(content).length > 0) {
-            notifyPanelDocumentReplacement(editor);
+            notifyReplacement();
             editor.commands.setContent(content);
           } else {
-            notifyPanelDocumentReplacement(editor);
+            notifyReplacement();
             editor.commands.setContent({ type: 'doc', content: [{ type: 'action', content: [] }] });
           }
         } catch (setErr) {
           console.error('setContent failed:', setErr);
           showToast(tg('editor:toast.renderFailed', { error: setErr instanceof Error ? setErr.message : String(setErr) }), 'error');
-          notifyPanelDocumentReplacement(editor);
+          notifyReplacement();
           editor.commands.setContent({ type: 'doc', content: [{ type: 'action', content: [] }] });
         }
         clearEditorHistory(editor);
@@ -5503,6 +5508,7 @@ const ScreenplayEditor: React.FC = () => {
           ps.markCloudScript(projectId, scriptId);
         }
         setCurrentProject(project);
+        keepForSavedScript(scriptId);
         setCurrentScriptId(scriptId);
         setDocumentTitle(scriptTitle);
         // In a project kept in a folder the new script already has a file of
@@ -5524,6 +5530,9 @@ const ScreenplayEditor: React.FC = () => {
         // Only navigate to the project route if there's no deferred action
         // that will reset the editor state (e.g. New Screenplay)
         if (!hasDeferredAction) {
+          // The project route reloads the just-saved script into this editor.
+          // That reload belongs to the existing document and its Navigator.
+          if (editor) savedRouteRef.current = { editor, key: `${projectId}/${scriptId}` };
           navigate(`/project/${projectId}/edit/${scriptId}`, { replace: true });
         }
         showToast(destination === 'cloud' ? tg('editor:toast.savedToCloud') : tg('editor:toast.saved'), 'success');
@@ -5540,7 +5549,7 @@ const ScreenplayEditor: React.FC = () => {
         if (action) action();
       }
     },
-    [setSaveAsOpen, setCurrentProject, setCurrentScriptId, setDocumentTitle, navigate],
+    [editor, keepForSavedScript, setSaveAsOpen, setCurrentProject, setCurrentScriptId, setDocumentTitle, navigate],
   );
 
 
@@ -6095,7 +6104,7 @@ const ScreenplayEditor: React.FC = () => {
           </>
         ) : (
           <>
-            {!isHistoryMode && <SceneNavigator editor={editor} scrollContainer={editorMainEl} style={navStyle} tabs={navigatorPopout.detached ? ['pages', 'locations', 'structure', 'bookmarks'] : undefined} />}
+            {!isHistoryMode && <SceneNavigator editor={editor} scrollContainer={editorMainEl} style={navStyle} />}
             {!isHistoryMode && navigatorOpen && (
               <div className="panel-resize-handle" role="separator" aria-orientation="vertical" tabIndex={0}
                 aria-label={tg('menu:pluginPanels.resize')} aria-valuenow={navWidth} aria-valuemin={160} aria-valuemax={500}

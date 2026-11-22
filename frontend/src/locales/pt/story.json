@@ -717,7 +717,6 @@
     "waiting": "Aguardando o roteiro…",
     "unavailable": "A janela do roteiro não está mais disponível.",
     "failed": "Não foi possível abrir o navegador em uma nova janela.",
-    "detached": "O navegador de cenas está em outra janela.",
     "show": "Mostrar a janela do navegador"
   }
 }

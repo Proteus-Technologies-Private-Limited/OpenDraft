@@ -700,7 +700,6 @@
     "waiting": "Senaryo bekleniyor…",
     "unavailable": "Senaryo penceresi artık kullanılamıyor.",
     "failed": "Gezgin yeni bir pencerede açılamadı.",
-    "detached": "Sahne gezgini başka bir pencerede.",
     "show": "Gezgin penceresini göster"
   }
 }

@@ -717,7 +717,6 @@
     "waiting": "En attente du scénario…",
     "unavailable": "La fenêtre du scénario n’est plus disponible.",
     "failed": "Impossible d’ouvrir le navigateur dans une nouvelle fenêtre.",
-    "detached": "Le navigateur de scènes est dans une autre fenêtre.",
     "show": "Afficher la fenêtre du navigateur"
   }
 }
