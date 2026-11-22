@@ -393,6 +393,20 @@ class Accessibility(unittest.TestCase):
                 "{const s=testStore.getState();s.setToolbarLayout({...s.toolbarLayout})}"
             )
             expect(buttons.nth(index)).to_have_attribute("tabindex", "0")
+        side = dialog.get_by_role(
+            "radiogroup",
+            name=self.page.evaluate("testI18n.t('toolbar:layout.toolbarTab.side')"),
+            exact=True,
+        )
+        selected_side = side.get_by_role("radio", checked=True)
+        selected_side.focus()
+        self.press("ArrowRight")
+        self.press("ArrowLeft")
+        expect(selected_side).to_be_focused()
+        self.assertEqual(
+            self.page.evaluate("testStore.getState().toolbarLayout"), before
+        )
+        buttons.nth(0).focus()
         self.press("ArrowRight")
         self.press("Space")
         expect(buttons.nth(1)).to_have_attribute("aria-checked", "true")

@@ -337,7 +337,7 @@ const BarsTab: React.FC<Props> = ({ state, setState }) => {
 
         <div className="layout-field">
           <span>{t('layout.toolbarTab.side')}</span>
-          <LayoutRadioGroup as="span" className="layout-seg" aria-label={t('layout.toolbarTab.side')}>
+          <LayoutRadioGroup manual as="span" className="layout-seg" aria-label={t('layout.toolbarTab.side')}>
             {TOOLBAR_SIDES.map((s) => (
               <button key={s} type="button" role="radio" aria-checked={side === s} className={side === s ? 'is-on' : ''}
                 onClick={() => setState(bar ? placeToolbarItem(state, sel, bar, { side: s }) : setToolbarItemOptions(state, sel, { side: s }))}>

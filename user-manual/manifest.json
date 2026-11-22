@@ -1,11 +1,11 @@
 {
-  "version": "2485e05ddfa74449",
+  "version": "0ecf777b2606fc8a",
   "pages": [
     {
       "slug": "index.html",
       "title": "Home",
       "section": "Getting Started",
-      "hash": "103b8e56425595de"
+      "hash": "53e2678bf104f5a8"
     },
     {
       "slug": "getting-started.html",
@@ -83,7 +83,7 @@
       "slug": "characters.html",
       "title": "Character Profiles",
       "section": "Characters & Notes",
-      "hash": "4e602c62fb73936b"
+      "hash": "d4a1be899859b020"
     },
     {
       "slug": "script-notes.html",
@@ -113,13 +113,13 @@
       "slug": "locations.html",
       "title": "Location Profiles",
       "section": "Production",
-      "hash": "67945f15bdf87305"
+      "hash": "4fcfc0f742f0d166"
     },
     {
       "slug": "scene-details.html",
       "title": "Scene Details",
       "section": "Production",
-      "hash": "ba8f91c4f072c4c3"
+      "hash": "0263865bf3213e5b"
     },
     {
       "slug": "revision-mode.html",

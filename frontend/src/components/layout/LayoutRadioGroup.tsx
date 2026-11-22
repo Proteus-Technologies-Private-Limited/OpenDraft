@@ -47,6 +47,11 @@ export default function LayoutRadioGroup({ as: Tag = 'div', manual = false, chil
   };
 
   return <Tag {...props} ref={node => { root.current = node; }} role="radiogroup" onKeyDown={onKeyDown}
+    onBlur={event => {
+      if (!manual || (event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget))) return;
+      const choices = radios();
+      setEntry(choices.find(button => button.getAttribute('aria-checked') === 'true') || choices[0]);
+    }}
     onClickCapture={event => {
       const button = event.target instanceof Element ? event.target.closest<HTMLButtonElement>('button[role="radio"]') : null;
       // Space/click on an already checked radio must not run its action again

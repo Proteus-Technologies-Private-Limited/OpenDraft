@@ -43,6 +43,11 @@ The sheet covers the app, so it waits for a quiet moment:
   seconds and none of OpenDraft's dialogs or menus is open. While the writer is
   busy it looks again every 3 seconds, and after a minute it gives up. Nothing
   is marked as asked then, so the next export tries again.
+- A hidden page counts as busy, not done: on Android the share chooser is
+  another activity and the page reports hidden until it closes, so the request
+  waits for it rather than giving up.
+- While the native side reports the app covered (below), it keeps trying
+  within the same minute, so the request goes out once the share sheet closes.
 - The native side declines while something covers the app: on iOS a presented
   view controller (the export's share sheet, still open), on Android another
   window in front (the share chooser). The command then answers `false`, and
