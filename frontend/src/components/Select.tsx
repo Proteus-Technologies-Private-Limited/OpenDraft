@@ -35,6 +35,8 @@ type SelectProps = Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'onChange
   value?: string | number;
   defaultValue?: string | number;
   name?: string;
+  /** Closed-trigger type-ahead opens and highlights instead of selecting. */
+  manual?: boolean;
   onChange?: (e: React.ChangeEvent<HTMLSelectElement>) => void;
   children?: React.ReactNode;
 };
@@ -150,7 +152,7 @@ export function choiceLineFor(trigger: HTMLElement): Anchor | null {
 const TYPEAHEAD_RESET_MS = 700;
 
 const Select: React.FC<SelectProps> = ({
-  value, defaultValue, name, onChange, children, className, disabled, style, id, title,
+  value, defaultValue, name, manual = false, onChange, children, className, disabled, style, id, title,
   onKeyDown: onKeyDownProp, onBlur, ...rest
 }) => {
   const items = useMemo(() => collectItems(children), [children]);
@@ -314,9 +316,16 @@ const Select: React.FC<SelectProps> = ({
         e.preventDefault();
         openList(true);
       } else if (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey) {
-        // Typing on a closed native select picks the matching option outright.
         const hit = findTyped(e.key, selectedIndex);
-        if (hit >= 0) commit(hit);
+        if (hit < 0) return;
+        if (manual) {
+          e.preventDefault();
+          openList(true);
+          setActiveIndex(hit);
+        } else {
+          // Match a native select's closed-trigger type-ahead by default.
+          commit(hit);
+        }
       }
       return;
     }
