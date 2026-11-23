@@ -13,19 +13,18 @@ session's editor windows or add panel pop-outs.
 
 ## Persistence and display changes
 
-The official desktop-only `tauri-plugin-window-state` saves size, maximized and
-full-screen state in its normal app-config file. Visibility and decorations are
-excluded: they belong to the splash transition and native title-bar handling.
-Startup restoration is explicit so bounds are applied before window modes.
-Secondary windows skip automatic restoration: an explicit New Window request
-must not inherit a reused counter label's old full-screen state or display.
+The desktop-only `tauri-plugin-window-state` saves maximized and full-screen
+state for the startup window (`main`) only. OpenDraft restores this mode
+explicitly after applying normal bounds. Secondary windows always open in
+normal mode and keep their bounds in memory for originating-display placement.
 
-`window-displays.json`, in the same app-config directory, supplements the plugin
-with each editor's normal inner/outer bounds, display name, usable work area and
-scale. Moving/resizing updates the in-memory snapshot; close/exit writes it.
+`window-displays.json`, in the app-config directory, stores the startup window's
+normal inner and outer bounds, display name, usable work area and scale. Moving
+or resizing updates the in-memory snapshot, and closing or exiting writes it.
 Maximized, minimized and full-screen bounds never replace normal bounds. The
-file contains no document contents or file paths. Invalid/missing metadata falls
-back to the plugin's size and the native window's current display.
+file contains no document contents or file paths. If the metadata is absent or
+invalid, OpenDraft uses the startup window's configured bounds and fits them
+to its current display's work area when available.
 
 Display matching prefers name plus work-area origin, then a unique matching
 name. Native APIs do not provide a stable hardware ID on every platform, so
@@ -54,13 +53,14 @@ cd src-tauri
 cargo test --locked --lib desktop_windows::tests
 ```
 
-The portable policy runs on Linux, macOS and Windows in CI, without monitors or
-a display server. It covers secondary/negative-coordinate displays, unplugging,
-DPI and layout changes, smaller work areas, ambiguous names, invalid metadata
-and originating-display New Window placement. Native metadata tests cover
-serialization, splash exclusion and the selected plugin flags. Existing Linux
-and macOS native jobs compile the Tauri integration; the Android job checks that
-desktop-only code/dependencies remain excluded.
+CI runs the portable policy tests on Ubuntu without monitors or a display
+server. They cover secondary and negative-coordinate displays, unplugging, DPI
+and layout changes, smaller work areas, ambiguous names, invalid metadata and
+originating-display New Window placement. The Linux native job also tests
+serialization, splash exclusion and the selected plugin flags. Native checks
+compile the Tauri integration on Linux, macOS and Windows. The Windows job
+builds `frontend/dist` and runs `cargo check --locked` to cover the Win32 frame
+insets code. The Android cross-check covers the mobile build.
 
 These tests do not prove native placement, fullscreen transitions or OS-specific
 frame metrics on physical multi-monitor hardware.

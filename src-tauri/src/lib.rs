@@ -3259,14 +3259,9 @@ pub fn run() {
     let builder = builder.plugin(
         tauri_plugin_window_state::Builder::default()
             .with_state_flags(desktop_windows::state_flags())
-            .with_denylist(&["splashscreen"])
-            // New Window is an explicit request on the caller's display, not
-            // a request to reopen a window slot from a previous session.
-            .map_label(desktop_windows::state_label)
+            // Restore the startup mode explicitly after applying normal bounds.
             .skip_initial_state("main")
-            .skip_initial_state("secondary")
-            .skip_initial_state("panel")
-            .with_filter(|label| label == "main" || label == "secondary" || label == "panel")
+            .with_filter(|label| label == "main")
             .build(),
     );
 
