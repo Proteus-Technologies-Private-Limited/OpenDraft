@@ -33,7 +33,7 @@ class FoldableRegressions(unittest.TestCase):
         self.page.add_init_script("localStorage.setItem('opendraft:viewState', JSON.stringify({navigatorOpen:false}));")
         self.cdp = self.page.context.new_cdp_session(self.page)
         self.posture()
-        self.page.goto(URL, wait_until='domcontentloaded')
+        self.page.goto(URL, wait_until='domcontentloaded', timeout=30000)
         self.page.locator('.editor-main').wait_for()
         blank = self.page.get_by_role('button', name='Blank Document', exact=False)
         if blank.count():

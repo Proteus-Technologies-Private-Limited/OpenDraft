@@ -31,6 +31,7 @@ import { showToast } from './Toast';
 import { APP_COMMAND_EVENT, type AppCommand } from '../utils/appCommands';
 import { WORKSPACE_PRESET_IDS } from '../utils/workspaceLayout';
 import { useFoldState } from '../hooks/useFoldState';
+import { useWritingViewport } from '../utils/writingViewport';
 import { companionView, foldCompanionPlacement } from '../utils/foldCompanion';
 import { useWorkspaceDocksAvailable } from '../hooks/useWorkspaceDocks';
 import { statusColumnX, useFoldedMenuPosition } from '../hooks/useFoldedMenuPosition';
@@ -4030,7 +4031,24 @@ const MenuBar: React.FC<MenuBarProps> = ({
   });
   const fabDragRef = useRef<{ startX: number; startY: number; originX: number; originY: number; isDrag: boolean } | null>(null);
   const fabWasDragRef = useRef(false);
-  const defaultFab = useFoldedMenuPosition(foldState.foldable && foldState.size === 'phone', navPanelWidth);
+  const [laptopScriptBottom, setLaptopScriptBottom] = useState<number | null>(null);
+  useEffect(() => {
+    if (!foldState.foldable) {
+      setLaptopScriptBottom(null);
+      return;
+    }
+    const root = document.documentElement;
+    const read = () => {
+      const bottom = parseFloat(root.style.getPropertyValue('--fold-laptop-script-bottom'));
+      setLaptopScriptBottom(Number.isFinite(bottom) ? bottom : null);
+    };
+    read();
+    const observer = new MutationObserver(read);
+    observer.observe(root, { attributes: true, attributeFilter: ['style'] });
+    return () => observer.disconnect();
+  }, [foldState.foldable]);
+  const menuViewport = useWritingViewport(foldState.foldable && laptopScriptBottom !== null);
+  const defaultFab = useFoldedMenuPosition(foldState.foldable && foldState.size === 'phone' && laptopScriptBottom === null, navPanelWidth);
   const defaultFabRef = useRef(defaultFab);
   defaultFabRef.current = defaultFab;
   // A drag that ends over the folded cover's status column drops the button
@@ -4040,7 +4058,12 @@ const MenuBar: React.FC<MenuBarProps> = ({
     return x === null ? pos : { ...pos, x };
   }, []);
   const fabX = Math.max(0, Math.min(fabPos?.x ?? defaultFab.x, window.innerWidth - FAB_SIZE));
-  const fabY = Math.max(0, Math.min(fabPos?.y ?? defaultFab.y, window.innerHeight - FAB_SIZE));
+  // A tabletop toolbar has left the top strip. Keep the menu in that strip,
+  // including a saved drag position, while preserving the saved cover choice.
+  const fabBottom = menuViewport && laptopScriptBottom !== null
+    ? Math.min(menuViewport.top + menuViewport.height, laptopScriptBottom) - 8
+    : window.innerHeight;
+  const fabY = Math.max(0, Math.min(fabPos?.y ?? defaultFab.y, fabBottom - FAB_SIZE));
   // On Android the WebView extends behind the (transparent) status bar, so a
   // FAB rendered at top: 10px sits in the system-bar touch region and never
   // receives taps. Clamp the rendered top below the status bar (28dp fallback
@@ -4552,12 +4575,12 @@ const MenuBar: React.FC<MenuBarProps> = ({
           <div className="dialog-body about-body">
             <div className="about-title">Open Draft</div>{/* i18n-ignore: product name */}
             {/* i18n-ignore: release.sh rewrites these two literals each release */}
-            <div className="about-version">Version 2.14.2</div>
+            <div className="about-version">Version 2.15.0</div>
             <div className="about-tagline">{t('menu:about.tagline')}</div>
 
             <div className="about-whats-new">
               {/* i18n-ignore: release.sh rewrites this literal each release */}
-              <div className="about-section-title">What's New in 2.14.2</div>
+              <div className="about-section-title">What's New in 2.15.0</div>
               <div className="about-changelog">
               {/* i18n-ignore-start: release notes stay English in phase 1 */}
               <div className="about-subsection-title">v2.15.0</div>

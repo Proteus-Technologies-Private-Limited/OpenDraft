@@ -1,6 +1,8 @@
+import { ChoiceLineBack, ChoiceLineClose } from './toolbar/ChoiceLineControls';
 import React, { useCallback, useId, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { modalPortalContainer } from '../utils/modalAccessibility';
 import { createPortal } from 'react-dom';
+import { toolbarChoiceLine, useChoiceLineLifecycle, useChoiceLinePosition, restoreChoiceFocus } from './toolbar/choiceLine';
 import { useTranslation } from 'react-i18next';
 import {
   FONT_CATEGORIES, loadFont, getFontsByCategory, findFont, fontStack, subscribeFonts,
@@ -20,6 +22,7 @@ interface FontPickerProps {
   title?: string;
   /** Offered above the list, for opening the font manager. */
   onManageFonts?: () => void;
+  horizontalChoices?: boolean;
 }
 
 interface Row {
@@ -41,6 +44,7 @@ interface Anchor {
   /** Set instead when it had to flip above — distance from the viewport bottom. */
   bottom?: number;
   maxHeight: number;
+  line?: boolean;
 }
 
 /** Enough room for a search field and a few rows; below this, flip above. */
@@ -55,6 +59,8 @@ const EDGE_GAP = 8;
  * measured against the window would open underneath the keyboard.
  */
 function anchorTo(trigger: HTMLElement): Anchor {
+  const line = toolbarChoiceLine(trigger);
+  if (line) return { left: line.left, top: line.top, width: line.width, maxHeight: line.height, line: true };
   const rect = trigger.getBoundingClientRect();
   const vw = window.visualViewport?.width ?? window.innerWidth;
   const vh = window.visualViewport?.height ?? window.innerHeight;
@@ -84,7 +90,7 @@ function matches(query: string, name: string, group: string): boolean {
 
 const FontPicker: React.FC<FontPickerProps> = ({
   value, onChange, extraFonts = [], className = 'font-selector', emptyLabel, title,
-  onManageFonts,
+  onManageFonts, horizontalChoices = false,
 }) => {
   const { t } = useTranslation('toolbar');
   const triggerTitle = title ?? t('fontPicker.fontFamily');
@@ -158,7 +164,9 @@ const FontPicker: React.FC<FontPickerProps> = ({
     [rows],
   );
 
-  const openList = useCallback(() => {
+  const openedByKeyboard = useRef(false);
+  const openList = useCallback((keyboard: boolean) => {
+    openedByKeyboard.current = keyboard;
     // Fixed positioning: the picker sits inside toolbars and dialogs that clip
     // their own overflow, and a dropdown that gets cut off is unusable.
     if (buttonRef.current) setAnchor(anchorTo(buttonRef.current));
@@ -172,12 +180,20 @@ const FontPicker: React.FC<FontPickerProps> = ({
     setOpen(true);
   }, [buildRows, value]);
 
+  const closeList = useCallback(() => {
+    setOpen(false);
+    setAnchor(null);
+  }, []);
+  useChoiceLineLifecycle(open && !!anchor?.line, buttonRef, popupRef, closeList);
+  useChoiceLinePosition(open && !!anchor?.line, buttonRef, useCallback(() => { if (buttonRef.current) setAnchor(anchorTo(buttonRef.current)); }, []));
+
   const commit = useCallback((row: Row) => {
     if (row.entry) loadFont(row.entry);
     onChange(row.isEmpty ? '' : row.label);
-    setOpen(false);
-    buttonRef.current?.focus();
-  }, [onChange]);
+    closeList();
+    if (!anchor?.line || openedByKeyboard.current) buttonRef.current?.focus();
+    if (anchor?.line && openedByKeyboard.current) restoreChoiceFocus(buttonRef);
+  }, [onChange, anchor?.line, closeList]);
 
   // Typing filters the list, so on a keyboard the search field takes focus as
   // it appears. Never on a touch screen: focusing it raises the soft keyboard,
@@ -185,10 +201,10 @@ const FontPicker: React.FC<FontPickerProps> = ({
   // used to close the popup outright, so a tap appeared to do nothing at all.
   useEffect(() => {
     if (!open) return;
-    if (!isCoarsePointer()) searchRef.current?.focus();
+    if (!anchor?.line && !isCoarsePointer()) searchRef.current?.focus();
     listRef.current?.querySelector<HTMLElement>('.font-picker-option.is-active')
       ?.scrollIntoView({ block: 'center' });
-  }, [open]);
+  }, [open, anchor?.line]);
 
   useEffect(() => {
     if (!open) return;
@@ -198,7 +214,7 @@ const FontPicker: React.FC<FontPickerProps> = ({
       // it, and closing on mousedown unmounted the button before its click
       // could land — so the item did nothing at all.
       if (popupRef.current?.contains(target) || buttonRef.current?.contains(target)) return;
-      setOpen(false);
+      closeList();
     };
     // The popup is measured against the trigger, so anything that moves the
     // trigger has to move the popup. Following it beats closing: a soft keyboard
@@ -225,7 +241,7 @@ const FontPicker: React.FC<FontPickerProps> = ({
       window.visualViewport?.removeEventListener('resize', reposition);
       window.visualViewport?.removeEventListener('scroll', reposition);
     };
-  }, [open]);
+  }, [open, closeList]);
 
   // Portalled out of the trigger's DOM, a press in the popup reads as
   // "outside" to every document-level click-away handler — the toolbar's
@@ -268,7 +284,7 @@ const FontPicker: React.FC<FontPickerProps> = ({
     if (next === undefined) return;
     setActiveIndex(next);
     listRef.current?.querySelector<HTMLElement>(`[data-index="${next}"]`)
-      ?.scrollIntoView({ block: 'nearest' });
+      ?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   };
 
   const onKeyDown = (e: React.KeyboardEvent) => {
@@ -276,12 +292,22 @@ const FontPicker: React.FC<FontPickerProps> = ({
     if (!open) {
       if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
-        openList();
+        openList(true);
       }
       return;
     }
-    if (e.key === 'ArrowDown') { e.preventDefault(); move(1); }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); move(-1); }
+    if (anchor?.line && e.target === buttonRef.current && e.key.length === 1 && e.key !== ' ') {
+      e.preventDefault();
+      setQuery(e.key);
+      const match = buildRows(e.key).findIndex(row => row.kind === 'font');
+      setActiveIndex(Math.max(0, match));
+      searchRef.current?.focus();
+      return;
+    }
+    const forward = getComputedStyle(buttonRef.current ?? document.body).direction === 'rtl' ? 'ArrowLeft' : 'ArrowRight';
+    const backward = forward === 'ArrowRight' ? 'ArrowLeft' : 'ArrowRight';
+    if (e.key === 'ArrowDown' || (anchor?.line && e.target !== searchRef.current && e.key === forward)) { e.preventDefault(); move(1); }
+    else if (e.key === 'ArrowUp' || (anchor?.line && e.target !== searchRef.current && e.key === backward)) { e.preventDefault(); move(-1); }
     else if (e.key === 'Home' && e.target !== searchRef.current) { e.preventDefault(); setActiveIndex(selectableIndexes[0] ?? 0); }
     else if (e.key === 'End' && e.target !== searchRef.current) { e.preventDefault(); setActiveIndex(selectableIndexes[selectableIndexes.length - 1] ?? 0); }
     else if (e.key === 'Enter') {
@@ -291,7 +317,7 @@ const FontPicker: React.FC<FontPickerProps> = ({
     } else if (e.key === 'Escape') {
       e.preventDefault();
       e.stopPropagation();
-      setOpen(false);
+      closeList();
       buttonRef.current?.focus();
     }
   };
@@ -308,10 +334,12 @@ const FontPicker: React.FC<FontPickerProps> = ({
         className={`${className} font-picker-trigger`}
         title={triggerTitle}
         aria-label={`${triggerTitle}: ${triggerLabel}`}
-        aria-haspopup="dialog"
-        aria-controls={open ? `${listId}-dialog` : undefined}
+        role={(open ? !!anchor?.line : horizontalChoices) ? "combobox" : undefined}
+        aria-activedescendant={open && anchor?.line && rows[activeIndex]?.kind === 'font' ? `${listId}-${activeIndex}` : undefined}
+        aria-haspopup={(open ? !!anchor?.line : horizontalChoices) ? "listbox" : "dialog"}
+        aria-controls={open ? (anchor?.line ? listId : `${listId}-dialog`) : undefined}
         aria-expanded={open}
-        onClick={() => (open ? setOpen(false) : openList())}
+        onClick={event => (open ? closeList() : openList(event.detail === 0))}
         onKeyDown={onKeyDown}
         style={value ? { fontFamily: fontStack(value) } : undefined}
       >
@@ -325,7 +353,7 @@ const FontPicker: React.FC<FontPickerProps> = ({
         <div
           ref={popupRef}
           id={`${listId}-dialog`}
-          className="font-picker-popup"
+          className={`font-picker-popup${anchor.line ? ' toolbar-choice-line font-picker-popup--line' : ''}`}
           style={{
             left: anchor.left,
             top: anchor.top,
@@ -333,9 +361,10 @@ const FontPicker: React.FC<FontPickerProps> = ({
             width: anchor.width,
             maxHeight: anchor.maxHeight,
           }}
-          role="dialog" aria-label={t('fontPicker.searchLabel')}
+          role={anchor.line ? undefined : "dialog"} aria-label={anchor.line ? undefined : t('fontPicker.searchLabel')}
           onKeyDown={event => { if (event.key === 'Escape') onKeyDown(event); }}
         >
+          {anchor.line && <ChoiceLineBack label={triggerTitle} onClose={() => { closeList(); buttonRef.current?.focus(); }} />}
           <div className="font-picker-search-row">
             <input
               ref={searchRef}
@@ -359,7 +388,7 @@ const FontPicker: React.FC<FontPickerProps> = ({
               aria-label={t('fontPicker.searchLabel')}
             />
           </div>
-          <div className="font-picker-list" ref={listRef} id={listId} aria-label={t('fontPicker.searchLabel')} role="listbox" tabIndex={-1}>
+          <div className="font-picker-list" ref={listRef} id={listId} aria-label={t('fontPicker.searchLabel')} role="listbox" aria-orientation={anchor.line ? "horizontal" : undefined} tabIndex={-1}>
             {rows.length === 0 && <div className="font-picker-empty">{t('fontPicker.noMatch', { query })}</div>}
             {rows.map((row, index) => {
               if (row.kind === 'header') {
@@ -378,7 +407,7 @@ const FontPicker: React.FC<FontPickerProps> = ({
                   data-index={index}
                   data-font={row.isEmpty ? undefined : row.label}
                   role="option" id={`${listId}-${index}`}
-                  aria-selected={index === activeIndex}
+                  aria-selected={anchor.line ? selected : index === activeIndex}
                   className={[
                     'font-picker-option',
                     index === activeIndex ? 'is-active' : '',
@@ -396,11 +425,13 @@ const FontPicker: React.FC<FontPickerProps> = ({
               );
             })}
           </div>
+          {anchor.line && <ChoiceLineClose onClose={() => { closeList(); buttonRef.current?.focus(); }} />}
           {onManageFonts && (
             <button
               type="button"
               className="font-picker-manage"
-              onClick={() => { setOpen(false); onManageFonts(); }}
+              title={t('fontPicker.manage')}
+              onClick={() => { closeList(); onManageFonts(); }}
             >
               {t('fontPicker.manage')}
             </button>
