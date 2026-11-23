@@ -53,7 +53,10 @@ inactive panel shells. Left/Right and Home/End select tabs. Its radio groups hav
 one Tab stop, wrapping arrows, Home/End, disabled-choice skipping and mirrored
 horizontal arrows in RTL. Group, Place on and Side of the bar use manual activation: arrows
 only move focus, and Space/Enter or a click applies the move. Other choice
-groups keep automatic selection. Activating an already checked radio leaves its value
+groups keep automatic selection. In the Opens in controls and the group-card
+destination picker, arrows and typing browse the list. Enter, Space or a click
+applies the destination. Escape and Tab dismiss the list without moving anything.
+Activating an already checked radio leaves its value
 and panel order unchanged. Moving, removing or regrouping a control retains focus
 on that control or its surviving entry. Cancelling a layout name returns to Save
 as; Escape during a keyboard drag cancels the drag before closing the dialog.
