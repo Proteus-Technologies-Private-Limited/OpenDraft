@@ -30,7 +30,8 @@ export const projectApi = {
   ) => pick(id).updateProject(id, data),
 
   deleteProject: async (id: string) => {
-    const result = await pick(id).deleteProject(id);
+    const client = pick(id) === cloudApi ? offlineCloud : api;
+    const result = await client.deleteProject(id);
     // Drop the cloud-project marker so a subsequent local create with the
     // same id (extremely unlikely, but cheap to be defensive) doesn't get
     // stuck routing to the cloud.

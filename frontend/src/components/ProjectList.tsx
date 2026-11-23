@@ -280,7 +280,7 @@ const SortableCard: React.FC<SortableCardProps> = ({
 // ── Main component ───────────────────────────────────────────────────────
 
 const ProjectList: React.FC = () => {
-  const { t } = useTranslation(['projects', 'common']);
+  const { t } = useTranslation(['projects', 'common', 'toolbar']);
   const navigate = useNavigate();
   const goBack = useGoBack();
   const [projects, setProjects] = useState<ProjectWithCount[]>([]);
@@ -529,7 +529,7 @@ const ProjectList: React.FC = () => {
   const confirmDelete = useCallback(async () => {
     if (!pendingDeleteId) return;
     try {
-      await client.deleteProject(pendingDeleteId);
+      await (source === 'cloud' ? offlineCloud : api).deleteProject(pendingDeleteId);
       if (source === 'cloud') unmarkCloudProject(pendingDeleteId);
       showToast(t('list.deleted'), 'success');
       await fetchProjects();
@@ -540,7 +540,7 @@ const ProjectList: React.FC = () => {
       );
     }
     setPendingDeleteId(null);
-  }, [pendingDeleteId, fetchProjects, client, source, unmarkCloudProject]);
+  }, [pendingDeleteId, fetchProjects, source, unmarkCloudProject]);
 
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
@@ -885,6 +885,7 @@ const ProjectList: React.FC = () => {
               <p>
                 {t('list.deleteDialog.confirm')}
               </p>
+              {source === 'cloud' && <p>{t('toolbar:status.save.cloudDeleteCopies')}</p>}
               {(() => {
                 const p = projects.find((x) => x.id === pendingDeleteId);
                 const folder = p ? folderOf(p) : null;

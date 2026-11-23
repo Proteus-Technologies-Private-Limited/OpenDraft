@@ -1,5 +1,7 @@
 import logging
+from functools import partial
 
+from anyio import from_thread
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.concurrency import run_in_threadpool
 
@@ -168,17 +170,19 @@ async def update_offline_content(
 ):
     # A distinct route ensures older servers cannot ignore the precondition.
     try:
-        await run_hooks("script:before_save", project_id=project_id,
-                        script_id=script_id, content=body.content)
+        before_save = partial(run_hooks, "script:before_save", project_id=project_id,
+                              script_id=script_id, content=body.content)
         result = await run_in_threadpool(
             script_service.update_script, project_id, script_id, content=body.content,
             expected_content_revision=body.expected_content_revision,
+            before_write=lambda: from_thread.run(before_save),
         )
-        await run_hooks("script:after_save", project_id=project_id,
-                        script_id=script_id, content=body.content)
+        if result.pop("offline_applied"):
+            await run_hooks("script:after_save", project_id=project_id,
+                            script_id=script_id, content=body.content)
         return result
     except FileNotFoundError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
+        raise HTTPException(status_code=404, detail={"code": "offline_script_missing", "message": str(exc)})
     except script_service.EmptyOverwriteError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
     except script_service.ScriptRevisionConflict:

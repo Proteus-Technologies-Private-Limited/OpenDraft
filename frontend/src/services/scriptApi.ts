@@ -47,7 +47,8 @@ export const scriptApi = {
     projectId: string,
     scriptId: string,
   ): Promise<{ message: string }> => {
-    const result = await pickFor(projectId, scriptId).deleteScript(projectId, scriptId);
+    const client = pickFor(projectId, scriptId) === cloudApi ? offlineCloud : api;
+    const result = await client.deleteScript(projectId, scriptId);
     // Clean up the cloud-script marker so a subsequent create with the same
     // (projectId, scriptId) does not resurrect a stale cloud routing.
     useProjectStore.getState().unmarkCloudScript(projectId, scriptId);

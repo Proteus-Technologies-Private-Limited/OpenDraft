@@ -45,7 +45,7 @@ async function request<T>(path: string, options?: RequestInit, scope?: CloudRequ
   // Background uploads own their status and must not open a global login
   // prompt while the writer is editing a local script.
   if (!res.ok && path.endsWith('/offline-content')) {
-    throw new ApiError(res.status, null, `Cloud API: ${res.status}`);
+    throw new ApiError(res.status, await res.json().catch(() => null), `Cloud API: ${res.status}`);
   }
   if (!res.ok) await handleNonOkResponse(res, 'Cloud API', scope?.isCurrent);
   try {
@@ -69,8 +69,8 @@ export const cloudApi = {
     data: { name?: string; color?: string; pinned?: boolean; sort_order?: number; properties?: Partial<ProjectProperties> },
   ) => request<ProjectInfo>(`/projects/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
 
-  deleteProject: (id: string) =>
-    request<{ message: string }>(`/projects/${id}`, { method: 'DELETE' }),
+  deleteProject: (id: string, scope?: CloudRequestScope) =>
+    request<{ message: string }>(`/projects/${id}`, { method: 'DELETE' }, scope),
 
   reorderProjects: (items: Array<{ id: string; sort_order: number }>) =>
     request<{ message: string }>('/projects/reorder', {
@@ -83,11 +83,11 @@ export const cloudApi = {
       `/projects/${projectId}/scripts/${includePreview ? '?include_preview=true' : ''}`, undefined, scope,
     ),
 
-  createScript: (projectId: string, data: { title: string; content?: any; format?: string }) =>
+  createScript: (projectId: string, data: { title: string; content?: any; format?: string }, scope?: CloudRequestScope) =>
     request<ScriptResponse>(`/projects/${projectId}/scripts/`, {
       method: 'POST',
       body: JSON.stringify(prepareScriptWrite(data)),
-    }),
+    }, scope),
 
   getScript: (projectId: string, scriptId: string, scope?: CloudRequestScope) =>
     request<ScriptResponse>(`/projects/${projectId}/scripts/${scriptId}`, undefined, scope),
@@ -116,10 +116,10 @@ export const cloudApi = {
       body: JSON.stringify(prepareScriptWrite(data)),
     }, scope),
 
-  deleteScript: (projectId: string, scriptId: string) =>
+  deleteScript: (projectId: string, scriptId: string, scope?: CloudRequestScope) =>
     request<{ message: string }>(`/projects/${projectId}/scripts/${scriptId}`, {
       method: 'DELETE',
-    }),
+    }, scope),
 
   reorderScripts: (
     projectId: string,

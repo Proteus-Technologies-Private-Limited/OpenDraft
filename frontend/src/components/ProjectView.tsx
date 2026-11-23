@@ -25,6 +25,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { api } from '../services/api';
 import { cloudApi } from '../services/cloudApi';
+import { offlineCloud } from '../services/offlineCloud';
 import { projectApi } from '../services/projectApi';
 import { useGoBackTo } from '../hooks/useGoBack';
 import type { ProjectInfo, ScriptMeta, VersionInfo } from '../services/api';
@@ -907,7 +908,7 @@ const ProjectView: React.FC = () => {
         await lf.deleteLinkedFile(pendingDeleteId);
       }
       const deletedTitle = scripts.find((s) => s.id === pendingDeleteId)?.title ?? null;
-      await client.deleteScript(projectId, pendingDeleteId);
+      await (isCloud ? offlineCloud : api).deleteScript(projectId, pendingDeleteId);
       if (isCloud) useProjectStore.getState().unmarkCloudScript(projectId, pendingDeleteId);
       const remaining = await fetchScripts();
       await fetchFileLinks();
@@ -999,15 +1000,7 @@ const ProjectView: React.FC = () => {
       if (!projectId) return;
       try {
         if (isCloud) {
-          // cloudApi has no native duplicate endpoint yet; fall back to
-          // get + re-create so users still get a working duplicate from
-          // a cloud project.
-          const orig = await cloudApi.getScript(projectId, id);
-          await cloudApi.createScript(projectId, {
-            title: `${orig.meta.title} (copy)`, // i18n-ignore: stored as the new script's title
-            content: orig.content,
-            format: 'json',
-          });
+          await offlineCloud.duplicateScript(projectId, id);
         } else {
           await api.duplicateScript(projectId, id);
         }
@@ -1590,6 +1583,7 @@ const ProjectView: React.FC = () => {
               <p>
                 {t('view.deleteScriptConfirm')}
               </p>
+              {isCloud && <p>{translate('toolbar:status.save.cloudDeleteCopies')}</p>}
               {fileLinks[pendingDeleteId] && (
                 <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 13 }}>
                   <input

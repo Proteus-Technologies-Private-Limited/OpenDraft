@@ -267,7 +267,7 @@ import { startCollabSync, stopCollabSync } from '../services/collabSync';
 import { collabAuthApi, setLogoutCollabTeardown, setLogoutEditorReset, ensureCollabAuthenticated, collabAuthUnavailableMessage } from '../services/collabAuth';
 import { platformFetch, isTauri, isDesktopTauri, needsSelectionHandles } from '../services/platform';
 import { reportSaveError } from '../stores/saveErrorStore';
-import { offlineCloudStatus, subscribeOfflineCloud } from '../services/offlineCloud';
+import { offlineCloudStatus, resolveOfflineCloudConflict, subscribeOfflineCloud } from '../services/offlineCloud';
 import { pluginRegistry } from '../plugins/registry';
 import { createTrackChangesPlugin, trackChangesPluginKey } from '../editor/trackChanges';
 import type { VersionInfo } from '../services/api';
@@ -626,6 +626,7 @@ const ScreenplayEditor: React.FC = () => {
   const { currentProject, currentScriptId, setCurrentProject, setCurrentScriptId, scriptReloadKey, markCloudScript, isCloudScript } = useProjectStore();
   const cloudSync = useSyncExternalStore(subscribeOfflineCloud, () =>
     offlineCloudStatus(currentProject?.id, currentScriptId));
+  const [resolvingCloudConflict, setResolvingCloudConflict] = useState(false);
 
   // ── Collaboration state ──
   const [collabMode, setCollabMode] = useState(false);
@@ -4414,6 +4415,47 @@ const ScreenplayEditor: React.FC = () => {
     })();
   }, [editor, urlProjectId, urlScriptId, urlCommitHash, isHistoryMode, collabMode, collabUserName, currentScriptId, switchCollabDocument, setCurrentProject, setCurrentScriptId, setDocumentTitle, updateScenes, scriptReloadKey, navigate, buildSaveContent]);
 
+  const handleCloudConflict = async (choice: 'cloud' | 'device') => {
+    if (!editor || !currentProject || !currentScriptId || scriptSwitchingRef.current) return;
+    const key = choice === 'cloud' ? 'toolbar:status.save.cloudUseConfirm' : 'toolbar:status.save.cloudUploadConfirm';
+    if (!window.confirm(tg(key))) return;
+
+    const content = buildSaveContent();
+    if (choice === 'device' && !content) return;
+    const projectId = currentProject.id;
+    const scriptId = currentScriptId;
+    const wasEditable = editor.isEditable;
+    scriptSwitchingRef.current = true;
+    setResolvingCloudConflict(true);
+    editor.setEditable(false, false);
+    let reloading = false;
+    try {
+      const outcome = await resolveOfflineCloudConflict(projectId, scriptId, choice, content);
+      const current = useProjectStore.getState();
+      if (current.currentProject?.id !== projectId || current.currentScriptId !== scriptId) return;
+      if (choice === 'device') {
+        lastSavedJsonRef.current = JSON.stringify(content);
+        lastSavedNonEmptyRef.current = docHasAnyText(content);
+        useEditorStore.getState().setSaveStatus('saved');
+      } else if (outcome === 'removed') {
+        // Discard was explicitly confirmed. Suppress the outgoing save of this copy.
+        lastSavedJsonRef.current = JSON.stringify(content);
+        setCurrentScriptId(null);
+        setCurrentProject(null);
+        navigate('/projects', { replace: true });
+      } else {
+        reloading = true;
+        current.triggerScriptReload();
+      }
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : tg('toolbar:status.save.cloudProblem'), 'error');
+    } finally {
+      if (!reloading) scriptSwitchingRef.current = false;
+      if (!editor.isDestroyed && wasEditable) editor.setEditable(true, false);
+      setResolvingCloudConflict(false);
+    }
+  };
+
   // --- Sync orphaned marks: runs ONCE after editor is ready, not on every doc change ---
   const orphanSyncDone = useRef(false);
   useEffect(() => {
@@ -6015,11 +6057,19 @@ const ScreenplayEditor: React.FC = () => {
         </div>
       )}
       {(cloudSync?.state === 'conflict' || cloudSync?.state === 'problem') && (
-        <div className="save-failure-banner" role="status">
+        <div className="save-failure-banner cloud-sync-banner" role="status">
           <span className="save-failure-icon" aria-hidden="true">&#9888;</span>
           <span className="save-failure-text">
             {tg(cloudSync.state === 'conflict' ? 'toolbar:status.save.cloudConflict' : 'toolbar:status.save.cloudProblem')}
           </span>
+          {cloudSync.state === 'conflict' && !collabMode && !isHistoryMode && (
+            <>
+              <button type="button" className="save-failure-btn" disabled={resolvingCloudConflict}
+                onClick={() => void handleCloudConflict('cloud')}>{tg('toolbar:status.save.cloudUseVersion')}</button>
+              <button type="button" className="save-failure-btn" disabled={resolvingCloudConflict}
+                onClick={() => void handleCloudConflict('device')}>{tg('toolbar:status.save.cloudUploadVersion')}</button>
+            </>
+          )}
         </div>
       )}
       {saveStatus === 'error' && currentProject && currentScriptId && (

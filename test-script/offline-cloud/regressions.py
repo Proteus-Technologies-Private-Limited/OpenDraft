@@ -36,6 +36,8 @@ async def run(args):
     ):
         raise ValueError("Only the isolated synthetic account may run this test")
     api = args.api.rstrip("/")
+    if not api.endswith("/api"):
+        api += "/api"
     frontend = args.frontend.rstrip("/")
     if any(
         urlsplit(url).hostname not in ("127.0.0.1", "localhost")
@@ -107,6 +109,8 @@ async def run(args):
                 delay_next_ack = False
                 upload_received.set()
                 await asyncio.wait_for(release_ack.wait(), 15)
+                # The server has committed, but the device sees a lost response.
+                return {"status": 503, "body": ""}
             return {"status": response.status, "body": await response.text()}
 
         page = await context.new_page()
@@ -115,7 +119,14 @@ async def run(args):
             "**/offline-cloud-test.html",
             lambda route: route.fulfill(
                 content_type="text/html",
-                body="<!doctype html><title>Synthetic cloud test</title>",
+                body="""<!doctype html><title>Synthetic cloud test</title>
+                    <script type="module">
+                      import RefreshRuntime from '/@react-refresh';
+                      RefreshRuntime.injectIntoGlobalHook(window);
+                      window.$RefreshReg$ = () => {};
+                      window.$RefreshSig$ = () => type => type;
+                      window.__vite_plugin_react_preamble_installed__ = true;
+                    </script>""",
             ),
         )
         await page.add_init_script(f"""
@@ -128,17 +139,20 @@ async def run(args):
 
         async def load_page():
             await page.goto(frontend + "/offline-cloud-test.html")
+            await page.wait_for_function("window.__vite_plugin_react_preamble_installed__")
             await page.evaluate("""async () => {
                 const { initI18n } = await import('/src/i18n/index.ts');
                 await initI18n();
-                const { offlineCloud, offlineCloudStatus, startOfflineCloudSync }
+                const { offlineCloud, offlineCloudStatus, resolveOfflineCloudConflict, startOfflineCloudSync }
                     = await import('/src/services/offlineCloud.ts');
+                const offlineStore = await import('/src/services/offlineCloudStore.ts');
                 const { scriptApi } = await import('/src/services/scriptApi.ts');
                 const { projectApi } = await import('/src/services/projectApi.ts');
                 const { useSettingsStore } = await import('/src/stores/settingsStore.ts');
                 const { useProjectStore } = await import('/src/stores/projectStore.ts');
                 Object.assign(window, { cloud: offlineCloud, offlineCloudStatus,
-                    scriptApi, projectApi, settings: useSettingsStore, projects: useProjectStore });
+                    resolveOfflineCloudConflict, offlineStore, scriptApi, projectApi,
+                    settings: useSettingsStore, projects: useProjectStore });
                 startOfflineCloudSync();
             }""")
             await page.evaluate(
@@ -235,8 +249,30 @@ async def run(args):
             for s in await page.evaluate("id => projectApi.listScripts(id)", project)
         ]
         print(
-            "Reconnect drains pending edits, preserves newer local saves and retains both conflict copies"
+            "Reconnect recovers a lost acknowledgment, preserves newer local saves and retains both conflict copies"
         )
+
+        async def resolve(script, choice):
+            return await page.evaluate(
+                "([p, s, choice]) => resolveOfflineCloudConflict(p, s, choice)",
+                [project, script, choice],
+            )
+
+        assert await resolve(conflicted, "device") == "resolved"
+        await state(conflicted, "synced")
+        assert (await api_call(f"{base}/{conflicted}"))["content"] == doc(
+            "Laptop conflict copy"
+        )
+        assert await resolve(removed, "cloud") == "removed"
+        assert removed not in [
+            s["id"] for s in await page.evaluate("id => projectApi.listScripts(id)", project)
+        ]
+        await api_call(f"{base}/{conflicted}", "PUT", {"content": doc("Updated phone copy")})
+        await save(conflicted, "Another conflict copy")
+        await state(conflicted, "conflict")
+        assert await resolve(conflicted, "cloud") == "resolved"
+        assert await get(conflicted) == doc("Updated phone copy")
+        print("Both conflict actions clear the conflict and deleted copies can be removed")
 
         # A failed precondition cannot reach the unconditional PUT route,
         # including when the same request is repeated after a lost response.
@@ -282,7 +318,11 @@ async def run(args):
             "Simultaneous saves from the same base revision produce exactly one winner"
         )
 
+        await go_online(False)
+        await save(conflicted, "Draft retained after project deletion")
         await api_call(f"/projects/{project}", "DELETE")
+        await go_online(True)
+        await state(conflicted, "conflict")
         assert any(
             p["id"] == project for p in await page.evaluate("cloud.listProjects()")
         )
@@ -291,7 +331,7 @@ async def run(args):
             s["id"]
             for s in await page.evaluate("id => projectApi.listScripts(id)", project)
         ]
-        assert await get(conflicted) == doc("Laptop conflict copy")
+        assert await get(conflicted) == doc("Draft retained after project deletion")
 
         await go_online(False)
         await page.evaluate("""() => {
@@ -308,7 +348,22 @@ async def run(args):
             raise AssertionError(
                 "A different account could read the previous account's offline draft"
             )
-        print("Cached scripts are isolated by account")
+        scope = json.dumps([api, auth["user"]["id"]], separators=(",", ":"))
+        await page.wait_for_function(
+            """async ([scope, p, first, conflict]) => {
+                const downloaded = await offlineStore.readOfflineScript([scope, p, first]);
+                const queued = await offlineStore.readOfflineScript([scope, p, conflict]);
+                const catalog = await offlineStore.readOfflineCatalog(scope, 'projects');
+                return !downloaded && !catalog && queued?.state === 'conflict';
+            }""",
+            arg=[scope, project, first, conflicted],
+        )
+        await page.evaluate("auth => settings.getState().setCollabAuth(auth)", auth)
+        await go_online(True)
+        assert any(p["id"] == project for p in await page.evaluate("cloud.listProjects()"))
+        await page.evaluate("id => projectApi.deleteProject(id)", project)
+        assert all(p["id"] != project for p in await page.evaluate("cloud.listProjects()"))
+        print("Account changes remove downloads and the catalogue, and explicit deletion removes queued copies")
         await browser.close()
 
 

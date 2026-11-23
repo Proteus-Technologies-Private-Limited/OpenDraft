@@ -1,4 +1,4 @@
-import type { ScriptResponse } from './api';
+import type { ProjectInfo, ScriptResponse } from './api';
 
 export type OfflineScript = {
   scope: string;
@@ -6,8 +6,10 @@ export type OfflineScript = {
   scriptId: string;
   revision: string;
   script: ScriptResponse;
+  project?: ProjectInfo;
   state: 'synced' | 'pending' | 'conflict' | 'problem';
   operation?: string;
+  inFlight?: { operation: string; content: Record<string, unknown> };
   lastSynced: number;
 };
 
@@ -23,11 +25,15 @@ function openDatabase(): Promise<IDBDatabase> {
       request.result.createObjectStore('catalog');
     };
     request.onsuccess = () => {
-      request.result.onversionchange = () => {
-        request.result.close();
-        database = undefined;
+      const connection = request.result;
+      const opened = database;
+      const reset = () => { if (database === opened) database = undefined; };
+      connection.onclose = reset;
+      connection.onversionchange = () => {
+        connection.close();
+        reset();
       };
-      resolve(request.result);
+      resolve(connection);
     };
     request.onerror = () => reject(request.error);
   }).catch(error => {
@@ -71,6 +77,7 @@ export async function editOfflineScript(
     // close the transaction as soon as the callback returns.
     try {
       row = change(request.result);
+      if (row === undefined && request.result !== undefined) table.delete(key);
       if (row !== undefined && row !== request.result) table.put(row);
     } catch (cause) {
       error = cause;
@@ -98,10 +105,58 @@ export async function readOfflineCatalog<T>(scope: string, key: string): Promise
   return result(db.transaction('catalog').objectStore('catalog').get([scope, key]));
 }
 
-export async function cacheOfflineCatalog<T>(scope: string, key: string, value: T): Promise<void> {
+export async function cacheOfflineCatalog<T>(scope: string, key: string, value: T, isCurrent: () => boolean): Promise<void> {
   const db = await openDatabase();
+  if (!isCurrent()) return;
   const transaction = db.transaction('catalog', 'readwrite');
   const done = completed(transaction);
   transaction.objectStore('catalog').put(value, [scope, key]);
   return done;
+}
+
+function scopeRange(prefix: string[]): IDBKeyRange {
+  return IDBKeyRange.bound(prefix, [...prefix, []]);
+}
+
+export async function removeOfflineScripts(scope: string, projectId: string, scriptId?: string): Promise<void> {
+  const db = await openDatabase();
+  const transaction = db.transaction(['scripts', 'catalog'], 'readwrite', { durability: 'strict' });
+  const done = completed(transaction);
+  transaction.objectStore('scripts').delete(scriptId ? [scope, projectId, scriptId] : scopeRange([scope, projectId]));
+  const catalog = transaction.objectStore('catalog');
+  const removeFromList = (key: string, id: string) => {
+    const request = catalog.get([scope, key]);
+    request.onsuccess = () => {
+      if (Array.isArray(request.result)) catalog.put(request.result.filter(item => item.id !== id), [scope, key]);
+    };
+  };
+  if (scriptId) {
+    removeFromList(`scripts:${projectId}:false`, scriptId);
+    removeFromList(`scripts:${projectId}:true`, scriptId);
+  } else {
+    removeFromList('projects', projectId);
+    catalog.delete([scope, `project:${projectId}`]);
+    catalog.delete([scope, `scripts:${projectId}:false`]);
+    catalog.delete([scope, `scripts:${projectId}:true`]);
+  }
+  return done;
+}
+
+/** Drop downloads and the catalogue on sign-out. Keep the upload queue. */
+export async function clearSyncedOfflineData(scope: string): Promise<boolean> {
+  const db = await openDatabase();
+  const transaction = db.transaction(['scripts', 'catalog'], 'readwrite', { durability: 'strict' });
+  const done = completed(transaction);
+  transaction.objectStore('catalog').delete(scopeRange([scope]));
+  const request = transaction.objectStore('scripts').openCursor(scopeRange([scope]));
+  let retained = false;
+  request.onsuccess = () => {
+    const cursor = request.result;
+    if (!cursor) return;
+    if (cursor.value.state === 'synced') cursor.delete();
+    else retained = true;
+    cursor.continue();
+  };
+  await done;
+  return retained;
 }

@@ -1,9 +1,11 @@
 import hashlib
 import json
-import os
-import tempfile
 import logging
+import os
+import stat
+import tempfile
 import uuid
+from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -32,14 +34,21 @@ def _revision(content: dict) -> str:
 
 def _write_json(path: Path, value: dict) -> None:
     """Publish the complete file at once, including for unlocked readers."""
+    # Keep incomplete files outside the Git-versioned project, on the same
+    # filesystem as the destination. Replacements retain the original mode.
+    staging = get_projects_dir() / ".script-staging"
+    staging.mkdir(mode=0o700, exist_ok=True)
+    file_mode = stat.S_IMODE(path.stat().st_mode) if path.exists() else None
     temporary = None
     try:
         with tempfile.NamedTemporaryFile(
-            mode="w", encoding="utf-8", dir=path.parent, delete=False,
+            mode="w", encoding="utf-8", dir=staging, delete=False,
         ) as stream:
             temporary = Path(stream.name)
             json.dump(value, stream, indent=2)
             stream.flush()
+            if file_mode is not None:
+                os.chmod(temporary, file_mode)
             os.fsync(stream.fileno())
         os.replace(temporary, path)
     finally:
@@ -198,6 +207,7 @@ def update_script(
     sort_order: int | None = None,
     allow_empty_body: bool = False,
     expected_content_revision: str | None = None,
+    before_write: Callable[[], None] | None = None,
 ) -> dict:
     """Update a script's title and/or content."""
     with _script_lock(project_id, script_id):
@@ -217,11 +227,13 @@ def update_script(
             existing = json.loads(content_file.read_text(encoding="utf-8")) if content_file.exists() else {}
         if expected_content_revision is not None:
             current_revision = _revision(existing)
+            # Exact retries are read-only, including an unchanged first save.
+            if content == existing:
+                return {
+                    "meta": meta, "content": existing,
+                    "content_revision": current_revision, "offline_applied": False,
+                }
             if current_revision != expected_content_revision:
-                # A retry following a lost response is already applied if the
-                # authoritative content exactly matches the queued copy.
-                if content == existing:
-                    return {"meta": meta, "content": existing, "content_revision": current_revision}
                 raise ScriptRevisionConflict()
         if content is not None and not allow_empty_body and not _has_body_text(content) and _has_body_text(existing):
             raise EmptyOverwriteError(
@@ -230,6 +242,9 @@ def update_script(
                 "guards against accidental data loss. If you really meant to clear it, "
                 "delete the script instead."
             )
+
+        if before_write is not None:
+            before_write()
 
         if title is not None:
             meta["title"] = title
@@ -259,6 +274,7 @@ def update_script(
         result = {"meta": meta, "content": current_content}
         if expected_content_revision is not None:
             result["content_revision"] = _revision(current_content)
+            result["offline_applied"] = True
         return result
 
 

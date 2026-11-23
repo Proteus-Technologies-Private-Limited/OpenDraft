@@ -124,14 +124,20 @@ function SaveLine({ lead }: { lead: boolean }) {
     : saveStatus === 'error' ? t('status.save.error')
     : cloudLabel || (saveStatus === 'saved' ? t('status.save.saved') : '');
   if (!label) return null;
+  const lastSynced = sync?.lastSynced ? new Date(sync.lastSynced) : null;
   return (
     <>
       {lead && <span className="status-sep">&middot;</span>}
       <span className={`status-item ${SAVE_STATUS_CLASS[saveStatus] ?? ''}`}
-        aria-live={sync && sync.state !== 'conflict' && sync.state !== 'problem' ? "polite" : undefined}
-        title={sync?.lastSynced ? t('status.save.cloudLastSync', { time: new Date(sync.lastSynced).toLocaleString() }) : undefined}>
+        aria-live={sync && sync.state !== 'conflict' && sync.state !== 'problem' ? "polite" : undefined}>
         {label}
       </span>
+      {lastSynced && <>
+        <span className="status-sep" aria-hidden="true">&middot;</span>
+        <time className="status-item" dateTime={lastSynced.toISOString()}>
+          {t('status.save.cloudLastSync', { time: lastSynced.toLocaleString() })}
+        </time>
+      </>}
     </>
   );
 }
