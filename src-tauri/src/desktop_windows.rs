@@ -15,17 +15,6 @@ pub fn state_flags() -> StateFlags {
     StateFlags::MAXIMIZED | StateFlags::FULLSCREEN
 }
 
-// The startup window has persistent state. Secondary windows are created by
-// an explicit action; group their plugin cache so stale counter labels cannot
-// restore full-screen state before we place them on the caller's display.
-pub fn state_label(label: &str) -> &str {
-    if label != "main" && tracked(label) {
-        "secondary"
-    } else {
-        label
-    }
-}
-
 pub fn tracked(label: &str) -> bool {
     label == "main"
         || label
@@ -362,8 +351,7 @@ pub fn setup(app: &tauri::AppHandle) {
 /// Called on the UI thread after construction, before showing a new window.
 pub fn show_new(window: &tauri::WebviewWindow, origin: Option<&tauri::WebviewWindow>) {
     let target = &window.as_ref().window();
-    // Secondary windows skip automatic restoration and start normally. Only
-    // startup restores maximized/full-screen state, after safe normal bounds.
+    // Secondary windows always start in normal mode.
     let result = (|| -> tauri::Result<()> {
         let origin_windows = origin.map(|w| w.as_ref().window());
         let origin = origin_windows.as_ref();
@@ -490,9 +478,6 @@ mod tests {
         for label in ["splashscreen", "panel-main", "main-", "main-script"] {
             assert!(!tracked(label));
         }
-        assert_eq!(state_label("main"), "main");
-        assert_eq!(state_label("main-12"), "secondary");
-        assert_eq!(state_label("splashscreen"), "splashscreen");
     }
 
     #[test]
