@@ -1,6 +1,8 @@
+import { ChoiceLineBack, ChoiceLineClose } from './toolbar/ChoiceLineControls';
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { modalPortalContainer } from '../utils/modalAccessibility';
 import { createPortal } from 'react-dom';
+import { toolbarChoiceLine, useChoiceLineLifecycle, useChoiceLinePosition, restoreChoiceFocus } from './toolbar/choiceLine';
 
 /**
  * A drop-in for <select> whose list the app draws itself (issue #138).
@@ -33,6 +35,8 @@ type SelectProps = Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'onChange
   value?: string | number;
   defaultValue?: string | number;
   name?: string;
+  /** Closed-trigger type-ahead opens and highlights instead of selecting. */
+  manual?: boolean;
   onChange?: (e: React.ChangeEvent<HTMLSelectElement>) => void;
   children?: React.ReactNode;
 };
@@ -135,43 +139,20 @@ function anchorTo(trigger: HTMLElement): Anchor {
 }
 
 /**
- * A foldable held as a book keeps its toolbar in two rows on the right half
- * (screenplay.css, #231). A pulldown there opens its choices across the second
- * row instead of dropping a list over the script or across the crease. Only
- * then: everywhere else this answers null and the list opens as it always has.
+ * Book and laptop toolbars put pulldowns in their second row. Other selects
+ * keep their ordinary popup geometry, including those in dialogs and footers.
  */
 export function choiceLineFor(trigger: HTMLElement): Anchor | null {
-  if (typeof document === 'undefined' || !document.documentElement.classList.contains('fold-book')) return null;
-  const toolbar = trigger.closest<HTMLElement>('.toolbar');
-  if (!toolbar) return null;
-  try {
-    const box = toolbar.getBoundingClientRect();
-    const style = getComputedStyle(toolbar);
-    const padTop = parseFloat(style.paddingTop) || 0;
-    const padLeft = parseFloat(style.paddingLeft) || 0;
-    const padRight = parseFloat(style.paddingRight) || 0;
-    const rowGap = parseFloat(style.rowGap) || 0;
-    const rowHeight = 44;
-    const width = box.width - padLeft - padRight;
-    if (!(width > 0)) return null;
-    return {
-      left: box.left + padLeft,
-      top: box.top + padTop + rowHeight + rowGap,
-      minWidth: width,
-      maxWidth: width,
-      maxHeight: rowHeight,
-      line: { width, height: rowHeight },
-    };
-  } catch (error) {
-    console.warn('[Select] could not place the choice line; opening a list instead', error);
-    return null;
-  }
+  if (typeof document === 'undefined') return null;
+  const line = toolbarChoiceLine(trigger);
+  return line ? { left: line.left, top: line.top, minWidth: line.width,
+    maxWidth: line.width, maxHeight: line.height, line: { width: line.width, height: line.height } } : null;
 }
 
 const TYPEAHEAD_RESET_MS = 700;
 
 const Select: React.FC<SelectProps> = ({
-  value, defaultValue, name, onChange, children, className, disabled, style, id, title,
+  value, defaultValue, name, manual = false, onChange, children, className, disabled, style, id, title,
   onKeyDown: onKeyDownProp, onBlur, ...rest
 }) => {
   const items = useMemo(() => collectItems(children), [children]);
@@ -214,7 +195,9 @@ const Select: React.FC<SelectProps> = ({
     [items],
   );
 
-  const openList = useCallback(() => {
+  const openedByKeyboard = useRef(false);
+  const openList = useCallback((keyboard: boolean) => {
+    openedByKeyboard.current = keyboard;
     if (disabled || !buttonRef.current) return;
     setAnchor(anchorTo(buttonRef.current));
     setActiveIndex(choosable(selectedIndex) ? selectedIndex : options.find(choosable) ?? -1);
@@ -226,10 +209,13 @@ const Select: React.FC<SelectProps> = ({
     if (refocus) buttonRef.current?.focus();
   }, []);
 
+  useChoiceLineLifecycle(open && !!anchor?.line, buttonRef, listRef, useCallback(() => setOpen(false), []));
+  useChoiceLinePosition(open && !!anchor?.line, buttonRef, useCallback(() => { if (buttonRef.current) setAnchor(anchorTo(buttonRef.current)); }, []));
+
   const commit = useCallback((index: number) => {
     const it = items[index];
     if (!it || it.kind !== 'option' || it.disabled) return;
-    close(true);
+    close(!anchor?.line || openedByKeyboard.current);
     // Like a native select, a change event only when the value actually changes.
     if (it.value === current) return;
     if (!controlled) setUncontrolledValue(it.value);
@@ -240,7 +226,8 @@ const Select: React.FC<SelectProps> = ({
     } catch (err) {
       console.error('[Select] onChange handler failed', err);
     }
-  }, [items, current, controlled, onChange, name, close]);
+    if (anchor?.line && openedByKeyboard.current) restoreChoiceFocus(buttonRef);
+  }, [items, current, controlled, onChange, name, close, anchor]);
 
 
   useEffect(() => {
@@ -327,11 +314,18 @@ const Select: React.FC<SelectProps> = ({
     if (!open) {
       if (['ArrowDown', 'ArrowUp', 'Enter', ' '].includes(e.key)) {
         e.preventDefault();
-        openList();
+        openList(true);
       } else if (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey) {
-        // Typing on a closed native select picks the matching option outright.
         const hit = findTyped(e.key, selectedIndex);
-        if (hit >= 0) commit(hit);
+        if (hit < 0) return;
+        if (manual) {
+          e.preventDefault();
+          openList(true);
+          setActiveIndex(hit);
+        } else {
+          // Match a native select's closed-trigger type-ahead by default.
+          commit(hit);
+        }
       }
       return;
     }
@@ -368,7 +362,7 @@ const Select: React.FC<SelectProps> = ({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={open ? listId : undefined}
-        onClick={() => (open ? close(false) : openList())}
+        onClick={event => (open ? close(false) : openList(event.detail === 0))}
         onKeyDown={onKeyDown}
         onBlur={onBlur}
       >
@@ -387,11 +381,10 @@ const Select: React.FC<SelectProps> = ({
       {open && anchor && createPortal(
         <div
           ref={listRef}
-          id={listId}
+          id={anchor.line ? undefined : listId}
           className={anchor.line ? 'od-select-popup od-select-popup--line' : 'od-select-popup'}
-          role="listbox"
-          aria-orientation={anchor.line ? 'horizontal' : undefined}
-          aria-label={rest['aria-label'] ?? title ?? selected?.text}
+          role={anchor.line ? undefined : "listbox"}
+          aria-label={anchor.line ? undefined : (rest['aria-label'] ?? title ?? selected?.text)}
           style={anchor.line ? {
             left: anchor.left,
             top: anchor.top,
@@ -406,6 +399,11 @@ const Select: React.FC<SelectProps> = ({
             maxHeight: anchor.maxHeight,
           }}
         >
+          {anchor.line && <ChoiceLineBack label={title ?? rest['aria-label'] ?? selected?.text ?? ''} onClose={() => close(true)} />}
+          <div className={anchor.line ? 'toolbar-choice-options' : undefined}
+            id={anchor.line ? listId : undefined} role={anchor.line ? 'listbox' : undefined}
+            aria-orientation={anchor.line ? 'horizontal' : undefined}
+            aria-label={anchor.line ? (rest['aria-label'] ?? title ?? selected?.text) : undefined}>
           {items.map((it, i) => {
             if (it.kind === 'group') {
               return <div key={`g-${i}`} className="od-select-group" role="presentation">{it.label}</div>;
@@ -417,7 +415,7 @@ const Select: React.FC<SelectProps> = ({
                 key={`o-${i}`}
                 role="option"
                 id={`${listId}-option-${i}`}
-                aria-selected={i === activeIndex}
+                aria-selected={anchor.line ? isSelected : i === activeIndex}
                 aria-disabled={it.disabled || undefined}
                 title={it.title}
                 className={[
@@ -435,6 +433,8 @@ const Select: React.FC<SelectProps> = ({
               </div>
             );
           })}
+          </div>
+          {anchor.line && <ChoiceLineClose onClose={() => close(true)} />}
         </div>,
         modalPortalContainer(),
       )}

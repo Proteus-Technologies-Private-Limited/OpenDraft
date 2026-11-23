@@ -12,6 +12,8 @@ on:
       - 'test-script/panel-popout/**'
       - 'test-script/menu-keyboard/**'
       - 'test-script/long-script/**'
+      - 'test-script/laptop-toolbar/**'
+      - 'test-script/foldables/regressions.py'
       - 'test-script/typing-lag.mjs'
       - '.github/workflows/test-accessibility.yml'
 
@@ -67,7 +69,9 @@ jobs:
           if [ "$OPENDRAFT_BROWSER" = chromium ]; then
             OPENDRAFT_MENU_FOLDABLE=1 python test-script/accessibility/regressions.py Accessibility.test_plugin_tabs_selection_resize_and_removed_focus Accessibility.test_plugin_removal_from_content_and_editor_never_opens_neighbor
           fi
-          OPENDRAFT_PANEL_OUTPUT="$RUNNER_TEMP/panel-popout-reports" python test-script/panel-popout/regressions.py
+          if [ "$OPENDRAFT_BROWSER" = chromium ]; then
+            python test-script/laptop-toolbar/regressions.py
+          fi
           python test-script/menu-keyboard/regressions.py
           python test-script/long-script/regressions.py
       - name: Upload accessibility evidence

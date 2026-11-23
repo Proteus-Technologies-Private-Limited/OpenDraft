@@ -1389,20 +1389,42 @@ const ScreenplayEditor: React.FC = () => {
     return () => clearTimeout(timer);
   }, [foldState.foldable, foldState.fold, foldState.size, foldState.viewportWidth, foldOpen, phoneView, pageLayout.pageWidth, setZoomLevel]);
 
+  const [collabLoading, setCollabLoading] = useState(Boolean(urlCollabToken));
+
   // Where the editor starts, for the laptop posture's height above the crease.
   // Measured in the same task the posture classes change, before the reading
   // anchor is restored: the book posture lifts the toolbar out of the flow, so
   // a value left from book is a toolbar short, and correcting it 100ms later
   // would move the writer's line after it had been put back.
-  useEffect(() => {
+  useLayoutEffect(() => {
+    if (!foldState.foldable) return;
+    const container = document.querySelector('.app-container');
+    if (!container) return;
     const measure = () => {
-      if (!isFoldableDevice()) return;
-      const root = document.querySelector<HTMLElement>('.editor-layout');
+      const root = container.querySelector<HTMLElement>('.editor-layout');
       if (root) root.style.setProperty('--fold-content-top', `${root.getBoundingClientRect().top}px`);
     };
+    let toolbar: Element | null = null;
+    const geometry = new MutationObserver(measure);
+    const observeToolbar = () => {
+      const next = container.querySelector('.toolbar');
+      if (toolbar !== next) {
+        geometry.disconnect();
+        toolbar = next;
+        if (toolbar) geometry.observe(toolbar, { attributes: true, attributeFilter: ['class', 'style'] });
+      }
+      measure();
+    };
+    observeToolbar();
+    const children = new MutationObserver(observeToolbar);
+    children.observe(container, { childList: true });
     window.addEventListener(FOLD_CHANGE_EVENT, measure);
-    return () => window.removeEventListener(FOLD_CHANGE_EVENT, measure);
-  }, []);
+    return () => {
+      children.disconnect();
+      geometry.disconnect();
+      window.removeEventListener(FOLD_CHANGE_EVENT, measure);
+    };
+  }, [foldState.foldable, collabLoading]);
 
   // Foldable panel/toolbar changes must never refit an ordinary user's page.
   useEffect(() => {
@@ -1429,7 +1451,6 @@ const ScreenplayEditor: React.FC = () => {
   // ── Handle /collab/:token route — resolve token to project/script, then enter collab mode ──
   const collabInitDone = useRef(false);
   const collabInitialContent = useRef<Record<string, unknown> | null>(null);
-  const [collabLoading, setCollabLoading] = useState(Boolean(urlCollabToken));
   useEffect(() => {
     if (!urlCollabToken || collabInitDone.current) return;
     collabInitDone.current = true;

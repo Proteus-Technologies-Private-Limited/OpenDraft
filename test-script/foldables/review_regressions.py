@@ -34,10 +34,13 @@ class ReviewRegressions(unittest.TestCase):
             blank.click()
         page.locator('.ProseMirror').wait_for()
         page.evaluate("""async () => {
-            const url=performance.getEntriesByType('resource').find(e=>new URL(e.name).pathname==='/src/stores/editorStore.ts').name;
-            window.reviewStore=(await import(url)).useEditorStore;
-            const read=performance.getEntriesByType('resource').find(e=>new URL(e.name).pathname==='/src/stores/tableReadStore.ts').name;
-            window.reviewRead=(await import(read)).useTableReadStore;
+            // A reload can omit module entries from the resource timing buffer.
+            // Use the loaded Vite URL when present, including any query suffix.
+            const moduleURL = (path) => performance.getEntriesByType('resource')
+                .find(entry => new URL(entry.name).pathname === path)?.name
+                ?? new URL(path, location.origin).href;
+            window.reviewStore = (await import(moduleURL('/src/stores/editorStore.ts'))).useEditorStore;
+            window.reviewRead = (await import(moduleURL('/src/stores/tableReadStore.ts'))).useTableReadStore;
             let element=document.querySelector('.ProseMirror');
             while (element && !window.reviewEditor) {
                 const key=Object.keys(element).find(key=>key.startsWith('__reactFiber$'));
