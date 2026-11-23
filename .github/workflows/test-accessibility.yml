@@ -72,6 +72,7 @@ jobs:
           if [ "$OPENDRAFT_BROWSER" = chromium ]; then
             python test-script/laptop-toolbar/regressions.py
           fi
+          OPENDRAFT_PANEL_OUTPUT="$RUNNER_TEMP/panel-popout-reports" python test-script/panel-popout/regressions.py
           python test-script/menu-keyboard/regressions.py
           python test-script/long-script/regressions.py
       - name: Upload accessibility evidence

@@ -39,17 +39,20 @@ export function useNavigatorPopout(editor: Editor | null, scriptId: string | nul
     let sceneRevision = 0;
     let lastSceneSequence = -1;
     let sentScenes: readonly PanelScene[] | undefined;
+    const refreshSummary = () => {
+      if (summaryRevision === revision) return;
+      const { sceneNumbersVisible, sceneNumbersLocked } = useEditorStore.getState();
+      const summary = sceneSummary(editor.state.doc, editor.state.selection.from, { visible: sceneNumbersVisible, locked: sceneNumbersLocked });
+      positions = summary.positions;
+      scenes = summary.scenes;
+      summaryRevision = revision;
+    };
     const publish = (force = false) => {
       if (timer) clearTimeout(timer);
       timer = undefined;
       if (!active || disposed || editor.isDestroyed) return;
+      refreshSummary();
       const state = useEditorStore.getState();
-      if (summaryRevision !== revision) {
-        const summary = sceneSummary(editor.state.doc, editor.state.selection.from, { visible: state.sceneNumbersVisible, locked: state.sceneNumbersLocked });
-        positions = summary.positions;
-        scenes = summary.scenes;
-        summaryRevision = revision;
-      }
       let activeScene = -1;
       positions.forEach((position, index) => { if (position - 1 <= editor.state.selection.from) activeScene = index; });
       const changed = !sentScenes || !sameSceneSummary(sentScenes, scenes);
@@ -94,9 +97,12 @@ export function useNavigatorPopout(editor: Editor | null, scriptId: string | nul
       if (tr.docChanged || tr.selectionSet) schedule();
     };
     const stopCommands = subscribePanel<PanelMessage>('panel-command', message => {
-      if (!active || disposed || message?.session !== session) return;
+      if (!active || disposed || editor.isDestroyed || message?.session !== session) return;
       if (message.action?.kind === 'ready') { publish(true); return; }
-      const position = navigationPosition(message, session, revision, positions);
+      // Edits can shift positions before the next snapshot reaches the panel.
+      refreshSummary();
+      if (!sentScenes || !sameSceneSummary(sentScenes, scenes)) { publish(true); return; }
+      const position = navigationPosition(message, session, sceneRevision, positions);
       if (position === null) { publish(true); return; }
       // A selection-only transaction: no document change or undo entry.
       editor.chain().setTextSelection(position).scrollIntoView().run();

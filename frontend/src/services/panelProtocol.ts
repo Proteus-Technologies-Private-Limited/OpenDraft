@@ -19,7 +19,7 @@ export interface NavigatorSnapshot {
   language: string;
 }
 export type NavigatorUpdate = Omit<NavigatorSnapshot, 'scenes'> & { scenes?: PanelScene[] };
-export type PanelAction = { kind: 'ready' } | { kind: 'navigate'; revision: number; index: number };
+export type PanelAction = { kind: 'ready' } | { kind: 'navigate'; sceneRevision: number; index: number };
 export interface PanelMessage { session: string; action: PanelAction }
 
 export function sceneSummary(doc: PMNode, selection: number, numbering = { visible: true, locked: true }): { scenes: PanelScene[]; positions: number[]; active: number } {
@@ -57,9 +57,9 @@ export function isNavigatorUpdate(value: unknown): value is NavigatorUpdate {
       && s.scenes.every(scene => scene && ['heading', 'synopsis', 'number', 'color'].every(key => typeof scene[key as keyof PanelScene] === 'string'))));
 }
 
-export function navigationPosition(message: PanelMessage, session: string, revision: number, positions: number[]): number | null {
+export function navigationPosition(message: PanelMessage, session: string, sceneRevision: number, positions: number[]): number | null {
   const action = message?.action;
-  if (message?.session !== session || action?.kind !== 'navigate' || action.revision !== revision
+  if (message?.session !== session || action?.kind !== 'navigate' || action.sceneRevision !== sceneRevision
     || !Number.isInteger(action.index) || action.index < 0 || action.index >= positions.length) return null;
   return positions[action.index];
 }

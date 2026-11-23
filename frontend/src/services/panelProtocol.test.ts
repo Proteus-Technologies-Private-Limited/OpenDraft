@@ -24,8 +24,8 @@ describe('read-only panel protocol', () => {
     expect(sameSceneSummary(scenes, scenes.slice(1))).toBe(false);
     expect(sameSceneSummary(scenes, [{ ...scenes[0], synopsis: 'Changed' }, scenes[1]])).toBe(false);
   });
-  it('rejects old sessions/revisions and invalid scene indexes', () => {
-    const action = { kind: 'navigate' as const, revision: 2, index: 1 }, positions = sceneSummary(doc, 1).positions;
+  it('rejects old sessions and scene revisions and invalid scene indexes', () => {
+    const action = { kind: 'navigate' as const, sceneRevision: 2, index: 1 }, positions = sceneSummary(doc, 1).positions;
     expect(navigationPosition({ session: 'one', action }, 'one', 2, positions)).toBe(positions[1]);
     expect(navigationPosition({ session: 'old', action }, 'one', 2, positions)).toBeNull();
     expect(navigationPosition({ session: 'one', action }, 'one', 3, positions)).toBeNull();

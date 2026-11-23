@@ -13,7 +13,6 @@ export default function NavigatorPopout() {
   const [unavailable, setUnavailable] = useState(false);
   const [search, setSearch] = useState('');
   const activeRef = useRef<HTMLButtonElement>(null);
-  const currentRevision = useRef(0);
   useEffect(() => {
     let stopped = false, session: string | undefined;
     let latestSequence = -1, appearanceRequest = 0;
@@ -26,7 +25,6 @@ export default function NavigatorPopout() {
       const scenes = value.scenes ?? (current?.sceneRevision === value.sceneRevision ? current.scenes : undefined);
       if (!scenes || value.active >= scenes.length) return;
       latestSequence = value.sequence;
-      currentRevision.current = value.revision;
       const previous = current;
       current = { ...value, scenes };
       if (previous?.scenes !== scenes || previous.active !== value.active || previous.title !== value.title) {
@@ -78,7 +76,7 @@ export default function NavigatorPopout() {
             <button type="button" ref={scene.index === snapshot.active ? activeRef : undefined}
               aria-current={scene.index === snapshot.active ? 'location' : undefined}
               style={scene.color ? { borderInlineStartColor: scene.color } : undefined}
-              onClick={() => command({ kind: 'navigate', revision: currentRevision.current, index: scene.index })}>
+              onClick={() => command({ kind: 'navigate', sceneRevision: snapshot.sceneRevision, index: scene.index })}>
               <span>{scene.number}. {scene.heading || t('tags.untitledScene')}</span>
               {scene.synopsis && <span className="navigator-popout-synopsis">{scene.synopsis}</span>}
             </button>

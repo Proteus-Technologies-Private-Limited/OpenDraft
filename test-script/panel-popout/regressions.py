@@ -43,17 +43,21 @@ async def run():
             context = await browser.new_context(viewport={"width": 440, "height": 800})
             pages, listeners, panels, snapshots, errors, calls = {}, {}, {}, [], [], []
             counter = 0
+            edit_before_navigation = None
             all_panels_closed = asyncio.Event()
             all_panels_closed.set()
 
-            async def deliver(label, event, payload):
+            async def deliver(label, event, payload, *, owner_edit=None):
                 page = pages.get(label)
                 if page is None or page.is_closed():
                     return
                 for identifier in list(listeners.get((label, event), [])):
                     await page.evaluate(
-                        "([id, event, payload]) => window.__panelCallbacks.get(id)?.({id, event, payload})",
-                        [identifier, event, payload],
+                        """([id, event, payload, ownerEdit]) => {
+                            if (ownerEdit) window.panelTest[ownerEdit]();
+                            window.__panelCallbacks.get(id)?.({id, event, payload});
+                        }""",
+                        [identifier, event, payload, owner_edit],
                     )
 
             async def close_panel(label):
@@ -102,7 +106,7 @@ async def run():
                 return page
 
             async def native(source, command, args):
-                nonlocal counter
+                nonlocal counter, edit_before_navigation
                 page = source["page"]
                 label = await page.evaluate("window.__panelLabel")
                 calls.append(command)
@@ -152,10 +156,14 @@ async def run():
                             lambda: asyncio.create_task(close_panel(label))
                         )
                     else:
+                        owner_edit = None
+                        if args["action"]["kind"] == "navigate":
+                            owner_edit, edit_before_navigation = edit_before_navigation, None
                         await deliver(
                             info["owner"],
                             "panel-command",
                             {"session": info["session"], "action": args["action"]},
+                            owner_edit=owner_edit,
                         )
                     return None
                 if command == "close_panel_windows":
@@ -193,6 +201,24 @@ async def run():
             ).wait_for()
             assert "scenes" not in snapshots[-1]
             checks.append("owner caret updates without sending scene summaries")
+            # Move the second heading in the same event loop turn as the command,
+            # before the owner can publish any snapshot for the edit.
+            previous_scene_position = await owner.evaluate(
+                "panelTest.secondScenePosition()"
+            )
+            edit_before_navigation = "insertInBody"
+            await panel.get_by_role("button", name="2. EXT. STREET - NIGHT").click()
+            await owner.wait_for_function(
+                "previous => panelTest.selection() === panelTest.secondScenePosition() && panelTest.selection() > previous",
+                arg=previous_scene_position,
+            )
+            await panel.locator('[aria-current="location"]').filter(
+                has_text="EXT. STREET"
+            ).wait_for()
+            assert "scenes" not in snapshots[-1]
+            checks.append(
+                "clicks during body edits resolve the latest heading position without resending scenes"
+            )
             first_revision = snapshots[-1]["revision"]
             await owner.evaluate("panelTest.saveToLibrary(); panelTest.saveToFile()")
             await owner.evaluate("panelTest.saveCopy()")
@@ -215,10 +241,12 @@ async def run():
             await panel.get_by_role("searchbox").fill("")
             checks.append("filtered navigation retains original scene index")
             old = snapshots[-1]
-            await owner.evaluate("panelTest.select(6); panelTest.insert('UPDATED ')")
+            edit_before_navigation = "editFirstHeading"
+            await panel.get_by_role("button", name="2. EXT. STREET - NIGHT").click()
             await panel.get_by_role(
                 "button", name="1. INT. UPDATED ROOM - DAY"
             ).wait_for()
+            assert await owner.evaluate("panelTest.selection() < panelTest.secondScenePosition()")
             await owner.evaluate("panelTest.rewriteSameDocument()")
             await panel.get_by_role(
                 "button", name="1. INT. UPDATED ROOM - DAY"
@@ -236,13 +264,13 @@ async def run():
                     "session": old["session"],
                     "action": {
                         "kind": "navigate",
-                        "revision": old["revision"],
+                        "sceneRevision": old["sceneRevision"],
                         "index": 1,
                     },
                 },
             )
             assert await owner.evaluate("panelTest.selection()") == position
-            checks.append("stale revision cannot navigate using old positions")
+            checks.append("scene list changes invalidate old clicks before and after publishing")
             await owner.evaluate("panelTest.appearance('light')")
             await panel.wait_for_function(
                 "document.documentElement.dataset.theme === 'light'"

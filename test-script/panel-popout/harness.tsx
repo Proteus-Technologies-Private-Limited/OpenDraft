@@ -26,7 +26,8 @@ function Owner() {
     (window as any).panelTest = {
       doc: () => JSON.stringify(editor.getJSON()), undo: () => undoDepth(editor.state),
       select: (pos: number) => editor.commands.setTextSelection(pos), selection: () => editor.state.selection.from,
-      insert: (text: string) => editor.commands.insertContent(text),
+      secondScenePosition: () => editor.state.doc.child(0).nodeSize + editor.state.doc.child(1).nodeSize + 1,
+      editFirstHeading: () => editor.commands.insertContentAt(6, 'UPDATED '),
       replace: () => { notifyPanelDocumentReplacement(editor); editor.commands.setContent({ type: 'doc', content: [{ type: 'paragraph' }] }); },
       rewriteSameDocument: () => editor.commands.setContent(editor.getJSON()),
       saveToLibrary: () => useProjectStore.getState().setCurrentScriptId('one'),
