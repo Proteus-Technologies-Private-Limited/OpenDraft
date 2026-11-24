@@ -228,6 +228,7 @@
     "restoreFailed": "No se pudo restaurar el documento que tenías abierto",
     "renderFailed": "No se pudo mostrar el contenido: {{error}}",
     "scriptNotFound": "No se encontró el guion. Puede que lo haya quitado la restauración de una versión.",
+    "cloudOtherAccount": "Ese guion en la nube pertenece a la cuenta de la que cerraste sesión, así que se ha cerrado. Inicia sesión en esa cuenta para volver a abrirlo.",
     "loadScriptFailed": "No se pudo cargar el guion: {{error}}",
     "openScriptFailed": "No se pudo abrir el guion. Comprueba que el servidor backend esté en ejecución en el puerto 8000.",
     "importFailed": "Error al importar: {{error}}",

@@ -228,6 +228,7 @@
     "restoreFailed": "Não foi possível restaurar o documento que estava aberto",
     "renderFailed": "Falha ao renderizar o conteúdo: {{error}}",
     "scriptNotFound": "Roteiro não encontrado. Ele pode ter sido removido por uma restauração de versão.",
+    "cloudOtherAccount": "Esse roteiro na nuvem pertence à conta da qual você saiu, por isso foi fechado. Entre nessa conta para abri-lo de novo.",
     "loadScriptFailed": "Falha ao carregar o roteiro: {{error}}",
     "openScriptFailed": "Falha ao abrir o roteiro. Verifique se o servidor de back-end está em execução na porta 8000.",
     "importFailed": "Falha na importação: {{error}}",

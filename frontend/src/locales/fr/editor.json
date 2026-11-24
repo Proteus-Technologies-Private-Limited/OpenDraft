@@ -228,6 +228,7 @@
     "restoreFailed": "Impossible de restaurer le document que vous aviez ouvert",
     "renderFailed": "Échec de l’affichage du contenu : {{error}}",
     "scriptNotFound": "Scénario introuvable. Il a peut-être été supprimé par une restauration de version.",
+    "cloudOtherAccount": "Ce scénario cloud appartient au compte dont vous vous êtes déconnecté, il a donc été fermé. Connectez-vous à ce compte pour le rouvrir.",
     "loadScriptFailed": "Échec du chargement du scénario : {{error}}",
     "openScriptFailed": "Échec de l’ouverture du scénario. Vérifiez que le serveur est en cours d’exécution sur le port 8000.",
     "importFailed": "Échec de l’importation : {{error}}",

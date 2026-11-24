@@ -176,6 +176,8 @@ import DocumentOpenElsewhereDialog from './DocumentOpenElsewhereDialog';
 import {
   clearRecoverySnapshot,
   hasRecoverableSnapshot,
+  readRecoverySnapshot,
+  snapshotMatchesDocument,
   type RecoverySnapshot,
 } from '../services/recoveryService';
 import { readLastSession, rememberLastSession, clearLastSession } from '../services/lastSession';
@@ -183,7 +185,7 @@ import { useBackupStatusStore } from '../stores/backupStatusStore';
 import { runRetext, RETEXT_CATEGORIES, type RetextCategory } from '../editor/grammar/retextProvider';
 import { runHarper } from '../editor/grammar/harperProvider';
 import { clearEditorHistory, hasEditsSinceLoad } from '../editor/clearHistory';
-import { useProjectStore } from '../stores/projectStore';
+import { belongsToPreviousAccount, useProjectStore } from '../stores/projectStore';
 import { api } from '../services/api';
 import { cloudApi } from '../services/cloudApi';
 import { projectApi } from '../services/projectApi';
@@ -4202,6 +4204,24 @@ const ScreenplayEditor: React.FC = () => {
     clearTrackChanges();
     scriptSwitchingRef.current = true;
     spellChecker.beginDocument();
+    // The route still names a cloud screenplay of the account that was just
+    // signed out of (the editor was not open when the account changed). It
+    // cannot be opened under this account, so close it plainly rather than
+    // failing with "not found". Nothing is saved: it is not this account's.
+    if (!isHistoryMode && belongsToPreviousAccount(urlProjectId, urlScriptId)) {
+      scriptSwitchingRef.current = false;
+      loadedScriptRef.current = null;
+      clearLastSession();
+      // As on sign-out: that account's unsaved text is not offered to this one.
+      // Its saves are kept on the device for that account.
+      const snapshot = readRecoverySnapshot();
+      if (snapshot && snapshotMatchesDocument(snapshot, urlProjectId, urlScriptId)) clearRecoverySnapshot();
+      setCurrentProject(null);
+      setCurrentScriptId(null);
+      showToast(tg('editor:toast.cloudOtherAccount'), 'info');
+      navigate('/', { replace: true });
+      return;
+    }
     (async () => {
       try {
         // Flush unsaved changes to the CURRENT script before switching so
@@ -4423,6 +4443,11 @@ const ScreenplayEditor: React.FC = () => {
         if (errMsg.includes('404') && urlProjectId) {
           showToast(tg('editor:toast.scriptNotFound'), 'error');
           navigate(`/project/${urlProjectId}`, { replace: true });
+        } else if (/^(Project|Script) not found:/.test(errMsg)) {
+          // The library has no such project or script: say so plainly rather
+          // than showing the internal id, and leave the dead route.
+          showToast(tg('editor:toast.scriptNotFound'), 'error');
+          navigate('/', { replace: true });
         } else {
           showToast(tg('editor:toast.loadScriptFailed', { error: errMsg }), 'error');
         }
@@ -4455,8 +4480,12 @@ const ScreenplayEditor: React.FC = () => {
         lastSavedNonEmptyRef.current = docHasAnyText(content);
         useEditorStore.getState().setSaveStatus('saved');
       } else if (outcome === 'removed') {
-        // Discard was explicitly confirmed. Suppress the outgoing save of this copy.
+        // Discard was explicitly confirmed. Suppress the outgoing save of this copy,
+        // and drop the crash-recovery copy, or the discarded text is offered back
+        // as "unsaved changes" the next time a screenplay opens.
         lastSavedJsonRef.current = JSON.stringify(content);
+        clearSessionDoc();
+        clearRecoverySnapshot();
         setCurrentScriptId(null);
         setCurrentProject(null);
         navigate('/projects', { replace: true });

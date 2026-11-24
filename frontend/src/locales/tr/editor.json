@@ -227,6 +227,7 @@
     "restoreFailed": "Açık olan belge geri yüklenemedi",
     "renderFailed": "İçerik görüntülenemedi: {{error}}",
     "scriptNotFound": "Senaryo bulunamadı. Bir sürüm geri yüklemesiyle kaldırılmış olabilir.",
+    "cloudOtherAccount": "Bu bulut senaryosu oturumunu kapattığınız hesaba ait, bu yüzden kapatıldı. Yeniden açmak için o hesapta oturum açın.",
     "loadScriptFailed": "Senaryo yüklenemedi: {{error}}",
     "openScriptFailed": "Senaryo açılamadı. Arka uç sunucusunun 8000 numaralı bağlantı noktasında çalıştığından emin olun.",
     "importFailed": "İçe aktarma başarısız: {{error}}",

@@ -167,6 +167,19 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   },
 }));
 
+// The cloud documents of the account that was signed in before the current
+// one. A route can still name one of them (the editor that showed it was not
+// mounted when the account changed), and opening it under the new account
+// would only fail with a confusing "not found".
+let previousAccountCloud: { scripts: Record<string, true>; projects: Record<string, true> } = { scripts: {}, projects: {} };
+
+/** True when this script was a cloud document of the previously signed-in
+ * account and is not one of the current account's. */
+export function belongsToPreviousAccount(projectId: string, scriptId: string): boolean {
+  if (useProjectStore.getState().isCloudScript(projectId, scriptId)) return false;
+  return Boolean(previousAccountCloud.scripts[keyFor(projectId, scriptId)] || previousAccountCloud.projects[projectId]);
+}
+
 // Reload cloud-script markers whenever the signed-in user changes. This is
 // the enforcement for "user B on this device must not see user A's cloud
 // files" — local SQLite files stay visible (shared device), but cloud
@@ -175,6 +188,8 @@ useSettingsStore.subscribe((state, prev) => {
   const newId = state.collabAuth.user?.id;
   const oldId = prev.collabAuth.user?.id;
   if (newId === oldId) return;
+  const { cloudScripts, cloudProjects } = useProjectStore.getState();
+  previousAccountCloud = { scripts: cloudScripts, projects: cloudProjects };
   useProjectStore.setState({
     cloudScripts: loadCloudKeys(newId || 'anonymous'),
     cloudProjects: loadCloudProjects(newId || 'anonymous'),
