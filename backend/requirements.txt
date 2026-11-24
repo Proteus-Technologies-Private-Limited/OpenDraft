@@ -9,6 +9,7 @@ click==8.3.1
 cryptography==46.0.6
 ecdsa==0.19.2
 fastapi==0.135.2
+filelock==3.20.3
 dulwich==1.1.0
 h11==0.16.0
 httpx==0.28.1

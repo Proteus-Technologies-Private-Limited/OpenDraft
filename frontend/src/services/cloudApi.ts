@@ -12,14 +12,19 @@ import { prepareScriptWrite } from '../utils/reviewSave';
 
 import { getApiBase } from '../config';
 import { authedFetch } from './authedFetch';
-import { handleNonOkResponse } from './api';
+import { ApiError, handleNonOkResponse } from './api';
 import type { ProjectInfo, ProjectProperties, ScriptMeta, ScriptResponse } from './api';
 import { t } from '../i18n';
 
 const notConfigured = (): string => t('messages:cloud.notConfigured');
 
-async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const base = getApiBase();
+export interface CloudRequestScope {
+  base: string;
+  isCurrent: () => boolean;
+}
+
+async function request<T>(path: string, options?: RequestInit, scope?: CloudRequestScope): Promise<T> {
+  const base = scope?.base ?? getApiBase();
   if (!base) throw new Error(notConfigured());
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -27,7 +32,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   };
   let res: Response;
   try {
-    res = await authedFetch(`${base}${path}`, { ...options, headers });
+    res = await authedFetch(`${base}${path}`, { ...options, headers }, scope?.isCurrent);
   } catch (err) {
     // fetch() throws TypeError on network failure / DNS / CORS, and WebKit
     // throws "The string did not match the expected pattern" if the URL ends
@@ -36,7 +41,13 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     const detail = err instanceof Error ? err.message : String(err);
     throw new Error(t('messages:cloud.cannotReach', { detail }));
   }
-  if (!res.ok) await handleNonOkResponse(res, 'Cloud API');
+  if (scope && !scope.isCurrent()) throw new Error('Cloud account or server changed');
+  // Background uploads own their status and must not open a global login
+  // prompt while the writer is editing a local script.
+  if (!res.ok && path.endsWith('/offline-content')) {
+    throw new ApiError(res.status, await res.json().catch(() => null), `Cloud API: ${res.status}`);
+  }
+  if (!res.ok) await handleNonOkResponse(res, 'Cloud API', scope?.isCurrent);
   try {
     return await res.json();
   } catch {
@@ -45,21 +56,21 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export const cloudApi = {
-  listProjects: (): Promise<ProjectInfo[]> =>
-    request<{ projects: ProjectInfo[] }>('/projects/').then((r) => r.projects),
+  listProjects: (scope?: CloudRequestScope): Promise<ProjectInfo[]> =>
+    request<{ projects: ProjectInfo[] }>('/projects/', undefined, scope).then((r) => r.projects),
 
   createProject: (name: string) =>
     request<ProjectInfo>('/projects/', { method: 'POST', body: JSON.stringify({ name }) }),
 
-  getProject: (id: string) => request<ProjectInfo>(`/projects/${id}`),
+  getProject: (id: string, scope?: CloudRequestScope) => request<ProjectInfo>(`/projects/${id}`, undefined, scope),
 
   updateProject: (
     id: string,
     data: { name?: string; color?: string; pinned?: boolean; sort_order?: number; properties?: Partial<ProjectProperties> },
   ) => request<ProjectInfo>(`/projects/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
 
-  deleteProject: (id: string) =>
-    request<{ message: string }>(`/projects/${id}`, { method: 'DELETE' }),
+  deleteProject: (id: string, scope?: CloudRequestScope) =>
+    request<{ message: string }>(`/projects/${id}`, { method: 'DELETE' }, scope),
 
   reorderProjects: (items: Array<{ id: string; sort_order: number }>) =>
     request<{ message: string }>('/projects/reorder', {
@@ -67,19 +78,26 @@ export const cloudApi = {
       body: JSON.stringify({ items }),
     }),
 
-  listScripts: (projectId: string, includePreview: boolean = false) =>
+  listScripts: (projectId: string, includePreview: boolean = false, scope?: CloudRequestScope) =>
     request<ScriptMeta[]>(
-      `/projects/${projectId}/scripts/${includePreview ? '?include_preview=true' : ''}`,
+      `/projects/${projectId}/scripts/${includePreview ? '?include_preview=true' : ''}`, undefined, scope,
     ),
 
-  createScript: (projectId: string, data: { title: string; content?: any; format?: string }) =>
+  createScript: (projectId: string, data: { title: string; content?: any; format?: string }, scope?: CloudRequestScope) =>
     request<ScriptResponse>(`/projects/${projectId}/scripts/`, {
       method: 'POST',
       body: JSON.stringify(prepareScriptWrite(data)),
-    }),
+    }, scope),
 
-  getScript: (projectId: string, scriptId: string) =>
-    request<ScriptResponse>(`/projects/${projectId}/scripts/${scriptId}`),
+  getScript: (projectId: string, scriptId: string, scope?: CloudRequestScope) =>
+    request<ScriptResponse>(`/projects/${projectId}/scripts/${scriptId}`, undefined, scope),
+
+  uploadOfflineScript: (projectId: string, scriptId: string, content: Record<string, unknown>,
+    revision: string, scope: CloudRequestScope) =>
+    request<ScriptResponse>(`/projects/${projectId}/scripts/${scriptId}/offline-content`, {
+      method: 'PUT',
+      body: JSON.stringify({ content, expected_content_revision: revision }),
+    }, scope),
 
   saveScript: (
     projectId: string,
@@ -91,16 +109,17 @@ export const cloudApi = {
       pinned?: boolean;
       sort_order?: number;
     },
+    scope?: CloudRequestScope,
   ) =>
     request<ScriptResponse>(`/projects/${projectId}/scripts/${scriptId}`, {
       method: 'PUT',
       body: JSON.stringify(prepareScriptWrite(data)),
-    }),
+    }, scope),
 
-  deleteScript: (projectId: string, scriptId: string) =>
+  deleteScript: (projectId: string, scriptId: string, scope?: CloudRequestScope) =>
     request<{ message: string }>(`/projects/${projectId}/scripts/${scriptId}`, {
       method: 'DELETE',
-    }),
+    }, scope),
 
   reorderScripts: (
     projectId: string,

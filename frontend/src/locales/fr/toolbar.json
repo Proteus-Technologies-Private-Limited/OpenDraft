@@ -1,6 +1,20 @@
 {
   "status": {
     "save": {
+      "cloudSynced": "Synchronisé avec le cloud",
+      "cloudSyncing": "Synchronisation avec le cloud…",
+      "cloudPending": "Enregistré sur cet appareil · En attente de synchronisation",
+      "cloudConflict": "Conflit dans le cloud · Votre copie est sur cet appareil",
+      "cloudProblem": "La synchronisation avec le cloud nécessite votre attention",
+      "cloudUnavailable": "Ce scénario du cloud n’est pas encore disponible hors ligne.",
+      "cloudLastSync": "Dernière synchronisation {{time}}",
+      "cloudUseVersion": "Utiliser la version du cloud",
+      "cloudUploadVersion": "Envoyer ma version",
+      "cloudUseConfirm": "Remplacer la copie de cet appareil par la version du cloud ? Si le scénario a été supprimé du cloud, la copie sur cet appareil sera effacée. Pour garder vos modifications, utilisez d’abord Enregistrer sous → Cet appareil.",
+      "cloudUploadConfirm": "Remplacer la version actuelle du cloud par la copie de cet appareil ?",
+      "cloudSignIn": "Connectez-vous pour enregistrer ce scénario dans le cloud.",
+      "cloudSignOutPending": "Les modifications non synchronisées restent sur cet appareil. Connectez-vous au même compte pour les synchroniser.",
+      "cloudDeleteCopies": "La suppression efface aussi les copies téléchargées et les modifications non synchronisées sur cet appareil.",
       "unsaved": "Modifications non enregistrées",
       "saving": "Enregistrement…",
       "saved": "Enregistré",

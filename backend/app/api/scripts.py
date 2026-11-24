@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.concurrency import run_in_threadpool
 
 from app.config import DEFAULT_PROJECT
 from app.dependencies import require_verified_user
@@ -48,8 +49,8 @@ async def get_script(script_id: str):
 async def update_script(script_id: str, body: ScriptUpdate):
     project_id = _default_project_id()
     try:
-        return script_service.update_script(
-            project_id, script_id, body.title, body.content,
+        return await run_in_threadpool(
+            script_service.update_script, project_id, script_id, body.title, body.content,
             allow_empty_body=body.allow_empty_body,
         )
     except FileNotFoundError as exc:
@@ -62,7 +63,7 @@ async def update_script(script_id: str, body: ScriptUpdate):
 async def delete_script(script_id: str):
     project_id = _default_project_id()
     try:
-        script_service.delete_script(project_id, script_id)
+        await run_in_threadpool(script_service.delete_script, project_id, script_id)
         return {"message": f"Script '{script_id}' deleted"}
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc))

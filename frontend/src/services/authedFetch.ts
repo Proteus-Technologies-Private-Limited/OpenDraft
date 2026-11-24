@@ -59,7 +59,8 @@ function readStoredAuth(): CollabAuth | null {
 /** A newer pair another tab wrote while this one held `spent`, if usable. */
 function adoptRotatedPair(spent: string): string | null {
   const stored = readStoredAuth();
-  if (!stored?.refreshToken || stored.refreshToken === spent) return null;
+  if (!stored?.refreshToken || stored.refreshToken === spent
+    || stored.user?.id !== useSettingsStore.getState().collabAuth.user?.id) return null;
   if (!stored.accessToken || accessTokenExpired(stored.accessToken)) return null;
   useSettingsStore.getState().setCollabAuth(stored);
   return stored.accessToken;
@@ -101,13 +102,17 @@ export function refreshAccessToken(): Promise<string | null> {
     if (!collabAuth.refreshToken) return null;
     try {
       const refreshed = await collabAuthApi.refresh(collabAuth.refreshToken);
+      const current = useSettingsStore.getState().collabAuth;
+      if (current.user?.id !== collabAuth.user?.id || current.refreshToken !== collabAuth.refreshToken) return null;
       setCollabAuth({
-        ...useSettingsStore.getState().collabAuth,
+        ...current,
         accessToken: refreshed.accessToken,
         refreshToken: refreshed.refreshToken,
       });
       return refreshed.accessToken;
     } catch (err) {
+      const current = useSettingsStore.getState().collabAuth;
+      if (current.user?.id !== collabAuth.user?.id || current.refreshToken !== collabAuth.refreshToken) return null;
       const status = (err as { status?: number }).status;
       if (status !== undefined && REJECTED_STATUSES.has(status)) {
         // Refused — but if another tab rotated the pair without a lock to
@@ -150,7 +155,11 @@ function withAuth(init: RequestInit, token: string | null): RequestInit {
   return { ...init, headers };
 }
 
-export async function authedFetch(url: string, init: RequestInit = {}): Promise<Response> {
+export async function authedFetch(url: string, init: RequestInit = {}, stillCurrent?: () => boolean): Promise<Response> {
+  const assertCurrent = () => {
+    if (stillCurrent && !stillCurrent()) throw new Error('Cloud account or server changed');
+  };
+  assertCurrent();
   const initial = useSettingsStore.getState().collabAuth.accessToken;
   // Route through platformFetch so HTTP backend URLs work from the Tauri
   // WebView (whose origin is https://tauri.localhost — plain fetch() to
@@ -158,6 +167,7 @@ export async function authedFetch(url: string, init: RequestInit = {}): Promise<
   // pass-through to the native fetch.
   let res = await platformFetch(url, withAuth(init, initial));
 
+  assertCurrent();
   if (res.status !== 401) return res;
 
   const { accessToken: current, refreshToken } = useSettingsStore.getState().collabAuth;
@@ -170,8 +180,10 @@ export async function authedFetch(url: string, init: RequestInit = {}): Promise<
   if (!refreshToken) return res;
 
   const fresh = await refreshAccessToken();
+  assertCurrent();
   if (!fresh) return res;
 
   res = await platformFetch(url, withAuth(init, fresh));
+  assertCurrent();
   return res;
 }

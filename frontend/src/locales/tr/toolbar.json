@@ -1,6 +1,20 @@
 {
   "status": {
     "save": {
+      "cloudSynced": "Bulutla eşitlendi",
+      "cloudSyncing": "Bulutla eşitleniyor…",
+      "cloudPending": "Bu cihaza kaydedildi · Eşitleme bekleniyor",
+      "cloudConflict": "Bulutta çakışma · Kopyanız bu cihazda",
+      "cloudProblem": "Bulut eşitlemesini kontrol edin",
+      "cloudUnavailable": "Bu bulut senaryosu henüz çevrimdışı kullanılamıyor.",
+      "cloudLastSync": "Son eşitleme {{time}}",
+      "cloudUseVersion": "Bulut sürümünü kullan",
+      "cloudUploadVersion": "Sürümümü yükle",
+      "cloudUseConfirm": "Cihazdaki kopya bulut sürümüyle değiştirilsin mi? Senaryo buluttan silindiyse cihazdaki kopya da kaldırılır. Düzenlemelerinizi saklamak için önce Farklı Kaydet → Bu cihaz seçeneğini kullanın.",
+      "cloudUploadConfirm": "Geçerli bulut sürümü cihazdaki kopyanızla değiştirilsin mi?",
+      "cloudSignIn": "Bu bulut senaryosunu kaydetmek için oturum açın.",
+      "cloudSignOutPending": "Eşitlenmemiş bulut düzenlemeleri bu cihazda kalır. Bunları eşitlemek için aynı hesapla oturum açın.",
+      "cloudDeleteCopies": "Silme işlemi bu cihazdaki indirilmiş kopyaları ve eşitlenmemiş düzenlemeleri de kaldırır.",
       "unsaved": "Kaydedilmemiş değişiklikler",
       "saving": "Kaydediliyor…",
       "saved": "Kaydedildi",

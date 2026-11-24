@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App.tsx';
 import { initStorage } from './services/api';
+import { startOfflineCloudSync } from './services/offlineCloud';
 import { initScratchAssets } from './services/scratchAssets';
 import { scheduleScratchSweep } from './services/scratchSweep';
 import { initDemoInfo } from './services/demoInfo';
@@ -228,6 +229,7 @@ async function init() {
   // initStorage() handles its own timeout and fallback internally —
   // no additional wrapping needed here.
   await initStorage();
+  startOfflineCloudSync();
 
   // Where images go for a document that has no project yet, so the bytes never
   // sit inside the document (and never inside a recovery snapshot). Awaited:

@@ -9,10 +9,11 @@
  * exactly as it did when the lines were fixed.
  */
 import type { Editor, JSONContent } from '@tiptap/react';
-import React, { useMemo } from 'react';
+import React, { useMemo, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ELEMENT_LABELS, type BuiltInElementType, useEditorFields } from '../stores/editorStore';
 import { useProjectStore } from '../stores/projectStore';
+import { offlineCloudStatus, subscribeOfflineCloud } from '../services/offlineCloud';
 import { useLinkedFileStore } from '../stores/linkedFileStore';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { isTitlePageRuleId, titlePageRuleId, TITLE_PAGE_ELEMENTS } from '../stores/formattingTypes';
@@ -107,17 +108,36 @@ function TitleLine() {
 function SaveLine({ lead }: { lead: boolean }) {
   const { t } = useTranslation('toolbar');
   const { saveStatus } = useEditorFields('saveStatus');
+  const projectId = useProjectStore(state => state.currentProject?.id);
+  const scriptId = useProjectStore(state => state.currentScriptId);
+  const sync = useSyncExternalStore(subscribeOfflineCloud, () => offlineCloudStatus(projectId, scriptId));
+  const cloudLabel = sync && t(({
+    synced: 'status.save.cloudSynced',
+    syncing: 'status.save.cloudSyncing',
+    pending: 'status.save.cloudPending',
+    conflict: 'status.save.cloudConflict',
+    problem: 'status.save.cloudProblem',
+  } as const)[sync.state]);
   const label =
     saveStatus === 'unsaved' ? t('status.save.unsaved')
     : saveStatus === 'saving' ? t('status.save.saving')
-    : saveStatus === 'saved' ? t('status.save.saved')
     : saveStatus === 'error' ? t('status.save.error')
-    : '';
+    : cloudLabel || (saveStatus === 'saved' ? t('status.save.saved') : '');
   if (!label) return null;
+  const lastSynced = sync?.lastSynced ? new Date(sync.lastSynced) : null;
   return (
     <>
       {lead && <span className="status-sep">&middot;</span>}
-      <span className={`status-item ${SAVE_STATUS_CLASS[saveStatus] ?? ''}`}>{label}</span>
+      <span className={`status-item ${SAVE_STATUS_CLASS[saveStatus] ?? ''}`}
+        aria-live={sync && sync.state !== 'conflict' && sync.state !== 'problem' ? "polite" : undefined}>
+        {label}
+      </span>
+      {lastSynced && <>
+        <span className="status-sep" aria-hidden="true">&middot;</span>
+        <time className="status-item" dateTime={lastSynced.toISOString()}>
+          {t('status.save.cloudLastSync', { time: lastSynced.toLocaleString() })}
+        </time>
+      </>}
     </>
   );
 }
