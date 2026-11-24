@@ -30,17 +30,21 @@ function randomId(): string {
 function detectPlatform(): string {
   try {
     const ua = navigator.userAgent || '';
+    // iPadOS 13+ sends a desktop "Macintosh" user agent; only the touch screen
+    // gives it away (as in platform.ts). Without this an iPad listed itself as
+    // a Mac under Active devices.
+    const iPad = /Macintosh/i.test(ua) && (navigator.maxTouchPoints ?? 0) > 1;
     const isTauri = typeof (window as any).__TAURI__ !== 'undefined' || typeof (window as any).__TAURI_INTERNALS__ !== 'undefined';
     if (isTauri) {
       if (/Android/i.test(ua)) return 'Android (OpenDraft)';
-      if (/iPhone|iPad|iPod/i.test(ua)) return 'iOS (OpenDraft)';
+      if (/iPhone|iPad|iPod/i.test(ua) || iPad) return 'iOS (OpenDraft)';
       if (/Macintosh|Mac OS X/i.test(ua)) return 'macOS (OpenDraft)';
       if (/Windows/i.test(ua)) return 'Windows (OpenDraft)';
       if (/Linux/i.test(ua)) return 'Linux (OpenDraft)';
       return 'Desktop (OpenDraft)';
     }
     if (/Android/i.test(ua)) return 'Android browser';
-    if (/iPhone|iPad|iPod/i.test(ua)) return 'iOS browser';
+    if (/iPhone|iPad|iPod/i.test(ua) || iPad) return 'iOS browser';
     if (/Macintosh|Mac OS X/i.test(ua)) return 'macOS browser';
     if (/Windows/i.test(ua)) return 'Windows browser';
     if (/Linux/i.test(ua)) return 'Linux browser';
