@@ -6094,7 +6094,7 @@ const ScreenplayEditor: React.FC = () => {
           <span className="save-failure-text">
             {tg(cloudSync.state === 'conflict' ? 'toolbar:status.save.cloudConflict' : 'toolbar:status.save.cloudProblem')}
           </span>
-          {cloudSync.state === 'conflict' && !collabMode && !isHistoryMode && (
+          {!collabMode && !isHistoryMode && (
             <>
               <button type="button" className="save-failure-btn" disabled={resolvingCloudConflict}
                 onClick={() => void handleCloudConflict('cloud')}>{tg('toolbar:status.save.cloudUseVersion')}</button>

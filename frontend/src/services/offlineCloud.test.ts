@@ -175,6 +175,55 @@ describe('offline cloud uploads', () => {
     expect(offlineCloudStatus(projectId, scriptId)).toBeNull();
   });
 
+  it('names a deleted cloud script instead of a generic problem when the device copy is uploaded', async () => {
+    await offlineCloud.getScript(projectId, scriptId);
+    mocks.upload.mockRejectedValueOnce(fail(404, { detail: { code: 'offline_script_missing' } }));
+    await save('local');
+    await drain();
+    expect(row()?.state).toBe('conflict');
+    mocks.getScript.mockRejectedValueOnce(fail(404));
+    await expect(resolveOfflineCloudConflict(projectId, scriptId, 'device'))
+      .rejects.toThrow('toolbar:status.save.cloudDeleted');
+    expect(row()).toMatchObject({ state: 'conflict', script: { content: body('local') } });
+  });
+
+  it('keeps an autosave that lands while a conflict is being resolved', async () => {
+    await offlineCloud.getScript(projectId, scriptId);
+    mocks.upload.mockRejectedValueOnce(fail(412));
+    await save('device edit');
+    await drain();
+    mocks.getScript.mockImplementationOnce(async () => {
+      await save('typed during the fetch');
+      return response('other device', 'r1');
+    });
+    mocks.upload.mockResolvedValueOnce(response('typed during the fetch', 'r2'));
+    await resolveOfflineCloudConflict(projectId, scriptId, 'device', body('device edit'));
+    await drain();
+    expect(mocks.upload.mock.lastCall?.slice(2, 4)).toEqual([body('typed during the fetch'), 'r1']);
+    expect(row()).toMatchObject({ state: 'synced', revision: 'r2' });
+  });
+
+  it('lets a rejected upload be resolved with either choice', async () => {
+    await offlineCloud.getScript(projectId, scriptId);
+    mocks.upload.mockRejectedValueOnce(fail(422));
+    await save('refused');
+    await drain();
+    expect(row()?.state).toBe('problem');
+    mocks.getScript.mockResolvedValueOnce(response('cloud', 'r1'));
+    mocks.upload.mockResolvedValueOnce(response('refused', 'r2'));
+    await resolveOfflineCloudConflict(projectId, scriptId, 'device');
+    await drain();
+    expect(row()).toMatchObject({ state: 'synced', revision: 'r2' });
+
+    mocks.upload.mockRejectedValueOnce(fail(422));
+    await save('refused again');
+    await drain();
+    expect(row()?.state).toBe('problem');
+    mocks.getScript.mockResolvedValueOnce(response('cloud again', 'r3'));
+    await expect(resolveOfflineCloudConflict(projectId, scriptId, 'cloud')).resolves.toBe('resolved');
+    expect(row()).toMatchObject({ state: 'synced', script: { content: body('cloud again') } });
+  });
+
   it('keeps the queue retryable when the upload endpoint is absent but the script exists', async () => {
     await offlineCloud.getScript(projectId, scriptId);
     mocks.upload.mockRejectedValueOnce(fail(404, { detail: 'Not Found' }));

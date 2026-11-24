@@ -1,5 +1,5 @@
 {
-  "version": "2a911f60bf856cc3",
+  "version": "bf4f1a5ff18b3a73",
   "pages": [
     {
       "slug": "index.html",
@@ -131,7 +131,7 @@
       "slug": "projects.html",
       "title": "Managing Projects",
       "section": "Projects & Files",
-      "hash": "1579acbb6f3f7737"
+      "hash": "f66b315a1d27319a"
     },
     {
       "slug": "version-history.html",

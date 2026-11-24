@@ -319,18 +319,23 @@ async function deleteCloudItem(projectId: string, scriptId?: string) {
   return response;
 }
 
-/** Use the cloud copy or explicitly put the device copy back in the queue. */
+/** Use the cloud copy or explicitly put the device copy back in the queue.
+ * Works for a conflict and for an upload the server rejected (`problem`), so
+ * neither can leave a script stuck. */
 export async function resolveOfflineCloudConflict(projectId: string, scriptId: string,
   choice: 'cloud' | 'device', content?: Record<string, unknown>): Promise<'resolved' | 'removed'> {
   const scope = requireScope();
   const key: [string, string, string] = [scope.key, projectId, scriptId];
   const local = await readOfflineScript(key);
-  if (local?.state !== 'conflict') throw new Error(t('toolbar:status.save.cloudProblem'));
+  if (local?.state !== 'conflict' && local?.state !== 'problem') throw new Error(t('toolbar:status.save.cloudProblem'));
   let cloud: ScriptResponse | undefined;
   try {
     cloud = await cloudApi.getScript(projectId, scriptId, scope);
   } catch (error) {
-    if (choice !== 'cloud' || !(error instanceof ApiError) || error.status !== 404) throw error;
+    if (!(error instanceof ApiError) || error.status !== 404) throw error;
+    // The cloud copy is gone, so there is nothing to upload onto. Say so rather
+    // than reporting a generic sync problem.
+    if (choice === 'device') throw new Error(t('toolbar:status.save.cloudDeleted'));
   }
   assertCurrent(scope);
   const revision = cloud?.content_revision;
@@ -338,14 +343,18 @@ export async function resolveOfflineCloudConflict(projectId: string, scriptId: s
   const prepared = content && prepareScriptWrite({ content }).content;
   const row = await editOfflineScript(key, current => {
     assertCurrent(scope);
-    if (!current || current.state !== 'conflict' || current.operation !== local.operation) {
+    if (current?.state !== 'conflict' && current?.state !== 'problem') {
       throw new Error(t('toolbar:status.save.cloudProblem'));
     }
     if (choice === 'device' && revision) {
-      if (prepared && !docHasAnyText(prepared) && docHasAnyText(current.script.content)) {
+      // An autosave that landed during the fetch is newer than the editor
+      // content captured at the click, so it must win.
+      const edited = current.operation !== local.operation;
+      const body = !edited && prepared ? prepared : current.script.content;
+      if (prepared && !docHasAnyText(body) && docHasAnyText(current.script.content)) {
         throw new Error(t('toolbar:status.save.cloudProblem'));
       }
-      return { ...current, script: prepared ? { ...current.script, content: prepared } : current.script,
+      return { ...current, script: { ...current.script, content: body },
         revision, state: 'pending', operation: uuid(), inFlight: undefined };
     }
     if (!cloud || !revision) return undefined;

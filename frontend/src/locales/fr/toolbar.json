@@ -12,6 +12,7 @@
       "cloudUploadVersion": "Envoyer ma version",
       "cloudUseConfirm": "Remplacer la copie de cet appareil par la version du cloud ? Si le scénario a été supprimé du cloud, la copie sur cet appareil sera effacée. Pour garder vos modifications, utilisez d’abord Enregistrer sous → Cet appareil.",
       "cloudUploadConfirm": "Remplacer la version actuelle du cloud par la copie de cet appareil ?",
+      "cloudDeleted": "Ce scénario a été supprimé du cloud ; il n’y a donc rien à mettre à jour. Pour garder votre copie, utilisez Enregistrer sous → Cet appareil.",
       "cloudSignIn": "Connectez-vous pour enregistrer ce scénario dans le cloud.",
       "cloudSignOutPending": "Les modifications non synchronisées restent sur cet appareil. Connectez-vous au même compte pour les synchroniser.",
       "cloudDeleteCopies": "La suppression efface aussi les copies téléchargées et les modifications non synchronisées sur cet appareil.",

@@ -4,9 +4,10 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, Request
+from filelock import Timeout as FileLockTimeout
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 
 import logging
 
@@ -49,6 +50,17 @@ app = FastAPI(
     version="2.15.0",
     lifespan=lifespan,
 )
+
+@app.exception_handler(FileLockTimeout)
+async def script_busy_handler(request: Request, exc: FileLockTimeout):
+    """Another save of the same script is still running. The caller can retry."""
+    logging.getLogger(__name__).warning("Script lock timed out: %s", exc)
+    return JSONResponse(
+        status_code=503,
+        content={"detail": "This script is being saved elsewhere. Try again in a moment."},
+        headers={"Retry-After": "2"},
+    )
+
 
 # Build allowed origins list — always include Tauri + localhost patterns.
 # In demo/cloud mode, CORS_ORIGINS env var adds the Cloud Run URL etc.

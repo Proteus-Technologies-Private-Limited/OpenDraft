@@ -12,6 +12,7 @@
       "cloudUploadVersion": "Sürümümü yükle",
       "cloudUseConfirm": "Cihazdaki kopya bulut sürümüyle değiştirilsin mi? Senaryo buluttan silindiyse cihazdaki kopya da kaldırılır. Düzenlemelerinizi saklamak için önce Farklı Kaydet → Bu cihaz seçeneğini kullanın.",
       "cloudUploadConfirm": "Geçerli bulut sürümü cihazdaki kopyanızla değiştirilsin mi?",
+      "cloudDeleted": "Bu senaryo buluttan silindi, bu yüzden yüklenecek bir yer yok. Kopyanızı saklamak için Farklı Kaydet → Bu cihaz seçeneğini kullanın.",
       "cloudSignIn": "Bu bulut senaryosunu kaydetmek için oturum açın.",
       "cloudSignOutPending": "Eşitlenmemiş bulut düzenlemeleri bu cihazda kalır. Bunları eşitlemek için aynı hesapla oturum açın.",
       "cloudDeleteCopies": "Silme işlemi bu cihazdaki indirilmiş kopyaları ve eşitlenmemiş düzenlemeleri de kaldırır.",

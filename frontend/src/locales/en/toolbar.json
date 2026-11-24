@@ -12,6 +12,7 @@
       "cloudUploadVersion": "Upload my version",
       "cloudUseConfirm": "Replace the device copy with the cloud version? If the cloud script was deleted, the device copy will be removed. Use Save As → This device first to keep your edits.",
       "cloudUploadConfirm": "Replace the current cloud version with your device copy?",
+      "cloudDeleted": "This script was deleted from the cloud, so there is nothing to upload to. Use Save As → This device to keep your copy.",
       "cloudSignIn": "Sign in to save this cloud script.",
       "cloudSignOutPending": "Unsynced cloud edits remain on this device. Sign in to the same account to sync them.",
       "cloudDeleteCopies": "Deleting also removes downloaded copies and unsynced edits on this device.",
