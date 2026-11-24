@@ -35,6 +35,16 @@ const SAVE_STATUS_CLASS: Record<string, string> = {
   error: 'status-save-error',
 };
 
+/** The colour of a cloud copy's state when that is what the save line shows.
+ * A conflict or a refused save needs attention: it must not look saved. */
+export const CLOUD_STATUS_CLASS: Record<string, string> = {
+  synced: 'status-save-saved',
+  syncing: 'status-save-saving',
+  pending: 'status-save-unsaved',
+  conflict: 'status-save-error',
+  problem: 'status-save-error',
+};
+
 /**
  * The script as JSON once typing pauses. Settled: the timing, structure and
  * word count walk the whole script, so they follow the edits once typing
@@ -124,11 +134,13 @@ function SaveLine({ lead }: { lead: boolean }) {
     : saveStatus === 'error' ? t('status.save.error')
     : cloudLabel || (saveStatus === 'saved' ? t('status.save.saved') : '');
   if (!label) return null;
+  const showsCloud = !!cloudLabel && label === cloudLabel;
+  const statusClass = showsCloud ? CLOUD_STATUS_CLASS[sync!.state] ?? '' : SAVE_STATUS_CLASS[saveStatus] ?? '';
   const lastSynced = sync?.lastSynced ? new Date(sync.lastSynced) : null;
   return (
     <>
       {lead && <span className="status-sep">&middot;</span>}
-      <span className={`status-item ${SAVE_STATUS_CLASS[saveStatus] ?? ''}`}
+      <span className={`status-item ${statusClass}`}
         aria-live={sync && sync.state !== 'conflict' && sync.state !== 'problem' ? "polite" : undefined}>
         {label}
       </span>
