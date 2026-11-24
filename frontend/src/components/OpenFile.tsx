@@ -22,6 +22,7 @@ import { useTranslation } from 'react-i18next';
 import { compareText, formatDate } from '../i18n/format';
 import { FaChevronRight, FaCloud, FaDesktop, FaSearch, FaThLarge } from 'react-icons/fa';
 import { api } from '../services/api';
+import { activeCloudCounterparts } from '../services/deviceProjectSync';
 import { cloudApi } from '../services/cloudApi';
 import { isWeb } from '../services/platform';
 import { useSettingsStore } from '../stores/settingsStore';
@@ -130,7 +131,13 @@ const OpenFile: React.FC<OpenFileProps> = ({ onOpen, onClose, onManageProjects, 
     (async () => {
       try {
         const client = source === 'cloud' ? cloudApi : api;
-        const projects = await client.listProjects();
+        let projects = await client.listProjects();
+        if (source === 'cloud') {
+          // The cloud copy of a synced device project is edited through the
+          // device project, which keeps the two in step.
+          const counterparts = await activeCloudCounterparts().catch(() => new Set<string>());
+          projects = projects.filter(project => !counterparts.has(project.id));
+        }
         const all = await Promise.all(
           projects.map(async (project) => {
             try {

@@ -40,8 +40,12 @@ def create_project(name: str) -> dict:
     return _initialize_project(project_dir, project_id, name)
 
 
-def ensure_device_project(binding_id: str, name: str) -> dict:
-    """Publish a complete counterpart once under the writer's account."""
+def ensure_device_project(binding_id: str, name: str) -> tuple[dict, bool]:
+    """Publish a complete counterpart once under the writer's account.
+
+    Returns the project and whether this call created it, so that only the
+    creating call announces it.
+    """
     if not name.strip():
         raise ValueError("The project needs a name")
     _ensure_projects_dir()
@@ -52,12 +56,12 @@ def ensure_device_project(binding_id: str, name: str) -> dict:
     target = projects / project_id
     with FileLock(str(locks / project_id), timeout=10):
         if target.exists():
-            return get_project(project_id)
+            return get_project(project_id), False
         with tempfile.TemporaryDirectory(dir=locks) as staging:
             directory = Path(staging) / "project"
             data = _initialize_project(directory, project_id, name)
             directory.rename(target)
-            return data
+            return data, True
 
 
 def _initialize_project(project_dir: Path, project_id: str, name: str) -> dict:

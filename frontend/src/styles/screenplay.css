@@ -9579,6 +9579,13 @@ body.selection-bands-active .page .ProseMirror::selection { background: transpar
   gap: 8px;
   margin-bottom: 20px;
 }
+/* Cloud sync for a device project: what did not sync, and how to settle it. */
+.device-sync { margin-bottom: 20px; }
+.device-sync .project-scripts-actions { margin-bottom: 8px; align-items: center; flex-wrap: wrap; }
+.device-sync-issues { list-style: none; margin: 0; padding: 0; font-size: 12px; color: var(--fd-text); }
+.device-sync-issues li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 0; border-top: 1px solid var(--fd-border); }
+.device-sync-issue-title { font-weight: 600; }
+.device-sync-note { margin: 0; font-size: 12px; color: var(--fd-text-muted); }
 .project-action-btn {
   height: 32px;
   padding: 0 16px;

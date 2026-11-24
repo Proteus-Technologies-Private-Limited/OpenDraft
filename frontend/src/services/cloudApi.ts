@@ -44,7 +44,8 @@ async function request<T>(path: string, options?: RequestInit, scope?: CloudRequ
   if (scope && !scope.isCurrent()) throw new Error('Cloud account or server changed');
   // Background uploads own their status and must not open a global login
   // prompt while the writer is editing a local script.
-  if (!res.ok && (path.endsWith('/offline-content') || path.includes('/device-sync/') || path.includes('/device-scripts/'))) {
+  if (!res.ok && (path.endsWith('/offline-content') || path.includes('/device-sync/') || path.includes('/device-scripts/')
+    || path.includes('/projects/sync-'))) {
     throw new ApiError(res.status, await res.json().catch(() => null), `Cloud API: ${res.status}`);
   }
   if (!res.ok) await handleNonOkResponse(res, 'Cloud API', scope?.isCurrent);

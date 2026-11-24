@@ -6,7 +6,20 @@
     "waiting": "En attente de synchronisation avec le cloud",
     "conflict": "Certains scénarios ont des copies en conflit. Les deux copies sont conservées.",
     "account": "Connectez-vous au même compte cloud pour reprendre la synchronisation.",
-    "linked": "Les projets contenant des fichiers liés ne peuvent pas être synchronisés avec le cloud."
+    "linked": "Les projets contenant des fichiers liés ne peuvent pas être synchronisés avec le cloud.",
+    "issueConflict": "Modifié ici et dans le cloud.",
+    "issueProblem": "Le cloud n’a pas accepté ce scénario.",
+    "issueQuota": "Non envoyé car la limite de scénarios de votre offre cloud est atteinte.",
+    "keepDevice": "Garder la version de cet appareil",
+    "keepCloud": "Utiliser la version du cloud",
+    "resolveNote": "La version que vous ne gardez pas est enregistrée comme nouveau scénario.",
+    "resolveFailed": "Impossible de régler ce scénario. Vérifiez votre connexion et réessayez.",
+    "openElsewhere": "Fermez d’abord ce scénario dans son autre fenêtre.",
+    "attentionAccount": "Ce projet se synchronise avec un autre compte cloud.",
+    "accountSwitch": "Synchroniser avec le compte connecté",
+    "attentionMissing": "La copie cloud de ce projet a été supprimée.",
+    "restart": "Démarrer une nouvelle copie cloud",
+    "updatesOnOpen": "Certains scénarios se mettent à jour depuis le cloud à leur ouverture."
   },
   "welcome": {
     "subtitle": "L’écriture de scénario professionnelle, en open source.",

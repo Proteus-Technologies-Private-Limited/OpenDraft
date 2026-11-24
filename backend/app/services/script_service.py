@@ -38,7 +38,11 @@ def _write_json(path: Path, value: dict) -> None:
     # filesystem as the destination. Replacements retain the original mode.
     staging = get_projects_dir() / ".script-staging"
     staging.mkdir(mode=0o700, exist_ok=True)
-    file_mode = stat.S_IMODE(path.stat().st_mode) if path.exists() else None
+    if path.exists():
+        file_mode = stat.S_IMODE(path.stat().st_mode)
+    else:
+        # A temporary file is owner-only. A new script gets the usual mode.
+        file_mode = 0o644
     temporary = None
     try:
         with tempfile.NamedTemporaryFile(

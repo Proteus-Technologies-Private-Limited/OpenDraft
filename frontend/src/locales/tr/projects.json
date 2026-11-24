@@ -6,7 +6,20 @@
     "waiting": "Bulut eşitlemesi bekleniyor",
     "conflict": "Bazı senaryoların kopyaları çakışıyor. Her iki kopya da saklanır.",
     "account": "Eşitlemeyi sürdürmek için aynı bulut hesabına giriş yapın.",
-    "linked": "Bağlantılı dosyaları olan projeler bulutla eşitlenemez."
+    "linked": "Bağlantılı dosyaları olan projeler bulutla eşitlenemez.",
+    "issueConflict": "Hem burada hem bulutta değişti.",
+    "issueProblem": "Bulut bu senaryoyu kabul etmedi.",
+    "issueQuota": "Bulut planınızın senaryo sınırına ulaşıldığı için yüklenmedi.",
+    "keepDevice": "Bu cihazdaki sürümü koru",
+    "keepCloud": "Bulut sürümünü kullan",
+    "resolveNote": "Korumadığınız sürüm yeni bir senaryo olarak kaydedilir.",
+    "resolveFailed": "Bu senaryo çözülemedi. Bağlantınızı kontrol edip yeniden deneyin.",
+    "openElsewhere": "Önce bu senaryoyu diğer penceresinde kapatın.",
+    "attentionAccount": "Bu proje başka bir bulut hesabıyla eşitleniyor.",
+    "accountSwitch": "Oturum açık hesapla eşitle",
+    "attentionMissing": "Bu projenin bulut kopyası silindi.",
+    "restart": "Yeni bir bulut kopyası başlat",
+    "updatesOnOpen": "Bazı senaryolar açıldığında buluttan güncellenir."
   },
   "welcome": {
     "subtitle": "Profesyonel senaryo yazımı, açık kaynak.",

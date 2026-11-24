@@ -6,7 +6,20 @@
     "waiting": "Waiting for cloud sync",
     "conflict": "Some screenplays have conflicting copies. Both copies are kept.",
     "account": "Sign in to the same cloud account to resume syncing.",
-    "linked": "Projects with linked files cannot use cloud sync."
+    "linked": "Projects with linked files cannot use cloud sync.",
+    "issueConflict": "Changed here and in the cloud.",
+    "issueProblem": "The cloud did not accept this screenplay.",
+    "issueQuota": "Not uploaded because your cloud plan’s screenplay limit is reached.",
+    "keepDevice": "Keep this device’s version",
+    "keepCloud": "Use the cloud version",
+    "resolveNote": "The version you don’t keep is saved as a new screenplay.",
+    "resolveFailed": "Could not settle this screenplay. Check your connection and try again.",
+    "openElsewhere": "Close this screenplay in its other window first.",
+    "attentionAccount": "This project syncs with a different cloud account.",
+    "accountSwitch": "Sync with the signed-in account",
+    "attentionMissing": "The cloud copy of this project was deleted.",
+    "restart": "Start a new cloud copy",
+    "updatesOnOpen": "Some screenplays update from the cloud when you open them."
   },
   "welcome": {
     "subtitle": "Professional screenwriting, open source.",

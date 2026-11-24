@@ -6,7 +6,20 @@
     "waiting": "Aguardando sincronização com a nuvem",
     "conflict": "Alguns roteiros têm cópias em conflito. Ambas são mantidas.",
     "account": "Entre na mesma conta na nuvem para retomar a sincronização.",
-    "linked": "Projetos com arquivos vinculados não podem ser sincronizados com a nuvem."
+    "linked": "Projetos com arquivos vinculados não podem ser sincronizados com a nuvem.",
+    "issueConflict": "Alterado aqui e na nuvem.",
+    "issueProblem": "A nuvem não aceitou este roteiro.",
+    "issueQuota": "Não foi enviado porque o limite de roteiros do seu plano na nuvem foi atingido.",
+    "keepDevice": "Manter a versão deste dispositivo",
+    "keepCloud": "Usar a versão da nuvem",
+    "resolveNote": "A versão que você não mantiver é salva como um novo roteiro.",
+    "resolveFailed": "Não foi possível resolver este roteiro. Verifique sua conexão e tente de novo.",
+    "openElsewhere": "Feche primeiro este roteiro na outra janela dele.",
+    "attentionAccount": "Este projeto sincroniza com outra conta na nuvem.",
+    "accountSwitch": "Sincronizar com a conta conectada",
+    "attentionMissing": "A cópia deste projeto na nuvem foi excluída.",
+    "restart": "Começar uma nova cópia na nuvem",
+    "updatesOnOpen": "Alguns roteiros são atualizados pela nuvem quando você os abre."
   },
   "welcome": {
     "subtitle": "Roteiro profissional, código aberto.",

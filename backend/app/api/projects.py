@@ -43,7 +43,10 @@ async def ensure_device_project(
     binding_id: UUID, body: ProjectCreate, user: AuthUser = Depends(require_verified_user),
 ):
     try:
-        return await run_in_threadpool(project_service.ensure_device_project, str(binding_id), body.name)
+        data, created = await run_in_threadpool(project_service.ensure_device_project, str(binding_id), body.name)
+        if created:
+            await run_hooks("project:created", project=data)
+        return data
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 

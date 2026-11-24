@@ -20,6 +20,10 @@ export interface ScriptBase {
   cloud_revision: string;
   device_updated: string;
   cloud_updated: string;
+  /** '' normally; 'device' or 'cloud' once a deletion on that side was settled. */
+  deleted: '' | 'device' | 'cloud';
+  /** Hash of an upload that may have been applied without its reply arriving. */
+  sending_hash: string;
 }
 
 export async function readBinding(projectId: string): Promise<DeviceBinding | undefined> {
@@ -69,18 +73,77 @@ export async function readScriptBases(projectId: string): Promise<ScriptBase[]> 
   return db.select<ScriptBase[]>('SELECT * FROM device_script_sync WHERE project_id = $1', [projectId]);
 }
 
-export async function rememberScriptBase(binding: DeviceBinding, base: ScriptBase) {
+/** Records what the cloud acknowledged. It describes the cloud's copy, so it is
+ * kept whichever generation sent it and even after Stop: only a different
+ * counterpart (another binding) may not write here. */
+export async function rememberScriptBase(
+  binding: DeviceBinding, base: Omit<ScriptBase, 'deleted' | 'sending_hash'>,
+) {
   const db = await getDb();
   await db.execute(
-    `INSERT INTO device_script_sync (project_id, script_id, content_hash, cloud_revision, device_updated, cloud_updated)
-     SELECT project_id, $3, $4, $5, $6, $7 FROM device_project_sync
-     WHERE project_id = $1 AND generation = $2 AND enabled = 1
+    `INSERT INTO device_script_sync
+       (project_id, script_id, content_hash, cloud_revision, device_updated, cloud_updated, deleted, sending_hash)
+     SELECT project_id, $3, $4, $5, $6, $7, '', '' FROM device_project_sync
+     WHERE project_id = $1 AND binding_id = $2
      ON CONFLICT(project_id, script_id) DO UPDATE SET
        content_hash = excluded.content_hash, cloud_revision = excluded.cloud_revision,
-       device_updated = excluded.device_updated, cloud_updated = excluded.cloud_updated`,
-    [binding.project_id, binding.generation, base.script_id, base.content_hash, base.cloud_revision,
+       device_updated = excluded.device_updated, cloud_updated = excluded.cloud_updated,
+       deleted = '', sending_hash = ''`,
+    [binding.project_id, binding.binding_id, base.script_id, base.content_hash, base.cloud_revision,
       base.device_updated, base.cloud_updated],
   );
+}
+
+/** Written before an upload, so a reply that never arrives is not mistaken for
+ * someone else's change. A row with no revision is a note, not a base. */
+export async function noteUploadHash(binding: DeviceBinding, scriptId: string, hash: string) {
+  const db = await getDb();
+  await db.execute(
+    `INSERT INTO device_script_sync
+       (project_id, script_id, content_hash, cloud_revision, device_updated, cloud_updated, deleted, sending_hash)
+     SELECT project_id, $3, '', '', '', '', '', $4 FROM device_project_sync
+     WHERE project_id = $1 AND binding_id = $2
+     ON CONFLICT(project_id, script_id) DO UPDATE SET sending_hash = excluded.sending_hash`,
+    [binding.project_id, binding.binding_id, scriptId, hash],
+  );
+}
+
+/** A deletion on one side is not copied to the other. The tombstone keeps the
+ * remaining copy from reading as a conflict, or from being recreated. */
+export async function tombstoneScript(binding: DeviceBinding, scriptId: string, side: 'device' | 'cloud') {
+  const db = await getDb();
+  await db.execute(
+    `INSERT INTO device_script_sync
+       (project_id, script_id, content_hash, cloud_revision, device_updated, cloud_updated, deleted, sending_hash)
+     SELECT project_id, $3, '', '', '', '', $4, '' FROM device_project_sync
+     WHERE project_id = $1 AND binding_id = $2
+     ON CONFLICT(project_id, script_id) DO UPDATE SET deleted = excluded.deleted, sending_hash = ''`,
+    [binding.project_id, binding.binding_id, scriptId, side],
+  );
+}
+
+export async function forgetScriptBase(binding: DeviceBinding, scriptId: string) {
+  const db = await getDb();
+  await db.execute(
+    `DELETE FROM device_script_sync WHERE project_id = $1 AND script_id = $2
+       AND EXISTS (SELECT 1 FROM device_project_sync WHERE project_id = $1 AND binding_id = $3)`,
+    [binding.project_id, scriptId, binding.binding_id],
+  );
+}
+
+/** Begin again with the signed-in account: a new cloud counterpart and no
+ * remembered bases. The generation changes first, so work still in flight for
+ * the old counterpart cannot write into the new one. */
+export async function restartBinding(projectId: string, scope: string, bindingId: string, generation: string) {
+  const db = await getDb();
+  const result = await db.execute(
+    `UPDATE device_project_sync SET scope = $2, binding_id = $3, generation = $4, enabled = 1,
+       published = 0, last_synced = 0 WHERE project_id = $1`,
+    [projectId, scope, bindingId, generation],
+  );
+  if (!result.rowsAffected) return false;
+  await db.execute('DELETE FROM device_script_sync WHERE project_id = $1', [projectId]);
+  return true;
 }
 
 export async function readDeviceContent(projectId: string, scriptId: string) {

@@ -90,6 +90,11 @@ const ProjectStorageDialog: React.FC<Props> = ({ project, onClose, onProjectChan
   };
 
   const saveToFolder = () => run('save', async () => {
+    const { deviceSyncEnabled } = await import('../services/deviceProjectSync');
+    if (await deviceSyncEnabled(project.id)) {
+      showToast(t('sync.linked'), 'error');
+      return;
+    }
     const lf = await import('../services/linkedFiles');
     const picked = await lf.pickFolder(
       t('storage.pickFolderFor', { name: project.name }),

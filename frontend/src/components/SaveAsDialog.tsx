@@ -3,6 +3,7 @@ import { ModalOverlay } from './ModalOverlay';
 import { FaCloud, FaDesktop, FaPlus } from 'react-icons/fa';
 import { Trans, useTranslation } from 'react-i18next';
 import { api } from '../services/api';
+import { activeCloudCounterparts } from '../services/deviceProjectSync';
 import { cloudApi } from '../services/cloudApi';
 import { isWeb } from '../services/platform';
 import type { ProjectInfo } from '../services/api';
@@ -130,7 +131,12 @@ const SaveAsDialog: React.FC<SaveAsDialogProps> = ({
           return;
         }
         const client = destination === 'cloud' ? cloudApi : api;
-        const list = await client.listProjects();
+        let list = await client.listProjects();
+        if (destination === 'cloud') {
+          // Saving into the cloud copy of a synced device project would bypass the device copy.
+          const counterparts = await activeCloudCounterparts().catch(() => new Set<string>());
+          list = list.filter(project => !counterparts.has(project.id));
+        }
         if (cancelled) return;
         setProjects(list);
 

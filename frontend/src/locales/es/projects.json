@@ -6,7 +6,20 @@
     "waiting": "Esperando la sincronización con la nube",
     "conflict": "Algunos guiones tienen copias en conflicto. Se conservan ambas.",
     "account": "Inicia sesión en la misma cuenta para reanudar la sincronización.",
-    "linked": "Los proyectos con archivos enlazados no se pueden sincronizar con la nube."
+    "linked": "Los proyectos con archivos enlazados no se pueden sincronizar con la nube.",
+    "issueConflict": "Cambió aquí y en la nube.",
+    "issueProblem": "La nube no aceptó este guion.",
+    "issueQuota": "No se subió porque se alcanzó el límite de guiones de tu plan en la nube.",
+    "keepDevice": "Conservar la versión de este dispositivo",
+    "keepCloud": "Usar la versión de la nube",
+    "resolveNote": "La versión que no conserves se guarda como un guion nuevo.",
+    "resolveFailed": "No se pudo resolver este guion. Revisa tu conexión e inténtalo de nuevo.",
+    "openElsewhere": "Cierra primero este guion en su otra ventana.",
+    "attentionAccount": "Este proyecto se sincroniza con otra cuenta en la nube.",
+    "accountSwitch": "Sincronizar con la cuenta iniciada",
+    "attentionMissing": "Se eliminó la copia de este proyecto en la nube.",
+    "restart": "Empezar una copia nueva en la nube",
+    "updatesOnOpen": "Algunos guiones se actualizan desde la nube al abrirlos."
   },
   "welcome": {
     "subtitle": "Escritura de guiones profesional, de código abierto.",
