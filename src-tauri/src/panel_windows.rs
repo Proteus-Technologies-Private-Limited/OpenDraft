@@ -33,29 +33,53 @@ pub struct Frame {
     pub height: f64,
 }
 
+/// The editor window a new panel window floats above: GTK keeps a window
+/// above the one it is transient for. macOS floats panel windows above every
+/// window of the app instead, and needs nothing here.
+#[cfg(target_os = "linux")]
+pub type Parent = Option<gtk::Window>;
+#[cfg(not(target_os = "linux"))]
+pub type Parent = ();
+
 /// Adopt the panel window wry is about to create for `editor`. Called from the
 /// new-window handler, before wry has made the window, so the work is queued
 /// behind it on the main thread.
-pub fn adopt_after_open(editor: &str) {
+pub fn adopt_after_open(editor: &str, parent: Parent) {
     let editor = editor.to_string();
     #[cfg(target_os = "macos")]
-    dispatch2::DispatchQueue::main().exec_async(move || imp::adopt(&editor));
+    {
+        let () = parent;
+        dispatch2::DispatchQueue::main().exec_async(move || imp::adopt(&editor));
+    }
     #[cfg(target_os = "linux")]
-    gtk::glib::idle_add_local_once(move || imp::adopt(&editor));
+    gtk::glib::idle_add_local_once(move || imp::adopt(&editor, parent));
     #[cfg(not(any(target_os = "macos", target_os = "linux")))]
-    let _ = editor;
+    let _ = (editor, parent);
 }
 
-/// Name the panel window `editor` opened last, and put it at `frame`. Main
-/// thread. False when there is none to name (Windows: none is adopted).
-pub fn tag(editor: &str, id: &str, frame: Option<Frame>) -> bool {
+/// Name the panel window `editor` opened last, and put it at `frame` — the
+/// whole window, or (`content`) the part below its title bar, so a panel
+/// popped out lands exactly where it was in the dock. Main thread. False when
+/// there is none to name (Windows: none is adopted).
+pub fn tag(editor: &str, id: &str, frame: Option<Frame>, content: bool) -> bool {
     #[cfg(any(target_os = "macos", target_os = "linux"))]
-    return imp::tag(editor, id, frame);
+    return imp::tag(editor, id, frame, content);
     #[cfg(not(any(target_os = "macos", target_os = "linux")))]
     {
-        let _ = (editor, id, frame);
+        let _ = (editor, id, frame, content);
         false
     }
+}
+
+/// Where an area of an editor's page (CSS pixels from the page's top left) is
+/// on screen, in the same terms as `Frame`: measured through the page's own
+/// web view, so it is exact on any display. `viewport` is the page's size in
+/// CSS pixels: the web view runs under the window's title bar while the page
+/// starts below it, and page zoom scales CSS pixels. Main thread (Tauri's
+/// `with_webview` callback).
+#[cfg(target_os = "macos")]
+pub fn page_area_on_screen(webview: *mut std::ffi::c_void, area: Frame, viewport: (f64, f64)) -> Option<Frame> {
+    imp::page_area_on_screen(webview, area, viewport)
 }
 
 /// Bring a panel window of `editor` forward. Main thread.
@@ -98,7 +122,10 @@ mod imp {
         runtime::{AnyObject, NSObject, ProtocolObject},
         sel, ClassType, DefinedClass, MainThreadMarker, MainThreadOnly,
     };
-    use objc2_app_kit::{NSApplication, NSEvent, NSEventMask, NSScreen, NSWindow, NSWindowDelegate};
+    use objc2_app_kit::{
+        NSApplication, NSEvent, NSEventMask, NSFloatingWindowLevel, NSScreen, NSWindow,
+        NSWindowCollectionBehavior, NSWindowDelegate,
+    };
     use objc2_foundation::{
         ns_string, NSDictionary, NSKeyValueChangeKey, NSKeyValueObservingOptions, NSNotification,
         NSObjectNSKeyValueObserverRegistration, NSObjectProtocol, NSPoint, NSRect, NSSize, NSString,
@@ -260,6 +287,13 @@ mod imp {
             }
             self.ivars().observing_title.set(true);
             window.setDelegate(Some(ProtocolObject::from_ref(self)));
+            // A palette: above the script windows, out of the way while
+            // another app is in front, and beside a full-screen script.
+            window.setLevel(NSFloatingWindowLevel);
+            window.setHidesOnDeactivate(true);
+            window.setCollectionBehavior(
+                window.collectionBehavior() | NSWindowCollectionBehavior::FullScreenAuxiliary,
+            );
             self.show_title();
         }
 
@@ -349,7 +383,7 @@ mod imp {
         }
     }
 
-    pub fn tag(editor: &str, id: &str, frame: Option<Frame>) -> bool {
+    pub fn tag(editor: &str, id: &str, frame: Option<Frame>, content: bool) -> bool {
         let Some(mtm) = MainThreadMarker::new() else { return false };
         let window = PANELS.with(|panels| {
             let panels = panels.borrow();
@@ -367,6 +401,9 @@ mod imp {
                 NSPoint::new(frame.left, height - frame.top - frame.height),
                 NSSize::new(frame.width, frame.height),
             );
+            // A content rectangle grows upward by the title bar, so the
+            // panel itself keeps its place.
+            let rect = if content { window.frameRectForContentRect(rect) } else { rect };
             window.setFrame_display(rect, true);
         }
         true
@@ -377,6 +414,33 @@ mod imp {
             panels.borrow().iter().find_map(|p| {
                 (p.ivars().id.borrow().as_deref() == Some(id)).then(|| p.live_window(editor)).flatten()
             })
+        })
+    }
+
+    pub fn page_area_on_screen(webview: *mut c_void, area: Frame, viewport: (f64, f64)) -> Option<Frame> {
+        let mtm = MainThreadMarker::new()?;
+        let height = main_display_height(mtm)?;
+        // SAFETY: Tauri hands over its live WKWebView, on the main thread.
+        let view: &WKWebView = unsafe { (webview as *const WKWebView).as_ref() }?;
+        let window = view.window()?;
+        let bounds = view.bounds();
+        let (page_width, page_height) = viewport;
+        if !(page_width > 0.0 && page_height > 0.0) {
+            return None;
+        }
+        // Points per CSS pixel, and how far down the view the page begins.
+        let scale = bounds.size.width / page_width;
+        let inset = (bounds.size.height - page_height * scale).max(0.0);
+        let (w, h) = (area.width * scale, area.height * scale);
+        let top = inset + area.top * scale;
+        let y = if view.isFlipped() { top } else { bounds.size.height - top - h };
+        let local = NSRect::new(NSPoint::new(area.left * scale, y), NSSize::new(w, h));
+        let on_screen = window.convertRectToScreen(view.convertRect_toView(local, None));
+        Some(Frame {
+            left: on_screen.origin.x,
+            top: height - on_screen.origin.y - on_screen.size.height,
+            width: on_screen.size.width,
+            height: on_screen.size.height,
         })
     }
 
@@ -442,7 +506,7 @@ mod imp {
 
     const DEFAULT_SIZE: (i32, i32) = (380, 640);
 
-    pub fn adopt(editor: &str) {
+    pub fn adopt(editor: &str, parent: Option<gtk::Window>) {
         let mut adopted = 0;
         for widget in gtk::Window::list_toplevels() {
             let Ok(window) = widget.downcast::<gtk::Window>() else { continue };
@@ -463,6 +527,11 @@ mod imp {
             };
             window.set_title("");
             window.resize(DEFAULT_SIZE.0, DEFAULT_SIZE.1);
+            // A palette: kept above its script window.
+            window.set_type_hint(gtk::gdk::WindowTypeHint::Utility);
+            if let Some(parent) = parent.as_ref() {
+                window.set_transient_for(Some(parent));
+            }
             // wry destroys the web view on window.close(); close its window too.
             let to_close = window.clone();
             webview.connect_local("close", true, move |_| {
@@ -490,7 +559,8 @@ mod imp {
         }
     }
 
-    pub fn tag(editor: &str, id: &str, frame: Option<Frame>) -> bool {
+    pub fn tag(editor: &str, id: &str, frame: Option<Frame>, content: bool) -> bool {
+        let _ = content; // GTK places a window by its frame and sizes its content.
         let window = PANELS.with(|panels| {
             let mut panels = panels.borrow_mut();
             let newest = panels.iter_mut().rev().find(|p| p.editor == editor && p.id.is_none())?;

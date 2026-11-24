@@ -31,11 +31,20 @@ pub fn with_panel_windows<'a, R: tauri::Runtime, M: Manager<R>>(
     let editor = editor.to_string();
     // The page asks for "about:blank". window.open('') reaches wry as an empty
     // URL, which Tauri cannot parse and denies before this handler runs.
-    builder.on_new_window(move |url, _features| {
+    builder.on_new_window(move |url, features| {
         if url.as_str() == "about:blank" {
             eprintln!("[panels] Opening a panel window for {editor}");
+            #[cfg(target_os = "linux")]
+            let parent = {
+                use gtk::prelude::*;
+                features.opener().webview.toplevel().and_then(|w| w.downcast::<gtk::Window>().ok())
+            };
+            #[cfg(not(target_os = "linux"))]
+            let parent = {
+                let _ = &features;
+            };
             // wry's bare window cannot close itself or show its title.
-            crate::panel_windows::adopt_after_open(&editor);
+            crate::panel_windows::adopt_after_open(&editor, parent);
             tauri::webview::NewWindowResponse::Allow
         } else {
             eprintln!("[panels] Refused a new window for {url}");

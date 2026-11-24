@@ -32,6 +32,11 @@ export interface PanelWindowEntry {
   boundsKey: string;
 }
 
+/** Where a panel is popped out from, for a window opening there the first
+ * time: its area in the editor window (CSS pixels from the editor's top
+ * left), or the panel window it leaves. */
+export type PanelOrigin = { area: { left: number; top: number; width: number; height: number } } | { windowId: string };
+
 interface PanelPopoutState {
   /** Panel windows by id. */
   windows: Record<string, PanelWindowEntry>;
@@ -40,7 +45,7 @@ interface PanelPopoutState {
   /** Open `panel` in a new window of its own, taking it out of a shared one.
    * Call it straight from a click: browsers block a window opened any later.
    * `from` is the window the click was in. False when none could open. */
-  popOut: (panel: string, title: string, from?: Window | null) => boolean;
+  popOut: (panel: string, title: string, from?: Window | null, origin?: PanelOrigin) => boolean;
   /** Move `panel` into an open panel window, as a tab, and bring that window
    * forward. `title`: the window's title with `panel` showing. */
   addToWindow: (panel: string, windowId: string, title?: string) => void;
@@ -66,6 +71,8 @@ let displays: DisplayArea[] | null = null;
 /** The desktop app's editor window, read the same way: its web view reports
  * no window position to the page (screenX is 0). */
 let appEditorBounds: WindowBounds | null = null;
+/** Where the desktop app's editor page starts on screen (its content). */
+let appEditorContent: { left: number; top: number } | null = null;
 
 /** Panel windows the desktop app places and measures (macOS, Linux), by id,
  * with where each was last. The page cannot read a panel window's place there
@@ -97,6 +104,8 @@ export async function refreshPanelDisplays(): Promise<void> {
     const editor = getCurrentWindow();
     const [position, size, scale] = await Promise.all([editor.outerPosition(), editor.outerSize(), editor.scaleFactor()]);
     appEditorBounds = { left: position.x / scale, top: position.y / scale, width: size.width / scale, height: size.height / scale };
+    const inner = await editor.innerPosition();
+    appEditorContent = { left: inner.x / scale, top: inner.y / scale };
   } catch (error) {
     panelLog('warn', 'Could not read the editor window\'s place.', error);
   }
@@ -146,6 +155,32 @@ function writeBounds(key: string, bounds: WindowBounds | null): void {
       left: Math.round(bounds.left), top: Math.round(bounds.top), width: Math.round(bounds.width), height: Math.round(bounds.height),
     }));
   } catch { /* Placement is a convenience; storage may be unavailable. */ }
+}
+
+/** Where a new panel window opens the first time: over the panel's place in
+ * the editor (`content`: these are the window's content, under its title
+ * bar), or on the panel window it leaves. */
+function originBounds(origin: PanelOrigin): { bounds: WindowBounds; content: boolean } | null {
+  if ('windowId' in origin) {
+    const entry = usePanelPopoutStore.getState().windows[origin.windowId];
+    const bounds = entry ? boundsOf(origin.windowId, entry.window) : null;
+    return bounds ? { bounds, content: false } : null;
+  }
+  const { area } = origin;
+  if (!(area.width > 0 && area.height > 0)) return null;
+  let page: { left: number; top: number };
+  if (isTauri()) {
+    if (!appEditorContent) return null;
+    page = appEditorContent;
+  } else {
+    // A browser's page starts below its toolbars, inside its side borders.
+    const side = Math.max(0, (window.outerWidth - window.innerWidth) / 2);
+    page = { left: window.screenX + side, top: window.screenY + Math.max(0, window.outerHeight - window.innerHeight - side) };
+  }
+  return {
+    bounds: { left: page.left + area.left, top: page.top + area.top, width: area.width, height: area.height },
+    content: true,
+  };
 }
 
 function editorBounds(): WindowBounds {
@@ -303,7 +338,7 @@ export const usePanelPopoutStore = create<PanelPopoutState>((set, get) => {
     windows: {},
     placed: {},
 
-    popOut: (panel, title, from) => {
+    popOut: (panel, title, from, origin) => {
       const { windows, placed } = get();
       const current = placed[panel] ? windows[placed[panel]] : undefined;
       if (current && current.panels.length === 1 && !current.window.closed) { current.window.focus(); return true; }
@@ -311,7 +346,11 @@ export const usePanelPopoutStore = create<PanelPopoutState>((set, get) => {
       const openWindows = Object.entries(windows)
         .map(([openId, e]) => boundsOf(openId, e.window))
         .filter((b): b is WindowBounds => b !== null);
-      const bounds = cascade(placePanelWindow(readBounds(panel), editorBounds(), editorScreen(),
+      // Where it was left; the first time, right where the panel was.
+      const saved = readBounds(panel);
+      const start = saved ? null : origin ? originBounds(origin) : null;
+      const content = !!start?.content;
+      const bounds = cascade(placePanelWindow(saved ?? start?.bounds ?? null, editorBounds(), editorScreen(),
         isTauri() ? displays : null, DEFAULT_SIZE), openWindows);
       const id = `${pageId}-${nextWindow++}`;
       // A browser lets a click open a window only from the window clicked in;
@@ -357,7 +396,11 @@ export const usePanelPopoutStore = create<PanelPopoutState>((set, get) => {
           // across displays, in the macOS web view) and from now on says
           // where it is. False: the browser engine handles that (Windows).
           nativeFrames.set(id, bounds);
-          invokeApp<boolean>('panel_window_opened', { id, frame: bounds })
+          // The panel's place in this page, for the app to measure exactly.
+          const area = start && origin && 'area' in origin ? origin.area : undefined;
+          invokeApp<boolean>('panel_window_opened', {
+            id, frame: bounds, content, area, viewport: area ? [window.innerWidth, window.innerHeight] : undefined,
+          })
             .then((managed) => {
               panelLog('info', `window ${id} (${panel}) opened at ${JSON.stringify(bounds)}; app manages it: ${managed}`);
               if (!managed) { nativeFrames.delete(id); return; }

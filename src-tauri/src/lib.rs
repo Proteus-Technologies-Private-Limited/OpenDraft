@@ -2916,11 +2916,38 @@ async fn panel_window_opened(
     window: tauri::WebviewWindow,
     id: String,
     frame: Option<FrameArg>,
+    content: Option<bool>,
+    area: Option<FrameArg>,
+    viewport: Option<(f64, f64)>,
 ) -> Result<bool, String> {
     #[cfg(desktop)]
     {
         let editor = window.label().to_string();
-        let frame = frame.map(|f| panel_windows::Frame { left: f.left, top: f.top, width: f.width, height: f.height });
+        // Only macOS measures the area below, and so changes these.
+        #[cfg_attr(not(target_os = "macos"), allow(unused_mut))]
+        let mut frame = frame.map(|f| panel_windows::Frame { left: f.left, top: f.top, width: f.width, height: f.height });
+        #[cfg_attr(not(target_os = "macos"), allow(unused_mut))]
+        let mut content = content.unwrap_or(false);
+        // The panel's place in the editor page, measured on screen by the
+        // page's own web view: the page's own guess at where it sits on
+        // screen is off by the menu bar on macOS.
+        #[cfg(target_os = "macos")]
+        if let (Some(a), Some(viewport)) = (area, viewport) {
+            let a = panel_windows::Frame { left: a.left, top: a.top, width: a.width, height: a.height };
+            let (tx, rx) = std::sync::mpsc::channel();
+            let asked = window.with_webview(move |webview| {
+                let _ = tx.send(panel_windows::page_area_on_screen(webview.inner(), a, viewport));
+            });
+            match asked.map(|()| rx.recv_timeout(std::time::Duration::from_secs(1))) {
+                Ok(Ok(Some(exact))) => {
+                    frame = Some(exact);
+                    content = true;
+                }
+                other => eprintln!("[panels] Could not measure the panel's place in the page: {other:?}"),
+            }
+        }
+        #[cfg(not(target_os = "macos"))]
+        let _ = (area, viewport);
         // The window is adopted on the main thread just after it is built; a
         // page that asks first is answered once that has happened.
         for attempt in 0..3 {
@@ -2928,7 +2955,7 @@ async fn panel_window_opened(
                 std::thread::sleep(std::time::Duration::from_millis(100));
             }
             let (e, i) = (editor.clone(), id.clone());
-            if on_main_thread(&window, move || panel_windows::tag(&e, &i, frame))? {
+            if on_main_thread(&window, move || panel_windows::tag(&e, &i, frame, content))? {
                 return Ok(true);
             }
         }
@@ -2936,7 +2963,7 @@ async fn panel_window_opened(
     }
     #[cfg(not(desktop))]
     {
-        let _ = (window, id, frame);
+        let _ = (window, id, frame, content, area, viewport);
         Ok(false)
     }
 }

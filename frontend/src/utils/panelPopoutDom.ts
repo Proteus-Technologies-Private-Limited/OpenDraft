@@ -160,7 +160,8 @@ export function forwardShortcut(event: KeyboardEvent, editorDocument: Document):
 export interface WindowBounds { left: number; top: number; width: number; height: number }
 export interface DisplayArea { left: number; top: number; width: number; height: number }
 
-export const MIN_PANEL_WINDOW = { width: 280, height: 320 };
+/** Smallest panel window: about the narrowest a docked panel is. */
+export const MIN_PANEL_WINDOW = { width: 200, height: 240 };
 
 function finite(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);

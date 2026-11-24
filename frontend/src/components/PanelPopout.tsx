@@ -18,7 +18,7 @@ import React, { useCallback, useContext, useEffect, useLayoutEffect, useRef, use
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { FaExternalLinkAlt, FaWindowRestore } from 'react-icons/fa';
-import { canPopOutPanels, refreshPanelDisplays, usePanelPopoutStore } from '../stores/panelPopoutStore';
+import { canPopOutPanels, refreshPanelDisplays, usePanelPopoutStore, type PanelOrigin } from '../stores/panelPopoutStore';
 import { useEditorStore } from '../stores/editorStore';
 import { isTauri } from '../services/platform';
 import { isNavigatorPanel, type NavigatorPanelId } from '../utils/workspaceLayout';
@@ -31,8 +31,8 @@ import '../styles/panelPopout.css';
 interface PlaceChoice {
   key: string;
   label: string;
-  /** `from`: the window the choice was made in. */
-  run: (from: Window | null) => void;
+  /** `from`: the window the choice was made in; `button`: the panel's button. */
+  run: (from: Window | null, button: HTMLElement) => void;
 }
 
 /** Pop a panel out from its dock, or, in a panel window, send it back or on. */
@@ -52,10 +52,10 @@ export const PanelPopoutButton: React.FC<{ panel: string; className?: string }> 
 
   const name = panelLabel(panel);
   const here = place.where === 'window' ? place.windowId : null;
-  const openNew = (from: Window | null) => {
+  const openNew = (from: Window | null, button: HTMLElement) => {
     // Synchronously, inside the click: a browser blocks a window opened later.
     const title = panelWindowTitle(name, useEditorStore.getState().documentTitle || '');
-    if (!popOut(panel, title, from)) {
+    if (!popOut(panel, title, from, originOf(button, here))) {
       showToast(isTauri() ? t('popout.failed') : `${t('popout.failed')} ${t('popout.popupsHint')}`, 'error');
     }
   };
@@ -86,7 +86,7 @@ export const PanelPopoutButton: React.FC<{ panel: string; className?: string }> 
         aria-expanded={choices.length > 1 ? !!menuAnchor : undefined}
         onClick={(event) => {
           const from = event.currentTarget.ownerDocument.defaultView;
-          if (choices.length === 1) { choices[0].run(from); return; }
+          if (choices.length === 1) { choices[0].run(from, event.currentTarget); return; }
           const button = event.currentTarget;
           setMenuAnchor((open) => (open ? null : button));
         }}
@@ -99,6 +99,16 @@ export const PanelPopoutButton: React.FC<{ panel: string; className?: string }> 
     </>
   );
 };
+
+/** Where the panel is now, for its window to open there the first time: its
+ * area in the dock (the cell or group it fills), or the window it leaves. */
+function originOf(button: HTMLElement, windowId: string | null): PanelOrigin | undefined {
+  if (windowId) return { windowId };
+  const area = button.closest('.dock-stack-cell, .dock-group, .workspace-dock');
+  if (!area) return undefined;
+  const r = area.getBoundingClientRect();
+  return { area: { left: r.left, top: r.top, width: r.width, height: r.height } };
+}
 
 /** The choices, under the button, in the button's own window. */
 const PanelPlaceMenu: React.FC<{ anchor: HTMLButtonElement; choices: PlaceChoice[]; label: string; onClose: () => void }> = ({
@@ -166,7 +176,7 @@ const PanelPlaceMenu: React.FC<{ anchor: HTMLButtonElement; choices: PlaceChoice
           data-panel-place={choice.key === 'return' || choice.key === 'new' ? choice.key : 'add'}
           onClick={() => {
             onClose();
-            choice.run(view);
+            choice.run(view, anchor);
           }}
         >
           {choice.label}

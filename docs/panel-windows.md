@@ -31,8 +31,15 @@ menu command.
   puts all its panels back.
 - App shortcuts typed in a panel window (Save, Find, …) work as in the editor.
   A field's own editing keys (copy, paste, undo, select all) stay with the field.
-- Windows remember their size and place per panel. One whose display has gone
-  opens beside the editor window instead.
+- The first time, a panel's window opens right where the panel was in its
+  dock, at the same size, so it lifts off the script in place. After that it
+  reopens where it was left (size and place, per panel); one whose display has
+  gone opens beside the editor window instead.
+- In the desktop app panel windows float above the script windows, like
+  palettes, and hide while another app is in front (macOS: the floating window
+  level, hidesOnDeactivate, and they can sit beside a full-screen script;
+  Linux: a utility window kept above its script window). In a browser, and in
+  the Windows app, they are ordinary windows.
 - Panel windows close with their editor window, on reload, and when the
   editor leaves (start screen, sign-out). Without a dock (the fold layout,
   history mode, a narrow window) popped-out panels go back.
