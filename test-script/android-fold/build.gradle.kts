@@ -20,8 +20,10 @@ dependencies {
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("androidx.activity:activity:1.9.3")
     implementation("androidx.lifecycle:lifecycle-common:2.8.7")
-    // Keep identical to android_fold_build.py: this is the release dependency.
+    // Keep identical to android_fold_build.py: these are the release dependencies.
     implementation("androidx.window:window-java:1.3.0")
+    // MainActivity.kt asks for a store rating through Play's review API (21bf478b).
+    implementation("com.google.android.play:review:2.0.2")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.robolectric:robolectric:4.14.1")
 }
