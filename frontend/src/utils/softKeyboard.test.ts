@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { focusWithoutKeyboard, nativeKeyboardVisible } from './softKeyboard';
+import { focusWithoutKeyboard, nativeKeyboardTop, nativeKeyboardVisible } from './softKeyboard';
 
 describe('focusWithoutKeyboard', () => {
   /** A text field reduced to what the helper touches. */
@@ -76,5 +76,46 @@ describe('nativeKeyboardVisible', () => {
     } finally {
       console.error = error;
     }
+  });
+});
+
+describe('nativeKeyboardTop', () => {
+  const win = (report: unknown, innerWidth = 411) => ({
+    innerWidth,
+    OpenDraftKeyboard: { snapshot: () => (typeof report === 'string' ? report : JSON.stringify(report)) },
+  });
+
+  it('converts the keyboard edge from window pixels to CSS pixels', () => {
+    // A 1080-pixel-wide WebView shown 411 CSS pixels wide; keyboard from 1220 down.
+    const top = nativeKeyboardTop(win({ version: 1, available: true, visible: true, width: 1080, height: 2092, bottom: 1220 }));
+    expect(top).toBeCloseTo(1220 * 411 / 1080);
+  });
+
+  it('is null while the keyboard is down', () => {
+    expect(nativeKeyboardTop(win({ version: 1, available: true, visible: false, width: 1080, height: 2092, bottom: 2092 }))).toBeNull();
+  });
+
+  it('is null when the keyboard does not cover the page (a floating keyboard, another window)', () => {
+    expect(nativeKeyboardTop(win({ version: 1, available: true, visible: true, width: 1080, height: 2092, bottom: 2092 }))).toBeNull();
+  });
+
+  it('is null without the Android bridge, or with a report it does not understand', () => {
+    expect(nativeKeyboardTop({ innerWidth: 400 })).toBeNull();
+    expect(nativeKeyboardTop(undefined)).toBeNull();
+    expect(nativeKeyboardTop(win({ version: 2, available: true, visible: true, width: 1080, height: 2092, bottom: 1220 }))).toBeNull();
+    expect(nativeKeyboardTop(win({ version: 1, available: false }))).toBeNull();
+    expect(nativeKeyboardTop(win({ version: 1, available: true, visible: true, width: 0, height: 2092, bottom: 1220 }))).toBeNull();
+  });
+
+  it('logs and returns null when the report cannot be read', () => {
+    const errors: unknown[] = [];
+    const original = console.error;
+    console.error = (...args: unknown[]) => { errors.push(args); };
+    try {
+      expect(nativeKeyboardTop(win('not json'))).toBeNull();
+    } finally {
+      console.error = original;
+    }
+    expect(errors).toHaveLength(1);
   });
 });

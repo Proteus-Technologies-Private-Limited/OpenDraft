@@ -27,6 +27,35 @@ export function nativeKeyboardVisible(win: unknown = typeof window === 'undefine
   }
 }
 
+/**
+ * Where the soft keyboard begins, in CSS pixels from the top of the page, or
+ * null when it is down or cannot be known.
+ *
+ * The page cannot measure this itself in the Android app. Older WebViews
+ * report the full height while the keyboard covers half the page; newer ones
+ * shrink only the visual viewport and leave the layout at full height, so
+ * the browser pans the whole page up to show the caret and the menu bar
+ * goes with it. The activities' geometry report (`snapshot()`, in window
+ * pixels local to the WebView) says where the keyboard starts either way.
+ */
+export function nativeKeyboardTop(win: unknown = typeof window === 'undefined' ? undefined : window): number | null {
+  try {
+    const w = win as { OpenDraftKeyboard?: { snapshot?(): string }; innerWidth?: number } | undefined;
+    const bridge = w?.OpenDraftKeyboard;
+    if (!bridge || typeof bridge.snapshot !== 'function') return null;
+    const r = JSON.parse(bridge.snapshot());
+    if (r?.version !== 1 || r.available !== true || r.visible !== true) return null;
+    if (![r.width, r.height, r.bottom].every((n) => typeof n === 'number' && Number.isFinite(n))) return null;
+    if (r.width <= 0 || r.height <= 0 || r.bottom < 0 || r.bottom >= r.height) return null;
+    const cssWidth = typeof w?.innerWidth === 'number' && w.innerWidth > 0 ? w.innerWidth : null;
+    if (cssWidth === null) return null;
+    return r.bottom * cssWidth / r.width;
+  } catch (error) {
+    console.error('[keyboard] could not read where the keyboard begins:', error);
+    return null;
+  }
+}
+
 /** The parts of a text field focusWithoutKeyboard touches. */
 export interface KeyboardField {
   getAttribute(name: string): string | null;

@@ -11514,6 +11514,14 @@ body.selection-bands-active .page .ProseMirror::selection { background: transpar
   html.ios.phone.keyboard-open .app-container {
     padding-bottom: 0;
   }
+  /* Android: the same, for the keyboard that covers the WebView without
+     resizing it (main.tsx sets --vv-height from the activity's inset report
+     and undoes the page pan that carried the menu bar off the screen). The
+     keyboard covers the gesture bar too, so its padding is not owed. */
+  html.android.keyboard-open .app-container {
+    height: var(--vv-height, 100dvh);
+    padding-bottom: 0;
+  }
 
   /* iPadOS windowed mode: reserve the top-leading corner for the system's
      window-management control, which draws over the app and is not covered by

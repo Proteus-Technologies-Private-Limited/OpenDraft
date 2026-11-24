@@ -17,6 +17,7 @@ import { applyAppearance, applyNativeTheme, readAppearance } from './utils/appea
 import { initI18n } from './i18n';
 import { watchFoldPosture, isFoldableDevice } from './utils/foldPosture';
 import { recordSession } from './services/storeReview';
+import { nativeKeyboardTop } from './utils/softKeyboard';
 
 /**
  * Keep the `ios-windowed` class in sync with whether the app is running in an
@@ -149,11 +150,31 @@ async function init() {
   // Fitting the app above the keyboard and pinning the document at the top
   // leaves the editor's own scroller as the only thing that moves, which is
   // what ProseMirror already scrolls to keep the caret in view.
+  //
+  // The Android app has the same problem by a different route (a Play Store
+  // review: "when I open the keyboard and scroll, the top menu goes away").
+  // Its windows are edge to edge, so the keyboard never resizes the WebView.
+  // Current WebViews shrink only the visual viewport and then pan the whole
+  // page up to show the caret — scrollY stays 0, but the menu bar slides
+  // under the status bar and off the screen. Older ones shrink nothing and
+  // leave the caret behind the keyboard. Both get the iPhone treatment: the
+  // app ends where the keyboard begins (taken from the activity's inset
+  // report when the viewport does not say), and a pan is undone.
   const root = document.documentElement;
   const isIosPhone = () => root.classList.contains('ios') && root.classList.contains('phone');
+  const isAndroid = () => root.classList.contains('android');
   const pinDocument = () => {
-    if (!isIosPhone()) return;
-    if (window.scrollY !== 0 || (window.visualViewport?.offsetTop ?? 0) !== 0) window.scrollTo(0, 0);
+    if (isIosPhone()) {
+      if (window.scrollY !== 0 || (window.visualViewport?.offsetTop ?? 0) !== 0) window.scrollTo(0, 0);
+    } else if (isAndroid() && (window.visualViewport?.offsetTop ?? 0) > 0) {
+      // window.scrollTo moves only the layout viewport, which is already at
+      // the top; scrolling an element into view moves the visual one too.
+      try {
+        document.querySelector('.app-container')?.scrollIntoView({ block: 'start', inline: 'nearest', behavior: 'instant' });
+      } catch (err) {
+        console.warn('[keyboard] could not bring the menu bar back into view:', err);
+      }
+    }
   };
   // The caret is scrolled into view when it is tapped, while the editor is
   // still full height; the keyboard then takes the bottom half away. Once the
@@ -181,7 +202,23 @@ async function init() {
   let revealTimer: ReturnType<typeof setTimeout> | undefined;
   const updateViewportHeight = () => {
     const vv = window.visualViewport;
-    const h = vv ? vv.height : window.innerHeight;
+    let h = vv ? vv.height : window.innerHeight;
+    if (isAndroid()) {
+      const keyboardTop = nativeKeyboardTop(window);
+      if (keyboardTop !== null) h = Math.min(h, keyboardTop);
+      // Any shortfall is the keyboard: pinch zoom is off and the app has no
+      // browser toolbar to collapse. 8px: below any keyboard, above rounding.
+      const open = window.innerHeight - h > 8;
+      root.classList.toggle('keyboard-open', open);
+      root.style.setProperty('--vv-height', `${h}px`);
+      pinDocument();
+      if (open && h !== lastHeight) {
+        clearTimeout(revealTimer);
+        revealTimer = setTimeout(revealCaret, 120);
+      }
+      lastHeight = h;
+      return;
+    }
     root.style.setProperty('--vv-height', `${h}px`);
     if (isIosPhone()) {
       // The keyboard covers the home indicator, so its inset is not owed.
@@ -202,6 +239,8 @@ async function init() {
     window.visualViewport.addEventListener('scroll', updateViewportHeight);
   }
   window.addEventListener('resize', updateViewportHeight);
+  // The Android activities report the keyboard where the viewport cannot.
+  window.addEventListener('opendraft:keyboardchange', updateViewportHeight);
   window.addEventListener('scroll', pinDocument, { passive: true });
   updateViewportHeight();
 
