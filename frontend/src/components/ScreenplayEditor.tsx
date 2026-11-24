@@ -176,8 +176,6 @@ import DocumentOpenElsewhereDialog from './DocumentOpenElsewhereDialog';
 import {
   clearRecoverySnapshot,
   hasRecoverableSnapshot,
-  readRecoverySnapshot,
-  snapshotMatchesDocument,
   type RecoverySnapshot,
 } from '../services/recoveryService';
 import { readLastSession, rememberLastSession, clearLastSession } from '../services/lastSession';
@@ -3280,6 +3278,61 @@ const ScreenplayEditor: React.FC = () => {
   // "Untitled Screenplay". Runs while the access token is still valid so the
   // final PUT is authenticated; without this the auto-save loop keeps firing
   // after signout and every save returns 401.
+  // A fresh, blank document: what signing out leaves, and what replaces a
+  // screenplay this account cannot open. Kept in a ref so the effects that
+  // call it always reach the current editor without re-registering.
+  const resetToBlankDocumentRef = useRef<() => void>(() => {});
+  resetToBlankDocumentRef.current = () => {
+    // Reset the editor to a fresh, blank document — mirrors handleNewScreenplay.
+    // Drop the stash and the crash-recovery copy too, so the signed-out
+    // document cannot be restored into the blank one on the next route
+    // change, or offered as "unsaved changes" to whoever uses the app next.
+    clearSessionDoc();
+    clearRecoverySnapshot();
+    if (collabMode) {
+      // This editor is still bound to the collaboration document the
+      // teardown just destroyed, and setContent on it does not take: the
+      // script stayed on screen after signing out. Mount a fresh one, as
+      // ending a session does. Collab mode is already off, so it starts blank.
+      setEditorKey((k) => k + 1);
+    } else if (editor && !editor.isDestroyed) {
+      clearTrackChanges();
+      notifyPanelDocumentReplacement(editor);
+      editor.commands.setContent(
+        { type: 'doc', content: [{ type: 'sceneHeading', content: [] }] },
+        true,
+      );
+      clearEditorHistory(editor);
+    }
+    setCurrentProject(null);
+    setCurrentScriptId(null);
+    const store = useEditorStore.getState();
+    store.setDocumentTitle('Untitled Screenplay');
+    store.setBeats([]);
+    store.setBeatColumns([]);
+    store.setPlotlines([]);
+    store.setBeatArrangeMode('auto');
+    store.setNotes([]);
+    store.setGeneralNotes([]);
+    store.setTags([]);
+    store.setTagCategories([...DEFAULT_TAG_CATEGORIES]);
+    store.setCharacterProfiles([]);
+    store.setCharacterRelationships([]);
+    store.setScenes([]);
+    store.setPageLayout({ ...DEFAULT_PAGE_LAYOUT });
+    store.setScriptProfile(DEFAULT_SCRIPT_PROFILE);
+    // Replacing the content above counted as an edit to the screenplay that
+    // was still current; a blank document has nothing unsaved.
+    store.setSaveStatus('idle');
+    lastSavedJsonRef.current = '';
+    // Signing out must not leave a cloud script queued to reopen itself on
+    // the next launch, under whoever signs in next.
+    clearLastSession();
+    if (window.location.pathname !== '/') {
+      navigate('/', { replace: true });
+    }
+  };
+
   useEffect(() => {
     setLogoutEditorReset(async () => {
       scriptSwitchingRef.current = true;
@@ -3301,51 +3354,7 @@ const ScreenplayEditor: React.FC = () => {
           }
         }
 
-        // Reset the editor to a fresh, blank document — mirrors handleNewScreenplay.
-        // Drop the stash and the crash-recovery copy too, so the signed-out
-        // document cannot be restored into the blank one on the next route
-        // change, or offered as "unsaved changes" to whoever uses the app next.
-        clearSessionDoc();
-        clearRecoverySnapshot();
-        if (collabMode) {
-          // This editor is still bound to the collaboration document the
-          // teardown just destroyed, and setContent on it does not take: the
-          // script stayed on screen after signing out. Mount a fresh one, as
-          // ending a session does. Collab mode is already off, so it starts blank.
-          setEditorKey((k) => k + 1);
-        } else if (editor && !editor.isDestroyed) {
-          clearTrackChanges();
-          notifyPanelDocumentReplacement(editor);
-          editor.commands.setContent(
-            { type: 'doc', content: [{ type: 'sceneHeading', content: [] }] },
-            true,
-          );
-          clearEditorHistory(editor);
-        }
-        setCurrentProject(null);
-        setCurrentScriptId(null);
-        const store = useEditorStore.getState();
-        store.setDocumentTitle('Untitled Screenplay');
-        store.setBeats([]);
-        store.setBeatColumns([]);
-        store.setPlotlines([]);
-        store.setBeatArrangeMode('auto');
-        store.setNotes([]);
-        store.setGeneralNotes([]);
-        store.setTags([]);
-        store.setTagCategories([...DEFAULT_TAG_CATEGORIES]);
-        store.setCharacterProfiles([]);
-        store.setCharacterRelationships([]);
-        store.setScenes([]);
-        store.setPageLayout({ ...DEFAULT_PAGE_LAYOUT });
-        store.setScriptProfile(DEFAULT_SCRIPT_PROFILE);
-        lastSavedJsonRef.current = '';
-        // Signing out must not leave a cloud script queued to reopen itself on
-        // the next launch, under whoever signs in next.
-        clearLastSession();
-        if (window.location.pathname !== '/') {
-          navigate('/', { replace: true });
-        }
+        resetToBlankDocumentRef.current();
       } finally {
         scriptSwitchingRef.current = false;
         // Not cleared here when the URL still names a script: navigate() lands
@@ -4209,17 +4218,15 @@ const ScreenplayEditor: React.FC = () => {
     // cannot be opened under this account, so close it plainly rather than
     // failing with "not found". Nothing is saved: it is not this account's.
     if (!isHistoryMode && belongsToPreviousAccount(urlProjectId, urlScriptId)) {
-      scriptSwitchingRef.current = false;
       loadedScriptRef.current = null;
-      clearLastSession();
-      // As on sign-out: that account's unsaved text is not offered to this one.
-      // Its saves are kept on the device for that account.
-      const snapshot = readRecoverySnapshot();
-      if (snapshot && snapshotMatchesDocument(snapshot, urlProjectId, urlScriptId)) clearRecoverySnapshot();
-      setCurrentProject(null);
-      setCurrentScriptId(null);
+      // As on sign-out: a blank document, with nothing of that account's
+      // offered to this one. Its saves stay on the device for that account.
+      try {
+        resetToBlankDocumentRef.current();
+      } finally {
+        scriptSwitchingRef.current = false;
+      }
       showToast(tg('editor:toast.cloudOtherAccount'), 'info');
-      navigate('/', { replace: true });
       return;
     }
     (async () => {
