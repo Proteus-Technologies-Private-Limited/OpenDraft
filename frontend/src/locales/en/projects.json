@@ -1,4 +1,13 @@
 {
+  "sync": {
+    "start": "Sync with OpenDraft Cloud",
+    "stop": "Stop syncing",
+    "description": "Sync screenplays with your cloud account. Your device copy stays here.",
+    "waiting": "Waiting for cloud sync",
+    "conflict": "Some screenplays have conflicting copies. Both copies are kept.",
+    "account": "Sign in to the same cloud account to resume syncing.",
+    "linked": "Projects with linked files cannot use cloud sync."
+  },
   "welcome": {
     "subtitle": "Professional screenwriting, open source.",
     "tipClick": "Click the editor and start writing",

@@ -1,10 +1,12 @@
 import json
 import re
 import shutil
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
 from dulwich.repo import Repo as DulwichRepo
+from filelock import FileLock
 
 from app.config import get_projects_dir
 
@@ -35,6 +37,30 @@ def create_project(name: str) -> dict:
     if project_dir.exists():
         raise FileExistsError(f"Project '{project_id}' already exists")
 
+    return _initialize_project(project_dir, project_id, name)
+
+
+def ensure_device_project(binding_id: str, name: str) -> dict:
+    """Publish a complete counterpart once under the writer's account."""
+    if not name.strip():
+        raise ValueError("The project needs a name")
+    _ensure_projects_dir()
+    project_id = f"sync-{binding_id}"
+    projects = get_projects_dir()
+    locks = projects / ".locks"
+    locks.mkdir(exist_ok=True)
+    target = projects / project_id
+    with FileLock(str(locks / project_id), timeout=10):
+        if target.exists():
+            return get_project(project_id)
+        with tempfile.TemporaryDirectory(dir=locks) as staging:
+            directory = Path(staging) / "project"
+            data = _initialize_project(directory, project_id, name)
+            directory.rename(target)
+            return data
+
+
+def _initialize_project(project_dir: Path, project_id: str, name: str) -> dict:
     # Create directory structure
     project_dir.mkdir(parents=True)
     (project_dir / "scripts").mkdir()

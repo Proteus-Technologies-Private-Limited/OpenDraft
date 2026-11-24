@@ -1,4 +1,13 @@
 {
+  "sync": {
+    "start": "Sincronizar com o OpenDraft Cloud",
+    "stop": "Parar de sincronizar",
+    "description": "Sincronize roteiros com sua conta na nuvem. A cópia deste dispositivo fica aqui.",
+    "waiting": "Aguardando sincronização com a nuvem",
+    "conflict": "Alguns roteiros têm cópias em conflito. Ambas são mantidas.",
+    "account": "Entre na mesma conta na nuvem para retomar a sincronização.",
+    "linked": "Projetos com arquivos vinculados não podem ser sincronizados com a nuvem."
+  },
   "welcome": {
     "subtitle": "Roteiro profissional, código aberto.",
     "tipClick": "Clique no editor e comece a escrever",

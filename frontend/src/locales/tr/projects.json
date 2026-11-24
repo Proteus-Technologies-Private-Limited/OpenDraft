@@ -1,4 +1,13 @@
 {
+  "sync": {
+    "start": "OpenDraft Cloud ile eşitle",
+    "stop": "Eşitlemeyi durdur",
+    "description": "Senaryoları bulut hesabınızla eşitleyin. Cihazdaki kopyanız burada kalır.",
+    "waiting": "Bulut eşitlemesi bekleniyor",
+    "conflict": "Bazı senaryoların kopyaları çakışıyor. Her iki kopya da saklanır.",
+    "account": "Eşitlemeyi sürdürmek için aynı bulut hesabına giriş yapın.",
+    "linked": "Bağlantılı dosyaları olan projeler bulutla eşitlenemez."
+  },
   "welcome": {
     "subtitle": "Profesyonel senaryo yazımı, açık kaynak.",
     "tipClick": "Düzenleyiciye tıklayın ve yazmaya başlayın",

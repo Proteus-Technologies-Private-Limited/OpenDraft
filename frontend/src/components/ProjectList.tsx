@@ -21,6 +21,7 @@ import { FaCloud, FaDesktop, FaArrowLeft, FaFolder } from 'react-icons/fa';
 import { api } from '../services/api';
 import { cloudApi } from '../services/cloudApi';
 import { offlineCloud } from '../services/offlineCloud';
+import { activeCloudCounterparts } from '../services/deviceProjectSync';
 import { isWeb, isDesktopTauri } from '../services/platform';
 import { getApiBase } from '../config';
 import { useProjectStore } from '../stores/projectStore';
@@ -340,13 +341,15 @@ const ProjectList: React.FC = () => {
         return;
       }
       const client = source === 'cloud' ? offlineCloud : api;
-      const projectList = await client.listProjects();
+      let projectList = await client.listProjects();
       // Keep the cloud-project marker set in sync with what the server
       // currently returns. ProjectView reads this to dispatch reads/writes
       // to cloudApi.
       if (source === 'cloud') {
         if (useSettingsStore.getState().collabAuth.user?.id !== cloudUserId) return;
         syncCloudProjects(projectList.map((p) => p.id));
+        const counterparts = await activeCloudCounterparts().catch(() => new Set<string>());
+        projectList = projectList.filter(p => !counterparts.has(p.id));
       }
       const withCounts: ProjectWithCount[] = await Promise.all(
         projectList.map(async (p) => {

@@ -44,7 +44,7 @@ async function request<T>(path: string, options?: RequestInit, scope?: CloudRequ
   if (scope && !scope.isCurrent()) throw new Error('Cloud account or server changed');
   // Background uploads own their status and must not open a global login
   // prompt while the writer is editing a local script.
-  if (!res.ok && path.endsWith('/offline-content')) {
+  if (!res.ok && (path.endsWith('/offline-content') || path.includes('/device-sync/') || path.includes('/device-scripts/'))) {
     throw new ApiError(res.status, await res.json().catch(() => null), `Cloud API: ${res.status}`);
   }
   if (!res.ok) await handleNonOkResponse(res, 'Cloud API', scope?.isCurrent);
@@ -61,6 +61,17 @@ export const cloudApi = {
 
   createProject: (name: string) =>
     request<ProjectInfo>('/projects/', { method: 'POST', body: JSON.stringify({ name }) }),
+
+  ensureDeviceProject: (bindingId: string, name: string, scope: CloudRequestScope) =>
+    request<ProjectInfo>(`/projects/device-sync/${bindingId}`, {
+      method: 'PUT', body: JSON.stringify({ name }),
+    }, scope),
+
+  ensureDeviceScript: (projectId: string, scriptId: string,
+    data: { title: string; format: string; content: Record<string, unknown> }, scope: CloudRequestScope) =>
+    request<ScriptResponse>(`/projects/${projectId}/device-scripts/${scriptId}`, {
+      method: 'PUT', body: JSON.stringify(data),
+    }, scope),
 
   getProject: (id: string, scope?: CloudRequestScope) => request<ProjectInfo>(`/projects/${id}`, undefined, scope),
 

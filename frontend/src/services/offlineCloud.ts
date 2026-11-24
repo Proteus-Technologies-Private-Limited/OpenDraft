@@ -35,7 +35,7 @@ function scopeKey(auth: CollabAuth = useSettingsStore.getState().collabAuth): st
   return auth.user?.id && auth.accessToken ? JSON.stringify([getApiBase(), auth.user.id]) : null;
 }
 
-function scopeForCloud(): Scope | null {
+export function scopeForCloud(): Scope | null {
   const key = observeScope();
   const epoch = generation;
   return key ? { key, base: getApiBase(), isCurrent: () => observeScope() === key && generation === epoch } : null;
