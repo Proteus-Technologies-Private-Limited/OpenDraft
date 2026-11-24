@@ -1,5 +1,47 @@
-import { describe, expect, it } from 'vitest';
-import { withPanelIn, withoutPanel, type PanelWindowEntry } from './panelPopoutStore';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { refreshPanelDisplays, withPanelIn, withoutPanel, type PanelWindowEntry } from './panelPopoutStore';
+
+const platform = vi.hoisted(() => ({ tauri: true, mobile: false }));
+const tauriWindow = vi.hoisted(() => ({
+  availableMonitors: vi.fn(async () => []),
+  getCurrentWindow: vi.fn(() => ({
+    outerPosition: async () => ({ x: 0, y: 0 }),
+    outerSize: async () => ({ width: 800, height: 600 }),
+    innerPosition: async () => ({ x: 0, y: 0 }),
+    scaleFactor: async () => 1,
+  })),
+}));
+vi.mock('../services/platform', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../services/platform')>()),
+  isTauri: () => platform.tauri,
+  isMobileTauri: () => platform.mobile,
+}));
+vi.mock('@tauri-apps/api/window', () => tauriWindow);
+vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn(async () => undefined) }));
+
+describe('reading the displays for panel windows', () => {
+  beforeEach(() => {
+    tauriWindow.availableMonitors.mockClear();
+    tauriWindow.getCurrentWindow.mockClear();
+  });
+
+  it('never asks for the monitors in the phone and tablet apps', async () => {
+    // On iOS that query aborted the app at launch: tao's MonitorHandle
+    // asserts the main thread and Tauri answers it on a worker (2.16.0).
+    platform.tauri = true;
+    platform.mobile = true;
+    await refreshPanelDisplays();
+    expect(tauriWindow.availableMonitors).not.toHaveBeenCalled();
+    expect(tauriWindow.getCurrentWindow).not.toHaveBeenCalled();
+  });
+
+  it('still reads them in the desktop app', async () => {
+    platform.tauri = true;
+    platform.mobile = false;
+    await refreshPanelDisplays();
+    expect(tauriWindow.availableMonitors).toHaveBeenCalledTimes(1);
+  });
+});
 
 /** The grouping rules. Opening and closing the real windows is covered by the
  * browser test (test-script/panel-popout/regressions.py). */

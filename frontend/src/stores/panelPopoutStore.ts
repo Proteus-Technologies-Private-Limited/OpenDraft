@@ -98,7 +98,11 @@ function panelLog(level: 'info' | 'warn' | 'error', message: string, error?: unk
 }
 
 export async function refreshPanelDisplays(): Promise<void> {
-  if (!isTauri()) return;
+  // Phones and tablets have no panel windows to place. On iOS the monitor
+  // query is also fatal: tao's MonitorHandle asserts the main thread, Tauri's
+  // availableMonitors answers on a worker, and the panic aborts the app at
+  // launch (2.16.0 TestFlight).
+  if (!isTauri() || isMobileTauri()) return;
   try {
     const { getCurrentWindow } = await import('@tauri-apps/api/window');
     const editor = getCurrentWindow();

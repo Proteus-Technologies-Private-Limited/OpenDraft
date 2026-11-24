@@ -4586,6 +4586,10 @@ const MenuBar: React.FC<MenuBarProps> = ({
               <div className="about-section-title">What's New in 2.16.0</div>
               <div className="about-changelog">
               {/* i18n-ignore-start: release notes stay English in phase 1 */}
+              <div className="about-subsection-title">v2.16.1</div>
+              <ul className="about-list">
+                <li><strong>Opens Again</strong> &mdash; <NotOnApple apple="On iPhone and iPad, 2.16.0 closed as soon as the editor opened.">On some devices, 2.16.0 closed as soon as the editor opened.</NotOnApple> It opens normally again, with everything 2.16.0 brought.</li>
+              </ul>
               <div className="about-subsection-title">v2.16.0</div>
               <ul className="about-list">
                 <li><strong>Panels in Their Own Windows</strong> &mdash; Every panel has a pop-out button beside its close button: each Navigator tab, Notes, Character Profiles, Tags, Location Profiles, Scene Details, the Dialogue Tuner, Suggestions, Table Read and add-on panels. The panel in the new window is the same live panel &mdash; edit, search and jump to the script from it, and shortcuts such as Save work there. Once one window is open, the button can add another panel to it as a tab. The first time, a window opens right where the panel was, at the same size, and after that where you last left it. In the desktop app panel windows float above the script and hide while you are in another app. The same button, or closing the window, puts the panel back. This works in the desktop app and in desktop web browsers; on phones and tablets panels stay in the app.</li>
