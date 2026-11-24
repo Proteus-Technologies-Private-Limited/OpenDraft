@@ -95,7 +95,8 @@ dispatch2 = "=0.3.1"
 # versions wry 0.55 uses, so nothing new is compiled for these.
 objc2 = "=0.6.4"
 objc2-foundation = { version = "=0.3.2", default-features = false, features = ["std", "NSString", "NSObject", "NSDictionary", "NSArray", "NSNotification", "NSKeyValueObserving", "NSGeometry"] }
-objc2-app-kit = { version = "=0.3.2", default-features = false, features = ["std", "objc2-core-foundation", "NSApplication", "NSResponder", "NSWindow", "NSView", "NSScreen"] }
+objc2-app-kit = { version = "=0.3.2", default-features = false, features = ["std", "objc2-core-foundation", "block2", "NSApplication", "NSResponder", "NSWindow", "NSView", "NSScreen", "NSEvent"] }
+block2 = "=0.6.2"
 objc2-web-kit = { version = "=0.3.2", default-features = false, features = ["std", "objc2-app-kit", "WKWebView", "WKUIDelegate"] }
 
 [target.'cfg(target_os = "windows")'.dependencies]

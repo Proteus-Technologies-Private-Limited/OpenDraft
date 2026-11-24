@@ -90,7 +90,7 @@ pub fn close_for(editor: &str) {
 
 #[cfg(target_os = "macos")]
 mod imp {
-    use std::{cell::{Cell, RefCell}, ffi::c_void, ptr::null_mut};
+    use std::{cell::{Cell, RefCell}, ffi::c_void, ptr::{null_mut, NonNull}};
 
     use objc2::{
         define_class, msg_send,
@@ -98,7 +98,7 @@ mod imp {
         runtime::{AnyObject, NSObject, ProtocolObject},
         sel, ClassType, DefinedClass, MainThreadMarker, MainThreadOnly,
     };
-    use objc2_app_kit::{NSApplication, NSScreen, NSWindow, NSWindowDelegate};
+    use objc2_app_kit::{NSApplication, NSEvent, NSEventMask, NSScreen, NSWindow, NSWindowDelegate};
     use objc2_foundation::{
         ns_string, NSDictionary, NSKeyValueChangeKey, NSKeyValueObservingOptions, NSNotification,
         NSObjectNSKeyValueObserverRegistration, NSObjectProtocol, NSPoint, NSRect, NSSize, NSString,
@@ -110,6 +110,59 @@ mod imp {
     thread_local! {
         /// Adopted panel windows, oldest first. Main thread only.
         static PANELS: RefCell<Vec<Retained<PanelWindow>>> = const { RefCell::new(Vec::new()) };
+        /// Whether the click-through monitor is installed.
+        static CLICK_THROUGH: Cell<bool> = const { Cell::new(false) };
+    }
+
+    fn is_panel(window: &NSWindow) -> bool {
+        PANELS.with(|panels| {
+            panels.borrow().iter().any(|p| {
+                !p.ivars().closed.get()
+                    && p.ivars().window.load().is_some_and(|w| std::ptr::eq(&*w, window))
+            })
+        })
+    }
+
+    /// One click, not two, between a script window and its panel windows.
+    ///
+    /// AppKit spends the first click on a window that is not key making it
+    /// key, so with a panel in front, clicking a button in the script window
+    /// did nothing until it was clicked again (and the same the other way).
+    /// While the app is active, a mouse-down on one of its windows that is not
+    /// key, coming from or going to a panel window, makes that window key just
+    /// before AppKit sees the click, which then reaches the page. Coming from
+    /// another app, the first click still only brings OpenDraft forward, as
+    /// usual on a Mac.
+    fn install_click_through(mtm: MainThreadMarker) {
+        if CLICK_THROUGH.with(|on| on.replace(true)) {
+            return;
+        }
+        let block = block2::RcBlock::new(move |event: NonNull<NSEvent>| -> *mut NSEvent {
+            // SAFETY: AppKit passes a live event for the length of the call.
+            let ev = unsafe { event.as_ref() };
+            let app = NSApplication::sharedApplication(mtm);
+            if app.isActive() {
+                if let Some(target) = ev.window(mtm) {
+                    if !target.isKeyWindow() && target.canBecomeKeyWindow() {
+                        let from_panel = app.keyWindow().is_some_and(|key| is_panel(&key));
+                        if from_panel || is_panel(&target) {
+                            target.makeKeyAndOrderFront(None);
+                        }
+                    }
+                }
+            }
+            event.as_ptr()
+        });
+        let monitor = unsafe { NSEvent::addLocalMonitorForEventsMatchingMask_handler(NSEventMask::LeftMouseDown, &block) };
+        if monitor.is_none() {
+            eprintln!("[panels] Could not watch clicks; switching windows will take two clicks");
+            CLICK_THROUGH.with(|on| on.set(false));
+            return;
+        }
+        // Both live as long as the app: AppKit holds the monitor, and the
+        // block must outlive it.
+        std::mem::forget(monitor);
+        std::mem::forget(block);
     }
 
     pub struct Ivars {
@@ -147,6 +200,7 @@ mod imp {
         unsafe impl NSWindowDelegate for PanelWindow {
             #[unsafe(method(windowWillClose:))]
             fn window_will_close(&self, notification: &NSNotification) {
+                eprintln!("[panels] Window {:?} of {} closing", self.ivars().id.borrow(), self.ivars().editor);
                 self.closing();
                 if let Some(wry) = &self.ivars().wry_delegate {
                     if wry.respondsToSelector(sel!(windowWillClose:)) {
@@ -264,6 +318,7 @@ mod imp {
             eprintln!("[panels] Not on the main thread; panel window left as wry made it");
             return;
         };
+        install_click_through(mtm);
         let app = NSApplication::sharedApplication(mtm);
         let mut adopted = 0;
         for window in app.windows().iter() {
@@ -306,6 +361,7 @@ mod imp {
             newest.ivars().window.load()
         });
         let Some(window) = window else { return false };
+        eprintln!("[panels] Window {id} of {editor} named; placing at {frame:?}");
         if let (Some(frame), Some(height)) = (frame, main_display_height(mtm)) {
             let rect = NSRect::new(
                 NSPoint::new(frame.left, height - frame.top - frame.height),

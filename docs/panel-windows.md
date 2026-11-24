@@ -144,6 +144,19 @@ was left; `window.focus()` did nothing either. So in the desktop app:
 Where the app does not manage the window (`panel_window_opened` answers false:
 Windows), the page uses `screenX` and friends, as in a browser.
 
+**One click between windows (macOS).** AppKit spends the first click on a
+window that is not key making it key, so with a panel window in front, a
+button in the script window needed two clicks (and the same the other way). A
+local mouse-down monitor (`install_click_through`) makes the clicked window key
+just before AppKit handles the click when the app is already active and the
+click goes from or to a panel window. Clicking into OpenDraft from another app
+still only brings it forward, as usual on a Mac.
+
+**Logs.** The web view's console cannot be read in a release build, so the
+page's panel-window messages (`panelLog` in panelPopoutStore.ts) also go to the
+app's log through `panel_window_log`, with the native side's own `[panels]`
+lines: a window opened, named and placed, closed, and its panels returned.
+
 A panel window opened from inside another (a panel moved on to a new window)
 is opened by the editor window in the desktop app, which has the handler; in a
 browser it is opened by the window clicked in, since only that window has the

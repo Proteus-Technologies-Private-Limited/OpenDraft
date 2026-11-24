@@ -2956,6 +2956,14 @@ struct PanelFrame {
     frame: FrameArg,
 }
 
+/// A panel window message from the page, into the app's log: the web view's
+/// console cannot be read in a release build.
+#[tauri::command]
+fn panel_window_log(window: tauri::WebviewWindow, level: String, message: String) {
+    let message: String = message.chars().take(600).collect();
+    eprintln!("[{}] {} {}", window.label(), level, message);
+}
+
 /// Bring one of the calling editor window's panel windows forward. The page's
 /// own window.focus() does nothing for these windows in the macOS web view.
 #[tauri::command]
@@ -3321,6 +3329,7 @@ pub fn run() {
             focus_panel_window,
             panel_window_opened,
             panel_window_frames,
+            panel_window_log,
             set_window_title,
             set_native_menu_language,
             open_url,

@@ -78,6 +78,18 @@ async function invokeApp<T>(command: string, args?: Record<string, unknown>): Pr
   return invoke<T>(command, args);
 }
 
+/** Panel window messages, to the console and, in the desktop app, to the
+ * app's own log too (its web view's console is out of reach in a release). */
+function panelLog(level: 'info' | 'warn' | 'error', message: string, error?: unknown): void {
+  const text = `[panels] ${message}`;
+  if (level === 'info') console.info(text);
+  else if (error !== undefined) console[level](text, error);
+  else console[level](text);
+  if (!isTauri()) return;
+  const detail = error === undefined ? '' : ` ${error instanceof Error ? error.message : String(error)}`;
+  invokeApp('panel_window_log', { level, message: text + detail }).catch(() => { /* the log is best effort */ });
+}
+
 export async function refreshPanelDisplays(): Promise<void> {
   if (!isTauri()) return;
   try {
@@ -86,7 +98,7 @@ export async function refreshPanelDisplays(): Promise<void> {
     const [position, size, scale] = await Promise.all([editor.outerPosition(), editor.outerSize(), editor.scaleFactor()]);
     appEditorBounds = { left: position.x / scale, top: position.y / scale, width: size.width / scale, height: size.height / scale };
   } catch (error) {
-    console.warn('[panels] Could not read the editor window\'s place.', error);
+    panelLog('warn', 'Could not read the editor window\'s place.', error);
   }
   try {
     const { availableMonitors } = await import('@tauri-apps/api/window');
@@ -99,7 +111,7 @@ export async function refreshPanelDisplays(): Promise<void> {
       };
     });
   } catch (error) {
-    console.warn('[panels] Could not read the displays; panel windows open beside the editor.', error);
+    panelLog('warn', 'Could not read the displays; panel windows open beside the editor.', error);
   }
 }
 
@@ -161,7 +173,7 @@ function watchNativeFrames(): void {
           if (entry) writeBounds(entry.boundsKey, frame);
         }
       })
-      .catch((error) => console.warn('[panels] Could not read where the panel windows are:', error));
+      .catch((error) => panelLog('warn', 'Could not read where the panel windows are:', error));
     void refreshPanelDisplays();
   }, 1000);
 }
@@ -184,7 +196,7 @@ function prepare(id: string, boundsKey: string, win: Window, title: string, onGo
   const root = doc.querySelector<HTMLElement>('.panel-window-root')!;
   const stopMirror = mirrorDocument(document, doc);
   const keydown = (event: KeyboardEvent) => {
-    try { forwardShortcut(event, document); } catch (error) { console.error('[panels] Shortcut not passed on:', error); }
+    try { forwardShortcut(event, document); } catch (error) { panelLog('error', 'Shortcut not passed on:', error); }
   };
   doc.addEventListener('keydown', keydown);
   // Moving a window fires nothing, so its bounds are read now and then
@@ -222,13 +234,13 @@ function bringForward(id: string, win: Window, title?: string): void {
   try {
     if (title) win.document.title = title;
   } catch (error) {
-    console.warn('[panels] Could not title the panel window:', error);
+    panelLog('warn', 'Could not title the panel window:', error);
   }
   if (nativeFrames.has(id)) {
     invokeApp<boolean>('focus_panel_window', { id })
       .then((found) => { if (!found) win.focus(); })
       .catch((error) => {
-        console.warn('[panels] Could not bring the panel window forward:', error);
+        panelLog('warn', 'Could not bring the panel window forward:', error);
         try { win.focus(); } catch { /* focus is a courtesy */ }
       });
     return;
@@ -272,6 +284,7 @@ export const usePanelPopoutStore = create<PanelPopoutState>((set, get) => {
   /** Close a window that has lost its panels, and forget it. */
   const shut = (id: string) => {
     const entry = get().windows[id];
+    panelLog('info', `closing window ${id} (${entry?.panels.join(', ') ?? 'unknown'})`);
     // Where it was, before dispose() forgets the app's measure of it.
     if (entry) writeBounds(entry.boundsKey, boundsOf(id, entry.window));
     dispose(id);
@@ -283,7 +296,7 @@ export const usePanelPopoutStore = create<PanelPopoutState>((set, get) => {
       return { windows, placed };
     });
     if (!entry) return;
-    try { entry.window.close(); } catch (error) { console.warn('[panels] Could not close the panel window:', error); }
+    try { entry.window.close(); } catch (error) { panelLog('warn', 'Could not close the panel window:', error); }
   };
 
   return {
@@ -312,16 +325,17 @@ export const usePanelPopoutStore = create<PanelPopoutState>((set, get) => {
         // page's origin, so the window's document can be written to.
         win = opener.open('about:blank', `opendraft-panel-${id}`, popupFeatures(bounds));
       } catch (error) {
-        console.error('[panels] window.open failed:', error);
+        panelLog('error', 'window.open failed:', error);
       }
       if (!win) {
-        console.warn(`[panels] No window opened for "${panel}" (refused by the app or a pop-up blocker).`);
+        panelLog('warn', `No window opened for "${panel}" (refused by the app or a pop-up blocker).`);
         return false;
       }
       try {
         const opened = win;
         const root = prepare(id, panel, opened, title, () => {
           // The window went (closed by the writer): its panels go back.
+          panelLog('info', `window ${id} went; its panels go back`);
           dispose(id);
           set((s) => {
             if (s.windows[id]?.window !== opened) return s;
@@ -345,14 +359,15 @@ export const usePanelPopoutStore = create<PanelPopoutState>((set, get) => {
           nativeFrames.set(id, bounds);
           invokeApp<boolean>('panel_window_opened', { id, frame: bounds })
             .then((managed) => {
+              panelLog('info', `window ${id} (${panel}) opened at ${JSON.stringify(bounds)}; app manages it: ${managed}`);
               if (!managed) { nativeFrames.delete(id); return; }
               if (nativeFrames.has(id)) watchNativeFrames();
             })
-            .catch((error) => console.warn('[panels] The app did not take the panel window:', error));
+            .catch((error) => panelLog('warn', 'The app did not take the panel window:', error));
         }
         return true;
       } catch (error) {
-        console.error('[panels] Could not set up the panel window:', error);
+        panelLog('error', 'Could not set up the panel window:', error);
         dispose(id);
         try { win.close(); } catch { /* nothing to close */ }
         return false;
