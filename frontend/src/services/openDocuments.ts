@@ -95,7 +95,7 @@ function writeEntries(entries: Entry[]): void {
 /** Record what this window is showing. Pass null when it holds nothing. */
 export function claimOpenDocument(key: string | null, title: string): void {
   const label = currentWindowLabel();
-  if (!label) return;
+  if (!label || label.startsWith('panel-')) return;
 
   const others = readEntries().filter((e) => e.window !== label);
   writeEntries(
@@ -135,7 +135,7 @@ export async function findWindowWithDocument(
     return null;
   }
 
-  const liveLabels = new Set(live.map((w) => w.label));
+  const liveLabels = new Set(live.filter(w => !w.label.startsWith('panel-')).map((w) => w.label));
   const stale = entries.some((e) => !liveLabels.has(e.window));
   if (stale) writeEntries(entries.filter((e) => liveLabels.has(e.window)));
 

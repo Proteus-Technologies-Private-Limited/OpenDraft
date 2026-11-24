@@ -710,5 +710,13 @@
     "emptyShot": "(plano vazio)",
     "shotCostume": "Qual figurino {{name}} usa no plano {{n}}",
     "saveFailed": "Não foi possível salvar a cena. Tente novamente."
+  },
+  "popout": {
+    "move": "Mover o navegador de cenas para uma nova janela",
+    "return": "Voltar à janela principal",
+    "waiting": "Aguardando o roteiro…",
+    "unavailable": "A janela do roteiro não está mais disponível.",
+    "failed": "Não foi possível abrir o navegador em uma nova janela.",
+    "show": "Mostrar a janela do navegador"
   }
 }

@@ -9,6 +9,10 @@ use tauri_plugin_window_state::{StateFlags, WindowExt};
 
 const FILE_NAME: &str = "window-displays.json";
 
+fn persistent_placement(key: &str) -> bool {
+    matches!(key, "main" | "panel-main-navigator")
+}
+
 pub fn state_flags() -> StateFlags {
     // Visibility belongs to the splash transition. Decorations belong to the
     // platform. Position is handled here, and is never requested on Wayland.
@@ -16,10 +20,25 @@ pub fn state_flags() -> StateFlags {
 }
 
 pub fn tracked(label: &str) -> bool {
-    label == "main"
+    panel_key(label).is_some()
+        || label == "main"
         || label
             .strip_prefix("main-")
             .is_some_and(|n| !n.is_empty() && n.bytes().all(|c| c.is_ascii_digit()))
+}
+
+// Keep placement by owner/panel for the current session.
+fn panel_key(label: &str) -> Option<&str> {
+    let (key, counter) = label.rsplit_once('-')?;
+    let owner = key.strip_prefix("panel-")?.strip_suffix("-navigator")?;
+    (crate::panel_ownership::editor_label(owner)
+        && !counter.is_empty()
+        && counter.bytes().all(|c| c.is_ascii_digit()))
+    .then_some(key)
+}
+
+fn placement_key(label: &str) -> &str {
+    panel_key(label).unwrap_or(label)
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -198,7 +217,7 @@ fn record(window: &tauri::Window, p: Placement) {
     if let Some(state) = window.app_handle().try_state::<WindowDisplays>() {
         match state.windows.lock() {
             Ok(mut windows) => {
-                windows.insert(window.label().into(), p.into());
+                windows.insert(placement_key(window.label()).into(), p.into());
             }
             Err(error) => eprintln!("[window] Could not record normal bounds: {error}"),
         }
@@ -220,10 +239,10 @@ fn persist(app: &tauri::AppHandle) {
             return;
         }
     };
-    // Secondary geometry is only a session-local reference for New Window.
+    // Secondary editor and panel placements belong only to the current session.
     let saved: HashMap<_, _> = windows
         .iter()
-        .filter(|(label, _)| label.as_str() == "main")
+        .filter(|(label, _)| persistent_placement(label))
         .collect();
     let result = (|| -> Result<(), Box<dyn std::error::Error>> {
         std::fs::create_dir_all(path.parent().ok_or("no config directory")?)?;
@@ -239,9 +258,14 @@ fn persist(app: &tauri::AppHandle) {
 
 fn apply(window: &tauri::Window, p: &Placement) -> tauri::Result<()> {
     let scale = p.display.scale;
+    let (width, height): (f64, f64) = if panel_key(window.label()).is_some() {
+        (260.0, 240.0)
+    } else {
+        (800.0, 600.0)
+    };
     window.set_min_size(Some(tauri::LogicalSize::new(
-        800.0_f64.min(p.inner.0 as f64 / scale),
-        600.0_f64.min(p.inner.1 as f64 / scale),
+        width.min(p.inner.0 as f64 / scale),
+        height.min(p.inner.1 as f64 / scale),
     )))?;
     let position = PhysicalPosition::new(p.outer.x, p.outer.y);
     let size = PhysicalSize::new(p.inner.0, p.inner.1);
@@ -284,9 +308,14 @@ fn fit_saved(window: &tauri::Window, saved: &Placement) -> tauri::Result<()> {
         .primary_monitor()?
         .map(|m| display(&m))
         .or_else(|| displays.first().cloned());
-    if let Some(p) = primary
-        .and_then(|primary| policy::restore(saved, &displays, &primary, invisible_frame(window)))
-    {
+    let frame = invisible_frame(window);
+    if let Some(p) = primary.and_then(|primary| {
+        if panel_key(window.label()).is_some() {
+            policy::restore_panel(saved, &displays, &primary, frame)
+        } else {
+            policy::restore(saved, &displays, &primary, frame)
+        }
+    }) {
         apply(window, &p)?;
     }
     Ok(())
@@ -294,7 +323,7 @@ fn fit_saved(window: &tauri::Window, saved: &Placement) -> tauri::Result<()> {
 
 pub fn setup(app: &tauri::AppHandle) {
     let path = app.path().app_config_dir().ok().map(|p| p.join(FILE_NAME));
-    let windows = path
+    let mut windows = path
         .as_ref()
         .map(|path| {
             let load = || -> Result<HashMap<String, SavedPlacement>, Box<dyn std::error::Error>> {
@@ -318,6 +347,7 @@ pub fn setup(app: &tauri::AppHandle) {
             }
         })
         .unwrap_or_default();
+    windows.retain(|key, _| persistent_placement(key));
     app.manage(WindowDisplays {
         path,
         windows: Mutex::new(windows),
@@ -372,7 +402,11 @@ pub fn show_new(window: &tauri::WebviewWindow, origin: Option<&tauri::WebviewWin
             let current = display(&monitor);
             let frame = invisible_frame(source);
             p = policy::restore(&p, &[current.clone()], &current, frame)?;
-            policy::new_window(&p, frame)
+            if panel_key(window.label()).is_some() {
+                policy::new_panel(&p, frame)
+            } else {
+                policy::new_window(&p, frame)
+            }
         });
         if let Some(p) = p {
             apply(target, &p)?;
@@ -426,7 +460,7 @@ pub fn file_open_origin(app: &tauri::AppHandle) -> Option<tauri::WebviewWindow> 
         .or_else(|| {
             app.webview_windows()
                 .into_values()
-                .find(|window| tracked(window.label()))
+                .find(|window| crate::panel_ownership::editor_label(window.label()))
         })
 }
 
@@ -435,7 +469,9 @@ pub fn on_window_event(window: &tauri::Window, event: &tauri::WindowEvent) {
         return;
     }
     match event {
-        tauri::WindowEvent::Focused(true) => {
+        tauri::WindowEvent::Focused(true)
+            if crate::panel_ownership::editor_label(window.label()) =>
+        {
             if let Some(state) = window.app_handle().try_state::<WindowDisplays>() {
                 if let Ok(mut last) = state.last_focused.lock() {
                     *last = Some(window.label().into());
@@ -446,6 +482,9 @@ pub fn on_window_event(window: &tauri::Window, event: &tauri::WindowEvent) {
             if let Some(state) = window.app_handle().try_state::<WindowDisplays>() {
                 if let Ok(mut windows) = state.windows.lock() {
                     windows.remove(window.label());
+                    if crate::panel_ownership::editor_label(window.label()) {
+                        windows.remove(&format!("panel-{}-navigator", window.label()));
+                    }
                 }
             }
         }
@@ -478,6 +517,16 @@ mod tests {
         for label in ["splashscreen", "panel-main", "main-", "main-script"] {
             assert!(!tracked(label));
         }
+        assert!(tracked("panel-main-2-navigator-42"));
+        assert_eq!(
+            placement_key("panel-main-2-navigator-42"),
+            "panel-main-2-navigator"
+        );
+        assert_eq!(
+            placement_key("panel-main-2-navigator-43"),
+            "panel-main-2-navigator"
+        );
+        assert!(!tracked("panel-foreign-navigator-1"));
     }
 
     #[test]
@@ -517,5 +566,34 @@ mod tests {
         let mut bad = saved;
         bad.scale = 0.0;
         assert!(bad.placement().is_none());
+    }
+}
+
+/// Save normal panel geometry before native destruction, which has no close prompt.
+pub fn remember_panel(window: &tauri::WebviewWindow) {
+    remember(&window.as_ref().window());
+    persist(window.app_handle());
+}
+
+pub fn show_panel(window: &tauri::WebviewWindow, origin: &tauri::WebviewWindow) {
+    let saved = window
+        .app_handle()
+        .state::<WindowDisplays>()
+        .windows
+        .lock()
+        .map_err(|error| eprintln!("[window] Could not lock saved panel bounds: {error}"))
+        .ok()
+        .and_then(|windows| {
+            windows
+                .get(placement_key(window.label()))
+                .and_then(SavedPlacement::placement)
+        });
+    if let Some(saved) = saved {
+        if fit_saved(&window.as_ref().window(), &saved).is_err() {
+            eprintln!("[window] Could not restore panel bounds");
+        }
+        show_after_placement(window);
+    } else {
+        show_new(window, Some(origin));
     }
 }

@@ -710,5 +710,13 @@
     "emptyShot": "(plan vide)",
     "shotCostume": "Costume que porte {{name}} dans le plan {{n}}",
     "saveFailed": "Impossible d’enregistrer la scène. Réessayez."
+  },
+  "popout": {
+    "move": "Déplacer le navigateur de scènes dans une nouvelle fenêtre",
+    "return": "Revenir à la fenêtre principale",
+    "waiting": "En attente du scénario…",
+    "unavailable": "La fenêtre du scénario n’est plus disponible.",
+    "failed": "Impossible d’ouvrir le navigateur dans une nouvelle fenêtre.",
+    "show": "Afficher la fenêtre du navigateur"
   }
 }

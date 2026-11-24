@@ -1,4 +1,7 @@
 mod safe_file;
+mod panel_windows;
+#[cfg(desktop)]
+mod panel_ownership;
 #[cfg(desktop)]
 mod desktop_windows;
 #[cfg(desktop)]
@@ -2879,7 +2882,7 @@ fn ghost_window_labels() -> Vec<String> {
 async fn list_windows(app: tauri::AppHandle) -> Vec<WindowInfo> {
     app.webview_windows()
         .iter()
-        .filter(|(label, _)| *label != "splashscreen")
+        .filter(|(label, _)| *label != "splashscreen" && !label.starts_with("panel-"))
         .map(|(label, window)| WindowInfo {
             label: label.clone(),
             title: window.title().unwrap_or_else(|_| label.clone()),
@@ -3206,6 +3209,11 @@ pub fn run() {
             android_backup_delete,
             android_backup_probe,
             open_new_window,
+            panel_windows::open_panel_window,
+            panel_windows::panel_context,
+            panel_windows::publish_panel_snapshot,
+            panel_windows::panel_command,
+            panel_windows::close_panel_windows,
             supports_multiple_windows,
             list_windows,
             focus_window,
@@ -3257,9 +3265,19 @@ pub fn run() {
             .build(),
     );
 
+    #[cfg(desktop)]
+    let builder = builder.on_page_load(|webview, payload| {
+        if matches!(payload.event(), tauri::webview::PageLoadEvent::Started) {
+            panel_windows::close_owned(webview.app_handle(), webview.label());
+        }
+    });
+
     let builder = builder.setup(|app| {
             #[cfg(desktop)]
-            desktop_windows::setup(app.handle());
+            {
+                app.manage(panel_windows::Registry::default());
+                desktop_windows::setup(app.handle());
+            }
             // Native decorations exist now, before the splash transition and
             // independently of whether any web content commits successfully.
             // This also covers Linux file-association launches via CLI args.
@@ -3379,6 +3397,7 @@ pub fn run() {
         desktop_windows::on_window_event(window, event);
         if let tauri::WindowEvent::Destroyed = event {
             let app = window.app_handle();
+            panel_windows::destroyed(app, window.label());
             if let Some(menu) = app.menu() {
                 rebuild_window_menu(app, &menu);
             }

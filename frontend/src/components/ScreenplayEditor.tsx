@@ -73,6 +73,7 @@ import type { BandKind } from './HeaderFooterBand';
 import MenuBar from './MenuBar';
 import Toolbar from './Toolbar';
 import SceneNavigator from './SceneNavigator';
+import { notifyPanelDocumentReplacement, NavigatorPopoutContext, useNavigatorPopout } from '../hooks/useNavigatorPopout';
 import StoryMap from './StoryMap';
 import ScriptStatistics from './ScriptStatistics';
 import TableReadPanel from './TableReadPanel';
@@ -3250,6 +3251,8 @@ const ScreenplayEditor: React.FC = () => {
   // see autoSaveAppliesToOpenDocument.
   const autoSaveLibrary = useSettingsStore((s) => s.autoSaveLibrary);
   const openScriptFile = useLinkedFileStore((s) => s.openScriptFile);
+  const navigatorPopout = useNavigatorPopout(editor, currentScriptId);
+  const { keepForSavedScript } = navigatorPopout;
   const scriptIsLinked = Boolean(openScriptFile && openScriptFile.scriptId === currentScriptId);
   const autoSaveIntervalSeconds = useSettingsStore((s) => s.autoSaveIntervalSeconds);
   const lastSavedJsonRef = useRef<string>('');
@@ -3305,6 +3308,7 @@ const ScreenplayEditor: React.FC = () => {
           setEditorKey((k) => k + 1);
         } else if (editor && !editor.isDestroyed) {
           clearTrackChanges();
+          notifyPanelDocumentReplacement(editor);
           editor.commands.setContent(
             { type: 'doc', content: [{ type: 'sceneHeading', content: [] }] },
             true,
@@ -3497,6 +3501,7 @@ const ScreenplayEditor: React.FC = () => {
     spellChecker.beginDocument([BUILTIN_LANGUAGE]);
     if (editor) {
       // See File ▸ Close: an emptied document has no block to type into.
+      notifyPanelDocumentReplacement(editor);
       editor.commands.setContent({ type: 'doc', content: [{ type: 'action', content: [] }] }, true);
       clearEditorHistory(editor);
     }
@@ -3531,6 +3536,8 @@ const ScreenplayEditor: React.FC = () => {
     const sameDocument =
       snapshot.projectId === (currentProject?.id ?? null) &&
       snapshot.scriptId === currentScriptId;
+
+    notifyPanelDocumentReplacement(editor);
 
     editor.commands.setContent(pmDoc, true);
     clearEditorHistory(editor);
@@ -4073,6 +4080,7 @@ const ScreenplayEditor: React.FC = () => {
     const doc = takeSessionDoc(currentProject?.id ?? null, currentScriptId ?? null);
     if (!doc) return;
     try {
+      notifyPanelDocumentReplacement(editor);
       editor.commands.setContent(doc as Record<string, unknown>, false);
       clearEditorHistory(editor);
       setShowWelcome(false);
@@ -4143,6 +4151,7 @@ const ScreenplayEditor: React.FC = () => {
   // Reset the guard when the editor instance changes so we reload
   // content if TipTap recreates the editor.
   const loadedScriptRef = useRef<string | null>(null);
+  const savedRouteRef = useRef<{ editor: Editor; key: string } | null>(null);
   const [historyVersionLabel, setHistoryVersionLabel] = useState('');
   useEffect(() => {
     // Allow re-load for new editor instance, but NOT during collab —
@@ -4181,6 +4190,9 @@ const ScreenplayEditor: React.FC = () => {
     // (the editor only holds its default empty content, which would overwrite
     // the stored script if saved).
     const prevLoadKey = loadedScriptRef.current;
+    const savedHere = savedRouteRef.current?.editor === editor && savedRouteRef.current.key === loadKey;
+    savedRouteRef.current = null;
+    const notifyReplacement = () => { if (!savedHere) notifyPanelDocumentReplacement(editor); };
     loadedScriptRef.current = loadKey;
     clearTrackChanges();
     scriptSwitchingRef.current = true;
@@ -4240,15 +4252,19 @@ const ScreenplayEditor: React.FC = () => {
 
         try {
           if (pmDoc && Array.isArray(pmDoc.content) && pmDoc.content.length > 0) {
+            notifyReplacement();
             editor.commands.setContent(pmDoc);
           } else if (content && typeof content === 'object' && Object.keys(content).length > 0) {
+            notifyReplacement();
             editor.commands.setContent(content);
           } else {
+            notifyReplacement();
             editor.commands.setContent({ type: 'doc', content: [{ type: 'action', content: [] }] });
           }
         } catch (setErr) {
           console.error('setContent failed:', setErr);
           showToast(tg('editor:toast.renderFailed', { error: setErr instanceof Error ? setErr.message : String(setErr) }), 'error');
+          notifyReplacement();
           editor.commands.setContent({ type: 'doc', content: [{ type: 'action', content: [] }] });
         }
         clearEditorHistory(editor);
@@ -4808,15 +4824,19 @@ const ScreenplayEditor: React.FC = () => {
 
         try {
           if (content && typeof content === 'object' && 'type' in content && content.type === 'doc') {
+            notifyPanelDocumentReplacement(editor);
             editor.commands.setContent(stripSaveMetadata(content).pmDoc);
           } else if (content && typeof content === 'object' && Object.keys(content).length > 0) {
+            notifyPanelDocumentReplacement(editor);
             editor.commands.setContent(content);
           } else {
+            notifyPanelDocumentReplacement(editor);
             editor.commands.setContent({ type: 'doc', content: [{ type: 'action', content: [] }] });
           }
         } catch (setErr) {
           console.error('setContent failed, using blank doc:', setErr);
           showToast(tg('editor:toast.renderFailed', { error: setErr instanceof Error ? setErr.message : String(setErr) }), 'error');
+          notifyPanelDocumentReplacement(editor);
           editor.commands.setContent({ type: 'doc', content: [{ type: 'action', content: [] }] });
         }
         clearEditorHistory(editor);
@@ -4996,6 +5016,7 @@ const ScreenplayEditor: React.FC = () => {
     localStorage.setItem('opendraft:welcomed', 'true');
 
     if (choice === 'sample') {
+      notifyPanelDocumentReplacement(editor);
       editor?.commands.setContent(SAMPLE_CONTENT, true);
       if (editor) clearEditorHistory(editor);
     } else if (choice === 'import') {
@@ -5007,6 +5028,8 @@ const ScreenplayEditor: React.FC = () => {
 
         const { name } = result;
         const imported = await parseScreenplayImport(name, result.bytes ?? result.text ?? '');
+
+        notifyPanelDocumentReplacement(editor);
 
         editor.commands.setContent(imported.doc, true);
         clearEditorHistory(editor);
@@ -5074,6 +5097,8 @@ const ScreenplayEditor: React.FC = () => {
 
       const title = filename.replace(/\.\w+$/, '');
       const imported = await parseScreenplayImport(filename, bytes ?? text ?? '');
+
+      notifyPanelDocumentReplacement(editor);
 
       editor.commands.setContent(imported.doc, true);
       clearEditorHistory(editor);
@@ -5253,6 +5278,8 @@ const ScreenplayEditor: React.FC = () => {
       const title = file.name.replace(/\.\w+$/, '') || 'Untitled';
 
       const imported = await parseScreenplayImport(file.name, data);
+
+      notifyPanelDocumentReplacement(editor);
 
       editor.commands.setContent(imported.doc, true);
       clearEditorHistory(editor);
@@ -5502,6 +5529,7 @@ const ScreenplayEditor: React.FC = () => {
           ps.markCloudScript(projectId, scriptId);
         }
         setCurrentProject(project);
+        keepForSavedScript(scriptId);
         setCurrentScriptId(scriptId);
         setDocumentTitle(scriptTitle);
         // In a project kept in a folder the new script already has a file of
@@ -5523,6 +5551,9 @@ const ScreenplayEditor: React.FC = () => {
         // Only navigate to the project route if there's no deferred action
         // that will reset the editor state (e.g. New Screenplay)
         if (!hasDeferredAction) {
+          // The project route reloads the just-saved script into this editor.
+          // That reload belongs to the existing document and its Navigator.
+          if (editor) savedRouteRef.current = { editor, key: `${projectId}/${scriptId}` };
           navigate(`/project/${projectId}/edit/${scriptId}`, { replace: true });
         }
         showToast(destination === 'cloud' ? tg('editor:toast.savedToCloud') : tg('editor:toast.saved'), 'success');
@@ -5539,7 +5570,7 @@ const ScreenplayEditor: React.FC = () => {
         if (action) action();
       }
     },
-    [setSaveAsOpen, setCurrentProject, setCurrentScriptId, setDocumentTitle, navigate],
+    [editor, keepForSavedScript, setSaveAsOpen, setCurrentProject, setCurrentScriptId, setDocumentTitle, navigate],
   );
 
 
@@ -5848,7 +5879,7 @@ const ScreenplayEditor: React.FC = () => {
   };
   const dockPanels: Record<string, DockPanelDef> = {};
   if (dockLayout) {
-    for (const panel of BUILT_IN_PANELS) dockPanels[panel] = { open: panelOpenIn(panel, openFlags), render: () => null };
+    for (const panel of BUILT_IN_PANELS) dockPanels[panel] = { open: !(navigatorPopout.detached && panel === 'scenes') && panelOpenIn(panel, openFlags), render: () => null };
     dockPanels.notes.render = (w) => <ScriptNotes editor={editor} style={panelWidthStyle(w)} />;
     dockPanels.characters.render = (w) => <CharacterProfiles editor={editor} projectId={currentProject?.id || ''} style={panelWidthStyle(w)} />;
     dockPanels.tags.render = (w) => <TagsPanel editor={editor} style={panelWidthStyle(w)} />;
@@ -5924,6 +5955,7 @@ const ScreenplayEditor: React.FC = () => {
   };
 
   return (
+    <NavigatorPopoutContext.Provider value={navigatorPopout}>
     <div className={`app-container${isHistoryMode ? ' history-mode' : ''}${focusActive ? ` focus-mode${focusTypewriter ? ' focus-typewriter' : ''}${focusDim !== 'off' ? ' focus-dim' : ''}` : ''}`}>
       {isHistoryMode && (
         <div className="history-banner">
@@ -6656,6 +6688,7 @@ const ScreenplayEditor: React.FC = () => {
         </ModalOverlay>
       )}
     </div>
+    </NavigatorPopoutContext.Provider>
   );
 };
 

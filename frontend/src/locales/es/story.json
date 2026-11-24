@@ -710,5 +710,13 @@
     "emptyShot": "(plano vacío)",
     "shotCostume": "Qué vestuario lleva {{name}} en el plano {{n}}",
     "saveFailed": "No se pudo guardar la escena. Inténtalo de nuevo."
+  },
+  "popout": {
+    "move": "Mover el navegador de escenas a una ventana nueva",
+    "return": "Volver a la ventana principal",
+    "waiting": "Esperando el guion…",
+    "unavailable": "La ventana del guion ya no está disponible.",
+    "failed": "No se pudo abrir el navegador en una ventana nueva.",
+    "show": "Mostrar la ventana del navegador"
   }
 }

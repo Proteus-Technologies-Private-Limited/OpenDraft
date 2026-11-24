@@ -1,0 +1,13 @@
+.navigator-popout { height: 100dvh; display: flex; flex-direction: column; gap: 12px; padding: 16px; box-sizing: border-box; background: var(--fd-bg); color: var(--fd-text); overflow: hidden; }
+.navigator-popout-header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; border-bottom: 1px solid var(--fd-border); padding-bottom: 12px; }
+.navigator-popout-header h1 { flex: 1; margin: 0; font-size: 1rem; overflow-wrap: anywhere; }
+.navigator-popout button, .navigator-popout input { font: inherit; color: inherit; background: var(--fd-dialog-bg); border: 1px solid var(--fd-border); border-radius: 4px; padding: 8px; }
+.navigator-popout button { cursor: pointer; }
+.navigator-popout button:focus-visible, .navigator-popout input:focus-visible { outline: 2px solid var(--fd-accent, #679df6); outline-offset: 2px; }
+.navigator-popout-scenes { overflow: auto; min-height: 0; }
+.navigator-popout-scenes ol { list-style: none; margin: 0; padding: 3px; }
+.navigator-popout-scenes li { margin-bottom: 8px; }
+.navigator-popout-scenes button { display: flex; flex-direction: column; gap: 6px; text-align: start; width: 100%; border-inline-start-width: 4px; overflow-wrap: anywhere; }
+.navigator-popout-scenes button[aria-current] { outline: 2px solid var(--fd-accent, #679df6); outline-offset: -2px; font-weight: 600; }
+.navigator-popout-synopsis { font-weight: 400; color: var(--fd-text-muted); white-space: pre-wrap; }
+@media (forced-colors: active) { .navigator-popout-scenes button[aria-current] { outline-color: Highlight; } }

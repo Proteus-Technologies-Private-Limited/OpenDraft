@@ -22,6 +22,8 @@ jobs:
         run: |
           rustc --edition=2021 --test src-tauri/src/window_placement.rs -o "$RUNNER_TEMP/window-placement-tests"
           "$RUNNER_TEMP/window-placement-tests"
+          rustc --edition=2021 --test src-tauri/src/panel_ownership.rs -o "$RUNNER_TEMP/panel-ownership-tests"
+          "$RUNNER_TEMP/panel-ownership-tests"
 
   windows-rust:
     name: Windows (native compile check)

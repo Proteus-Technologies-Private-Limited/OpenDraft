@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "panels",
+  "description": "Event subscription permissions for panel windows",
+  "windows": ["panel-*"],
+  "permissions": ["core:event:allow-listen", "core:event:allow-unlisten"]
+}
