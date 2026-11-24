@@ -768,13 +768,13 @@ jobs:
 
           MANIFEST=$("$AAPT2" dump xmltree --file AndroidManifest.xml "$APK")
           for n in 1 2 3; do
-            if ! echo "$MANIFEST" | grep -q "com.proteus.opendraft.WindowActivity$n"; then
+            if ! grep -q "com.proteus.opendraft.WindowActivity$n" <<<"$MANIFEST"; then
               echo "::error::WindowActivity$n is not in the built APK — File > New Window would fail for users. See the manifest patch step."
               exit 1
             fi
           done
           # One file-association filter proves the CLI's injection ran too.
-          if ! echo "$MANIFEST" | grep -q "fountain"; then
+          if ! grep -q "fountain" <<<"$MANIFEST"; then
             echo "::error::No file-association intent-filter in the built APK — opening a screenplay from another app would fail."
             exit 1
           fi
@@ -2102,7 +2102,7 @@ jobs:
 
           MISSING=0
           for expected in "${EXPECTED_ASSETS[@]}"; do
-            if echo "$ASSETS" | grep -q "^${expected}$"; then
+            if grep -q "^${expected}$" <<<"$ASSETS"; then
               echo "  [OK] ${expected}"
             else
               echo "  [MISSING] ${expected}"
