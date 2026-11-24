@@ -1,4 +1,8 @@
 mod safe_file;
+#[cfg(desktop)]
+mod desktop_windows;
+#[cfg(desktop)]
+mod window_placement;
 #[cfg(target_os = "linux")]
 mod linux_titlebar;
 #[cfg(target_os = "macos")]
@@ -2941,7 +2945,9 @@ async fn focus_window(app: tauri::AppHandle, label: String) -> Result<(), String
 }
 
 #[tauri::command]
-async fn open_new_window(app: tauri::AppHandle) -> Result<(), String> {
+async fn open_new_window(app: tauri::AppHandle, window: tauri::WebviewWindow) -> Result<(), String> {
+    #[cfg(mobile)]
+    let _ = &window;
     if !app.supports_multiple_windows() {
         return Err("This device can only show one OpenDraft window at a time.".to_string());
     }
@@ -2977,6 +2983,7 @@ async fn open_new_window(app: tauri::AppHandle) -> Result<(), String> {
     {
         builder = builder
             .title("OpenDraft")
+            .visible(false)
             .inner_size(1280.0, 800.0)
             .min_inner_size(800.0, 600.0)
             .resizable(true);
@@ -2991,12 +2998,18 @@ async fn open_new_window(app: tauri::AppHandle) -> Result<(), String> {
     let _window = builder
         .build()
         .map_err(|e| format!("Failed to create window: {}", e))?;
-    // This async command runs on a worker; only its GTK access needs dispatch.
-    #[cfg(target_os = "linux")]
+    // Placement and GTK access both belong on the UI thread. Keep the new
+    // window hidden until it is fitted to the invoking window's display.
+    #[cfg(desktop)]
     {
         let target = _window.clone();
-        if let Err(error) = _window.run_on_main_thread(move || prepare_linux_titlebar(&target)) {
-            eprintln!("[window] Could not initialize Linux title bar: {error}");
+        if let Err(error) = _window.run_on_main_thread(move || {
+            #[cfg(target_os = "linux")]
+            prepare_linux_titlebar(&target);
+            desktop_windows::show_new(&target, Some(&window));
+        }) {
+            let _ = _window.close();
+            return Err(format!("Failed to place window: {error}"));
         }
     }
     #[cfg(target_os = "ios")]
@@ -3234,7 +3247,19 @@ pub fn run() {
             }
         });
 
+    #[cfg(desktop)]
+    let builder = builder.plugin(
+        tauri_plugin_window_state::Builder::default()
+            .with_state_flags(desktop_windows::state_flags())
+            // Restore the startup mode explicitly after applying normal bounds.
+            .skip_initial_state("main")
+            .with_filter(|label| label == "main")
+            .build(),
+    );
+
     let builder = builder.setup(|app| {
+            #[cfg(desktop)]
+            desktop_windows::setup(app.handle());
             // Native decorations exist now, before the splash transition and
             // independently of whether any web content commits successfully.
             // This also covers Linux file-association launches via CLI args.
@@ -3325,8 +3350,7 @@ pub fn run() {
                     std::thread::sleep(std::time::Duration::from_millis(500));
 
                     if let Some(main) = main_window {
-                        let _ = main.show();
-                        let _ = main.set_focus();
+                        desktop_windows::show_startup(&main);
                     }
                     if let Some(sp) = splash {
                         let _ = sp.close();
@@ -3352,6 +3376,7 @@ pub fn run() {
         }
     })
     .on_window_event(|window, event| {
+        desktop_windows::on_window_event(window, event);
         if let tauri::WindowEvent::Destroyed = event {
             let app = window.app_handle();
             if let Some(menu) = app.menu() {
@@ -3378,6 +3403,10 @@ pub fn run() {
         });
 
     app.run(|_app_handle, _event| {
+        #[cfg(desktop)]
+        if matches!(_event, tauri::RunEvent::Exit) {
+            desktop_windows::on_exit(_app_handle);
+        }
         // ── A window for a scene the system asked for (iPad, issue #63) ──
         //
         // Fires when iPadOS creates a scene OpenDraft did not ask for itself:
@@ -3469,14 +3498,17 @@ pub fn run() {
                         let count = WINDOW_COUNTER.fetch_add(1, Ordering::Relaxed);
                         let label = format!("main-{}", count);
                         let url = tauri::WebviewUrl::App("/".into());
+                        let origin = desktop_windows::file_open_origin(_app_handle);
                         match tauri::WebviewWindowBuilder::new(_app_handle, &label, url)
                             .title("OpenDraft")
+                            .visible(false)
                             .inner_size(1280.0, 800.0)
                             .min_inner_size(800.0, 600.0)
                             .resizable(true)
                             .build()
                         {
                             Ok(_new_win) => {
+                                desktop_windows::show_new(&_new_win, origin.as_ref());
                                 // Use emit_to with the label to target ONLY the new window.
                                 // WebviewWindow::emit() broadcasts to all windows.
                                 let handle = _app_handle.clone();
