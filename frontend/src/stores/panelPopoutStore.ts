@@ -17,6 +17,7 @@
  */
 import { create } from 'zustand';
 import { isTauri, isMobileTauri } from '../services/platform';
+import { availableMonitorsOnDesktop } from '../services/desktopWindowApi';
 import { cascade, mirrorDocument, forwardShortcut, parseBounds, placePanelWindow, popupFeatures,
   type DisplayArea, type WindowBounds } from '../utils/panelPopoutDom';
 
@@ -114,8 +115,7 @@ export async function refreshPanelDisplays(): Promise<void> {
     panelLog('warn', 'Could not read the editor window\'s place.', error);
   }
   try {
-    const { availableMonitors } = await import('@tauri-apps/api/window');
-    const monitors = await availableMonitors();
+    const monitors = await availableMonitorsOnDesktop();
     displays = monitors.map((m) => {
       const area = m.workArea ?? { position: m.position, size: m.size };
       return {

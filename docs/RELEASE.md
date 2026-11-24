@@ -37,6 +37,39 @@ only matters somewhere, or to keep a build out of Apple and Google review.
 
 **Before running**, manually update the "What's New" content (step 3 below) since that requires writing the changelog for the new version. The script refuses to start without it, because the GitHub release page is written from it.
 
+**Before running, launch the phone and tablet builds.** Look at what landed
+since the last tag (`git log vLAST..main`). Anything that touches windows,
+displays, native plugins or startup must be opened on the iOS simulator and
+the Android emulator, from the code being released, with a script open:
+
+```bash
+cd frontend && npm run build && cd ..
+APPLE_SIGNING_IDENTITY="-" frontend/node_modules/.bin/tauri ios build --target aarch64-sim --debug
+./test-script/ios_sim_launch_smoke.sh      # fresh simulator; fails on a crash or Rust panic
+```
+
+2.16.0 is why. A desktop-only feature (panel windows) asked for the displays
+as soon as the editor opened, on every platform. On iOS that aborts the app:
+tao's `MonitorHandle` asserts the main thread and Tauri answers
+`availableMonitors()` on a worker. It compiled, passed every test, went to
+TestFlight and App Review, and closed on every iOS launch. It had been checked
+only on macOS and in desktop browsers, and landed an hour before the tag.
+
+Three things now stand in the way of a repeat:
+
+- `ios-launch-check` in `release.yml` builds the tag for the simulator and runs
+  the same script; `submit-stores` and `publish-release` wait for it. The
+  `iOS` job in `test.yml` runs it on every push and pull request.
+- Desktop-only window queries (monitors, cursor position) go through
+  `frontend/src/services/desktopWindowApi.ts`, which answers without asking
+  on phones and tablets; `desktopWindowApi.test.ts` fails on a direct call.
+- The phone and tablet apps are not granted those commands:
+  `src-tauri/capabilities/default.json` spells out `core:default` without them
+  and `desktop.json` adds `core:default` back for macOS, Windows and Linux. A
+  stray call is refused with an error instead of taking the app down.
+
+Never submit to App Review or Play a build nobody has opened on that platform.
+
 **What the script does:**
 1. Updates version in all source files (tauri.conf.json, Cargo.toml, main.py, MenuBar.tsx, README, workflow, user manual)
 2. Updates Cargo.lock

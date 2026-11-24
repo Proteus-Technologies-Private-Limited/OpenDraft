@@ -1,0 +1,10 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "desktop",
+  "description": "Window queries that only work on a desktop: available, current and primary monitors, monitor from point and cursor position (all in core:default). The phone and tablet apps are not granted them, so a stray call is refused instead of aborting the iOS app. Calls go through frontend/src/services/desktopWindowApi.ts.",
+  "platforms": ["macOS", "windows", "linux"],
+  "windows": ["main", "main-*", "splashscreen"],
+  "permissions": [
+    "core:default"
+  ]
+}

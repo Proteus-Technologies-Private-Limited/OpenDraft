@@ -275,3 +275,14 @@ jobs:
         env:
           APPLE_SIGNING_IDENTITY: '-'
         run: frontend/node_modules/.bin/tauri ios build --target aarch64-sim --debug
+      # Compiling is not enough: 2.16.0 compiled cleanly and aborted on every
+      # iOS launch (a desktop-only monitor query; tao asserts the main thread).
+      - name: Launch in the iOS Simulator
+        run: ./test-script/ios_sim_launch_smoke.sh
+      - name: Upload the launch log and screenshot
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-launch
+          path: test-script/output/ios-launch
+          if-no-files-found: ignore
