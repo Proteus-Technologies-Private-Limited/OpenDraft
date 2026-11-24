@@ -115,9 +115,12 @@ html.phone .toolbar.toolbar-comfortable .has-labels .toolbar-btn,
 .dock-stack-cell + .dock-stack-cell { border-top: 1px solid var(--fd-border); }
 .dock-stack-cell > * { flex: 1 1 auto; min-height: 0; }
 .dock-group-tabs { display: flex; flex-direction: column; min-height: 0; height: 100%; }
-.dock-tab-strip {
-  display: flex; gap: 2px; padding: 3px 6px 0; flex-shrink: 0; overflow-x: auto;
+.dock-tab-bar {
+  display: flex; flex-shrink: 0; min-width: 0;
   border-bottom: 1px solid var(--fd-border); background: var(--fd-navigator-bg);
+}
+.dock-tab-strip {
+  display: flex; flex: 1 1 auto; min-width: 0; gap: 2px; padding: 3px 6px 0; overflow-x: auto;
 }
 .dock-tab {
   display: flex; align-items: center; gap: 5px; padding: 5px 9px;

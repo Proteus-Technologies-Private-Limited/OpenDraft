@@ -712,11 +712,14 @@
     "saveFailed": "Impossible d’enregistrer la scène. Réessayez."
   },
   "popout": {
-    "move": "Déplacer le navigateur de scènes dans une nouvelle fenêtre",
+    "movePanel": "Déplacer {{panel}} dans une nouvelle fenêtre",
+    "addTo": "Ajouter à la fenêtre {{window}}",
+    "moveMenu": "Déplacer {{panel}}…",
+    "windowTabs": "Panneaux de cette fenêtre",
+    "returnPanel": "Remettre {{panel}} dans la fenêtre principale",
     "return": "Revenir à la fenêtre principale",
-    "waiting": "En attente du scénario…",
-    "unavailable": "La fenêtre du scénario n’est plus disponible.",
-    "failed": "Impossible d’ouvrir le navigateur dans une nouvelle fenêtre.",
-    "show": "Afficher la fenêtre du navigateur"
+    "failed": "Impossible d’ouvrir une nouvelle fenêtre.",
+    "popupsHint": "Si les fenêtres pop-up sont bloquées pour ce site, autorisez-les et réessayez.",
+    "panelFailed": "Ce panneau n’a pas pu être affiché ici."
   }
 }

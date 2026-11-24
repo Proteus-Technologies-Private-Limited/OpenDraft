@@ -1,358 +1,391 @@
-"""Real browser windows and TipTap, with an explicitly simulated native IPC broker.
+"""Every panel moves into a window of its own, and back, in a real browser.
 
-Requires the normal Vite dev server and Python Playwright. No backend/account,
-physical monitor, new test dependency or production test route is needed.
+    python test-script/panel-popout/regressions.py
+
+The app is the real one: the built frontend/dist (served to the browser by
+Playwright's request interception: no server is started), or a running dev
+server when OPENDRAFT_TEST_URL is set, as CI does. No backend or account is
+needed; the few signed-out startup reads are answered here.
+
+Each panel is opened, popped out with the button in its own header, checked in
+its window (drawn there, gone from its dock, styled, live with the script),
+then sent back with the button in the window and again by closing the window.
+Several panels share a window: one joins another's window as a tab from the
+button's menu, moves on to a new window, and a shared window closed puts them
+all back. Also: a dropdown opened in a panel window opens there, a shortcut typed there
+reaches the editor window, the editor's theme follows into the window, and the
+windows close with the editor page.
+
+OPENDRAFT_BROWSER=webkit runs it in WebKit (Safari's engine). Screenshots go
+to test-script/output/panel-popout/ (or $OPENDRAFT_PANEL_OUTPUT).
 """
+from __future__ import annotations
 
-import asyncio
 import json
+import mimetypes
 import os
-from pathlib import Path
+import re
 import sys
+import traceback
+from pathlib import Path
 
-from playwright.async_api import async_playwright
+from playwright.sync_api import Page, sync_playwright
 
 ROOT = Path(__file__).resolve().parents[2]
-FRONTEND = ROOT / "frontend"
-URL = os.environ.get("OPENDRAFT_TEST_URL", "http://127.0.0.1:5173/").rstrip("/")
-OUTPUT = Path(
-    os.environ.get("OPENDRAFT_PANEL_OUTPUT", ROOT / "test-script/output/panel-popout")
-)
+DIST = ROOT / "frontend" / "dist"
+ORIGIN = "http://opendraft.test"
+URL = os.environ.get("OPENDRAFT_TEST_URL", "").rstrip("/") or ORIGIN
+OUTPUT = Path(os.environ.get("OPENDRAFT_PANEL_OUTPUT", ROOT / "test-script/output/panel-popout"))
+
+# Panel id, how the View menu names it, and the label its pop-out button uses.
+PANELS = [
+    ("scenes", None, "Scenes"),
+    ("notes", "Notes Panel", "Notes Panel"),
+    ("characters", "Character Profiles", "Character Profiles"),
+    ("tags", "Tags", "Tags"),
+    ("location-db", "Location Profiles", "Location Profiles"),
+    ("scene-details", "Scene Details", "Scene Details"),
+    ("tuner", "Dialogue Tuner", "Dialogue Tuner"),
+    ("suggestions", "Suggestions", "Suggestions"),
+]
+
+results: list[tuple[bool, str, str]] = []
+
+# The editor, found through React's fiber on the ProseMirror element, as the
+# menu-keyboard fixture does; works in a production build too.
+FIND_EDITOR = """() => {
+  let element = document.querySelector('.ProseMirror');
+  while (element && !window.testEditor) {
+    const key = Object.keys(element).find(k => k.startsWith('__reactFiber$'));
+    let fiber = key && element[key];
+    while (fiber) {
+      const editor = fiber.memoizedProps?.editor;
+      if (editor?.commands && editor.state) { window.testEditor = editor; break; }
+      fiber = fiber.return;
+    }
+    element = element.parentElement;
+  }
+  return !!window.testEditor;
+}"""
 
 
-async def run():
-    html = FRONTEND / "panel-popout-test.html"
-    module = FRONTEND / "panel-popout-harness.tsx"
-    if html.exists() or module.exists():
-        raise RuntimeError("Refusing to overwrite existing browser test entries")
-    module.write_text((Path(__file__).with_name("harness.tsx")).read_text())
-    html.write_text(
-        '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body><div id="root"></div><script type="module" src="/panel-popout-harness.tsx"></script></body></html>'
-    )
-    checks = []
+def check(ok: bool, name: str, detail: object = "") -> bool:
+    results.append((bool(ok), name, str(detail)[:400]))
+    print(("PASS  " if ok else "FAIL  ") + name + (f"  — {detail}" if detail != "" else ""), flush=True)
+    return bool(ok)
+
+
+def snap(target: Page, name: str) -> None:
+    """Evidence, not a check. Chromium under Playwright does not route a blank
+    popup's own requests (its web fonts), so a screenshot there can wait on
+    fonts for ever; it gets a few seconds."""
     try:
-        async with async_playwright() as playwright:
-            name = os.environ.get("OPENDRAFT_BROWSER", "chromium")
-            browser_type = getattr(playwright, name)
-            options = {"headless": True}
-            if name == "chromium" and os.environ.get("OPENDRAFT_CHROMIUM"):
-                options["executable_path"] = os.environ["OPENDRAFT_CHROMIUM"]
-            if name == "webkit" and os.environ.get("OPENDRAFT_WEBKIT_EXECUTABLE"):
-                options["executable_path"] = os.environ["OPENDRAFT_WEBKIT_EXECUTABLE"]
-            browser = await browser_type.launch(**options)
-            context = await browser.new_context(viewport={"width": 440, "height": 800})
-            pages, listeners, panels, snapshots, errors, calls = {}, {}, {}, [], [], []
-            counter = 0
-            edit_before_navigation = None
-            all_panels_closed = asyncio.Event()
-            all_panels_closed.set()
+        target.screenshot(path=str(OUTPUT / name), timeout=8_000)
+    except Exception as error:  # noqa: BLE001
+        print(f"      (no screenshot {name}: {str(error).splitlines()[0]})")
 
-            async def deliver(label, event, payload, *, owner_edit=None):
-                page = pages.get(label)
-                if page is None or page.is_closed():
-                    return
-                for identifier in list(listeners.get((label, event), [])):
-                    await page.evaluate(
-                        """([id, event, payload, ownerEdit]) => {
-                            if (ownerEdit) window.panelTest[ownerEdit]();
-                            window.__panelCallbacks.get(id)?.({id, event, payload});
-                        }""",
-                        [identifier, event, payload, owner_edit],
-                    )
 
-            async def close_panel(label):
-                panel = panels.pop(label, None)
-                if panel:
-                    page = pages[label]
-                    if not page.is_closed():
-                        await page.close()
-                    await deliver(
-                        panel["owner"], "panel-closed", {"session": panel["session"]}
-                    )
-                    if not panels:
-                        all_panels_closed.set()
+def serve_dist(route, request):
+    path = request.url[len(ORIGIN):].split("?")[0].split("#")[0]
+    if path.startswith("/api/"):
+        return answer_api(route, path)
+    file = (DIST / path.lstrip("/")).resolve()
+    if not str(file).startswith(str(DIST.resolve())) or not file.is_file():
+        file = DIST / "index.html"  # the app's own routes
+    kind = mimetypes.guess_type(file.name)[0] or "application/octet-stream"
+    if file.suffix in (".js", ".mjs"):
+        kind = "text/javascript"
+    route.fulfill(status=200, body=file.read_bytes(), headers={"content-type": kind})
 
-            async def create(label, role):
-                page = await context.new_page()
-                pages[label] = page
-                page.on("pageerror", lambda error: errors.append(str(error)))
-                await page.expose_binding("__panelNative", native)
-                await page.add_init_script(
-                    """label => {
-                    window.__panelLabel = label;
-                    window.__panelCallbacks = new Map();
-                    let callbackId = 0;
-                    window.__TAURI_INTERNALS__ = {
-                        metadata: { currentWindow: { label }, currentWebview: { label } },
-                        transformCallback(fn) { const id = ++callbackId; window.__panelCallbacks.set(id, fn); return id; },
-                        invoke(command, args) { return window.__panelNative(command, args || {}); }
-                    };
-                    window.__TAURI_EVENT_PLUGIN_INTERNALS__ = { unregisterListener() {} };
-                }""".replace(
-                        "label => {",
-                        "(() => { const label = " + json.dumps(label) + ";",
-                        1,
-                    ).replace(
-                        "\n                }", "\n                })()", 1
-                    )
-                )
-                # The child uses the actual application startup entry. Only
-                # the owner is a minimal real-TipTap harness.
-                await page.goto(
-                    f"{URL}/"
-                    if role == "panel"
-                    else f"{URL}/panel-popout-test.html?role=owner"
-                )
-                return page
 
-            async def native(source, command, args):
-                nonlocal counter, edit_before_navigation
-                page = source["page"]
-                label = await page.evaluate("window.__panelLabel")
-                calls.append(command)
-                if command == "plugin:event|listen":
-                    assert args["target"] == {"kind": "WebviewWindow", "label": label}
-                    # Force registration to lag context/open replies, exercising
-                    # the readiness handshake instead of relying on IPC order.
-                    await asyncio.sleep(0.05)
-                    listeners.setdefault((label, args["event"]), []).append(
-                        args["handler"]
-                    )
-                    return args["handler"]
-                if command == "plugin:event|unlisten":
-                    values = listeners.get((label, args["event"]), [])
-                    if args["eventId"] in values:
-                        values.remove(args["eventId"])
-                    return None
-                if command == "set_native_menu_language":
-                    return None
-                if command == "open_panel_window":
-                    for existing, info in list(panels.items()):
-                        if (
-                            info["owner"] == label
-                            and info["session"] == args["session"]
-                        ):
-                            return existing
-                    assert args["title"].endswith(" — Synthetic screenplay")
-                    counter += 1
-                    child = f"panel-{label}-navigator-{counter}"
-                    all_panels_closed.clear()
-                    panels[child] = {"owner": label, "session": args["session"]}
-                    await create(child, "panel")
-                    return child
-                if command == "panel_context":
-                    return panels[label]
-                if command == "publish_panel_snapshot":
-                    snapshots.append(args["snapshot"])
-                    for child, info in list(panels.items()):
-                        if info == {"owner": label, "session": args["session"]}:
-                            await deliver(child, "panel-snapshot", args["snapshot"])
-                    return None
-                if command == "panel_command":
-                    info = panels[label]
-                    if args["action"]["kind"] == "return":
-                        # Return IPC must finish before closing its sender page.
-                        asyncio.get_running_loop().call_soon(
-                            lambda: asyncio.create_task(close_panel(label))
-                        )
-                    else:
-                        owner_edit = None
-                        if args["action"]["kind"] == "navigate":
-                            owner_edit, edit_before_navigation = edit_before_navigation, None
-                        await deliver(
-                            info["owner"],
-                            "panel-command",
-                            {"session": info["session"], "action": args["action"]},
-                            owner_edit=owner_edit,
-                        )
-                    return None
-                if command == "close_panel_windows":
-                    for child, info in list(panels.items()):
-                        if info == {"owner": label, "session": args["session"]}:
-                            await close_panel(child)
-                    return None
-                raise AssertionError(f"Unexpected native call: {command}")
+def answer_api(route, path: str):
+    known = {
+        "/api/demo-info": {"demo": False, "message": None},
+        "/api/formatting-templates/": [],
+        "/api/auth/config": {"googleEnabled": False, "emailVerificationRequired": False, "smtpConfigured": False},
+    }
+    if path in known:
+        return route.fulfill(json=known[path])
+    route.fulfill(status=404, json={"detail": "Not found"})
 
-            owner = await create("main", "owner")
-            await owner.wait_for_function("window.panelTest")
-            before, undo = await owner.evaluate("[panelTest.doc(), panelTest.undo()]")
-            assert not panels, "Opening an editor must not open a panel"
-            await owner.get_by_role("button", name="Open Navigator").click()
-            await owner.wait_for_function(
-                "document.querySelector('#detached').textContent === 'true'"
-            )
-            panel_label = next(iter(panels))
-            panel = pages[panel_label]
-            await panel.get_by_role("button", name="2. EXT. STREET - NIGHT").wait_for()
-            await panel.get_by_role("button", name="2. EXT. STREET - NIGHT").focus()
-            await panel.keyboard.press("Enter")
-            await owner.wait_for_function("panelTest.selection() > 20")
-            assert await owner.evaluate("[panelTest.doc(), panelTest.undo()]") == [
-                before,
-                undo,
-            ]
-            checks.append("panel navigation preserves document and undo history")
-            await panel.locator('[aria-current="location"]').filter(
-                has_text="EXT. STREET"
-            ).wait_for()
-            await owner.evaluate("panelTest.select(2)")
-            await panel.locator('[aria-current="location"]').filter(
-                has_text="INT. ROOM"
-            ).wait_for()
-            assert "scenes" not in snapshots[-1]
-            checks.append("owner caret updates without sending scene summaries")
-            # Move the second heading in the same event loop turn as the command,
-            # before the owner can publish any snapshot for the edit.
-            previous_scene_position = await owner.evaluate(
-                "panelTest.secondScenePosition()"
-            )
-            edit_before_navigation = "insertInBody"
-            await panel.get_by_role("button", name="2. EXT. STREET - NIGHT").click()
-            await owner.wait_for_function(
-                "previous => panelTest.selection() === panelTest.secondScenePosition() && panelTest.selection() > previous",
-                arg=previous_scene_position,
-            )
-            await panel.locator('[aria-current="location"]').filter(
-                has_text="EXT. STREET"
-            ).wait_for()
-            assert "scenes" not in snapshots[-1]
-            checks.append(
-                "clicks during body edits resolve the latest heading position without resending scenes"
-            )
-            first_revision = snapshots[-1]["revision"]
-            await owner.evaluate("panelTest.saveToLibrary(); panelTest.saveToFile()")
-            await owner.evaluate("panelTest.saveCopy()")
-            await owner.evaluate("panelTest.insertInBody(); panelTest.select(2)")
-            for _ in range(100):
-                if snapshots[-1]["revision"] > first_revision:
-                    break
-                await asyncio.sleep(0.02)
-            assert snapshots[-1]["revision"] > first_revision
-            assert "scenes" not in snapshots[-1]
-            assert await owner.locator("#detached").inner_text() == "true"
-            assert not panel.is_closed()
-            await panel.get_by_role("button", name="2. EXT. STREET - NIGHT").click()
-            await owner.wait_for_function("panelTest.selection() > 20")
-            checks.append("saving or linking the current document keeps the panel open and body edits omit scenes")
-            await panel.get_by_role("searchbox").fill("Footsteps")
-            assert await panel.locator("nav button").count() == 1
-            await panel.locator("nav button").click()
-            await owner.wait_for_function("panelTest.selection() > 20")
-            await panel.get_by_role("searchbox").fill("")
-            checks.append("filtered navigation retains original scene index")
-            old = snapshots[-1]
-            edit_before_navigation = "editFirstHeading"
-            await panel.get_by_role("button", name="2. EXT. STREET - NIGHT").click()
-            await panel.get_by_role(
-                "button", name="1. INT. UPDATED ROOM - DAY"
-            ).wait_for()
-            assert await owner.evaluate("panelTest.selection() < panelTest.secondScenePosition()")
-            await owner.evaluate("panelTest.rewriteSameDocument()")
-            await panel.get_by_role(
-                "button", name="1. INT. UPDATED ROOM - DAY"
-            ).wait_for()
-            position = await owner.evaluate("panelTest.selection()")
-            assert await owner.locator("#detached").inner_text() == "true"
-            assert not panel.is_closed()
-            checks.append(
-                "whole-document edit in the same session keeps the panel open"
-            )
-            await deliver(
-                "main",
-                "panel-command",
-                {
-                    "session": old["session"],
-                    "action": {
-                        "kind": "navigate",
-                        "sceneRevision": old["sceneRevision"],
-                        "index": 1,
-                    },
-                },
-            )
-            assert await owner.evaluate("panelTest.selection()") == position
-            checks.append("scene list changes invalidate old clicks before and after publishing")
-            await owner.evaluate("panelTest.appearance('light')")
-            await panel.wait_for_function(
-                "document.documentElement.dataset.theme === 'light'"
-            )
-            await owner.evaluate("panelTest.language('ar')")
-            await panel.wait_for_function(
-                "document.documentElement.dir === 'rtl' && document.documentElement.lang === 'ar'"
-            )
-            await owner.evaluate(
-                "panelTest.language('en'); panelTest.appearance('dark')"
-            )
-            await panel.wait_for_function(
-                "document.documentElement.dir === 'ltr' && document.documentElement.dataset.theme === 'dark'"
-            )
-            checks.append("theme and language follow the owner")
-            OUTPUT.mkdir(parents=True, exist_ok=True)
-            await panel.screenshot(path=str(OUTPUT / f"navigator-{name}.png"))
-            current = snapshots[-1]
-            await deliver(
-                panel_label,
-                "panel-snapshot",
-                {**current, "sequence": current["sequence"] - 1, "title": "Old title"},
-            )
-            assert await panel.locator("h1").inner_text() == "Synthetic screenplay"
-            checks.append("out-of-order snapshot is ignored")
-            assert not await owner.evaluate("panelTest.navigatorOpen()")
-            await owner.evaluate("panelTest.hideNavigator()")
-            await panel.get_by_role("button", name="Return to Main Window").click()
-            await owner.wait_for_function(
-                "document.querySelector('#detached').textContent === 'false'"
-            )
-            await asyncio.wait_for(all_panels_closed.wait(), timeout=10)
-            assert not panels
-            assert await owner.evaluate("panelTest.navigatorOpen()")
-            checks.append("return closes panel and restores owner dock state")
-            await owner.get_by_role("button", name="Open Navigator").click()
-            await owner.wait_for_function(
-                "document.querySelector('#detached').textContent === 'true'"
-            )
-            await owner.evaluate("panelTest.hideNavigator(); panelTest.switch()")
-            await owner.wait_for_function(
-                "document.querySelector('#detached').textContent === 'false'"
-            )
-            await asyncio.wait_for(all_panels_closed.wait(), timeout=10)
-            assert not panels
-            await owner.get_by_role("button", name="Open Navigator").click()
-            await owner.wait_for_function(
-                "document.querySelector('#detached').textContent === 'true'"
-            )
-            assert await owner.evaluate("panelTest.navigatorOpen()")
-            await owner.evaluate("panelTest.hideNavigator(); panelTest.replace()")
-            await owner.wait_for_function(
-                "document.querySelector('#detached').textContent === 'false'"
-            )
-            await asyncio.wait_for(all_panels_closed.wait(), timeout=10)
-            assert not panels
-            assert await owner.evaluate("panelTest.navigatorOpen()")
-            checks.append("switch and replacement close the old window and restore the dock")
-            assert not errors, errors
-            assert not any("sql" in call or "save" in call for call in calls), calls
-            checks.append("no save or SQL initialization in the panel flow")
-            await browser.close()
-            (OUTPUT / f"results-{name}.json").write_text(
-                json.dumps(
-                    {
-                        "browser": name,
-                        "checks": checks,
-                        "native_transport": "simulated; real browser windows, TipTap and application hooks",
-                        "errors": errors,
-                    },
-                    indent=2,
-                )
-            )
-            print(
-                json.dumps(
-                    {"browser": name, "passed": len(checks), "checks": checks}, indent=2
-                )
-            )
-    finally:
-        html.unlink(missing_ok=True)
-        module.unlink(missing_ok=True)
+
+def open_from_view_menu(page: Page, label: str):
+    """View › Panels › <label>."""
+    page.keyboard.press("Escape")
+    page.get_by_role("menubar").get_by_role("menuitem", name="View", exact=True).click()
+    panels = page.locator("[role=menu] [role^=menuitem]:visible").filter(has_text=re.compile(r"^\W*Panels\b")).first
+    panels.wait_for(timeout=5_000)
+    panels.hover()
+    item = page.locator("[role=menu] [role^=menuitem]").filter(has_text=re.compile(rf"^\W*{re.escape(label)}\W*$")).first
+    try:
+        item.wait_for(state="visible", timeout=2_000)
+    except Exception:
+        panels.focus()
+        page.keyboard.press("ArrowRight")
+        item.wait_for(state="visible", timeout=3_000)
+    item.click()
+
+
+def dock_has(page: Page, panel: str) -> bool:
+    if panel == "scenes":
+        # Its tab, in the dock's Navigator: the other Navigator tabs stay there.
+        return page.locator(".workspace-dock .navigator-tab, .workspace-dock .dock-tab").filter(has_text=re.compile(r"^\s*Scenes\s*$")).count() > 0
+    # "Move … to a new window", or "Move ……" once other panel windows are open.
+    return page.locator(f".workspace-dock [data-panel-popout=open][aria-label^='Move {label_of(panel)}']").count() > 0
+
+
+def label_of(panel: str) -> str:
+    return next(label for p, _, label in PANELS if p == panel)
+
+
+def fills_window(popup: Page) -> dict:
+    """The panel's own width against its window's: the narrow-screen overlay
+    rules must not shrink or slide it (they did, before panelPopout.css)."""
+    return popup.evaluate("""() => {
+      const el = document.querySelector('.panel-window > *');
+      const r = el.getBoundingClientRect();
+      return { panel: Math.round(r.width), left: Math.round(r.left), window: innerWidth, position: getComputedStyle(el).position };
+    }""")
+
+
+def pop_out(page: Page, panel: str) -> Page:
+    button = page.locator(f"[data-panel-popout=open][aria-label='Move {label_of(panel)} to a new window']").first
+    button.wait_for(timeout=10_000)
+    with page.context.expect_page(timeout=10_000) as popup_info:
+        button.click()
+    popup = popup_info.value
+    popup.locator(f".panel-window[data-panel='{panel}']").wait_for(timeout=10_000)
+    return popup
+
+
+def run() -> int:
+    OUTPUT.mkdir(parents=True, exist_ok=True)
+    engine = os.environ.get("OPENDRAFT_BROWSER", "chromium")
+    if URL == ORIGIN and not (DIST / "index.html").is_file():
+        print("Build the frontend first (cd frontend && npm run build), or set OPENDRAFT_TEST_URL.")
+        return 2
+    with sync_playwright() as playwright:
+        if engine == "webkit":
+            browser = playwright.webkit.launch()
+        else:
+            browser = playwright.chromium.launch(
+                executable_path=os.environ.get("OPENDRAFT_CHROMIUM") or None, args=["--no-sandbox"])
+        context = browser.new_context(viewport={"width": 1440, "height": 960})
+        errors: list[str] = []
+        step = lambda: results[-1][1] if results else "startup"  # noqa: E731
+        context.on("page", lambda p: p.on("pageerror", lambda e: errors.append(f"{p.url} after '{step()}': {e}")))
+        if URL == ORIGIN:
+            context.route(f"{ORIGIN}/**", serve_dist)
+        else:
+            context.route("http://127.0.0.1:8008/api/**", lambda route, request: answer_api(route, "/api" + request.url.split("/api", 1)[1].split("?")[0]))
+        context.add_init_script("""
+            if (window.opener === null && location.href !== 'about:blank') {
+              localStorage.setItem('opendraft:viewState', JSON.stringify({navigatorOpen: true}));
+              localStorage.setItem('opendraft:hiddenModeIntroShown', '1');
+            }
+        """)
+        page = context.new_page()
+        page.on("pageerror", lambda e: errors.append(f"editor after '{step()}': {e}"))
+        try:
+            page.goto(URL + "/")
+            page.locator(".editor-main").wait_for(timeout=30_000)
+            blank = page.get_by_role("button", name="Blank Document", exact=False)
+            if blank.count():
+                blank.first.click()
+            editor = page.locator(".ProseMirror").first
+            editor.wait_for()
+            page.evaluate(FIND_EDITOR)
+            page.evaluate("""() => testEditor.commands.setContent({type: 'doc', content: [
+              {type: 'sceneHeading', content: [{type: 'text', text: 'INT. KITCHEN - DAY'}]},
+              {type: 'action', content: [{type: 'text', text: 'Rain on the window.'}]}]}, true)""")
+            page.wait_for_timeout(600)
+            snap(page, f"{engine}-editor.png")
+
+            # ── The Navigator, in detail ──
+            check(page.locator(".navigator-tabs [data-panel-popout=open]").count() == 1,
+                  "the Navigator has a pop-out button in its own header")
+            check(page.get_by_role("menuitem", name=re.compile("New Window", re.I)).count() == 0
+                  and page.locator("text=Move Scene Navigator").count() == 0,
+                  "there is no separate pop-out menu command")
+            popup = pop_out(page, "scenes")
+            check(True, "Scenes opens in a window of its own")
+            check(re.search(r"Scenes", popup.title()) is not None, "the window is named for the panel", popup.title())
+            page.wait_for_timeout(400)
+            check(not dock_has(page, "scenes"), "the editor's dock no longer shows it")
+            scene_text = popup.locator(".panel-window").inner_text()
+            check("KITCHEN" in scene_text, "the window lists the script's scenes", scene_text[:80])
+            size = fills_window(popup)
+            check(abs(size["panel"] - size["window"]) <= 1 and size["left"] == 0, "the Navigator fills its window, not a narrow overlay", size)
+            styled = popup.evaluate("""() => {
+              const root = document.querySelector('.panel-window-root');
+              const bg = getComputedStyle(root).backgroundColor;
+              return { sheets: document.styleSheets.length, bg, opener: window.opener === window.opener?.window };
+            }""")
+            main_bg = page.evaluate("getComputedStyle(document.body).getPropertyValue('--fd-bg') || getComputedStyle(document.body).backgroundColor")
+            check(styled["sheets"] > 0 and styled["bg"] not in ("rgba(0, 0, 0, 0)", "transparent"),
+                  "the window has the editor's styles", {**styled, "editorBg": main_bg})
+            snap(popup, f"{engine}-scenes-window.png")
+
+            # Live: a scene added in the editor shows up in the window.
+            page.evaluate("""() => testEditor.chain().focus('end').insertContentAt(testEditor.state.doc.content.size, [
+              {type: 'sceneHeading', content: [{type: 'text', text: 'EXT. ROOF - NIGHT'}]},
+              {type: 'action', content: [{type: 'text', text: 'Wind.'}]}]).run()""")
+            try:
+                popup.locator(".panel-window", has_text="ROOF").wait_for(timeout=8_000)
+                check(True, "a scene written in the editor appears in the window at once")
+            except Exception:
+                check(False, "a scene written in the editor appears in the window at once",
+                      popup.locator(".panel-window").inner_text()[:200])
+
+            # Shortcut typed in the window reaches the editor window.
+            popup.locator(".panel-window").click(position={"x": 40, "y": 200})
+            popup.keyboard.press("ControlOrMeta+s")
+            try:
+                page.locator('[aria-modal="true"]').first.wait_for(timeout=6_000)
+                check(True, "Save typed in the panel window saves in the editor window")
+                page.keyboard.press("Escape")
+                page.wait_for_timeout(300)
+            except Exception:
+                check(False, "Save typed in the panel window saves in the editor window")
+
+            # The editor's theme and attributes follow into the window.
+            page.evaluate("document.documentElement.setAttribute('data-panel-test', 'mirrored')")
+            page.wait_for_timeout(200)
+            check(popup.evaluate("document.documentElement.getAttribute('data-panel-test')") == "mirrored",
+                  "a theme change in the editor reaches the window")
+
+            # Back with the button in the window.
+            popup.locator("[data-panel-popout=return]").first.click()
+            popup.wait_for_event("close", timeout=5_000) if not popup.is_closed() else None
+            page.wait_for_timeout(400)
+            check(popup.is_closed() and dock_has(page, "scenes"), "Return puts it back in its dock and closes the window")
+
+            # Back by closing the window.
+            popup = pop_out(page, "scenes")
+            popup.close()
+            page.wait_for_timeout(1_600)
+            check(dock_has(page, "scenes"), "closing the window puts the panel back in its dock")
+
+            # ── Every other panel ──
+            for panel, menu_label, label in PANELS[1:]:
+                try:
+                    open_from_view_menu(page, menu_label)
+                    page.wait_for_timeout(400)
+                    popup = pop_out(page, panel)
+                    page.wait_for_timeout(300)
+                    body = popup.locator(".panel-window").inner_text()
+                    gone = not dock_has(page, panel)
+                    size = fills_window(popup)
+                    check(abs(size["panel"] - size["window"]) <= 1 and size["left"] == 0, f"{label} fills its window", size)
+                    snap(popup, f"{engine}-{panel}-window.png")
+                    check(bool(body.strip()) and gone, f"{label} pops out with the button in its header", body.strip()[:60].replace("\n", " "))
+                    popup.locator("[data-panel-popout=return]").first.click()
+                    page.wait_for_timeout(500)
+                    check(popup.is_closed() and dock_has(page, panel), f"{label} goes back to its dock")
+                except Exception as error:  # noqa: BLE001 - report and carry on
+                    snap(page, f"{engine}-{panel}-failure.png")
+                    check(False, f"{label} pops out and back", repr(error)[:400])
+
+            # A dropdown opened in a panel window opens in that window.
+            open_from_view_menu(page, "Character Profiles") if not dock_has(page, "characters") else None
+            popup = pop_out(page, "characters")
+            trigger = popup.locator(".panel-window .od-select-trigger, .panel-window [aria-haspopup=listbox]").first
+            if trigger.count():
+                trigger.click()
+                page.wait_for_timeout(300)
+                here = popup.locator("[role=listbox]").count()
+                there = page.locator("[role=listbox]").count()
+                check(here > 0 and there == 0, "a dropdown in a panel window opens in that window", {"window": here, "editor": there})
+                popup.keyboard.press("Escape")
+            else:
+                check(False, "a dropdown in a panel window opens in that window", "no dropdown found in Character Profiles")
+
+            # Closing the panel (its ×) in the window closes the window too.
+            popup.locator(".panel-window .sp-head button[aria-label='Close']").first.click()
+            page.wait_for_timeout(600)
+            check(popup.is_closed(), "closing the panel from its window closes the window")
+
+            # ── Several panels in one window ──
+            try:
+                scenes = pop_out(page, "scenes")
+                if not dock_has(page, "notes"):
+                    open_from_view_menu(page, "Notes Panel")
+                    page.wait_for_timeout(300)
+                page.locator(".workspace-dock [data-panel-popout=open][aria-label='Move Notes Panel…']").first.click()
+                menu = page.locator(".panel-place-menu")
+                items = menu.get_by_role("menuitem").all_inner_texts()
+                check(len(items) == 2 and any("Scenes window" in i for i in items),
+                      "with a panel window open, the button offers a new window or that one", items)
+                windows_before = len(page.context.pages)
+                menu.get_by_role("menuitem", name=re.compile("Add to the Scenes window")).click()
+                scenes.locator(".panel-window[data-panel='notes']").wait_for(timeout=5_000)
+                page.wait_for_timeout(600)  # the dock's closing animation
+                tabs = scenes.locator(".panel-window-group [role=tab]").all_inner_texts()
+                check(len(tabs) == 2 and len(page.context.pages) == windows_before,
+                      "Notes joins the Scenes window as a tab, opening no other window",
+                      {"tabs": tabs, "windows": [len(page.context.pages), windows_before]})
+                check(not dock_has(page, "notes"), "a panel in a shared window leaves its dock",
+                      page.locator(".workspace-dock [data-panel-popout=open]").evaluate_all("els => els.map(e => e.getAttribute('aria-label'))"))
+                snap(scenes, f"{engine}-grouped-window.png")
+                scenes.get_by_role("tab", name=re.compile("Scenes")).click()
+                check(scenes.locator(".panel-window[data-panel='scenes']").is_visible()
+                      and not scenes.locator(".panel-window[data-panel='notes']").is_visible(),
+                      "the window's tabs switch between its panels")
+                # On to a window of its own, from its button in the shared window.
+                scenes.get_by_role("tab", name=re.compile("Notes")).click()
+                scenes.locator(".panel-window[data-panel='notes'] [data-panel-popout=return]").first.click()
+                with page.context.expect_page(timeout=10_000) as info:
+                    scenes.locator(".panel-place-menu").get_by_role("menuitem", name=re.compile("new window", re.I)).click()
+                notes = info.value
+                notes.locator(".panel-window[data-panel='notes']").wait_for(timeout=10_000)
+                page.wait_for_timeout(300)
+                check(not scenes.is_closed() and scenes.locator(".panel-window-group").count() == 0
+                      and scenes.locator(".panel-window[data-panel='scenes']").count() == 1,
+                      "a panel moved to a new window leaves the rest in the shared one")
+                # Two Navigator tabs in one window are one Navigator, as in a dock.
+                page.locator(".workspace-dock .navigator-tab").filter(has_text=re.compile(r"^\s*Pages\s*$")).first.click()
+                page.locator(".workspace-dock [data-panel-popout=open][aria-label='Move Pages…']").first.click()
+                page.locator(".panel-place-menu").get_by_role("menuitem", name=re.compile("Add to the Scenes window")).click()
+                page.wait_for_timeout(500)
+                nav_tabs = scenes.locator(".navigator-tab").all_inner_texts()
+                check([t.strip().lower() for t in nav_tabs] == ["scenes", "pages"],
+                      "Scenes and Pages share one Navigator in their window", nav_tabs)
+                # Notes joins too, from its own window's button: that window closes.
+                notes.locator(".panel-window[data-panel='notes'] [data-panel-popout=return]").first.click()
+                notes.locator(".panel-place-menu").get_by_role("menuitem", name=re.compile("Add to the")).click()
+                page.wait_for_timeout(600)
+                check(notes.is_closed() and scenes.locator(".panel-window[data-panel='notes']").count() == 1,
+                      "a window whose last panel moves away closes")
+                # Closing the shared window puts every panel in it back.
+                scenes.close()
+                page.wait_for_timeout(1_600)
+                check(dock_has(page, "scenes") and dock_has(page, "notes")
+                      and page.locator(".workspace-dock .navigator-tab").filter(has_text=re.compile(r"^\s*Pages\s*$")).count() > 0,
+                      "closing a shared window puts all its panels back in their docks")
+            except Exception as error:  # noqa: BLE001 - report and carry on
+                snap(page, f"{engine}-grouping-failure.png")
+                check(False, "several panels in one window", repr(error)[:400])
+
+            # The windows go with the editor page.
+            page.locator(".workspace-dock .navigator-tab").filter(has_text=re.compile(r"^\s*Scenes\s*$")).first.click()
+            popup = pop_out(page, "scenes")
+            page.reload()
+            page.locator(".editor-main").wait_for(timeout=30_000)
+            page.wait_for_timeout(800)
+            check(popup.is_closed(), "panel windows close with the editor page")
+        except Exception:
+            check(False, "run", traceback.format_exc()[-600:])
+            try:
+                snap(page, f"{engine}-failure.png")
+            except Exception:
+                pass
+        check(not errors, "no page errors in the editor or any panel window", errors[:3])
+        browser.close()
+    (OUTPUT / f"{engine}-results.json").write_text(json.dumps(results, indent=1, ensure_ascii=False))
+    failed = [name for ok, name, _ in results if not ok]
+    print(f"\n{len(results) - len(failed)}/{len(results)} passed ({engine})")
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":
-    asyncio.run(run())
+    sys.exit(run())

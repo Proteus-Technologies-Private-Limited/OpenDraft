@@ -695,11 +695,14 @@
     "saveFailed": "Could not save the scene. Try again."
   },
   "popout": {
-    "move": "Move Scene Navigator to New Window",
+    "movePanel": "Move {{panel}} to a new window",
+    "addTo": "Add to the {{window}} window",
+    "moveMenu": "Move {{panel}}…",
+    "windowTabs": "Panels in this window",
+    "returnPanel": "Return {{panel}} to the main window",
     "return": "Return to Main Window",
-    "waiting": "Waiting for the script…",
-    "unavailable": "The script window is no longer available.",
-    "failed": "Could not open the Navigator in a new window.",
-    "show": "Show Navigator Window"
+    "failed": "Could not open a new window.",
+    "popupsHint": "If pop-ups are blocked for this site, allow them and try again.",
+    "panelFailed": "This panel could not be shown here."
   }
 }

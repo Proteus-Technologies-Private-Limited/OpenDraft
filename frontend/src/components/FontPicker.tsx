@@ -45,6 +45,8 @@ interface Anchor {
   bottom?: number;
   maxHeight: number;
   line?: boolean;
+  /** The trigger's document: a popped-out panel's popup opens in its window. */
+  doc?: Document;
 }
 
 /** Enough room for a search field and a few rows; below this, flip above. */
@@ -62,8 +64,10 @@ function anchorTo(trigger: HTMLElement): Anchor {
   const line = toolbarChoiceLine(trigger);
   if (line) return { left: line.left, top: line.top, width: line.width, maxHeight: line.height, line: true };
   const rect = trigger.getBoundingClientRect();
-  const vw = window.visualViewport?.width ?? window.innerWidth;
-  const vh = window.visualViewport?.height ?? window.innerHeight;
+  // A panel popped out into its own window measures against that window.
+  const view = trigger.ownerDocument.defaultView ?? window;
+  const vw = view.visualViewport?.width ?? view.innerWidth;
+  const vh = view.visualViewport?.height ?? view.innerHeight;
 
   const width = Math.min(Math.max(rect.width, 260), vw - EDGE_GAP * 2);
   const left = Math.max(EDGE_GAP, Math.min(rect.left, vw - width - EDGE_GAP));
@@ -71,9 +75,9 @@ function anchorTo(trigger: HTMLElement): Anchor {
   const roomBelow = vh - rect.bottom - EDGE_GAP;
   const roomAbove = rect.top - EDGE_GAP;
   if (roomBelow >= MIN_ROOM_BELOW || roomBelow >= roomAbove) {
-    return { left, width, top: rect.bottom + 2, maxHeight: Math.max(140, roomBelow) };
+    return { left, width, top: rect.bottom + 2, maxHeight: Math.max(140, roomBelow), doc: trigger.ownerDocument };
   }
-  return { left, width, bottom: vh - rect.top + 2, maxHeight: Math.max(140, roomAbove) };
+  return { left, width, bottom: vh - rect.top + 2, maxHeight: Math.max(140, roomAbove), doc: trigger.ownerDocument };
 }
 
 /** Whether this is a touch screen, where a soft keyboard is a real cost. */
@@ -222,24 +226,27 @@ const FontPicker: React.FC<FontPickerProps> = ({
     // treating either as "the writer looked away" is why this never opened on an
     // iPad.
     const reposition = (e?: Event) => {
-      if (e && listRef.current && e.target instanceof Node && listRef.current.contains(e.target)) return;
+      // nodeType, not instanceof Node: a popped-out panel's nodes are another window's.
+      if (e && listRef.current && typeof (e.target as Node | null)?.nodeType === 'number' && listRef.current.contains(e.target as Node)) return;
       if (buttonRef.current) setAnchor(anchorTo(buttonRef.current));
     };
-    document.addEventListener('mousedown', onPointerDown);
+    const doc = buttonRef.current?.ownerDocument ?? document;
+    const view = doc.defaultView ?? window;
+    doc.addEventListener('mousedown', onPointerDown);
     // Touch screens deliver touchstart well before the synthesised mousedown.
-    document.addEventListener('touchstart', onPointerDown as EventListener);
-    window.addEventListener('resize', reposition);
-    // Capture phase: the editor scrolls its own container, not the window.
-    window.addEventListener('scroll', reposition, true);
-    window.visualViewport?.addEventListener('resize', reposition);
-    window.visualViewport?.addEventListener('scroll', reposition);
+    doc.addEventListener('touchstart', onPointerDown as EventListener);
+    view.addEventListener('resize', reposition);
+    // Capture phase: the editor scrolls its own container, not the view.
+    view.addEventListener('scroll', reposition, true);
+    view.visualViewport?.addEventListener('resize', reposition);
+    view.visualViewport?.addEventListener('scroll', reposition);
     return () => {
-      document.removeEventListener('mousedown', onPointerDown);
-      document.removeEventListener('touchstart', onPointerDown as EventListener);
-      window.removeEventListener('resize', reposition);
-      window.removeEventListener('scroll', reposition, true);
-      window.visualViewport?.removeEventListener('resize', reposition);
-      window.visualViewport?.removeEventListener('scroll', reposition);
+      doc.removeEventListener('mousedown', onPointerDown);
+      doc.removeEventListener('touchstart', onPointerDown as EventListener);
+      view.removeEventListener('resize', reposition);
+      view.removeEventListener('scroll', reposition, true);
+      view.visualViewport?.removeEventListener('resize', reposition);
+      view.visualViewport?.removeEventListener('scroll', reposition);
     };
   }, [open, closeList]);
 
@@ -437,7 +444,7 @@ const FontPicker: React.FC<FontPickerProps> = ({
             </button>
           )}
         </div>,
-        modalPortalContainer(),
+        modalPortalContainer(anchor.doc),
       )}
     </>
   );

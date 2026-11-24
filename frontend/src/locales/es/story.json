@@ -712,11 +712,14 @@
     "saveFailed": "No se pudo guardar la escena. Inténtalo de nuevo."
   },
   "popout": {
-    "move": "Mover el navegador de escenas a una ventana nueva",
+    "movePanel": "Mover {{panel}} a una ventana nueva",
+    "addTo": "Añadir a la ventana {{window}}",
+    "moveMenu": "Mover {{panel}}…",
+    "windowTabs": "Paneles de esta ventana",
+    "returnPanel": "Devolver {{panel}} a la ventana principal",
     "return": "Volver a la ventana principal",
-    "waiting": "Esperando el guion…",
-    "unavailable": "La ventana del guion ya no está disponible.",
-    "failed": "No se pudo abrir el navegador en una ventana nueva.",
-    "show": "Mostrar la ventana del navegador"
+    "failed": "No se pudo abrir una ventana nueva.",
+    "popupsHint": "Si las ventanas emergentes están bloqueadas para este sitio, permítelas y vuelve a intentarlo.",
+    "panelFailed": "Este panel no se pudo mostrar aquí."
   }
 }

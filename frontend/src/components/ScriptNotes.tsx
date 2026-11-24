@@ -43,6 +43,7 @@ import {
   type MentionSuggestion,
 } from '../utils/noteMentions';
 import { elementLabel } from '../editor/elementLabels';
+import { PanelPopoutButton } from './PanelPopout';
 
 /** Open a URL in the default browser. Uses Tauri invoke on desktop, window.open on web. */
 const openInBrowser = (url: string) => {
@@ -710,6 +711,7 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
         >
           &#9881;
         </button>
+        <PanelPopoutButton panel="notes" className="script-notes-close" />
         <button className="script-notes-close" onClick={toggleScriptNotes} title={t('common:close')}>
           &times;
         </button>

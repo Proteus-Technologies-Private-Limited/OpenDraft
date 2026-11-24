@@ -25,6 +25,7 @@ import {
   type ReviewFilter,
 } from '../editor/suggestionReview';
 import { elementLabel } from '../editor/elementLabels';
+import { PanelPopoutButton } from './PanelPopout';
 
 interface Props {
   editor: Editor | null;
@@ -127,7 +128,7 @@ const SuggestionsPanel: React.FC<Props> = ({ editor, style }) => {
       const card = Array.from(cards ?? []).find((element) => element.dataset.suggestionId === next?.id);
       const control = card?.querySelector<HTMLElement>(accept ? '.suggestion-accept' : '.suggestion-reject')
         ?? card?.querySelector<HTMLElement>('.suggestion-card-main')
-        ?? panelRef.current?.querySelector<HTMLElement>('.tags-panel-close');
+        ?? panelRef.current?.querySelector<HTMLElement>('.tags-panel-close:not([data-panel-popout])');
       control?.focus();
     });
   };
@@ -144,6 +145,7 @@ const SuggestionsPanel: React.FC<Props> = ({ editor, style }) => {
       <div className="tags-panel-header">
         <span className="tags-panel-title">{t('suggestions.title')}</span>
         <span className="tags-panel-count" title={t('suggestions.waiting')}>{all.length}</span>
+        <PanelPopoutButton panel="suggestions" className="tags-panel-close" />
         <button className="tags-panel-close" onClick={close} title={t('common:close')} aria-label={t('suggestions.closePanel')}>&times;</button>
       </div>
       <div className="suggestions-controls">

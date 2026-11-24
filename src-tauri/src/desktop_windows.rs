@@ -10,7 +10,51 @@ use tauri_plugin_window_state::{StateFlags, WindowExt};
 const FILE_NAME: &str = "window-displays.json";
 
 fn persistent_placement(key: &str) -> bool {
-    matches!(key, "main" | "panel-main-navigator")
+    key == "main"
+}
+
+/// Lets an editor window open panel windows with `window.open()`.
+///
+/// A popped-out panel is the editor's own React tree rendered into a second
+/// window, so it needs a window that shares the editor's page (the opener
+/// relationship), which only the webview's own new-window path gives. wry
+/// builds it ("Allow"). Building a Tauri window on the shared configuration
+/// instead ("Create") re-registers wry's IPC handler on it, which WebKit
+/// rejects and the app aborts (wry 0.55, macOS).
+///
+/// Only blank windows are allowed: a link or script asking for any other URL
+/// gets no window, as before.
+pub fn with_panel_windows<'a, R: tauri::Runtime, M: Manager<R>>(
+    builder: tauri::WebviewWindowBuilder<'a, R, M>,
+    editor: &str,
+) -> tauri::WebviewWindowBuilder<'a, R, M> {
+    let editor = editor.to_string();
+    // The page asks for "about:blank". window.open('') reaches wry as an empty
+    // URL, which Tauri cannot parse and denies before this handler runs.
+    builder.on_new_window(move |url, _features| {
+        if url.as_str() == "about:blank" {
+            eprintln!("[panels] Opening a panel window for {editor}");
+            // wry's bare window cannot close itself or show its title.
+            crate::panel_windows::adopt_after_open(&editor);
+            tauri::webview::NewWindowResponse::Allow
+        } else {
+            eprintln!("[panels] Refused a new window for {url}");
+            tauri::webview::NewWindowResponse::Deny
+        }
+    })
+}
+
+/// The startup window. Desktop configs set it `"create": false` so it can be
+/// built here with the panel-window handler, which a config window cannot take.
+pub fn create_main(app: &tauri::AppHandle) -> tauri::Result<()> {
+    if app.get_webview_window("main").is_some() {
+        return Ok(());
+    }
+    let Some(config) = app.config().app.windows.iter().find(|w| w.label == "main").cloned() else {
+        return Ok(());
+    };
+    with_panel_windows(tauri::WebviewWindowBuilder::from_config(app, &config)?, "main").build()?;
+    Ok(())
 }
 
 pub fn state_flags() -> StateFlags {
@@ -19,26 +63,17 @@ pub fn state_flags() -> StateFlags {
     StateFlags::MAXIMIZED | StateFlags::FULLSCREEN
 }
 
-pub fn tracked(label: &str) -> bool {
-    panel_key(label).is_some()
-        || label == "main"
+/// The startup window or a File > New Window window. Panel windows opened
+/// from them (window.open) are not Tauri windows and never reach here.
+pub fn editor_label(label: &str) -> bool {
+    label == "main"
         || label
             .strip_prefix("main-")
             .is_some_and(|n| !n.is_empty() && n.bytes().all(|c| c.is_ascii_digit()))
 }
 
-// Keep placement by owner/panel for the current session.
-fn panel_key(label: &str) -> Option<&str> {
-    let (key, counter) = label.rsplit_once('-')?;
-    let owner = key.strip_prefix("panel-")?.strip_suffix("-navigator")?;
-    (crate::panel_ownership::editor_label(owner)
-        && !counter.is_empty()
-        && counter.bytes().all(|c| c.is_ascii_digit()))
-    .then_some(key)
-}
-
-fn placement_key(label: &str) -> &str {
-    panel_key(label).unwrap_or(label)
+pub fn tracked(label: &str) -> bool {
+    editor_label(label)
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -217,7 +252,7 @@ fn record(window: &tauri::Window, p: Placement) {
     if let Some(state) = window.app_handle().try_state::<WindowDisplays>() {
         match state.windows.lock() {
             Ok(mut windows) => {
-                windows.insert(placement_key(window.label()).into(), p.into());
+                windows.insert(window.label().into(), p.into());
             }
             Err(error) => eprintln!("[window] Could not record normal bounds: {error}"),
         }
@@ -239,7 +274,7 @@ fn persist(app: &tauri::AppHandle) {
             return;
         }
     };
-    // Secondary editor and panel placements belong only to the current session.
+    // Secondary editor placements belong only to the current session.
     let saved: HashMap<_, _> = windows
         .iter()
         .filter(|(label, _)| persistent_placement(label))
@@ -258,11 +293,7 @@ fn persist(app: &tauri::AppHandle) {
 
 fn apply(window: &tauri::Window, p: &Placement) -> tauri::Result<()> {
     let scale = p.display.scale;
-    let (width, height): (f64, f64) = if panel_key(window.label()).is_some() {
-        (260.0, 240.0)
-    } else {
-        (800.0, 600.0)
-    };
+    let (width, height): (f64, f64) = (800.0, 600.0);
     window.set_min_size(Some(tauri::LogicalSize::new(
         width.min(p.inner.0 as f64 / scale),
         height.min(p.inner.1 as f64 / scale),
@@ -309,13 +340,7 @@ fn fit_saved(window: &tauri::Window, saved: &Placement) -> tauri::Result<()> {
         .map(|m| display(&m))
         .or_else(|| displays.first().cloned());
     let frame = invisible_frame(window);
-    if let Some(p) = primary.and_then(|primary| {
-        if panel_key(window.label()).is_some() {
-            policy::restore_panel(saved, &displays, &primary, frame)
-        } else {
-            policy::restore(saved, &displays, &primary, frame)
-        }
-    }) {
+    if let Some(p) = primary.and_then(|primary| policy::restore(saved, &displays, &primary, frame)) {
         apply(window, &p)?;
     }
     Ok(())
@@ -402,11 +427,7 @@ pub fn show_new(window: &tauri::WebviewWindow, origin: Option<&tauri::WebviewWin
             let current = display(&monitor);
             let frame = invisible_frame(source);
             p = policy::restore(&p, &[current.clone()], &current, frame)?;
-            if panel_key(window.label()).is_some() {
-                policy::new_panel(&p, frame)
-            } else {
-                policy::new_window(&p, frame)
-            }
+            policy::new_window(&p, frame)
         });
         if let Some(p) = p {
             apply(target, &p)?;
@@ -460,7 +481,7 @@ pub fn file_open_origin(app: &tauri::AppHandle) -> Option<tauri::WebviewWindow> 
         .or_else(|| {
             app.webview_windows()
                 .into_values()
-                .find(|window| crate::panel_ownership::editor_label(window.label()))
+                .find(|window| editor_label(window.label()))
         })
 }
 
@@ -468,9 +489,14 @@ pub fn on_window_event(window: &tauri::Window, event: &tauri::WindowEvent) {
     if !tracked(window.label()) {
         return;
     }
+    if let tauri::WindowEvent::Destroyed = event {
+        // The page closes its panel windows on pagehide; this catches an
+        // editor window that goes without one.
+        crate::panel_windows::close_for(window.label());
+    }
     match event {
         tauri::WindowEvent::Focused(true)
-            if crate::panel_ownership::editor_label(window.label()) =>
+            if editor_label(window.label()) =>
         {
             if let Some(state) = window.app_handle().try_state::<WindowDisplays>() {
                 if let Ok(mut last) = state.last_focused.lock() {
@@ -482,9 +508,6 @@ pub fn on_window_event(window: &tauri::Window, event: &tauri::WindowEvent) {
             if let Some(state) = window.app_handle().try_state::<WindowDisplays>() {
                 if let Ok(mut windows) = state.windows.lock() {
                     windows.remove(window.label());
-                    if crate::panel_ownership::editor_label(window.label()) {
-                        windows.remove(&format!("panel-{}-navigator", window.label()));
-                    }
                 }
             }
         }
@@ -514,19 +537,9 @@ mod tests {
     fn splash_and_unrelated_windows_are_never_tracked() {
         assert!(tracked("main"));
         assert!(tracked("main-12"));
-        for label in ["splashscreen", "panel-main", "main-", "main-script"] {
+        for label in ["splashscreen", "panel-main", "main-", "main-script", "panel-main-2-navigator-42"] {
             assert!(!tracked(label));
         }
-        assert!(tracked("panel-main-2-navigator-42"));
-        assert_eq!(
-            placement_key("panel-main-2-navigator-42"),
-            "panel-main-2-navigator"
-        );
-        assert_eq!(
-            placement_key("panel-main-2-navigator-43"),
-            "panel-main-2-navigator"
-        );
-        assert!(!tracked("panel-foreign-navigator-1"));
     }
 
     #[test]
@@ -566,34 +579,5 @@ mod tests {
         let mut bad = saved;
         bad.scale = 0.0;
         assert!(bad.placement().is_none());
-    }
-}
-
-/// Save normal panel geometry before native destruction, which has no close prompt.
-pub fn remember_panel(window: &tauri::WebviewWindow) {
-    remember(&window.as_ref().window());
-    persist(window.app_handle());
-}
-
-pub fn show_panel(window: &tauri::WebviewWindow, origin: &tauri::WebviewWindow) {
-    let saved = window
-        .app_handle()
-        .state::<WindowDisplays>()
-        .windows
-        .lock()
-        .map_err(|error| eprintln!("[window] Could not lock saved panel bounds: {error}"))
-        .ok()
-        .and_then(|windows| {
-            windows
-                .get(placement_key(window.label()))
-                .and_then(SavedPlacement::placement)
-        });
-    if let Some(saved) = saved {
-        if fit_saved(&window.as_ref().window(), &saved).is_err() {
-            eprintln!("[window] Could not restore panel bounds");
-        }
-        show_after_placement(window);
-    } else {
-        show_new(window, Some(origin));
     }
 }

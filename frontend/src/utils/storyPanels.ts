@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import type { Editor } from '@tiptap/react';
 import { hidePanel, showPanel } from './panelActions';
 import { SCENE_DETAILS_ATTR, readSceneDetails, sceneDetailsAttr, type SceneDetails } from './sceneDetails';
+import { observeSize } from './panelPopoutDom';
 
 /** Put the cursor at `pos` and scroll the script so it sits near the top. */
 export function goToPosition(editor: Editor | null, pos: number): void {
@@ -44,10 +45,8 @@ export function useNarrowPanel(ref: React.RefObject<HTMLElement | null>, enabled
     if (!enabled || !el) return;
     const measure = () => setNarrow(el.getBoundingClientRect().width < minWidth);
     measure();
-    if (typeof ResizeObserver === 'undefined') return;
-    const observer = new ResizeObserver(measure);
-    observer.observe(el);
-    return () => observer.disconnect();
+    const observer = observeSize(el, measure);
+    return () => observer?.disconnect();
   }, [ref, enabled, minWidth]);
   return narrow;
 }

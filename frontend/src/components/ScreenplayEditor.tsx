@@ -73,7 +73,8 @@ import type { BandKind } from './HeaderFooterBand';
 import MenuBar from './MenuBar';
 import Toolbar from './Toolbar';
 import SceneNavigator from './SceneNavigator';
-import { notifyPanelDocumentReplacement, NavigatorPopoutContext, useNavigatorPopout } from '../hooks/useNavigatorPopout';
+import { PanelWindows } from './PanelPopout';
+import { usePanelPopoutStore } from '../stores/panelPopoutStore';
 import StoryMap from './StoryMap';
 import ScriptStatistics from './ScriptStatistics';
 import TableReadPanel from './TableReadPanel';
@@ -95,7 +96,7 @@ const addOnPanelCount = () => {
 };
 import LayoutDialog from './LayoutDialog';
 import { panelOpenIn } from '../utils/panelActions';
-import { BUILT_IN_PANELS, movePanelToNewGroup, visibleGroups } from '../utils/workspaceLayout';
+import { BUILT_IN_PANELS, isNavigatorPanel, movePanelToNewGroup, visibleGroups } from '../utils/workspaceLayout';
 import { useFoldState } from '../hooks/useFoldState';
 import { useFoldWritingPadDock } from '../hooks/useFoldWritingPadDock';
 import { FOLD_CHANGE_EVENT, FOLD_WILL_CHANGE_EVENT, isFoldableDevice } from '../utils/foldPosture';
@@ -3256,8 +3257,7 @@ const ScreenplayEditor: React.FC = () => {
   // see autoSaveAppliesToOpenDocument.
   const autoSaveLibrary = useSettingsStore((s) => s.autoSaveLibrary);
   const openScriptFile = useLinkedFileStore((s) => s.openScriptFile);
-  const navigatorPopout = useNavigatorPopout(editor, currentScriptId);
-  const { keepForSavedScript } = navigatorPopout;
+  const poppedOut = usePanelPopoutStore((s) => s.placed);
   const scriptIsLinked = Boolean(openScriptFile && openScriptFile.scriptId === currentScriptId);
   const autoSaveIntervalSeconds = useSettingsStore((s) => s.autoSaveIntervalSeconds);
   const lastSavedJsonRef = useRef<string>('');
@@ -3297,7 +3297,6 @@ const ScreenplayEditor: React.FC = () => {
       setEditorKey((k) => k + 1);
     } else if (editor && !editor.isDestroyed) {
       clearTrackChanges();
-      notifyPanelDocumentReplacement(editor);
       editor.commands.setContent(
         { type: 'doc', content: [{ type: 'sceneHeading', content: [] }] },
         true,
@@ -3517,7 +3516,6 @@ const ScreenplayEditor: React.FC = () => {
     spellChecker.beginDocument([BUILTIN_LANGUAGE]);
     if (editor) {
       // See File ▸ Close: an emptied document has no block to type into.
-      notifyPanelDocumentReplacement(editor);
       editor.commands.setContent({ type: 'doc', content: [{ type: 'action', content: [] }] }, true);
       clearEditorHistory(editor);
     }
@@ -3552,8 +3550,6 @@ const ScreenplayEditor: React.FC = () => {
     const sameDocument =
       snapshot.projectId === (currentProject?.id ?? null) &&
       snapshot.scriptId === currentScriptId;
-
-    notifyPanelDocumentReplacement(editor);
 
     editor.commands.setContent(pmDoc, true);
     clearEditorHistory(editor);
@@ -4096,7 +4092,6 @@ const ScreenplayEditor: React.FC = () => {
     const doc = takeSessionDoc(currentProject?.id ?? null, currentScriptId ?? null);
     if (!doc) return;
     try {
-      notifyPanelDocumentReplacement(editor);
       editor.commands.setContent(doc as Record<string, unknown>, false);
       clearEditorHistory(editor);
       setShowWelcome(false);
@@ -4167,7 +4162,6 @@ const ScreenplayEditor: React.FC = () => {
   // Reset the guard when the editor instance changes so we reload
   // content if TipTap recreates the editor.
   const loadedScriptRef = useRef<string | null>(null);
-  const savedRouteRef = useRef<{ editor: Editor; key: string } | null>(null);
   const [historyVersionLabel, setHistoryVersionLabel] = useState('');
   useEffect(() => {
     // Allow re-load for new editor instance, but NOT during collab —
@@ -4206,9 +4200,6 @@ const ScreenplayEditor: React.FC = () => {
     // (the editor only holds its default empty content, which would overwrite
     // the stored script if saved).
     const prevLoadKey = loadedScriptRef.current;
-    const savedHere = savedRouteRef.current?.editor === editor && savedRouteRef.current.key === loadKey;
-    savedRouteRef.current = null;
-    const notifyReplacement = () => { if (!savedHere) notifyPanelDocumentReplacement(editor); };
     loadedScriptRef.current = loadKey;
     clearTrackChanges();
     scriptSwitchingRef.current = true;
@@ -4284,19 +4275,15 @@ const ScreenplayEditor: React.FC = () => {
 
         try {
           if (pmDoc && Array.isArray(pmDoc.content) && pmDoc.content.length > 0) {
-            notifyReplacement();
             editor.commands.setContent(pmDoc);
           } else if (content && typeof content === 'object' && Object.keys(content).length > 0) {
-            notifyReplacement();
             editor.commands.setContent(content);
           } else {
-            notifyReplacement();
             editor.commands.setContent({ type: 'doc', content: [{ type: 'action', content: [] }] });
           }
         } catch (setErr) {
           console.error('setContent failed:', setErr);
           showToast(tg('editor:toast.renderFailed', { error: setErr instanceof Error ? setErr.message : String(setErr) }), 'error');
-          notifyReplacement();
           editor.commands.setContent({ type: 'doc', content: [{ type: 'action', content: [] }] });
         }
         clearEditorHistory(editor);
@@ -4906,20 +4893,16 @@ const ScreenplayEditor: React.FC = () => {
 
         try {
           if (content && typeof content === 'object' && 'type' in content && content.type === 'doc') {
-            notifyPanelDocumentReplacement(editor);
-            editor.commands.setContent(stripSaveMetadata(content).pmDoc);
+                  editor.commands.setContent(stripSaveMetadata(content).pmDoc);
           } else if (content && typeof content === 'object' && Object.keys(content).length > 0) {
-            notifyPanelDocumentReplacement(editor);
-            editor.commands.setContent(content);
+                  editor.commands.setContent(content);
           } else {
-            notifyPanelDocumentReplacement(editor);
-            editor.commands.setContent({ type: 'doc', content: [{ type: 'action', content: [] }] });
+                  editor.commands.setContent({ type: 'doc', content: [{ type: 'action', content: [] }] });
           }
         } catch (setErr) {
           console.error('setContent failed, using blank doc:', setErr);
           showToast(tg('editor:toast.renderFailed', { error: setErr instanceof Error ? setErr.message : String(setErr) }), 'error');
-          notifyPanelDocumentReplacement(editor);
-          editor.commands.setContent({ type: 'doc', content: [{ type: 'action', content: [] }] });
+              editor.commands.setContent({ type: 'doc', content: [{ type: 'action', content: [] }] });
         }
         clearEditorHistory(editor);
 
@@ -5098,7 +5081,6 @@ const ScreenplayEditor: React.FC = () => {
     localStorage.setItem('opendraft:welcomed', 'true');
 
     if (choice === 'sample') {
-      notifyPanelDocumentReplacement(editor);
       editor?.commands.setContent(SAMPLE_CONTENT, true);
       if (editor) clearEditorHistory(editor);
     } else if (choice === 'import') {
@@ -5111,8 +5093,7 @@ const ScreenplayEditor: React.FC = () => {
         const { name } = result;
         const imported = await parseScreenplayImport(name, result.bytes ?? result.text ?? '');
 
-        notifyPanelDocumentReplacement(editor);
-
+  
         editor.commands.setContent(imported.doc, true);
         clearEditorHistory(editor);
         const scriptTitle = imported.title || name.replace(/\.\w+$/, '') || 'Untitled';
@@ -5180,7 +5161,6 @@ const ScreenplayEditor: React.FC = () => {
       const title = filename.replace(/\.\w+$/, '');
       const imported = await parseScreenplayImport(filename, bytes ?? text ?? '');
 
-      notifyPanelDocumentReplacement(editor);
 
       editor.commands.setContent(imported.doc, true);
       clearEditorHistory(editor);
@@ -5361,7 +5341,6 @@ const ScreenplayEditor: React.FC = () => {
 
       const imported = await parseScreenplayImport(file.name, data);
 
-      notifyPanelDocumentReplacement(editor);
 
       editor.commands.setContent(imported.doc, true);
       clearEditorHistory(editor);
@@ -5611,7 +5590,6 @@ const ScreenplayEditor: React.FC = () => {
           ps.markCloudScript(projectId, scriptId);
         }
         setCurrentProject(project);
-        keepForSavedScript(scriptId);
         setCurrentScriptId(scriptId);
         setDocumentTitle(scriptTitle);
         // In a project kept in a folder the new script already has a file of
@@ -5633,9 +5611,6 @@ const ScreenplayEditor: React.FC = () => {
         // Only navigate to the project route if there's no deferred action
         // that will reset the editor state (e.g. New Screenplay)
         if (!hasDeferredAction) {
-          // The project route reloads the just-saved script into this editor.
-          // That reload belongs to the existing document and its Navigator.
-          if (editor) savedRouteRef.current = { editor, key: `${projectId}/${scriptId}` };
           navigate(`/project/${projectId}/edit/${scriptId}`, { replace: true });
         }
         showToast(destination === 'cloud' ? tg('editor:toast.savedToCloud') : tg('editor:toast.saved'), 'success');
@@ -5652,7 +5627,7 @@ const ScreenplayEditor: React.FC = () => {
         if (action) action();
       }
     },
-    [editor, keepForSavedScript, setSaveAsOpen, setCurrentProject, setCurrentScriptId, setDocumentTitle, navigate],
+    [editor, setSaveAsOpen, setCurrentProject, setCurrentScriptId, setDocumentTitle, navigate],
   );
 
 
@@ -5961,7 +5936,7 @@ const ScreenplayEditor: React.FC = () => {
   };
   const dockPanels: Record<string, DockPanelDef> = {};
   if (dockLayout) {
-    for (const panel of BUILT_IN_PANELS) dockPanels[panel] = { open: !(navigatorPopout.detached && panel === 'scenes') && panelOpenIn(panel, openFlags), render: () => null };
+    for (const panel of BUILT_IN_PANELS) dockPanels[panel] = { open: panelOpenIn(panel, openFlags), render: () => null };
     dockPanels.notes.render = (w) => <ScriptNotes editor={editor} style={panelWidthStyle(w)} />;
     dockPanels.characters.render = (w) => <CharacterProfiles editor={editor} projectId={currentProject?.id || ''} style={panelWidthStyle(w)} />;
     dockPanels.tags.render = (w) => <TagsPanel editor={editor} style={panelWidthStyle(w)} />;
@@ -5982,23 +5957,36 @@ const ScreenplayEditor: React.FC = () => {
       onTabChange={onTabChange} bare={bare}
       style={width === undefined ? { width: '100%', minWidth: 0 } : { width, minWidth: width }} />
   );
+  // A panel popped out into its own window (PanelPopout.tsx) is drawn there,
+  // full width, and not in its dock. `isOpen` is whether it is open at all.
+  const panelWindowOpen = (panel: string) => !!dockPanels[panel]?.open;
+  const renderPanelWindow = (panel: string) => (isNavigatorPanel(panel)
+    ? renderDockNavigator({ tabs: [panel], width: undefined })
+    : dockPanels[panel]?.render(undefined) ?? null);
+  // Without a dock (fold layout, history, a narrow window) panels go back.
+  const panelWindows = <PanelWindows enabled={dockLayout} isOpen={panelWindowOpen} render={renderPanelWindow}
+    renderNavigator={renderDockNavigator} />;
+  const dockedPanels: Record<string, DockPanelDef> = {};
+  for (const [panel, def] of Object.entries(dockPanels)) {
+    dockedPanels[panel] = poppedOut[panel] ? { ...def, open: false } : def;
+  }
   // A panel left out of the layout but opened anyway (its toolbar button, the
   // View menu) shows at the end of the right dock rather than nowhere.
   let renderLayout = workspaceLayout;
   if (dockLayout) {
     for (const panel of workspaceLayout.hidden) {
-      if (dockPanels[panel]?.open) renderLayout = movePanelToNewGroup(renderLayout, panel, 'end');
+      if (dockedPanels[panel]?.open) renderLayout = movePanelToNewGroup(renderLayout, panel, 'end');
     }
   }
   // The add-on strip shows whenever an add-on has a panel, so it alone does
   // not count as an open dock (it brings its own resize handle).
   const dockHasContent = (dock: 'start' | 'end' | 'bottom') =>
-    dockLayout && visibleGroups(renderLayout, dock, (panel) => panel !== 'add-ons' && !!dockPanels[panel]?.open).length > 0;
+    dockLayout && visibleGroups(renderLayout, dock, (panel) => panel !== 'add-ons' && !!dockedPanels[panel]?.open).length > 0;
   const startDockVisible = dockHasContent('start');
   const endDockVisible = dockHasContent('end');
   const bottomDockVisible = dockHasContent('bottom')
     // Table Read alone sizes itself, as it always has.
-    && renderLayout.docks.bottom.some((id) => renderLayout.groups[id]?.panels.some((p) => p !== 'table-read' && dockPanels[p]?.open));
+    && renderLayout.docks.bottom.some((id) => renderLayout.groups[id]?.panels.some((p) => p !== 'table-read' && dockedPanels[p]?.open));
 
 
   // Show loading screen while collab session is being set up
@@ -6037,8 +6025,8 @@ const ScreenplayEditor: React.FC = () => {
   };
 
   return (
-    <NavigatorPopoutContext.Provider value={navigatorPopout}>
     <div className={`app-container${isHistoryMode ? ' history-mode' : ''}${focusActive ? ` focus-mode${focusTypewriter ? ' focus-typewriter' : ''}${focusDim !== 'off' ? ' focus-dim' : ''}` : ''}`}>
+      {panelWindows}
       {isHistoryMode && (
         <div className="history-banner">
           <span className="history-banner-icon">&#128337;</span>
@@ -6210,7 +6198,7 @@ const ScreenplayEditor: React.FC = () => {
       <div className={`editor-layout${foldDock ? ' fold-layout' : ''}${foldNavigationClass}${companionDocked && foldState.fold === 'flat' ? ` fold-companion-${companionPlacement}` : ''}`} style={{ '--fold-nav-width': `${FOLD_NAV_WIDTH}px` } as React.CSSProperties}>
         {dockLayout ? (
           <>
-            <WorkspaceDock dock="start" layout={renderLayout} panels={dockPanels} renderNavigator={renderDockNavigator} width={navWidth} />
+            <WorkspaceDock dock="start" layout={renderLayout} panels={dockedPanels} renderNavigator={renderDockNavigator} width={navWidth} />
             {startDockVisible && (
               <div className="panel-resize-handle" role="separator" aria-orientation="vertical" tabIndex={0}
                 aria-label={tg('menu:pluginPanels.resize')} aria-valuenow={navWidth} aria-valuemin={160} aria-valuemax={500}
@@ -6490,7 +6478,7 @@ const ScreenplayEditor: React.FC = () => {
               }}
               onPointerDown={handleBottomResizePointerDown} style={{ touchAction: 'none' }} />
           )}
-          {dockLayout && <WorkspaceDock dock="bottom" layout={renderLayout} panels={dockPanels} renderNavigator={renderDockNavigator} height={bottomDockHeight} />}
+          {dockLayout && <WorkspaceDock dock="bottom" layout={renderLayout} panels={dockedPanels} renderNavigator={renderDockNavigator} height={bottomDockHeight} />}
         </div>
         {dockLayout ? (
           <>
@@ -6503,7 +6491,7 @@ const ScreenplayEditor: React.FC = () => {
                 }}
                 onPointerDown={(e) => handleResizePointerDown('right', e)} style={{ touchAction: 'none' }} />
             )}
-            <WorkspaceDock dock="end" layout={renderLayout} panels={dockPanels} renderNavigator={renderDockNavigator} width={rightPanelWidth} />
+            <WorkspaceDock dock="end" layout={renderLayout} panels={dockedPanels} renderNavigator={renderDockNavigator} width={rightPanelWidth} />
             {/* The writing pad floats; it is not a dock panel. The same key as the
                 overlay branch's dock below keeps the pad mounted, with its draft,
                 when a resize crosses the 1100px line between the two. */}
@@ -6786,7 +6774,6 @@ const ScreenplayEditor: React.FC = () => {
         </ModalOverlay>
       )}
     </div>
-    </NavigatorPopoutContext.Provider>
   );
 };
 

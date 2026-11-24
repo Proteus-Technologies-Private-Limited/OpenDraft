@@ -28,6 +28,7 @@ import type { Editor } from '@tiptap/react';
 import { pluginRegistry, resolvePluginText, type PluginPanelEntry } from '../plugins/registry';
 import './PluginPanelTabs.css';
 import { useEditorTransactions } from '../hooks/useEditorTransactions';
+import { PanelPopoutButton } from './PanelPopout';
 
 export const PLUGIN_PANEL_OPEN_EVENT = 'plugin-panel:open';
 export const PLUGIN_PANEL_CLOSE_EVENT = 'plugin-panel:close';
@@ -167,6 +168,7 @@ export const PluginPanelTabs: React.FC<Props> = ({
               }}
             />
           )}
+          <PanelPopoutButton panel="add-ons" className="plugin-panel-tabs__close" />
           <button
             className="plugin-panel-tabs__close"
             onClick={() => { document.getElementById(tabId(active.id))?.focus(); setActiveId(null); }}

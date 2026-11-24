@@ -712,11 +712,14 @@
     "saveFailed": "Não foi possível salvar a cena. Tente novamente."
   },
   "popout": {
-    "move": "Mover o navegador de cenas para uma nova janela",
+    "movePanel": "Mover {{panel}} para uma nova janela",
+    "addTo": "Adicionar à janela {{window}}",
+    "moveMenu": "Mover {{panel}}…",
+    "windowTabs": "Painéis desta janela",
+    "returnPanel": "Devolver {{panel}} à janela principal",
     "return": "Voltar à janela principal",
-    "waiting": "Aguardando o roteiro…",
-    "unavailable": "A janela do roteiro não está mais disponível.",
-    "failed": "Não foi possível abrir o navegador em uma nova janela.",
-    "show": "Mostrar a janela do navegador"
+    "failed": "Não foi possível abrir uma nova janela.",
+    "popupsHint": "Se os pop-ups estiverem bloqueados para este site, permita-os e tente novamente.",
+    "panelFailed": "Não foi possível mostrar este painel aqui."
   }
 }

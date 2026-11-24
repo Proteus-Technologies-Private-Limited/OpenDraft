@@ -34,6 +34,7 @@ import { newCostumeId, type CharacterCostume } from '../utils/characterCostumes'
 import { lookForScene, locationNamed } from '../utils/locationData';
 import { goToPosition, useNarrowPanel, jumpToPanel } from '../utils/storyPanels';
 import { CompletenessRing, DraftText, ImageSlot, StoryPanelHeader, StoryPanelTabs, type CompletenessField } from './StoryPanelParts';
+import { PanelPopoutButton } from './PanelPopout';
 
 // Default colors for auto-assignment (VIBGYOR palette)
 const DEFAULT_HIGHLIGHT_COLORS = [
@@ -1035,6 +1036,7 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
           {!sideBySide && (
             <>
               <button type="button" className="sp-icon-btn sp-wide-btn" onClick={() => setIsWide(true)} title={t('storyPanels.wideView')} aria-label={t('storyPanels.wideView')}>&#x26F6;</button>
+              <PanelPopoutButton panel="characters" className="sp-icon-btn" />
               <button type="button" className="sp-icon-btn" onClick={close} title={t('common:close')} aria-label={t('common:close')}>&times;</button>
             </>
           )}
@@ -1086,6 +1088,7 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
           wide={isWide}
           onToggleWide={() => setIsWide((w) => !w)}
           onClose={close}
+          panel="characters"
         />
       )}
 

@@ -25,6 +25,7 @@ import { tableReadMediaSession } from '../services/tts/mediaSession';
 import { hasAndroidBackgroundRead } from '../services/tts/androidBackground';
 import type { ReadLine } from '../services/tts/script';
 import VoicePicker from './VoicePicker';
+import { PanelPopoutButton } from './PanelPopout';
 
 /** The label shown for a kind of line. Looked up by kind, at render time. */
 function kindLabel(kind: ReadLine['kind'], t: TFunction<'tools'>): string {
@@ -266,6 +267,7 @@ const TableReadPanel: React.FC<{ editor: Editor }> = ({ editor }) => {
         >
           <FaCog />
         </button>
+        <PanelPopoutButton panel="table-read" className="table-read-icon-btn" />
         <button className="table-read-icon-btn" onClick={close} title={t('tableRead.close')} aria-label={t('tableRead.close')}>
           <FaTimes />
         </button>

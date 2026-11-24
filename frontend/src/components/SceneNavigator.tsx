@@ -1,7 +1,6 @@
-import '../styles/panelPopout.css';
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
-import { NavigatorPopoutContext } from '../hooks/useNavigatorPopout';
-import { FaExternalLinkAlt } from 'react-icons/fa';
+import { PanelPopoutButton } from './PanelPopout';
+import { observeSize } from '../utils/panelPopoutDom';
 import { createPortal } from 'react-dom';
 import { Editor } from '@tiptap/react';
 import { useTranslation } from 'react-i18next';
@@ -338,7 +337,6 @@ const SectionOutline: React.FC<SectionOutlineProps> = ({
 // ── Main component ──────────────────────────────────────────────────────
 
 const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer, style, tabs, activeTab: shownTab, onTabChange, bare = false }) => {
-  const popout = React.useContext(NavigatorPopoutContext);
   const { t } = useTranslation(['story', 'common']);
   const { scenes, navigatorOpen, toggleNavigator, updateSceneSynopsis, updateSceneColor, pageLabels } = useEditorFields('scenes', 'navigatorOpen', 'toggleNavigator', 'updateSceneSynopsis', 'updateSceneColor', 'pageLabels');
   const { shouldRender, animationState } = useDelayedUnmount(navigatorOpen, 250);
@@ -674,14 +672,13 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
   useEffect(() => {
     if (activeTab !== 'pages' || !pageGridRef.current) return;
     const grid = pageGridRef.current;
-    const observer = new ResizeObserver(() => {
+    const observer = observeSize(grid, () => {
       const firstThumb = grid.querySelector('.page-thumbnail') as HTMLElement;
       if (firstThumb) {
         setThumbScale(Math.max(0.05, firstThumb.clientWidth / refWidthPx));
       }
     });
-    observer.observe(grid);
-    return () => observer.disconnect();
+    return () => observer?.disconnect();
   }, [activeTab, pageContent.length, refWidthPx]);
 
   // ── Scroll sync: highlight current page in editor ──
@@ -961,19 +958,17 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
             <button key={tab} className={`navigator-tab${activeTab === tab ? ' active' : ''}`} onClick={() => setActiveTab(tab)}>{t(`navigator.tabs.${tab}`)}</button>
           ))}
         </div>
+        {/* A Navigator in a group of its own pops out the tab it is showing. */}
+        <PanelPopoutButton panel={activeTab} className="navigator-close navigator-popout" />
         <button className="navigator-close" onClick={toggleNavigator} title={t('navigator.close')}>×</button>
       </div>
       )}
 
       {/* ── Scenes tab ───────────────────────────────────────────────── */}
-      {activeTab === 'scenes' && popout.detached && (
-        <button type="button" className="scene-filter-btn" onClick={popout.open}>{t('popout.show')}</button>
-      )}
-      {activeTab === 'scenes' && !popout.detached && (
+      {activeTab === 'scenes' && (
         <>
           <div className="navigator-header">
             <span className="navigator-title">{t('navigator.tabs.scenes')}</span>
-            {popout.available && <button type="button" data-panel-popout-trigger className="scene-filter-btn" aria-label={t('popout.move')} title={t('popout.move')} onClick={popout.open}><FaExternalLinkAlt aria-hidden="true" /></button>}
             <span className="scene-count">
               {(hasActiveFilter || searchQuery) ? `${filteredIndices.length}/` : ''}{scenes.length}
             </span>
@@ -1581,7 +1576,8 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
         onSave={handleSaveSynopsis}
         onClose={() => setSynopsisModal(null)}
       />,
-      document.body,
+      // A Navigator popped out into its own window opens it there.
+      navPanelRef.current?.ownerDocument.body ?? document.body,
     )}
     </>
   );

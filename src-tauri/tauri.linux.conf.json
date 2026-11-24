@@ -1,4 +1,32 @@
 {
+  "app": {
+    "windows": [
+      {
+        "label": "splashscreen",
+        "url": "splash.html",
+        "title": "OpenDraft",
+        "width": 480,
+        "height": 420,
+        "resizable": false,
+        "decorations": false,
+        "center": true,
+        "transparent": true
+      },
+      {
+        "label": "main",
+        "url": "index.html",
+        "title": "OpenDraft",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 800,
+        "minHeight": 600,
+        "resizable": true,
+        "fullscreen": false,
+        "visible": false,
+        "create": false
+      }
+    ]
+  },
   "bundle": {
     "fileAssociations": [
       { "ext": ["odraft"], "mimeType": "application/x-opendraft", "description": "OpenDraft Screenplay", "rank": "Owner" },

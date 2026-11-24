@@ -1,9 +1,9 @@
 mod safe_file;
-mod panel_windows;
 #[cfg(desktop)]
-mod panel_ownership;
 #[cfg(desktop)]
 mod desktop_windows;
+#[cfg(desktop)]
+mod panel_windows;
 #[cfg(desktop)]
 mod window_placement;
 #[cfg(target_os = "linux")]
@@ -2890,6 +2890,108 @@ async fn list_windows(app: tauri::AppHandle) -> Vec<WindowInfo> {
         .collect()
 }
 
+/// Run `work` on the main thread, where the panel windows live, and wait for
+/// its answer.
+#[cfg(desktop)]
+fn on_main_thread<T: Send + 'static>(
+    window: &tauri::WebviewWindow,
+    work: impl FnOnce() -> T + Send + 'static,
+) -> Result<T, String> {
+    let (tx, rx) = std::sync::mpsc::channel();
+    window
+        .run_on_main_thread(move || {
+            let _ = tx.send(work());
+        })
+        .map_err(|e| format!("Could not reach the window: {}", e))?;
+    rx.recv().map_err(|_| "The window did not answer.".to_string())
+}
+
+/// The page has just opened a panel window (panelPopoutStore.ts): name it
+/// `id` and put it at `frame` — exactly, on any display, which the page's own
+/// window.open() features cannot do in the macOS web view. False when the app
+/// does not manage that window (Windows: the browser engine does it all); the
+/// page then works with window.screenX and friends instead.
+#[tauri::command]
+async fn panel_window_opened(
+    window: tauri::WebviewWindow,
+    id: String,
+    frame: Option<FrameArg>,
+) -> Result<bool, String> {
+    #[cfg(desktop)]
+    {
+        let editor = window.label().to_string();
+        let frame = frame.map(|f| panel_windows::Frame { left: f.left, top: f.top, width: f.width, height: f.height });
+        // The window is adopted on the main thread just after it is built; a
+        // page that asks first is answered once that has happened.
+        for attempt in 0..3 {
+            if attempt > 0 {
+                std::thread::sleep(std::time::Duration::from_millis(100));
+            }
+            let (e, i) = (editor.clone(), id.clone());
+            if on_main_thread(&window, move || panel_windows::tag(&e, &i, frame))? {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+    #[cfg(not(desktop))]
+    {
+        let _ = (window, id, frame);
+        Ok(false)
+    }
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Clone, Copy)]
+struct FrameArg {
+    left: f64,
+    top: f64,
+    width: f64,
+    height: f64,
+}
+
+#[derive(serde::Serialize)]
+struct PanelFrame {
+    id: String,
+    #[serde(flatten)]
+    frame: FrameArg,
+}
+
+/// Bring one of the calling editor window's panel windows forward. The page's
+/// own window.focus() does nothing for these windows in the macOS web view.
+#[tauri::command]
+async fn focus_panel_window(window: tauri::WebviewWindow, id: String) -> Result<bool, String> {
+    #[cfg(desktop)]
+    {
+        let editor = window.label().to_string();
+        on_main_thread(&window, move || panel_windows::focus(&editor, &id))
+    }
+    #[cfg(not(desktop))]
+    {
+        let _ = (window, id);
+        Ok(false)
+    }
+}
+
+/// Where the calling editor window's panel windows are, for the page to
+/// remember (it cannot read that from the macOS web view itself).
+#[tauri::command]
+async fn panel_window_frames(window: tauri::WebviewWindow) -> Result<Vec<PanelFrame>, String> {
+    #[cfg(desktop)]
+    {
+        let editor = window.label().to_string();
+        let frames = on_main_thread(&window, move || panel_windows::frames(&editor))?;
+        Ok(frames
+            .into_iter()
+            .map(|(id, f)| PanelFrame { id, frame: FrameArg { left: f.left, top: f.top, width: f.width, height: f.height } })
+            .collect())
+    }
+    #[cfg(not(desktop))]
+    {
+        let _ = window;
+        Ok(Vec::new())
+    }
+}
+
 /// Bring a window to the front.
 ///
 /// The answer to "this screenplay is already open in another window" — the one
@@ -2997,6 +3099,10 @@ async fn open_new_window(app: tauri::AppHandle, window: tauri::WebviewWindow) ->
     #[cfg(target_os = "android")]
     {
         builder = builder.activity_name(label.replace("main-", "WindowActivity"));
+    }
+    #[cfg(desktop)]
+    {
+        builder = desktop_windows::with_panel_windows(builder, &label);
     }
     let _window = builder
         .build()
@@ -3209,14 +3315,12 @@ pub fn run() {
             android_backup_delete,
             android_backup_probe,
             open_new_window,
-            panel_windows::open_panel_window,
-            panel_windows::panel_context,
-            panel_windows::publish_panel_snapshot,
-            panel_windows::panel_command,
-            panel_windows::close_panel_windows,
             supports_multiple_windows,
             list_windows,
             focus_window,
+            focus_panel_window,
+            panel_window_opened,
+            panel_window_frames,
             set_window_title,
             set_native_menu_language,
             open_url,
@@ -3265,17 +3369,11 @@ pub fn run() {
             .build(),
     );
 
-    #[cfg(desktop)]
-    let builder = builder.on_page_load(|webview, payload| {
-        if matches!(payload.event(), tauri::webview::PageLoadEvent::Started) {
-            panel_windows::close_owned(webview.app_handle(), webview.label());
-        }
-    });
-
     let builder = builder.setup(|app| {
             #[cfg(desktop)]
             {
-                app.manage(panel_windows::Registry::default());
+                // Before anything looks the startup window up.
+                desktop_windows::create_main(app.handle())?;
                 desktop_windows::setup(app.handle());
             }
             // Native decorations exist now, before the splash transition and
@@ -3397,7 +3495,6 @@ pub fn run() {
         desktop_windows::on_window_event(window, event);
         if let tauri::WindowEvent::Destroyed = event {
             let app = window.app_handle();
-            panel_windows::destroyed(app, window.label());
             if let Some(menu) = app.menu() {
                 rebuild_window_menu(app, &menu);
             }

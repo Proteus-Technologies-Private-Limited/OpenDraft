@@ -1,6 +1,3 @@
-import { useContext } from 'react';
-import { notifyPanelDocumentReplacement, NavigatorPopoutContext } from '../hooks/useNavigatorPopout';
-import { canPopOutNavigator } from '../services/panelWindows';
 import ElementNumberDialog from './ElementNumberDialog';
 import { mapElementNumberTarget, type ElementNumberTarget } from '../editor/elementNumberTarget';
 import { collectNumberedElements, elementNumberAt, elementNumbersPluginKey } from '../editor/extensions/ElementNumbers';
@@ -392,7 +389,6 @@ const MenuBar: React.FC<MenuBarProps> = ({
   canEditDocumentFormat = true,
   onDocumentSaved,
 }) => {
-  const navigatorPopout = useContext(NavigatorPopoutContext);
   // Re-renders the bar when the language changes; the strings come from the module-level t,
   // which also serves the handlers below at the moment they run.
   const { i18n: menuI18n } = useTranslation('menu');
@@ -1673,7 +1669,6 @@ const MenuBar: React.FC<MenuBarProps> = ({
       clearTrackChanges();
       const store = useEditorStore.getState();
 
-      notifyPanelDocumentReplacement(editor);
 
       editor.commands.setContent(imported.doc, true);
       clearEditorHistory(editor);
@@ -1750,7 +1745,6 @@ const MenuBar: React.FC<MenuBarProps> = ({
       clearTrackChanges();
       const store = useEditorStore.getState();
 
-      notifyPanelDocumentReplacement(editor);
 
       editor.commands.setContent(imported.doc, true);
       clearEditorHistory(editor);
@@ -1838,7 +1832,6 @@ const MenuBar: React.FC<MenuBarProps> = ({
       // document alone leaves the previous script's panels standing beside the
       // imported shot list as though they belonged to it.
       resetStoresForImport();
-      notifyPanelDocumentReplacement(editor);
       editor.commands.setContent({ type: 'doc', content: blocks }, true);
       clearEditorHistory(editor);
 
@@ -1878,7 +1871,6 @@ const MenuBar: React.FC<MenuBarProps> = ({
       resetStoresForImport();
       const store = useEditorStore.getState();
 
-      notifyPanelDocumentReplacement(editor);
 
       editor.commands.setContent(parsed.doc, true);
       clearEditorHistory(editor);
@@ -1973,7 +1965,6 @@ const MenuBar: React.FC<MenuBarProps> = ({
       // A single empty element, not clearContent(): an empty document has no
       // block to put a cursor in, so the editor came back blank *and*
       // untypeable — no placeholder, no caret, nothing to click into.
-      notifyPanelDocumentReplacement(editor);
       editor.commands.setContent({ type: 'doc', content: [{ type: 'action', content: [] }] }, true);
       clearEditorHistory(editor);
       clearRecoverySnapshot();
@@ -2032,7 +2023,6 @@ const MenuBar: React.FC<MenuBarProps> = ({
     // there is nothing left to save to. Clearing the project and script ids
     // is also what stops every auto-save aimed at the deleted script.
     resetForNewScreenplay();
-    notifyPanelDocumentReplacement(editor);
     editor.commands.setContent({ type: 'doc', content: [{ type: 'action', content: [] }] }, true);
     clearEditorHistory(editor);
     clearRecoverySnapshot();
@@ -3544,7 +3534,6 @@ const MenuBar: React.FC<MenuBarProps> = ({
           icon: <FaColumns />, label: t('menu:view.panels'),
           children: [
             { icon: <FaCompass />, ...check(navigatorOpen, t('menu:view.navigator')), action: toggleNavigator },
-            ...(navigatorPopout.available && canPopOutNavigator() ? [{ icon: <FaCompass />, label: t(navigatorPopout.detached ? 'story:popout.show' : 'story:popout.move'), action: navigatorPopout.open }] : []),
             { icon: <FaTh />, ...check(indexCardsOpen, t('menu:view.indexCards')), action: toggleIndexCards },
             { icon: <FaStream />, ...check(beatBoardOpen, t('menu:view.beatBoard')), action: toggleBeatBoard },
             { icon: <FaListUl />, ...check(outlineOpen, t('menu:view.outline')), action: toggleOutline },

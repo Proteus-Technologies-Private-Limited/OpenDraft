@@ -1,13 +1,89 @@
-.navigator-popout { height: 100dvh; display: flex; flex-direction: column; gap: 12px; padding: 16px; box-sizing: border-box; background: var(--fd-bg); color: var(--fd-text); overflow: hidden; }
-.navigator-popout-header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; border-bottom: 1px solid var(--fd-border); padding-bottom: 12px; }
-.navigator-popout-header h1 { flex: 1; margin: 0; font-size: 1rem; overflow-wrap: anywhere; }
-.navigator-popout button, .navigator-popout input { font: inherit; color: inherit; background: var(--fd-dialog-bg); border: 1px solid var(--fd-border); border-radius: 4px; padding: 8px; }
-.navigator-popout button { cursor: pointer; }
-.navigator-popout button:focus-visible, .navigator-popout input:focus-visible { outline: 2px solid var(--fd-accent, #679df6); outline-offset: 2px; }
-.navigator-popout-scenes { overflow: auto; min-height: 0; }
-.navigator-popout-scenes ol { list-style: none; margin: 0; padding: 3px; }
-.navigator-popout-scenes li { margin-bottom: 8px; }
-.navigator-popout-scenes button { display: flex; flex-direction: column; gap: 6px; text-align: start; width: 100%; border-inline-start-width: 4px; overflow-wrap: anywhere; }
-.navigator-popout-scenes button[aria-current] { outline: 2px solid var(--fd-accent, #679df6); outline-offset: -2px; font-weight: 600; }
-.navigator-popout-synopsis { font-weight: 400; color: var(--fd-text-muted); white-space: pre-wrap; }
-@media (forced-colors: active) { .navigator-popout-scenes button[aria-current] { outline-color: Highlight; } }
+/* A panel moved into a window of its own (PanelPopout.tsx). The window's
+   document gets every stylesheet of the editor's, so the panel looks as it
+   does in its dock; these rules only make it fill the window. */
+.panel-window-root {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--fd-bg);
+  color: var(--fd-text);
+  overflow: hidden;
+}
+.panel-window {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+/* The panel fills its window, laid out as in a dock. A panel window is narrow,
+   so the app's narrow-screen rules match inside it — the ones that turn a
+   panel into a fixed, sliding overlay (the Navigator below 1100px, the
+   right-hand panels below 900px) or pin its width. Those describe the editor
+   window, not this one; the panel's own root is reset here (two classes, to
+   outrank them). Narrow-screen tweaks inside a panel still apply, and suit it. */
+.panel-window-root .panel-window > * {
+  flex: 1 1 auto;
+  min-height: 0;
+  position: relative !important;
+  inset: auto !important;
+  transform: none !important;
+  transition: none !important;
+  box-shadow: none !important;
+  z-index: auto !important;
+  margin: 0 !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  /* A dock draws the line between a panel and the script; a window has none. */
+  border-inline: none !important;
+}
+/* The overlay Navigator's backdrop. */
+.panel-window-root .panel-window > .scene-navigator::before { content: none !important; }
+/* A window holding several panels: a tab strip, then the panel showing. */
+.panel-window-group {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.panel-window-failed {
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px;
+  text-align: center;
+}
+
+/* The pop-out button sits with each panel's close button and matches it. */
+[data-panel-popout] svg { width: 12px; height: 12px; }
+.navigator-close.navigator-popout { font-size: 13px; padding: 0 10px; }
+.dock-tab.dock-tab-popout { flex: none; padding-inline: 10px; }
+
+/* Where to move a panel, once other panel windows are open. */
+.panel-place-menu {
+  z-index: 10000;
+  min-width: 200px;
+  max-width: min(320px, calc(100vw - 8px));
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  background: var(--fd-dropdown-bg);
+  color: var(--fd-text);
+  border: 1px solid var(--fd-border);
+  border-radius: 6px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+}
+.panel-place-menu__item {
+  padding: 7px 10px;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  text-align: start;
+  cursor: pointer;
+}
+.panel-place-menu__item:hover { background: var(--fd-hover, rgba(127, 127, 127, 0.12)); }
+.panel-place-menu__item:focus-visible { outline: none; background: var(--fd-accent); color: #fff; }

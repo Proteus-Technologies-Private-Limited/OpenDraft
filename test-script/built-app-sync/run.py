@@ -6,7 +6,11 @@ this script can also edit, standing in for edits made outside the open window.
 
 usage: run.py <base-url> <auth.json>   (synthetic account from browser-editing/server.py)
 """
-import asyncio, json, os, sqlite3, sys, tempfile, uuid
+import asyncio, json, os, sqlite3, sys, tempfile, time, uuid
+
+# OPENDRAFT_TRACE=1 prints every native HTTP call and the app's [cloud] console lines.
+TRACE = os.environ.get('OPENDRAFT_TRACE') == '1'
+T0 = time.monotonic()
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -39,6 +43,9 @@ async def main(base, auth_path):
         problems = []
         page.on("pageerror", lambda e: problems.append(str(e)[:300]))
         page.on("console", lambda m: m.type == "error" and problems.append(m.text[:300]))
+        if TRACE:
+            page.on("console", lambda m: ("[cloud]" in m.text or m.type in ("warning", "error"))
+                    and print(f"TRACE {time.monotonic()-T0:7.2f}s console.{m.type}: {m.text[:300]}", flush=True))
 
         async def cloud(path, method="GET", data=None, ok=(200,)):
             r = await context.request.fetch(api + path, method=method, headers=headers, data=data)
@@ -51,6 +58,17 @@ async def main(base, auth_path):
             db.execute("PRAGMA foreign_keys=ON")
 
             async def invoke(_s, command, fields):
+                if command == "http_fetch" and TRACE:
+                    started = time.monotonic()
+                    try:
+                        r = await context.request.fetch(
+                            fields["url"], method=fields["method"], data=fields.get("body"),
+                            headers={"Authorization": fields["authorization"], "Content-Type": "application/json"})
+                    except Exception as error:
+                        print(f"TRACE {time.monotonic()-T0:7.2f}s http {fields['method']} {fields['url'][len(api):]} -> EXCEPTION {error!r}", flush=True)
+                        raise
+                    print(f"TRACE {time.monotonic()-T0:7.2f}s http {fields['method']} {fields['url'][len(api):]} -> {r.status} ({time.monotonic()-started:.2f}s)", flush=True)
+                    return {"status": r.status, "body": await r.text()}
                 if command == "http_fetch":
                     r = await context.request.fetch(
                         fields["url"], method=fields["method"], data=fields.get("body"),
@@ -259,11 +277,13 @@ async def main(base, auth_path):
             await editor.get_by_text("cloud v1").click()
             await page.keyboard.press("End")
             await page.keyboard.type(" device edit")
+            # Save as a writer would. Otherwise the upload waits for the next
+            # autosave tick (every 30 s by default), which is what made this step
+            # look flaky: it raced the timer, not a failing upload.
+            await page.keyboard.press("Control+s")
             banner = page.locator(".cloud-sync-banner")
             try:
-                # Longer than the 30 s retry: an upload that first fails transiently
-                # only reports the conflict when it is retried.
-                await banner.wait_for(timeout=45_000)
+                await banner.wait_for(timeout=15_000)
             except Exception:
                 await page.screenshot(path=str(OUT / "failed-g1.png"))
                 print("G1 status line:", await page.locator(".status-item").all_inner_texts())

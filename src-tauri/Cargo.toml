@@ -90,6 +90,13 @@ jni = "0.21"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 dispatch2 = "=0.3.1"
+# Panel windows (panel_windows.rs): wry builds a window.open() window as a bare
+# NSWindow + WKWebView, which cannot close itself or show its title. The same
+# versions wry 0.55 uses, so nothing new is compiled for these.
+objc2 = "=0.6.4"
+objc2-foundation = { version = "=0.3.2", default-features = false, features = ["std", "NSString", "NSObject", "NSDictionary", "NSArray", "NSNotification", "NSKeyValueObserving", "NSGeometry"] }
+objc2-app-kit = { version = "=0.3.2", default-features = false, features = ["std", "objc2-core-foundation", "NSApplication", "NSResponder", "NSWindow", "NSView", "NSScreen"] }
+objc2-web-kit = { version = "=0.3.2", default-features = false, features = ["std", "objc2-app-kit", "WKWebView", "WKUIDelegate"] }
 
 [target.'cfg(target_os = "windows")'.dependencies]
 windows = { version = "=0.61.3", features = ["Win32_Graphics_Dwm", "Win32_UI_WindowsAndMessaging"] }

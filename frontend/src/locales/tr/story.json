@@ -695,11 +695,14 @@
     "saveFailed": "Sahne kaydedilemedi. Tekrar deneyin."
   },
   "popout": {
-    "move": "Sahne gezginini yeni pencereye taşı",
+    "movePanel": "{{panel}} panelini yeni pencereye taşı",
+    "addTo": "{{window}} penceresine ekle",
+    "moveMenu": "{{panel}} panelini taşı…",
+    "windowTabs": "Bu penceredeki paneller",
+    "returnPanel": "{{panel}} panelini ana pencereye geri getir",
     "return": "Ana pencereye dön",
-    "waiting": "Senaryo bekleniyor…",
-    "unavailable": "Senaryo penceresi artık kullanılamıyor.",
-    "failed": "Gezgin yeni bir pencerede açılamadı.",
-    "show": "Gezgin penceresini göster"
+    "failed": "Yeni pencere açılamadı.",
+    "popupsHint": "Bu site için açılır pencereler engelliyse, izin verip yeniden deneyin.",
+    "panelFailed": "Bu panel burada gösterilemedi."
   }
 }

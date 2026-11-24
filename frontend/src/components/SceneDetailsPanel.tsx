@@ -287,6 +287,7 @@ const SceneDetailsPanel: React.FC<Props> = ({ editor, projectId, style }) => {
       count={scene ? t('sceneDetails.countOf', { n: scene.index + 1, total: briefs.length }) : undefined}
       extra={<span className="sp-note sp-follows">{t('sceneDetails.followsCursor')}</span>}
       onClose={close}
+      panel="scene-details"
     />
   );
 

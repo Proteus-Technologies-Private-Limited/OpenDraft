@@ -3,13 +3,16 @@ const layers: HTMLElement[] = [];
 const listeners = new Set<() => void>();
 const blocked = new Map<HTMLElement, { inert: boolean; hidden: string | null }>();
 
-export function modalPortalContainer(): HTMLElement {
-  const dialogs = document.querySelectorAll<HTMLDialogElement>('dialog[open]');
+/** Where a popup opened in `doc` goes: its top dialog, or its body. A panel
+ * popped out into its own window passes that window's document. */
+export function modalPortalContainer(doc: Document = document): HTMLElement {
+  const dialogs = doc.querySelectorAll<HTMLDialogElement>('dialog[open]');
   const native = dialogs[dialogs.length - 1];
-  const custom = layers[layers.length - 1];
+  const own = layers.filter(layer => layer.ownerDocument === doc);
+  const custom = own[own.length - 1];
   // Registered scopes follow opening order, which may differ from DOM order.
   return native && !layers.includes(native) && (!custom || !native.contains(custom))
-    ? native : custom ?? native ?? document.body;
+    ? native : custom ?? native ?? doc.body;
 }
 
 export function subscribeModalLayers(listener: () => void): () => void {
@@ -38,7 +41,7 @@ function reconcile() {
         sibling.setAttribute('aria-hidden', 'true');
       }
       branch = branch.parentElement;
-      if (branch === document.body) break;
+      if (branch === branch.ownerDocument.body) break;
     }
   }
 }
@@ -56,7 +59,7 @@ export function registerModal(element: HTMLElement): () => void {
 }
 
 export function isTopModal(element: HTMLElement): boolean {
-  return modalPortalContainer() === element;
+  return modalPortalContainer(element.ownerDocument) === element;
 }
 
 export function focusableElements(root: HTMLElement): HTMLElement[] {

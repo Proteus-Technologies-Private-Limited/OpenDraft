@@ -10,6 +10,7 @@ import { api } from '../services/api';
 import { useAssetStore } from '../stores/assetStore';
 import { showToast } from './Toast';
 import { AssetImagePicker, ImageLightbox } from './ReferenceImages';
+import { PanelPopoutButton } from './PanelPopout';
 
 interface HeaderProps {
   title: React.ReactNode;
@@ -23,10 +24,12 @@ interface HeaderProps {
   onClose: () => void;
   /** Bigger, unstyled-case title — the name of the record shown. */
   recordTitle?: boolean;
+  /** The panel's id, for its pop-out button. */
+  panel?: string;
 }
 
 export const StoryPanelHeader: React.FC<HeaderProps> = ({
-  title, count, extra, onBack, wide, onToggleWide, onClose, recordTitle,
+  title, count, extra, onBack, wide, onToggleWide, onClose, recordTitle, panel,
 }) => {
   const { t } = useTranslation(['story', 'common']);
   const { isRtl } = useLanguage();
@@ -53,6 +56,7 @@ export const StoryPanelHeader: React.FC<HeaderProps> = ({
           {wide ? '⤡' : '⛶'}
         </button>
       )}
+      {panel && <PanelPopoutButton panel={panel} className="sp-icon-btn" />}
       <button type="button" className="sp-icon-btn" onClick={onClose} title={t('common:close')} aria-label={t('common:close')}>
         &times;
       </button>

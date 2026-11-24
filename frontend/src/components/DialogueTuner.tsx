@@ -14,6 +14,7 @@ import Select from './Select';
 import { showToast } from './Toast';
 import { elementLabel } from '../editor/elementLabels';
 import { useEditorTransactions } from '../hooks/useEditorTransactions';
+import { PanelPopoutButton } from './PanelPopout';
 
 interface DialogueTunerProps {
   editor: Editor | null;
@@ -123,6 +124,7 @@ const DialogueTuner: React.FC<DialogueTunerProps> = ({ editor, style }) => {
       <div className="tags-panel-header">
         <span className="tags-panel-title">{t('dialogueTuner.title')}</span>
         <span className="tags-panel-count" title={t('dialogueTuner.linesOfDialogue')}>{lineCount}</span>
+        <PanelPopoutButton panel="tuner" className="tags-panel-close" />
         <button className="tags-panel-close" onClick={close} title={t('common:close')} aria-label={t('dialogueTuner.close')}>&times;</button>
       </div>
 

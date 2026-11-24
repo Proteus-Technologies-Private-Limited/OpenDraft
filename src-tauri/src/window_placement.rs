@@ -125,51 +125,6 @@ pub fn new_window(origin: &Placement, frame: FrameInsets) -> Option<Placement> {
         .then(|| fit(origin, &origin.display, false, 32.0, (800.0, 600.0), frame))
 }
 
-pub fn restore_panel(
-    saved: &Placement,
-    displays: &[Display],
-    primary: &Display,
-    insets: FrameInsets,
-) -> Option<Placement> {
-    if !saved.valid() || !primary.valid() {
-        return None;
-    }
-    let existing = matching_display(&saved.display, displays);
-    Some(fit(
-        saved,
-        existing.unwrap_or(primary),
-        existing.is_none(),
-        0.0,
-        (260.0, 240.0),
-        insets,
-    ))
-}
-
-pub fn new_panel(origin: &Placement, insets: FrameInsets) -> Option<Placement> {
-    if !origin.valid() {
-        return None;
-    }
-    let mut panel = origin.clone();
-    let frame = (
-        origin.outer.width - origin.inner.0,
-        origin.outer.height - origin.inner.1,
-    );
-    panel.inner = (
-        pixels(440.0 * panel.display.scale),
-        pixels(720.0 * panel.display.scale),
-    );
-    panel.outer.width = panel.inner.0.saturating_add(frame.0);
-    panel.outer.height = panel.inner.1.saturating_add(frame.1);
-    Some(fit(
-        &panel,
-        &panel.display,
-        false,
-        32.0,
-        (260.0, 240.0),
-        insets,
-    ))
-}
-
 fn pixels(value: f64) -> u32 {
     value.round().clamp(1.0, u32::MAX as f64) as u32
 }
@@ -376,21 +331,6 @@ mod tests {
         assert_eq!(matching_display(&b, &[a.clone(), b.clone()]), Some(&b));
         let missing = display("same", -1920, 0, 1920, 1080, 1.0);
         assert!(matching_display(&missing, &[a, b]).is_none());
-    }
-
-    #[test]
-    fn panels_remain_narrow_and_restore_safely_after_disconnect() {
-        let second = display("second", 1920, 0, 1920, 1040, 1.0);
-        let origin = window(&second, 2000, 50, 1280, 800);
-        let panel = new_panel(&origin, FrameInsets::default()).unwrap();
-        assert_eq!(panel.inner.0, 440);
-        assert_eq!(panel.display, second);
-        visible(&panel);
-        let primary = display("primary", 0, 24, 640, 440, 1.0);
-        let restored =
-            restore_panel(&panel, &[primary.clone()], &primary, FrameInsets::default()).unwrap();
-        assert_eq!(restored.inner.0, 440);
-        visible(&restored);
     }
 
     #[test]

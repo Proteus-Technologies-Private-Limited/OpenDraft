@@ -31,6 +31,7 @@ import { AssetImagePicker, ImageLightbox, ReferenceImageGallery } from './Refere
 import { DraftText, ImageSlot, StoryPanelHeader, StoryPanelTabs } from './StoryPanelParts';
 import Select from './Select';
 import { confirmAction } from '../utils/confirmAction';
+import { PanelPopoutButton } from './PanelPopout';
 
 interface Props {
   editor: Editor | null;
@@ -695,6 +696,7 @@ const LocationDatabase: React.FC<Props> = ({ editor, style }) => {
           {!sideBySide && (
             <>
               <button type="button" className="sp-icon-btn sp-wide-btn" onClick={() => setIsWide(true)} title={t('storyPanels.wideView')} aria-label={t('storyPanels.wideView')}>&#x26F6;</button>
+              <PanelPopoutButton panel="location-db" className="sp-icon-btn" />
               <button type="button" className="sp-icon-btn" onClick={close} title={t('common:close')} aria-label={t('common:close')}>&times;</button>
             </>
           )}
@@ -749,6 +751,7 @@ const LocationDatabase: React.FC<Props> = ({ editor, style }) => {
           wide={isWide}
           onToggleWide={() => setIsWide((w) => !w)}
           onClose={close}
+          panel="location-db"
         />
       )}
 

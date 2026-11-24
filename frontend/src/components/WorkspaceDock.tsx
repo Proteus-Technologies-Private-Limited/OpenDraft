@@ -15,6 +15,10 @@ import { useTranslation } from 'react-i18next';
 import { useEditorFields } from '../stores/editorStore';
 import { isNavigatorPanel, visibleGroups, type DockId, type NavigatorPanelId, type PanelGroup, type WorkspaceLayout } from '../utils/workspaceLayout';
 import { panelIcon, usePanelLabel } from './toolbar/toolbarMeta';
+import { PanelPopoutButton } from './PanelPopout';
+import { PanelPlaceContext } from './panelPlace';
+
+const DOCKED = { where: 'dock' } as const;
 
 export interface DockPanelDef {
   open: boolean;
@@ -136,6 +140,7 @@ const WorkspaceDock: React.FC<Props> = ({ dock, layout: workspaceLayout, panels,
     const active = showing.includes(dockActive[group.id]) ? dockActive[group.id] : showing[0];
     return (
       <div className="dock-group-tabs" style={groupWidth ? { width: groupWidth, minWidth: groupWidth } : undefined}>
+        <div className="dock-tab-bar">
         <div className="dock-tab-strip" role="tablist" aria-label={group.name || panelLabel(showing[0])}>
           {showing.map((panel) => (
             <button
@@ -165,6 +170,9 @@ const WorkspaceDock: React.FC<Props> = ({ dock, layout: workspaceLayout, panels,
             </button>
           ))}
         </div>
+          {/* A Navigator panel here has no header of its own to hold this. */}
+          {isNavigatorPanel(active) && <PanelPopoutButton panel={active} className="dock-tab dock-tab-popout" />}
+        </div>
         {/* Every tab stays mounted, so a Table Read keeps playing behind another tab. */}
         {showing.map((panel) => (
           <div key={panel} className="dock-tab-panel" role="tabpanel" id={`dock-panel-${group.id}-${panel}`}
@@ -184,6 +192,7 @@ const WorkspaceDock: React.FC<Props> = ({ dock, layout: workspaceLayout, panels,
   const dockClass = dockState === 'shown' ? '' : ` dock-${dockState}`;
 
   return (
+    <PanelPlaceContext.Provider value={DOCKED}>
     <div
       className={`workspace-dock workspace-dock-${dock} dock-arrange-${arrange}${sized ? ' dock-sized' : ''}${dockClass}`}
       style={style}
@@ -202,6 +211,7 @@ const WorkspaceDock: React.FC<Props> = ({ dock, layout: workspaceLayout, panels,
         </div>
       ))}
     </div>
+    </PanelPlaceContext.Provider>
   );
 };
 

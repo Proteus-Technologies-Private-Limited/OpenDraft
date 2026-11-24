@@ -112,6 +112,8 @@ interface Anchor {
   maxHeight: number;
   /** Set for the choice line: the popup is laid out as one row of this size. */
   line?: { width: number; height: number };
+  /** The trigger's document: a popped-out panel's popup opens in its window. */
+  doc?: Document;
 }
 
 const EDGE_GAP = 8;
@@ -125,17 +127,19 @@ function anchorTo(trigger: HTMLElement): Anchor {
   const line = choiceLineFor(trigger);
   if (line) return line;
   const rect = trigger.getBoundingClientRect();
-  const vw = window.visualViewport?.width ?? window.innerWidth;
-  const vh = window.visualViewport?.height ?? window.innerHeight;
+  // A panel popped out into its own window measures against that window.
+  const view = trigger.ownerDocument.defaultView ?? window;
+  const vw = view.visualViewport?.width ?? view.innerWidth;
+  const vh = view.visualViewport?.height ?? view.innerHeight;
   const maxWidth = Math.max(160, vw - EDGE_GAP * 2);
   const minWidth = Math.min(rect.width, maxWidth);
   const left = Math.max(EDGE_GAP, Math.min(rect.left, vw - minWidth - EDGE_GAP));
   const roomBelow = vh - rect.bottom - EDGE_GAP;
   const roomAbove = rect.top - EDGE_GAP;
   if (roomBelow >= MIN_ROOM_BELOW || roomBelow >= roomAbove) {
-    return { left, minWidth, maxWidth: vw - left - EDGE_GAP, top: rect.bottom + 2, maxHeight: Math.max(120, roomBelow) };
+    return { left, minWidth, maxWidth: vw - left - EDGE_GAP, top: rect.bottom + 2, maxHeight: Math.max(120, roomBelow), doc: trigger.ownerDocument };
   }
-  return { left, minWidth, maxWidth: vw - left - EDGE_GAP, bottom: vh - rect.top + 2, maxHeight: Math.max(120, roomAbove) };
+  return { left, minWidth, maxWidth: vw - left - EDGE_GAP, bottom: vh - rect.top + 2, maxHeight: Math.max(120, roomAbove), doc: trigger.ownerDocument };
 }
 
 /**
@@ -246,22 +250,25 @@ const Select: React.FC<SelectProps> = ({
     // Follow the trigger rather than close: a soft keyboard appearing is a
     // resize, and a dialog settling is a scroll.
     const reposition = (e?: Event) => {
-      if (e && listRef.current && e.target instanceof Node && listRef.current.contains(e.target)) return;
+      // nodeType, not instanceof Node: a popped-out panel's nodes are another window's.
+      if (e && listRef.current && typeof (e.target as Node | null)?.nodeType === 'number' && listRef.current.contains(e.target as Node)) return;
       if (buttonRef.current) setAnchor(anchorTo(buttonRef.current));
     };
-    document.addEventListener('mousedown', onPointerDown);
-    document.addEventListener('touchstart', onPointerDown as EventListener);
-    window.addEventListener('resize', reposition);
-    window.addEventListener('scroll', reposition, true);
-    window.visualViewport?.addEventListener('resize', reposition);
-    window.visualViewport?.addEventListener('scroll', reposition);
+    const doc = buttonRef.current?.ownerDocument ?? document;
+    const view = doc.defaultView ?? window;
+    doc.addEventListener('mousedown', onPointerDown);
+    doc.addEventListener('touchstart', onPointerDown as EventListener);
+    view.addEventListener('resize', reposition);
+    view.addEventListener('scroll', reposition, true);
+    view.visualViewport?.addEventListener('resize', reposition);
+    view.visualViewport?.addEventListener('scroll', reposition);
     return () => {
-      document.removeEventListener('mousedown', onPointerDown);
-      document.removeEventListener('touchstart', onPointerDown as EventListener);
-      window.removeEventListener('resize', reposition);
-      window.removeEventListener('scroll', reposition, true);
-      window.visualViewport?.removeEventListener('resize', reposition);
-      window.visualViewport?.removeEventListener('scroll', reposition);
+      doc.removeEventListener('mousedown', onPointerDown);
+      doc.removeEventListener('touchstart', onPointerDown as EventListener);
+      view.removeEventListener('resize', reposition);
+      view.removeEventListener('scroll', reposition, true);
+      view.visualViewport?.removeEventListener('resize', reposition);
+      view.visualViewport?.removeEventListener('scroll', reposition);
     };
   }, [open]);
 
@@ -436,7 +443,7 @@ const Select: React.FC<SelectProps> = ({
           </div>
           {anchor.line && <ChoiceLineClose onClose={() => close(true)} />}
         </div>,
-        modalPortalContainer(),
+        modalPortalContainer(anchor.doc),
       )}
     </>
   );
