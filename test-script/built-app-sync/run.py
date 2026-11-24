@@ -9,6 +9,7 @@ usage: run.py <base-url> <auth.json>   (synthetic account from browser-editing/s
 import asyncio, json, os, sqlite3, sys, tempfile, uuid
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urlsplit
 from playwright.async_api import async_playwright
 
 OUT = Path(__file__).resolve().parents[1] / "output" / "built-app-sync"
@@ -259,7 +260,15 @@ async def main(base, auth_path):
             await page.keyboard.press("End")
             await page.keyboard.type(" device edit")
             banner = page.locator(".cloud-sync-banner")
-            await banner.wait_for(timeout=30_000)
+            try:
+                # Longer than the 30 s retry: an upload that first fails transiently
+                # only reports the conflict when it is retried.
+                await banner.wait_for(timeout=45_000)
+            except Exception:
+                await page.screenshot(path=str(OUT / "failed-g1.png"))
+                print("G1 status line:", await page.locator(".status-item").all_inner_texts())
+                print("G1 editor text:", (await editor.inner_text())[:200])
+                raise
             assert "conflict" in (await banner.inner_text()).lower(), await banner.inner_text()
             await page.screenshot(path=str(OUT / "g-conflict-banner.png"))
             status_line = page.locator(".status-item", has_text="Cloud conflict").first
@@ -287,9 +296,43 @@ async def main(base, auth_path):
             await page.wait_for_url("**/projects", timeout=10_000)
             ok("G3 'Use cloud version' then removes the device copy of the deleted script")
             await cloud(f"/projects/{cloud_project}", "DELETE")
+
+            # ---- H: going back to a cloud screenplay after signing out ---------------
+            h_project = (await cloud("/projects/", "POST", {"name": f"Account switch {project[:8]}"}))["id"]
+            await cloud(f"/projects/{h_project}/scripts/", "POST", {"title": "Owned", "content": doc("owned by this account")})
+            await page.goto(base + "/projects")
+            await page.wait_for_timeout(1500)
+            await page.get_by_text("OpenDraft Cloud", exact=True).first.click()
+            await page.get_by_text(f"Account switch {project[:8]}").first.click()
+            await page.get_by_text("Owned", exact=True).first.click()
+            await page.locator(".ProseMirror").first.get_by_text("owned by this account").wait_for(timeout=15_000)
+            await page.wait_for_timeout(1500)
+            assert not await page.get_by_text("Recover unsaved changes?").count(), \
+                "text discarded with 'Use cloud version' must not be offered back for recovery"
+            ok("G4 text discarded with 'Use cloud version' is not offered back as unsaved changes")
+            # Navigate inside the app, as a writer would: a full page load would
+            # re-run the harness's sign-in script.
+            await page.screenshot(path=str(OUT / "h-before-menu.png"))
+            await page.locator(".menubar, [role=menubar]").first.get_by_text("Tools", exact=True).click()
+            await page.screenshot(path=str(OUT / "h-tools-menu.png"))
+            await page.get_by_text("System Settings", exact=False).first.click()
+            await page.get_by_text("Account & Sharing", exact=True).first.click()
+            await page.get_by_role("button", name="Sign Out").first.click()
+            await page.wait_for_timeout(1500)
+            await page.go_back()
+            closed = page.locator(".toast-message--info", has_text="belongs to the account you signed out of")
+            await closed.wait_for(timeout=10_000)
+            await page.wait_for_timeout(1000)
+            errors = await page.locator(".toast-message--error").all_inner_texts()
+            assert not errors, errors
+            assert urlsplit(page.url).path == "/", page.url
+            assert "owned by this account" not in await page.locator(".ProseMirror").first.inner_text()
+            await page.screenshot(path=str(OUT / "h-closed-after-sign-out.png"))
+            ok("H  a cloud screenplay of the signed-out account closes with a plain message, not an error")
         await browser.close()
     print(f"\n{len(passed)} checks passed")
-    real = [p for p in problems if "favicon" not in p]
+    # The synthetic server has no collaboration server, so the device list in Settings cannot load.
+    real = [p for p in problems if "favicon" not in p and "Loading signed-in devices failed" not in p]
     print("console errors:", real or "none")
 
 
