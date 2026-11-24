@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { focusableElements, modalPortalContainer, subscribeModalLayers } from '../utils/modalAccessibility';
 import { movePanelHost } from '../utils/movePanelHost';
+import { useSettingsStore } from '../stores/settingsStore';
+import { addToast, withoutErrors } from '../utils/toastQueue';
 
 interface ToastMessage {
   id: number;
@@ -59,11 +61,19 @@ const Toast: React.FC = () => {
   }, [host]);
   useEffect(() => {
     const add = (message: ToastMessage) => {
-      setMessages(previous => [...previous, message]);
+      // Repeated failures replace their copy rather than piling up.
+      setMessages(previous => addToast(previous, message));
       setAnnouncement(previous => ({ ...previous, [message.type === 'error' ? 'assertive' : 'polite']: message }));
     };
     listeners.add(add);
-    return () => { listeners.delete(add); };
+    // Errors stay until dismissed, but one raised for the previous account or
+    // connection (a failed sign-in, a document that account owned) no longer
+    // applies once a different account is signed in, or none is.
+    const unsubscribe = useSettingsStore.subscribe((state, previous) => {
+      if (state.collabAuth.user?.id === previous.collabAuth.user?.id) return;
+      setMessages(current => withoutErrors(current));
+    });
+    return () => { listeners.delete(add); unsubscribe(); };
   }, []);
 
   const dismiss = useCallback((id: number) => {

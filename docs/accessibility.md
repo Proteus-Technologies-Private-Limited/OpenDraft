@@ -37,7 +37,9 @@ screen-reader conformance.
   zoom palette has named controls and Escape/return focus.
 - Explicit operation feedback uses polite status messages; failures use alerts.
   Routine toast messages dismiss after four seconds, with the timer paused
-  while hovered or focused. Errors stay until dismissed. Clicking a toast or
+  while hovered or focused. Errors stay until dismissed, except that the same
+  error is shown once rather than stacked, and errors are cleared when the
+  signed-in account changes, since they no longer apply. Clicking a toast or
   its keyboard-accessible dismiss button closes it; arrival does not move focus.
   Persistent live-region hosts move into modal scopes without remounting, including native top-layer dialogs. Dictionary
   installation announces start/completion and exposes failures as alerts. The
