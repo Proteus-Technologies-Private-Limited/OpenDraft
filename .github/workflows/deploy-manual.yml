@@ -20,10 +20,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -70,6 +67,17 @@ jobs:
         with:
           path: _site
 
+  # A separate job, as GitHub's own Pages workflow has it. Deploying in the same
+  # job a fraction of a second after the upload finalised began finding no
+  # artifact (Nov 2026: "Found 0 artifact(s)" while the run's artifact list
+  # showed it), and every re-run failed the same way.
+  deploy:
+    needs: build
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
