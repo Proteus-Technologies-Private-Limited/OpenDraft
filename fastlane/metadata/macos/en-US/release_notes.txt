@@ -1,13 +1,16 @@
-Build your characters and places in detail, and see everything about the scene you are writing.
+Put any panel in its own window, and keep writing your cloud scripts without a connection.
 
-CHARACTERS, LOCATIONS AND SCENE DETAILS
-Give each character a profile with pictures, their story, voice, relationships and the costumes they wear. Give each location a description, looks such as Day and Night, and reference pictures. Scene Details shows the scene you are in: where it is set, who is there and what each of them wears. Your existing profiles and pictures carry over.
+PANELS IN THEIR OWN WINDOWS
+Pop out any panel, such as the Navigator, Notes, Character Profiles or Scene Details, into its own window and put it on another display. It is the same live panel, several can share one window as tabs, and each opens where you last left it.
 
-OPENS ON OLDER MACS AGAIN
-If OpenDraft stopped at "Loading timed out" on a Mac with an older version of Safari, it opens normally again.
+CLOUD SCRIPTS OFFLINE
+A cloud screenplay you have opened once now opens without a connection. Your changes are saved on your Mac and upload when you are back online. If someone changed the script elsewhere in the meantime, nothing is overwritten: you choose which version to keep.
 
-EASIER BY KEYBOARD
-Customising your workspace now works fully from the keyboard.
+SYNC A PROJECT FROM THIS MAC
+Turn on Sync with OpenDraft Cloud for a project on this Mac, and its screenplays reach your other devices with the same account. Nothing is lost if a screenplay was changed in both places.
+
+WINDOWS OPEN WHERE YOU LEFT THEM
+OpenDraft remembers the window's size, display and full-screen state.
 
 ALSO IMPROVED
-Typing in long scripts is faster, and panels fit better in a narrow window.
+Arranging your workspace by keyboard is safer, a repeated error is shown only once, and switching accounts is smoother.

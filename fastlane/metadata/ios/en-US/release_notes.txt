@@ -1,16 +1,13 @@
-Build your characters and places in detail, see everything about the scene you are writing, and open OpenDraft again on older iPhones and iPads.
+Keep writing your cloud scripts without a connection, and share a project on this device with your other devices.
 
-CHARACTERS, LOCATIONS AND SCENE DETAILS
-Give each character a profile with pictures, their story, voice, relationships and the costumes they wear. Give each location a description, looks such as Day and Night, and reference pictures. Scene Details shows the scene you are in: where it is set, who is there and what each of them wears. Your existing profiles and pictures carry over.
+CLOUD SCRIPTS OFFLINE
+A cloud screenplay you have opened once now opens without a connection. Your changes are saved on the device and upload when you are back online. If someone changed the script elsewhere in the meantime, nothing is overwritten: you choose which version to keep.
 
-WORKS ON iOS 15 AGAIN
-If OpenDraft stopped at "Loading timed out" on iOS 15 or an early version of iOS 16, it opens normally again.
+SYNC A PROJECT FROM THIS DEVICE
+Turn on Sync with OpenDraft Cloud for a project on this device, and its screenplays reach your other devices with the same account. If a screenplay was changed in both places, you pick the one to keep and the other is saved as a copy, so nothing is lost.
 
-PLANNING VIEWS ON FOLDABLES
-On a foldable held open, the page view, index cards, outline and beat board open beside the script.
-
-EASIER BY KEYBOARD
-Customising your workspace now works fully from the keyboard.
+FOLDABLES HELD LIKE A LAPTOP
+Half open with the crease across the screen, your toolbar sits in two rows beside the crease and keeps your choices.
 
 ALSO IMPROVED
-Typing in long scripts is faster, panels fit better on smaller screens, and you can rate OpenDraft from the Help menu.
+Asking before you delete something works again, arranging your workspace by keyboard is safer, an iPad shows as an iPad in your list of devices, and switching accounts is smoother.

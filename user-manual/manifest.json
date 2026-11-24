@@ -1,17 +1,17 @@
 {
-  "version": "e1222877549a7cd0",
+  "version": "10d7ed8a29a3e23c",
   "pages": [
     {
       "slug": "index.html",
       "title": "Home",
       "section": "Getting Started",
-      "hash": "73f739ada10f91af"
+      "hash": "a0faa03dd4fcfbc9"
     },
     {
       "slug": "getting-started.html",
       "title": "Getting Started",
       "section": "Getting Started",
-      "hash": "a8c5b39d058394ac"
+      "hash": "638be9dbfad44a91"
     },
     {
       "slug": "installation.html",
