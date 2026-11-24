@@ -27,6 +27,7 @@ import { showToast } from './Toast';
 import { useSettingsStore } from '../stores/settingsStore';
 
 import { parseTemplateSnapshot, sameTemplateDefinition } from '../utils/templateSnapshot';
+import { confirmAction } from '../utils/confirmAction';
 
 const DOCUMENT_FORMAT = '__document_format_selection__';
 
@@ -241,7 +242,7 @@ const TemplateSelectDialog: React.FC<TemplateSelectDialogProps> = ({ editor, onC
               <button
                 className="dialog-btn dialog-btn-sm dialog-btn-danger"
                 onClick={async () => {
-                  if (confirm(t('select.confirmDelete', { name: templateName(tpl) }))) {
+                  if (await confirmAction(t('select.confirmDelete', { name: templateName(tpl) }))) {
                     await deleteTemplate(tpl.id);
                     if (selectedId === tpl.id) setSelectedId(INDUSTRY_STANDARD_ID);
                     showToast(t('select.deleted'), 'success');

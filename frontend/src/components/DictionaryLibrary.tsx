@@ -2,6 +2,7 @@ import React, { useMemo, useRef, useState } from 'react';
 import { ModalOverlay } from './ModalOverlay';
 import { useTranslation } from 'react-i18next';
 import { useEditorStore } from '../stores/editorStore';
+import { confirmAction } from '../utils/confirmAction';
 
 interface DictionaryLibraryProps {
   onClose: () => void;
@@ -72,8 +73,8 @@ const DictionaryLibrary: React.FC<DictionaryLibraryProps> = ({ onClose }) => {
     setSelected(trimmed);
   };
 
-  const handleDelete = (name: string) => {
-    if (!window.confirm(t('dictionaryLibrary.confirmDelete', { name }))) return;
+  const handleDelete = async (name: string) => {
+    if (!(await confirmAction(t('dictionaryLibrary.confirmDelete', { name })))) return;
     deleteGlobalDictionary(name);
   };
 

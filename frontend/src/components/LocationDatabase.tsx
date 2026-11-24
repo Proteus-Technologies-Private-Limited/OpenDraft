@@ -30,6 +30,7 @@ import { goToPosition, useNarrowPanel, writeSceneDetails, jumpToPanel } from '..
 import { AssetImagePicker, ImageLightbox, ReferenceImageGallery } from './ReferenceImages';
 import { DraftText, ImageSlot, StoryPanelHeader, StoryPanelTabs } from './StoryPanelParts';
 import Select from './Select';
+import { confirmAction } from '../utils/confirmAction';
 
 interface Props {
   editor: Editor | null;
@@ -265,7 +266,7 @@ const LocationDatabase: React.FC<Props> = ({ editor, style }) => {
 
   const handleDelete = useCallback(async (loc: LocationEntry) => {
     if (!projectId) return;
-    if (!window.confirm(t('locations.confirmDelete', { name: loc.name }))) return;
+    if (!(await confirmAction(t('locations.confirmDelete', { name: loc.name })))) return;
     try {
       await removeLocation(projectId, loc.id);
       if (selectedId === loc.id) setSelectedId(null);

@@ -18,6 +18,7 @@ import { DEFAULT_TITLE_PAGE_CREDIT } from '../utils/titlePageBlocks';
 import { buildTitlePageBlocks, deriveFields } from '../utils/titlePageDialogBlocks';
 import { showToast } from './Toast';
 import Select from './Select';
+import { confirmAction } from '../utils/confirmAction';
 
 /** Small image thumbnail for the title-page preview/list. Shares the editor
  *  NodeView's resolver, so scratch-backed images work here too. */
@@ -294,8 +295,8 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
     if (arr[idx]) arr[idx] = { ...arr[idx], align };
   });
 
-  const handleDeleteTitlePage = useCallback(() => {
-    if (!window.confirm(t('titlePage.deleteConfirm'))) return;
+  const handleDeleteTitlePage = useCallback(async () => {
+    if (!(await confirmAction(t('titlePage.deleteConfirm')))) return;
     if (titlePageRegionEnd(editor) > 0) replaceTitleRegion(editor, []);
     onClose();
   }, [editor, onClose, t]);

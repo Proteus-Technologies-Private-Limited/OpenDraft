@@ -272,6 +272,7 @@ import { offlineCloudStatus, resolveOfflineCloudConflict, subscribeOfflineCloud 
 import { pluginRegistry } from '../plugins/registry';
 import { createTrackChangesPlugin, trackChangesPluginKey } from '../editor/trackChanges';
 import type { VersionInfo } from '../services/api';
+import { confirmAction } from '../utils/confirmAction';
 
 
 /**
@@ -3957,7 +3958,7 @@ const ScreenplayEditor: React.FC = () => {
         await scriptApi.saveScript(pid, sid, { content });
       } catch (err) {
         // Bubble through console — the close handler decides what to do
-        // about persistence failures (it falls back to confirm()).
+        // about persistence failures (it asks the writer).
         console.error('Save-on-close failed:', err);
         throw err;
       }
@@ -3989,7 +3990,7 @@ const ScreenplayEditor: React.FC = () => {
               await win.destroy();
             } catch (err) {
               const msg = err instanceof Error ? err.message : String(err);
-              const proceed = window.confirm(
+              const proceed = await confirmAction(
                 tg('editor:toast.closeConfirm', { error: msg }),
               );
               if (proceed) await win.destroy();
@@ -4434,7 +4435,7 @@ const ScreenplayEditor: React.FC = () => {
   const handleCloudConflict = async (choice: 'cloud' | 'device') => {
     if (!editor || !currentProject || !currentScriptId || scriptSwitchingRef.current) return;
     const key = choice === 'cloud' ? 'toolbar:status.save.cloudUseConfirm' : 'toolbar:status.save.cloudUploadConfirm';
-    if (!window.confirm(tg(key))) return;
+    if (!(await confirmAction(tg(key)))) return;
 
     const content = buildSaveContent();
     if (choice === 'device' && !content) return;

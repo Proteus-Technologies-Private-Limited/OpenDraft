@@ -5,6 +5,7 @@ import { useEditorStore } from '../stores/editorStore';
 import { spellChecker, PROJECT_DICT_TARGET } from '../editor/spellchecker';
 import { canDisableLanguage, setScriptLanguageEnabled } from '../editor/spellcheckLanguages';
 import { BUILTIN, CATALOG, findLanguage } from '../editor/languageCatalog';
+import { confirmAction } from '../utils/confirmAction';
 
 /** Subscribe to spellChecker.onChange so React re-renders when its state changes. */
 function useSpellCheckerVersion(): number {
@@ -96,7 +97,7 @@ const LanguagesSection: React.FC<{ onOpenInstaller: () => void }> = ({ onOpenIns
   const handleUninstall = async (code: string) => {
     const lang = findLanguage(code);
     const label = lang?.label || code;
-    if (!window.confirm(t('dictionaryConfig.removeConfirm', { name: label }))) return;
+    if (!(await confirmAction(t('dictionaryConfig.removeConfirm', { name: label })))) return;
     await uninstallLanguage(code);
   };
 

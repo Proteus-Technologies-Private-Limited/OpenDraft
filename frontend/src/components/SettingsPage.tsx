@@ -25,6 +25,7 @@ import { useLanguage } from '../i18n/useLanguage';
 import { formatDateTime } from '../i18n/format';
 import { buildLanguageOptions } from './languageOptions';
 import { LANGUAGES } from '../i18n/languages';
+import { confirmAction } from '../utils/confirmAction';
 
 // The value stored is `hours`; the words shown for it are built from unit and count when rendering.
 const EXPIRY_OPTIONS: { hours: number; unit: 'minutes' | 'hours' | 'days'; count: number }[] = [
@@ -512,7 +513,7 @@ const SettingsPage: React.FC = () => {
       showToast(t('account.devices.useSignOut'), 'error');
       return;
     }
-    if (!confirm(t('account.devices.revokeConfirm'))) return;
+    if (!(await confirmAction(t('account.devices.revokeConfirm')))) return;
     try {
       await collabAuthApi.revokeDevice(deviceId);
       showToast(t('account.devices.revoked'), 'success');
