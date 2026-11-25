@@ -372,27 +372,31 @@ export function backendCandidates(hostHeader: string | undefined, protocol: stri
   return out;
 }
 
-/** Ask the Python backend what an account has stored. The backend keeps the
- *  files; we hold the accounts, so we vouch for the request with a one-minute
- *  token naming just this account. Only metadata comes back. */
-async function fetchInventory(userId: string, adminEmail: string, backends: string[]): Promise<{ ok: true; data: any; source: string } | { ok: false; error: string; tried: string[] }> {
-  const token = jwt.sign(
-    { sub: userId, type: 'admin_inventory', admin: adminEmail },
-    config.jwtSecret,
-    { expiresIn: 60, audience: 'opendraft-backend-admin' },
-  );
+type BackendResult =
+  | { ok: true; data: any; source: string }
+  | { ok: false; error: string; tried: string[]; status?: number; detail?: string };
+
+/** Call the backend's admin API, trying each candidate address in turn. */
+async function callBackend(path: string, token: string, backends: string[], method: 'GET' | 'POST' = 'GET'): Promise<BackendResult> {
   const tried: string[] = [];
   let lastError = 'no backend URL configured (set BACKEND_URL)';
   for (const base of backends) {
     tried.push(base);
     try {
-      const r = await fetch(`${base}/admin/accounts/${encodeURIComponent(userId)}/inventory`, {
+      const r = await fetch(`${base}${path}`, {
+        method,
         headers: { Authorization: `Bearer ${token}` },
         signal: AbortSignal.timeout(15_000),
       });
       if (r.ok) return { ok: true, data: await r.json(), source: base };
       const body: any = await r.json().catch(() => ({}));
-      lastError = `${base} answered ${r.status}${body?.detail ? ': ' + (typeof body.detail === 'string' ? body.detail : JSON.stringify(body.detail)) : ''}`;
+      const detail = body?.detail ? (typeof body.detail === 'string' ? body.detail : JSON.stringify(body.detail)) : '';
+      lastError = `${base} answered ${r.status}${detail ? ': ' + detail : ''}`;
+      // The backend answered about the request itself (not found, conflict):
+      // that is the answer, not a reason to try another address.
+      if (r.status === 404 && method === 'POST' || r.status === 409 || r.status === 400) {
+        return { ok: false, error: lastError, tried, status: r.status, detail };
+      }
       // A backend that answered with an auth error is the right one, wrongly
       // configured; trying the next URL would only hide that.
       if (r.status === 401 || r.status === 403 || r.status === 503) break;
@@ -400,8 +404,21 @@ async function fetchInventory(userId: string, adminEmail: string, backends: stri
       lastError = `${base} unreachable: ${(err as Error).message}`;
     }
   }
-  console.warn(`[admin] inventory for ${userId} unavailable: ${lastError}`);
   return { ok: false, error: lastError, tried };
+}
+
+/** Ask the Python backend what an account has stored. The backend keeps the
+ *  files; we hold the accounts, so we vouch for the request with a one-minute
+ *  token naming just this account. Only metadata comes back. */
+async function fetchInventory(userId: string, adminEmail: string, backends: string[]): Promise<BackendResult> {
+  const token = jwt.sign(
+    { sub: userId, type: 'admin_inventory', admin: adminEmail },
+    config.jwtSecret,
+    { expiresIn: 60, audience: 'opendraft-backend-admin' },
+  );
+  const result = await callBackend(`/admin/accounts/${encodeURIComponent(userId)}/inventory`, token, backends);
+  if (!result.ok) console.warn(`[admin] inventory for ${userId} unavailable: ${result.error}`);
+  return result;
 }
 
 const DAY_MS = 24 * 3600_000;
@@ -456,7 +473,7 @@ router.get('/api/users/:id/summary', async (req, res) => {
       ),
       db.all<any>(
         `SELECT id, action, document_name, detail, ip_address, created_at FROM audit_log
-          WHERE user_id = ? AND action <> 'token_refresh' ORDER BY id DESC LIMIT 100`,
+          WHERE user_id = ? AND action NOT IN ('token_refresh', 'disconnect') ORDER BY id DESC LIMIT 500`,
         [user.id],
       ),
       db.all<any>(
@@ -511,7 +528,7 @@ router.get('/api/users/:id/summary', async (req, res) => {
       const day = String(f.created_at).slice(0, 10);
       byDay.set(day, (byDay.get(day) ?? 0) + 1);
     }
-    const recentEvents = recent.concat(failedLogins).sort((a: any, b: any) => b.id - a.id).slice(0, 100);
+    const recentEvents = recent.concat(failedLogins).sort((a: any, b: any) => b.id - a.id).slice(0, 500);
     for (let i = 29; i >= 0; i--) {
       const day = new Date(now - i * DAY_MS).toISOString().slice(0, 10);
       days.push({ day, count: byDay.get(day) ?? 0 });
@@ -588,6 +605,87 @@ router.get('/api/users/:id/summary', async (req, res) => {
   } catch (err) {
     console.error('[admin] account summary failed:', err);
     res.status(500).json({ error: 'Could not load the account' });
+  }
+});
+
+/**
+ * Everything logged against an email address in the last 90 days, whether or
+ * not an account has it now — for "I can't sign in", "the reset email never
+ * came" or "did I delete my account?" from someone the users list can't find.
+ */
+router.get('/api/lookup', async (req, res) => {
+  try {
+    const email = String(req.query.email || '').trim().toLowerCase();
+    if (!email || email.length > 320 || !email.includes('@')) {
+      res.status(400).json({ error: 'Enter a full email address' });
+      return;
+    }
+    const since = new Date(Date.now() - 90 * DAY_MS).toISOString();
+    const like = '%' + JSON.stringify({ email }).slice(1, -1).replace(/[\\%_]/g, m => '\\' + m) + '%';
+    const db = getDB();
+    const [account, events] = await Promise.all([
+      db.get<any>('SELECT id, email, display_name, created_at FROM users WHERE LOWER(email) = ?', [email]),
+      db.all<any>(
+        `SELECT id, user_id, action, detail, ip_address, created_at FROM audit_log
+          WHERE created_at > ? AND LOWER(detail) LIKE ? ESCAPE '\\'
+          ORDER BY id DESC LIMIT 300`,
+        [since, like],
+      ),
+    ]);
+    await auditService.logEvent('admin_view_account', req.user!.id, null,
+      { by: req.user!.email, lookup: email }, clientIp(req));
+    res.json({
+      email,
+      account: account ? { id: account.id, email: account.email, name: account.display_name, createdAt: Date.parse(account.created_at) } : null,
+      events: events.map((e: any) => ({
+        id: e.id, userId: e.user_id, action: e.action, detail: e.detail, ip: e.ip_address, at: Date.parse(e.created_at),
+      })),
+    });
+  } catch (err) {
+    console.error('[admin] email lookup failed:', err);
+    res.status(500).json({ error: 'Lookup failed' });
+  }
+});
+
+/** Put a deleted project or script back into the account it was deleted from. */
+router.post('/api/users/:id/trash/:entry/restore', async (req, res) => {
+  try {
+    const target = await getDB().get<{ id: string; email: string }>(
+      'SELECT id, email FROM users WHERE id = ?',
+      [req.params.id],
+    );
+    if (!target) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+    const entry = String(req.params.entry);
+    const token = jwt.sign(
+      { sub: target.id, type: 'admin_restore', admin: req.user!.email, entry },
+      config.jwtSecret,
+      { expiresIn: 60, audience: 'opendraft-backend-admin' },
+    );
+    const result = await callBackend(
+      `/admin/accounts/${encodeURIComponent(target.id)}/trash/${encodeURIComponent(entry)}/restore`,
+      token, backendCandidates(req.headers.host, req.protocol), 'POST',
+    );
+    if (!result.ok) {
+      console.warn(`[admin] restore of ${entry} for ${target.id} failed: ${result.error}`);
+      res.status(result.status === 409 ? 409 : result.status === 404 ? 404 : 502)
+        .json({ error: result.detail || result.error });
+      return;
+    }
+    const restored = result.data?.restored || {};
+    await auditService.logEvent('admin_restore', target.id, null, {
+      by: req.user!.email,
+      kind: restored.kind,
+      project: restored.projectName,
+      script: restored.scriptTitle,
+      deletedAt: restored.deletedAt,
+    }, clientIp(req));
+    res.json({ status: 'ok', restored });
+  } catch (err) {
+    console.error('[admin] restore failed:', err);
+    res.status(500).json({ error: 'Could not restore' });
   }
 });
 

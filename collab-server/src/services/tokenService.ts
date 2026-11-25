@@ -149,10 +149,13 @@ export async function revokeAllRefreshTokens(userId: string): Promise<void> {
   await db.run('UPDATE refresh_tokens SET revoked = 1 WHERE user_id = ?', [userId]);
 }
 
-export async function revokeRefreshToken(token: string): Promise<boolean> {
+/** Revoke one refresh token. Returns whose it was (for the audit log), or
+ *  null when it was not a live token. */
+export async function revokeRefreshToken(token: string): Promise<{ userId: string; deviceId: string | null } | null> {
   const row = await findLiveRefreshToken(token);
-  if (!row) return false;
-  return claimRefreshToken(row.id);
+  if (!row) return null;
+  if (!(await claimRefreshToken(row.id))) return null;
+  return { userId: row.user_id, deviceId: row.device_id };
 }
 
 /**

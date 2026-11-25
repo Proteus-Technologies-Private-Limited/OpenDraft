@@ -12,6 +12,7 @@ import { prepareScriptWrite } from '../utils/reviewSave';
 
 import { getApiBase } from '../config';
 import { authedFetch } from './authedFetch';
+import { getDeviceId } from './deviceId';
 import { ApiError, handleNonOkResponse } from './api';
 import type { ProjectInfo, ProjectProperties, ScriptMeta, ScriptResponse } from './api';
 import { t } from '../i18n';
@@ -28,6 +29,8 @@ async function request<T>(path: string, options?: RequestInit, scope?: CloudRequ
   if (!base) throw new Error(notConfigured());
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
+    // Lets the server's activity log say which device made a change.
+    'X-Device-Id': getDeviceId(),
     ...(options?.headers as Record<string, string>),
   };
   let res: Response;
@@ -162,6 +165,7 @@ export const cloudApi = {
     const res = await authedFetch(`${base}/projects/${projectId}/assets/upload`, {
       method: 'POST',
       body: formData,
+      headers: { 'X-Device-Id': getDeviceId() },
     });
     if (!res.ok) await handleNonOkResponse(res, 'Cloud upload');
     return res.json();

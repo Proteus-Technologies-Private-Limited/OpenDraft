@@ -1,3 +1,4 @@
+import asyncio
 import os
 import sys
 from contextlib import asynccontextmanager
@@ -18,10 +19,24 @@ from app.middleware.user_context import UserContextMiddleware
 from app.plugins import get_plugin_routers
 from app.services.user_migration import migrate_legacy_projects
 from app.services import quota_service  # noqa: F401 — registers default quota hook
+from app.services import activity_service, trash_service
 
 logger = logging.getLogger(__name__)
 
 STATIC_DIR = BASE_DIR / "static"
+
+# Deleted projects and scripts older than TRASH_RETENTION_DAYS are purged at
+# startup and then this often.
+TRASH_PURGE_INTERVAL_SEC = 6 * 3600
+
+
+async def _purge_trash_forever() -> None:
+    while True:
+        try:
+            await asyncio.to_thread(trash_service.purge_expired)
+        except Exception:
+            logger.exception("Trash purge failed; will try again in %d s", TRASH_PURGE_INTERVAL_SEC)
+        await asyncio.sleep(TRASH_PURGE_INTERVAL_SEC)
 
 
 @asynccontextmanager
@@ -41,7 +56,11 @@ async def lifespan(app: FastAPI):
             "root to generate a shared secret for backend + collab-server.\n"
             + "=" * 72
         )
+    purger = asyncio.create_task(_purge_trash_forever()) if trash_service.enabled() else None
     yield
+    if purger is not None:
+        purger.cancel()
+    await activity_service.close()
 
 
 app = FastAPI(

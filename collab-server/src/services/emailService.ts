@@ -181,7 +181,7 @@ export async function sendPasswordResetEmail(
   email: string,
   token: string,
   ipAddress: string | null,
-): Promise<void> {
+): Promise<'sent' | 'not_configured'> {
   // The link carries only the opaque token — the server looks the user up by
   // matching it against stored hashes. No email is in the URL.
   const resetLink = `${config.appUrl}/reset-password?token=${encodeURIComponent(token)}`;
@@ -190,7 +190,7 @@ export async function sendPasswordResetEmail(
   const transport = getTransporter();
   if (!transport) {
     console.log(`[Email] SMTP not configured. Password reset link for ${email}: ${resetLink}`);
-    return;
+    return 'not_configured';
   }
 
   await transport.sendMail({
@@ -219,6 +219,7 @@ export async function sendPasswordResetEmail(
       </div>
     `,
   });
+  return 'sent';
 }
 
 export async function sendPasswordChangedNotice(email: string, deviceName: string): Promise<void> {

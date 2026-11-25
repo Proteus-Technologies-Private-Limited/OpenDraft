@@ -30,6 +30,7 @@ import { checkSuggesterUpdate, suggesterIdOf, updateInMessage, SUGGESTION_REFUSE
 import authRoutes from './routes/auth';
 import collabRoutes from './routes/collab';
 import adminRoutes from './routes/admin';
+import internalRoutes from './routes/internal';
 import * as liveStats from './services/liveStats';
 import { standardLimiter } from './middleware/rateLimit';
 
@@ -393,6 +394,10 @@ app.use(express.json());
 // because it polls every few seconds and has a limiter of its own.
 app.use('/admin', adminRoutes);
 
+// Backend → collab audit events: one address sends every writer's events, so
+// this sits ahead of the per-IP limiter too, with a limiter of its own.
+app.use('/internal', internalRoutes);
+
 // Request metrics for the admin console
 app.use((req, res, next) => {
   const started = Date.now();
@@ -551,6 +556,7 @@ async function main(): Promise<void> {
   // Start document eviction timer
   startDocumentEviction();
   liveStats.startSampling();
+  auditService.startAuditRetention(config.auditRetentionDays);
   liveStats.setDocumentCountProvider(() => hocuspocus.documents.size);
 
   httpServer.listen(PORT, HOST, () => {
@@ -562,6 +568,7 @@ async function main(): Promise<void> {
     console.log(`  Database:  ${config.dbType}`);
     console.log(`  Admin:     ${config.adminEmails.length ? `/admin (${config.adminEmails.length} admin account(s))` : 'disabled (set ADMIN_EMAILS to enable)'}`);
     console.log(`  WS limits: ${config.wsMaxConnectionsPerIp}/IP, ${config.wsMaxConnectionsPerUser}/user`);
+    console.log(`  Audit log: ${config.auditRetentionDays ? `kept ${config.auditRetentionDays} days` : 'kept forever'}`);
   });
 }
 

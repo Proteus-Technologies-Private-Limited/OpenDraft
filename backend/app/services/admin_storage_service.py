@@ -17,7 +17,8 @@ from pathlib import Path
 
 from dulwich.repo import Repo
 
-from app.config import PROJECTS_DIR_BASE, _safe_user_id
+from app.config import PROJECTS_DIR_BASE, TRASH_RETENTION_DAYS, _safe_user_id
+from app.services import trash_service
 
 logger = logging.getLogger(__name__)
 
@@ -146,10 +147,18 @@ def account_inventory(user_id: str) -> dict:
         "exists": root.is_dir(),
         "projects": [],
         "truncated": False,
+        "trash": [],
+        "trashRetentionDays": TRASH_RETENTION_DAYS,
         "totals": {"projects": 0, "scripts": 0, "assets": 0, "versions": 0, "sizeBytes": 0, "diskFiles": 0},
     }
     if not result["exists"]:
         return result
+
+    try:
+        result["trash"] = trash_service.list_trash(user_id)
+    except Exception as exc:  # the trash must not hide the rest of the account
+        logger.warning("admin inventory: cannot list trash of %s: %s", user_id, exc)
+        result["trashError"] = str(exc)
 
     entries = sorted(
         (p for p in root.iterdir() if p.is_dir() and not p.is_symlink() and (p / "project.json").is_file()),

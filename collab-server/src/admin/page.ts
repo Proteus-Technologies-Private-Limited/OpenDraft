@@ -44,6 +44,9 @@ details.proj>summary{cursor:pointer;padding:10px 14px;display:flex;flex-wrap:wra
 details.proj>summary::-webkit-details-marker{display:none}details.proj>summary:before{content:"\25B8";color:var(--mute);width:10px}details.proj[open]>summary:before{content:"\25BE"}
 details.proj>summary b{flex:1;min-width:160px}details.proj .inner{padding:0 14px 12px}details.proj h4{margin:10px 0 6px;font-size:12px;color:var(--mute);text-transform:uppercase;letter-spacing:.04em}
 svg.days{width:100%;height:76px;display:block}.note{border-left:3px solid var(--warn)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}.chips button{padding:2px 10px;border-radius:12px;font-size:12px}.chips button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.facts{display:grid;gap:10px 22px;grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}.facts div{padding:2px 0 8px;border-bottom:1px dashed var(--line)}.facts b{display:block;font-size:11px;color:var(--mute);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px}
+td.nowrap{white-space:nowrap}
 </style></head><body>
 <div id="login" hidden>
   <h1>OpenDraft Admin</h1>
@@ -74,6 +77,10 @@ svg.days{width:100%;height:76px;display:block}.note{border-left:3px solid var(--
     <select id="usort" aria-label="Sort users"><option value="created">Newest first</option><option value="active">Recently active</option><option value="name">Name A-Z</option><option value="email">Email A-Z</option></select>
     <span class="sub" id="ucount"></span></div>
   <div class="wrap" id="utable"></div><div class="pager" id="upager"></div>
+  <section><h2>Look up an email</h2>
+    <div class="sub" style="margin-bottom:6px">For someone the list can't find: failed sign-ins, password-reset requests and account deletions logged under an email address in the last 90 days, whether or not an account has it now.</div>
+    <form class="row" id="lform"><input id="lq" type="search" placeholder="name@example.com" aria-label="Email to look up"><button class="primary" type="submit">Look up</button></form>
+    <div id="lresult"></div></section>
 </div>
 <div id="v-collab" hidden>
   <a class="back" href="#/">&larr; Overview</a>
@@ -112,7 +119,7 @@ async function api(path,opts){
     var r=await fetch('/admin/api'+path,{method:opts.method||'GET',headers:{Authorization:'Bearer '+(auth&&auth.accessToken)}});
     if(r.status===401&&attempt===0&&auth&&auth.refreshToken){if(await renew())continue}
     if(r.status===401||r.status===403){signout(r.status===403?'This account is not an administrator.':'Session ended. Sign in again.');throw new Error('auth')}
-    if(!r.ok)throw new Error('HTTP '+r.status);
+    if(!r.ok){var er=new Error('HTTP '+r.status);try{er.detail=(await r.json()).error}catch(x){}throw er}
     return r.json();
   }
 }
@@ -287,7 +294,78 @@ async function fetchAccount(){
   catch(e){if(seq!==aSeq||e.message==='auth')return;
     $('acct').innerHTML='<div class="card empty bad">Could not load this account: '+esc(e.message==='HTTP 404'?'it no longer exists.':e.message)+'</div>'}
 }
-var ACTION_LABELS={login:'Password sign-ins',google_login:'Google sign-ins',login_failed:'Failed sign-ins',logout:'Sign-outs',token_refresh:'Session renewals',token_refresh_failed:'Refused renewals',register:'Registered',email_verified:'Email verified',new_device_challenge:'New-device checks sent',new_device_verified:'New devices verified',password_changed:'Password changed',password_reset_requested:'Password reset requested',password_reset:'Password reset',device_revoked:'Device removed',connect:'Joined a collaboration',disconnect:'Left a collaboration',suggestion_refused:'Suggestions refused',admin_revoke_sessions:'Signed out by an admin',admin_view_account:'Viewed by an admin'};
+var ACTION_LABELS={login:'Password sign-ins',google_login:'Google sign-ins',login_failed:'Failed sign-ins',logout:'Sign-outs',token_refresh:'Session renewals',token_refresh_failed:'Refused renewals',register:'Registered',email_verified:'Email verified',new_device_challenge:'New-device checks sent',new_device_verified:'New devices verified',password_changed:'Password changed',password_reset_requested:'Password reset requested',password_reset:'Password reset',device_revoked:'Device removed',connect:'Joined a collaboration',disconnect:'Left a collaboration',suggestion_refused:'Suggestions refused',admin_revoke_sessions:'Signed out by an admin',admin_view_account:'Viewed by an admin',
+  password_reset_failed:'Reset link refused',new_device_challenge_resend:'New-device code resent',account_deleted:'Account deleted',token_refresh_failed:'Refused renewals',refresh_rate_limited:'Renewal rate-limited',
+  project_created:'Project created',project_renamed:'Project renamed',project_deleted:'Project deleted',script_created:'Script created',script_renamed:'Script renamed',script_deleted:'Script deleted',
+  asset_uploaded:'File uploaded',asset_deleted:'File deleted',version_saved:'Version saved',version_restored:'Version restored',version_deleted:'Version deleted',admin_restore:'Restored by an admin'};
+var CATS=[['all','All'],['files','Projects and scripts'],['password','Password'],['account','Sign-in and devices'],['collab','Collaboration'],['admin','Admin actions']];
+function catOf(a){if(/^(project|script|asset|version)_/.test(a))return'files';if(a.indexOf('password')===0)return'password';if(a.indexOf('admin_')===0)return'admin';if(a==='connect'||a==='disconnect'||a==='suggestion_refused')return'collab';return'account'}
+function isBad(e){var a=e.action;if(a.indexOf('failed')>=0||a.indexOf('refused')>=0||a.indexOf('limited')>=0||/_deleted$/.test(a))return true;try{var j=JSON.parse(e.detail||'null');return!!(j&&j.email_sent===false)}catch(x){return false}}
+function parseDetail(raw){try{var j=JSON.parse(raw||'null');return j&&typeof j==='object'?j:{}}catch(x){return{}}}
+function describeEvent(e){
+  var j=parseDetail(e.detail),a=e.action,out=[];
+  if(catOf(a)==='files'){
+    var what=j.project?esc(j.project):'';
+    if(j.script)what+=(what?' &rsaquo; ':'')+esc(j.script);
+    if(j.file)what+=(what?' &rsaquo; ':'')+esc(j.file);
+    out.push(what||'<span class="sub">'+esc(j.projectId||'')+'</span>');
+    if(j.renamedFrom)out.push('<span class="sub">was &ldquo;'+esc(j.renamedFrom)+'&rdquo;</span>');
+    if(j.scripts!=null&&a==='project_deleted')out.push('<span class="sub">with '+esc(j.scripts)+(j.scripts===1?' script':' scripts')+'</span>');
+    if(j.message)out.push('<span class="sub">&ldquo;'+esc(j.message)+'&rdquo;</span>');
+    if(j.version)out.push('<span class="sub">version '+esc(j.version)+'</span>');
+    if(j.duplicatedFrom)out.push('<span class="tag">copy</span>');
+    if(j.via)out.push('<span class="tag">'+esc(j.via)+'</span>');
+    if(j.trash)out.push('<span class="tag">in trash</span>');
+    if(j.sizeBytes)out.push('<span class="sub">'+fmtBytes(j.sizeBytes)+'</span>');
+    return out.join(' ');
+  }
+  if(a==='password_reset_requested'){
+    out.push(esc(j.email||''));
+    if(j.reason==='user_not_found')out.push('<span class="sub">no account has this email; nothing sent</span>');
+    else if(j.email_sent===true)out.push('<span class="pill connected">email sent</span>');
+    else if(j.email_sent===false)out.push('<span class="pill bad">email NOT sent</span> <span class="sub">'+esc(j.email_error||'')+'</span>');
+    else out.push('<span class="sub">sending not recorded (before this was logged)</span>');
+    return out.join(' ');
+  }
+  if(a==='admin_restore')return'restored '+esc(j.kind||'')+' '+esc(j.script||j.project||'')+' <span class="sub">by '+esc(j.by||'')+'</span>';
+  if(a==='login_failed')return esc(j.email||'')+' <span class="sub">'+esc((j.reason||'').replace(/_/g,' '))+'</span>';
+  if(a==='token_refresh_failed'&&j.reason)return esc(REASONS[j.reason]||j.reason);
+  var rest={};Object.keys(j).forEach(function(k){if(k!=='device')rest[k]=j[k]});
+  return esc(detailText(JSON.stringify(rest)));
+}
+function eventDevice(e){var j=parseDetail(e.detail);return j.device||''}
+function eventRows(list){return list.map(function(e){
+  return'<tr><td class="nowrap">'+esc(fmtWhen(e.at))+'<div class="sub">'+ago(e.at)+'</div></td><td class="'+(isBad(e)?'bad':'')+'">'+esc(ACTION_LABELS[e.action]||e.action)+'</td><td>'+describeEvent(e)+(e.document?'<div class="sub">'+esc(e.document)+'</div>':'')+'</td><td class="sub">'+esc(eventDevice(e))+'</td><td class="sub">'+esc(e.ip||'')+'</td></tr>'})}
+var aCat='all',aQuery='';
+function firstOf(list,actions){for(var i=0;i<list.length;i++)if(actions.indexOf(list[i].action)>=0)return list[i];return null}
+function supportCard(d){
+  var r=d.activity.recent,st=d.storage,rows=[];
+  var when=function(e){return e?esc(fmtWhen(e.at))+' <span class="sub">('+ago(e.at)+')</span>':'<span class="sub">none recorded</span>'};
+  var dev=function(e){var x=e&&eventDevice(e);return x?' <span class="sub">on '+esc(x)+'</span>':''};
+  var reset=firstOf(r,['password_reset_requested']);
+  var resetText=when(reset);
+  if(reset){var j=parseDetail(reset.detail);resetText+=j.email_sent===true?' <span class="pill connected">email sent</span>':j.email_sent===false?' <span class="pill bad">email NOT sent</span> <span class="sub">'+esc(j.email_error||'')+'</span>':''}
+  rows.push(['Last sign-in',when(firstOf(r,['login','google_login']))+dev(firstOf(r,['login','google_login']))]);
+  rows.push(['Last failed sign-in',when(firstOf(r,['login_failed']))]);
+  rows.push(['Last sign-out',when(firstOf(r,['logout']))+dev(firstOf(r,['logout']))]);
+  rows.push(['Last refused renewal',when(firstOf(r,['token_refresh_failed']))]);
+  rows.push(['Password reset requested',resetText]);
+  rows.push(['Password reset completed',when(firstOf(r,['password_reset','password_changed']))]);
+  var del=firstOf(r,['project_deleted','script_deleted']);
+  rows.push(['Last deletion',del?when(del)+' &mdash; '+esc(ACTION_LABELS[del.action])+': '+describeEvent(del)+dev(del):when(null)]);
+  var made=firstOf(r,['project_created','script_created']);
+  rows.push(['Last created',made?when(made)+' &mdash; '+describeEvent(made):when(null)]);
+  if(st.available)rows.push(['In the trash',(st.trash||[]).length?(st.trash.length+' item'+(st.trash.length===1?'':'s')+' <span class="sub">(restorable; see Projects and files)</span>'):'<span class="sub">nothing</span>']);
+  return'<section><h2>Support summary</h2><div class="card facts">'+rows.map(function(x){return'<div><b>'+esc(x[0])+'</b> '+x[1]+'</div>'}).join('')+'</div></section>';
+}
+function renderAccountEvents(){
+  var el=$('aevents');if(!el||!aData)return;
+  var all=aData.activity.recent,q=aQuery.toLowerCase();
+  var list=all.filter(function(e){return(aCat==='all'||catOf(e.action)===aCat)&&(!q||(String(ACTION_LABELS[e.action]||e.action)+' '+(e.detail||'')+' '+(e.ip||'')+' '+(e.document||'')).toLowerCase().indexOf(q)>=0)});
+  var counts={};all.forEach(function(e){var c=catOf(e.action);counts[c]=(counts[c]||0)+1});
+  $('achips').innerHTML=CATS.map(function(c){var n=c[0]==='all'?all.length:(counts[c[0]]||0);return'<button type="button" data-cat="'+c[0]+'" class="'+(aCat===c[0]?'on':'')+'">'+esc(c[1])+' '+n+'</button>'}).join('');
+  el.innerHTML=table(['When','Event','What','Device','IP'],eventRows(list),all.length?'No events match.':'No events recorded.');
+}
 function dayChart(days){
   var W=600,H=76,n=days.length,max=Math.max.apply(null,[1].concat(days.map(function(d){return d.count}))),bw=W/n;
   var bars=days.map(function(d,i){var h=d.count?Math.max(2,d.count/max*(H-4)):0;
@@ -312,6 +390,7 @@ function renderAccount(){
     (st.available?tile('Projects',st.totals.projects,st.totals.scripts+' scripts · '+st.totals.assets+' uploaded files')+
        tile('Storage',fmtBytes(st.totals.sizeBytes),st.totals.versions+' saved versions · '+st.totals.diskFiles+' files on disk')
       :tile('Projects','?','file storage unavailable','warn'))+
+    tile('Projects and scripts (30 days)',n(l30,'project_created')+n(l30,'script_created')+' created',n(l30,'project_deleted')+n(l30,'script_deleted')+' deleted · '+(n(l30,'project_renamed')+n(l30,'script_renamed'))+' renamed · '+n(l30,'asset_uploaded')+(n(l30,'asset_uploaded')===1?' file':' files')+' uploaded')+
     tile('Collaboration',co.liveConnections.length?co.liveConnections.length+' live':co.sharedScripts.length,co.sharedScripts.length+' scripts shared · '+co.openInvites+' open invites · last joined '+(a.lastCollabAt?ago(a.lastCollabAt):'never'))+
     '</div>';
   var acts=Object.keys(Object.assign({},all,l30)).sort(function(x,y){return(n(all,y)+n(l30,y))-(n(all,x)+n(l30,x))});
@@ -319,16 +398,15 @@ function renderAccount(){
     '<div class="wrap" style="margin-top:10px">'+table(['Event','Last 30 days','All time'],acts.map(function(k){
       var bad=k.indexOf('failed')>=0||k.indexOf('refused')>=0;
       return'<tr><td class="'+(bad?'bad':'')+'">'+esc(ACTION_LABELS[k]||k)+' <span class="sub">'+esc(k)+'</span></td><td>'+n(l30,k)+'</td><td>'+(k==='login_failed'&&!all[k]?'<span class="sub">30-day only</span>':n(all,k))+'</td></tr>'}),'No recorded activity.')+'</div></section>';
-  $('acct').innerHTML=head+tiles+activity+'<section><h2>Projects and files</h2><div id="astorage"></div></section>'+
+  $('acct').innerHTML=head+supportCard(d)+tiles+activity+'<section><h2>Projects and files</h2><div id="astorage"></div></section>'+
     '<section><h2>Devices</h2><div class="wrap">'+table(['Device','Platform','Last IP','First seen','Last seen','Status'],d.devices.map(function(x){
       return'<tr><td>'+esc(x.name)+(x.trusted?' <span class="tag">trusted</span>':'')+'</td><td>'+esc(x.platform||'—')+'</td><td>'+esc(x.ip||'—')+'</td><td>'+fmtDate(x.firstSeen)+'</td><td>'+ago(x.lastSeen)+'</td><td>'+(x.signedIn?'<span class="pill connected">signed in</span>':'<span class="pill idle">signed out</span>')+'</td></tr>'}),'No devices recorded for this account.')+'</div></section>'+
     '<section><h2>Collaboration</h2><div id="acollab"></div></section>'+
-    '<section><h2>Recent activity</h2><div class="wrap">'+table(['When','Event','Document','Detail','IP'],a.recent.map(function(e){
-      var bad=e.action.indexOf('failed')>=0||e.action.indexOf('refused')>=0||e.action.indexOf('limited')>=0;
-      return'<tr><td title="'+esc(fmtWhen(e.at))+'">'+ago(e.at)+'</td><td class="'+(bad?'bad':'')+'">'+esc(ACTION_LABELS[e.action]||e.action)+'</td><td class="sub">'+esc(e.document||'')+'</td><td class="sub">'+esc(detailText(e.detail))+'</td><td>'+esc(e.ip||'')+'</td></tr>'}),'No events recorded.')+
-    '</div><div class="sub" style="margin-top:4px">Latest 100 events; session renewals are counted above but not listed.</div></section>';
+    '<section><h2>Activity log</h2><div class="chips" id="achips"></div><div class="row"><input id="aq" type="search" placeholder="Search events (name, title, IP…)" aria-label="Search events" value="'+esc(aQuery)+'"></div><div class="wrap" id="aevents"></div>'+
+    '<div class="sub" style="margin-top:4px">Latest 500 events, newest first. Session renewals and collaboration disconnects are counted above but not listed. Times are in your browser\'s time zone.</div></section>';
   $('arefresh').onclick=function(){fetchAccount()};
-  renderAccountStorage();renderAccountCollab();
+  var aq=$('aq');aq.oninput=function(){aQuery=aq.value;renderAccountEvents()};
+  renderAccountStorage();renderAccountCollab();renderAccountEvents();
 }
 function scriptIndex(){var m={};var st=aData&&aData.storage;if(st&&st.available)st.projects.forEach(function(p){p.scripts.forEach(function(s){m[p.id+'|'+s.id]={project:p.name,script:s.title}});m[p.id+'|']={project:p.name}});return m}
 function renderAccountCollab(){
@@ -344,11 +422,21 @@ function renderAccountCollab(){
     return'<tr><td class="sub">'+esc(x.document)+'</td><td>'+x.connections+'</td><td>'+ago(x.lastAt)+'</td></tr>'}),'')+'</div>':'';
   $('acollab').innerHTML=live+'<div class="wrap">'+shared+'</div>'+joined;
 }
+function trashHtml(st){
+  var t=st.trash||[];
+  if(!t.length)return st.trashRetentionDays===0?'<div class="sub" style="margin-bottom:8px">Trash is turned off on this server (TRASH_RETENTION_DAYS=0): deletions are permanent.</div>':'';
+  return'<h4 style="margin:0 0 6px;font-size:12px;color:var(--mute);text-transform:uppercase;letter-spacing:.04em">Recently deleted &mdash; kept '+esc(st.trashRetentionDays)+' days, then removed for good</h4><div class="wrap" style="margin-bottom:12px">'+
+    table(['What','Name','In project','Deleted','Removed for good','Size',''],t.map(function(x){
+      var name=x.kind==='script'?x.scriptTitle:x.projectName;
+      return'<tr><td>'+esc(x.kind==='project'?'Project':x.kind==='script'?'Script':'?')+'</td><td><b>'+esc(name||'(unknown)')+'</b>'+(x.kind==='project'&&x.scriptCount!=null?'<div class="sub">'+esc(x.scriptCount)+(x.scriptCount===1?' script':' scripts')+'</div>':'')+(x.error?' <span class="tag bad">'+esc(x.error)+'</span>':'')+'</td><td class="sub">'+(x.kind==='script'?esc(x.projectName||x.projectId):'&mdash;')+'</td>'+
+        '<td class="nowrap">'+esc(fmtWhen(isoMs(x.deletedAt)))+'<div class="sub">'+ago(isoMs(x.deletedAt))+'</div></td><td class="nowrap">'+fmtDate(isoMs(x.expiresAt))+'</td><td>'+fmtBytes(x.sizeBytes)+'</td>'+
+        '<td>'+(x.error?'':'<button data-restore="'+esc(x.id)+'" data-name="'+esc(name||'')+'" data-kind="'+esc(x.kind)+'">Restore</button>')+'</td></tr>'}),'')+'</div>';
+}
 function renderAccountStorage(){
   var st=aData.storage,el=$('astorage');
   if(!st.available){el.innerHTML='<div class="card note"><b class="warn">File storage could not be reached.</b><div class="sub" style="margin-top:4px">'+esc(st.error)+'</div>'+
     '<div class="sub" style="margin-top:6px">The collab server asks the Python backend at BACKEND_URL (tried: '+esc((st.tried||[]).join(', ')||'none')+'). Both servers must share the same JWT secret. Accounts that only use the desktop or mobile apps keep their files on their own devices and have nothing stored here.</div></div>';return}
-  if(!st.projects.length){el.innerHTML='<div class="card empty">'+(st.exists?'This account has no projects stored on the server.':'Nothing stored on the server for this account. Desktop and mobile apps keep files on the device; only the web app saves here.')+'</div>';return}
+  if(!st.projects.length){el.innerHTML=trashHtml(st)+'<div class="card empty">'+(st.exists?'This account has no projects stored on the server.':'Nothing stored on the server for this account. Desktop and mobile apps keep files on the device; only the web app saves here.')+'</div>';return}
   var q=aFilter.toLowerCase(),match=function(t){return!q||String(t||'').toLowerCase().indexOf(q)>=0};
   var list=st.projects.map(function(p){
     var pm=match(p.name)||match(p.id),scripts=pm?p.scripts:p.scripts.filter(function(s){return match(s.title)||match(s.author)}),assets=pm?p.assets:p.assets.filter(function(x){return match(x.name)});
@@ -363,15 +451,33 @@ function renderAccountStorage(){
       (r.assets.length?'<h4>Uploaded files</h4><div class="wrap">'+table(['Name','Type','Size','Uploaded'],r.assets.map(function(x){
         return'<tr><td>'+esc(x.name)+'</td><td class="sub">'+esc(x.mimeType||'—')+'</td><td>'+fmtBytes(x.sizeBytes)+'</td><td>'+fmtDate(isoMs(x.createdAt))+'</td></tr>'}),'')+'</div>':'')+
       '</div></details>'}).join('');
-  el.innerHTML='<div class="row"><input id="afilter" type="search" placeholder="Filter projects and files" aria-label="Filter projects and files" value="'+esc(aFilter)+'"><span class="sub">'+list.length+' of '+st.projects.length+' projects'+(st.truncated?' (first '+st.projects.length+' shown)':'')+' · titles, sizes and dates only; script text is never sent</span></div>'+
+  el.innerHTML=trashHtml(st)+'<div class="row"><input id="afilter" type="search" placeholder="Filter projects and files" aria-label="Filter projects and files" value="'+esc(aFilter)+'"><span class="sub">'+list.length+' of '+st.projects.length+' projects'+(st.truncated?' (first '+st.projects.length+' shown)':'')+' · titles, sizes and dates only; script text is never sent</span></div>'+
     (body||'<div class="card empty">Nothing matches that filter.</div>');
   var f=$('afilter');f.oninput=function(){aFilter=f.value;var pos=f.selectionStart;renderAccountStorage();var g=$('afilter');g.focus();try{g.setSelectionRange(pos,pos)}catch(e){}};
+}
+document.addEventListener('click',async function(e){
+  var c=e.target.closest&&e.target.closest('button[data-cat]');
+  if(c){aCat=c.dataset.cat;renderAccountEvents();return}
+  var b=e.target.closest&&e.target.closest('button[data-restore]');if(!b)return;
+  if(!confirm('Restore the '+b.dataset.kind+' "'+b.dataset.name+'" into this account? It reappears where it was deleted from.'))return;
+  b.disabled=true;b.textContent='Restoring…';
+  try{await api('/users/'+encodeURIComponent(acctId)+'/trash/'+encodeURIComponent(b.dataset.restore)+'/restore',{method:'POST'});fetchAccount()}
+  catch(err){b.disabled=false;b.textContent='Restore';if(err.message!=='auth')alert('Could not restore: '+(err.detail||err.message))}
+});
+async function lookup(ev){
+  ev.preventDefault();var q=$('lq').value.trim(),el=$('lresult');if(!q)return;
+  el.innerHTML='<div class="card empty">Looking up…</div>';
+  try{var r=await api('/lookup?email='+encodeURIComponent(q));
+    var head=r.account?'<div class="card" style="margin-bottom:8px">An account has this email: '+ulink(r.account.id,r.account.name)+' <span class="sub">registered '+fmtDate(r.account.createdAt)+'</span></div>'
+      :'<div class="card note" style="margin-bottom:8px"><b>No account has this email now.</b> <span class="sub">If an account was deleted it shows below as &ldquo;Account deleted&rdquo;.</span></div>';
+    el.innerHTML=head+'<div class="wrap">'+table(['When','Event','What','Device','IP'],eventRows(r.events),'Nothing logged for this email in the last 90 days.')+'</div>'}
+  catch(e){if(e.message!=='auth')el.innerHTML='<div class="card empty bad">Lookup failed: '+esc(e.detail||e.message)+'</div>'}
 }
 function route(){
   var h=location.hash;view=h.indexOf('#/account/')===0?'account':h.indexOf('#/users')===0?'users':h.indexOf('#/collab')===0?'collab':'overview';
   $('v-overview').hidden=view!=='overview';$('v-users').hidden=view!=='users';$('v-collab').hidden=view!=='collab';$('v-account').hidden=view!=='account';
   window.scrollTo(0,0);
-  if(view==='account'){var id='';try{id=decodeURIComponent(h.slice('#/account/'.length))}catch(e){}acctId=id;aData=null;aFilter='';$('acct').innerHTML='<div class="card empty">Loading account…</div>';fetchAccount()}
+  if(view==='account'){var id='';try{id=decodeURIComponent(h.slice('#/account/'.length))}catch(e){}acctId=id;aData=null;aFilter='';aCat='all';aQuery='';$('acct').innerHTML='<div class="card empty">Loading account…</div>';fetchAccount()}
   else if(view==='users')fetchUsers();else if(data&&view==='collab')renderCollabPage();
 }
 window.addEventListener('hashchange',route);
@@ -385,6 +491,7 @@ async function start(){
   try{var me=await api('/me');$('who').textContent=me.email}catch(e){return}
   route();await refresh();clearInterval(timer);timer=setInterval(function(){if(!document.hidden)refresh()},5000);
 }
+$('lform').onsubmit=lookup;
 if(auth&&auth.accessToken)start();else show(true);
 })();
 </script></body></html>`;

@@ -5,7 +5,7 @@ from app.config import DEFAULT_PROJECT
 from app.dependencies import require_verified_user
 from app.plugins import run_gate_hooks
 from app.schemas.script import ScriptCreate, ScriptUpdate, ScriptMeta, ScriptResponse
-from app.services import project_service, script_service
+from app.services import activity_service, project_service, script_service
 from app.services.auth_service import AuthUser
 from app.services.quota_service import QUOTA_CHECK_CREATE_SCRIPT
 
@@ -31,9 +31,12 @@ async def create_script(
 ):
     await run_gate_hooks(QUOTA_CHECK_CREATE_SCRIPT, user=user)
     project_id = _default_project_id()
-    return script_service.create_script(
+    result = script_service.create_script(
         project_id, body.title, body.content, body.format
     )
+    activity_service.record("script_created", project=DEFAULT_PROJECT, projectId=project_id,
+                            script=result["meta"].get("title"), scriptId=result["meta"].get("id"))
+    return result
 
 
 @router.get("/{script_id}", response_model=ScriptResponse)
@@ -49,10 +52,15 @@ async def get_script(script_id: str):
 async def update_script(script_id: str, body: ScriptUpdate):
     project_id = _default_project_id()
     try:
-        return await run_in_threadpool(
+        old_meta = script_service.read_meta(project_id, script_id) if body.title is not None else None
+        result = await run_in_threadpool(
             script_service.update_script, project_id, script_id, body.title, body.content,
             allow_empty_body=body.allow_empty_body,
         )
+        if old_meta is not None and body.title != old_meta.get("title"):
+            activity_service.record("script_renamed", project=DEFAULT_PROJECT, projectId=project_id,
+                                    script=body.title, renamedFrom=old_meta.get("title"), scriptId=script_id)
+        return result
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
     except script_service.EmptyOverwriteError as exc:
@@ -63,7 +71,11 @@ async def update_script(script_id: str, body: ScriptUpdate):
 async def delete_script(script_id: str):
     project_id = _default_project_id()
     try:
-        await run_in_threadpool(script_service.delete_script, project_id, script_id)
+        gone = await run_in_threadpool(script_service.delete_script, project_id, script_id)
+        activity_service.record("script_deleted", project=DEFAULT_PROJECT, projectId=project_id,
+                                script=gone.get("scriptTitle"), scriptId=script_id, trash=gone.get("id"))
         return {"message": f"Script '{script_id}' deleted"}
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))

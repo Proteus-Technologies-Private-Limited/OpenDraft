@@ -5,7 +5,8 @@ from fastapi import APIRouter, HTTPException, Query, UploadFile, File, Form
 from fastapi.responses import FileResponse
 from starlette.responses import Response
 
-from app.services import asset_service
+from app.services import activity_service, asset_service
+from app.services.activity_service import project_name
 
 router = APIRouter()
 
@@ -54,6 +55,8 @@ async def upload_asset(
             file.filename or "unnamed",
             tag_list,
         )
+        activity_service.record("asset_uploaded", project=project_name(project_id), projectId=project_id,
+                                file=entry.get("original_name"), sizeBytes=entry.get("size_bytes"))
         return entry
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
@@ -106,7 +109,13 @@ async def update_asset_tags(project_id: str, asset_id: str, tags: list[str]):
 async def delete_asset(project_id: str, asset_id: str):
     """Delete an asset."""
     try:
+        try:
+            name = asset_service.get_asset_entry(project_id, asset_id).get("original_name")
+        except FileNotFoundError:
+            name = None
         asset_service.delete_asset(project_id, asset_id)
+        activity_service.record("asset_deleted", project=project_name(project_id), projectId=project_id,
+                                file=name or asset_id)
         return {"message": f"Asset '{asset_id}' deleted"}
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc))

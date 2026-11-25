@@ -12,6 +12,7 @@ from pathlib import Path
 from filelock import FileLock
 
 from app.config import get_projects_dir
+from app.services import trash_service
 
 logger = logging.getLogger(__name__)
 
@@ -330,8 +331,18 @@ def duplicate_script(project_id: str, script_id: str) -> dict:
     return {"meta": meta, "content": content}
 
 
-def delete_script(project_id: str, script_id: str) -> None:
-    """Delete a script's content and metadata files."""
+def read_meta(project_id: str, script_id: str) -> dict | None:
+    """A script's metadata, or None when it is missing or unreadable."""
+    try:
+        meta_file = _scripts_dir(project_id) / f"{script_id}.meta.json"
+        return json.loads(meta_file.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+
+
+def delete_script(project_id: str, script_id: str) -> dict:
+    """Delete a script: move its files to the account's trash, or remove them
+    when the trash is turned off. Returns what was deleted."""
     with _script_lock(project_id, script_id):
         scripts_path = _scripts_dir(project_id)
 
@@ -341,6 +352,14 @@ def delete_script(project_id: str, script_id: str) -> None:
         if not meta_file.exists():
             raise FileNotFoundError(f"Script '{script_id}' not found")
 
+        if trash_service.enabled():
+            return trash_service.trash_script(project_id, script_id, scripts_path)
+
+        try:
+            title = json.loads(meta_file.read_text(encoding="utf-8")).get("title")
+        except (OSError, ValueError):
+            title = None
         meta_file.unlink()
         if content_file.exists():
             content_file.unlink()
+        return {"kind": "script", "projectId": project_id, "scriptId": script_id, "scriptTitle": title or "Untitled"}

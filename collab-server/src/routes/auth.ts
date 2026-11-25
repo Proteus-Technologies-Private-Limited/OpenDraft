@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { OAuth2Client } from 'google-auth-library';
 import * as userService from '../services/userService';
+import { getDB } from '../db';
+import { deviceLabel } from './internal';
 import type { UserRow } from '../db';
 import * as tokenService from '../services/tokenService';
 import * as emailService from '../services/emailService';
@@ -464,8 +466,17 @@ router.post('/logout', async (req, res) => {
       return;
     }
 
-    await tokenService.revokeRefreshToken(parsed.data.refreshToken);
-    await auditService.logEvent('logout', null, null, null, getClientIp(req));
+    const revoked = await tokenService.revokeRefreshToken(parsed.data.refreshToken);
+    let detail: Record<string, unknown> | null = null;
+    if (revoked?.deviceId) {
+      const device = await getDB().get<{ device_name: string; platform: string | null }>(
+        'SELECT device_name, platform FROM user_devices WHERE user_id = ? AND device_id = ?',
+        [revoked.userId, revoked.deviceId],
+      );
+      if (device) detail = { device: deviceLabel(device.device_name, device.platform) };
+    }
+    if (!revoked) detail = { reason: 'token_not_live' };
+    await auditService.logEvent('logout', revoked?.userId ?? null, null, detail, getClientIp(req));
 
     res.json({ message: 'Logged out' });
   } catch (err) {
@@ -729,6 +740,18 @@ router.post('/forgot-password', veryStrictLimiter, async (req, res) => {
     }
 
     if (!config.smtpHost) {
+      // Still logged: support needs to see that the writer tried and why no
+      // email came.
+      const who = await userService.findUserByEmail(parsed.data.email);
+      await auditService.logEvent(
+        'password_reset_requested',
+        who?.id ?? null,
+        null,
+        who
+          ? { email: who.email, email_sent: false, email_error: 'SMTP not configured' }
+          : { email: parsed.data.email, reason: 'user_not_found', email_sent: false, email_error: 'SMTP not configured' },
+        getClientIp(req),
+      );
       res.status(503).json({
         error:
           'Password reset is unavailable: this server has no email service configured. ' +
@@ -744,18 +767,25 @@ router.post('/forgot-password', veryStrictLimiter, async (req, res) => {
     const user = await userService.findUserByEmail(parsed.data.email);
     if (user) {
       const created = await passwordResetService.createResetToken(user.id, getClientIp(req));
+      // Support needs to know whether the email actually left: "I never got
+      // the reset email" is the commonest question after a reset request.
+      const emailResult: Record<string, unknown> = {};
       try {
-        await emailService.sendPasswordResetEmail(user.email, created.token, getClientIp(req));
+        const outcome = await emailService.sendPasswordResetEmail(user.email, created.token, getClientIp(req));
+        emailResult.email_sent = outcome === 'sent';
+        if (outcome !== 'sent') emailResult.email_error = 'SMTP not configured';
       } catch (err) {
         // Log but do not surface — keeps the response identical for valid
         // and invalid email enumeration attempts.
         console.error('Failed to send password reset email:', err);
+        emailResult.email_sent = false;
+        emailResult.email_error = String((err as Error)?.message || err).slice(0, 200);
       }
       await auditService.logEvent(
         'password_reset_requested',
         user.id,
         null,
-        { email: user.email },
+        { email: user.email, ...emailResult },
         getClientIp(req),
       );
     } else {

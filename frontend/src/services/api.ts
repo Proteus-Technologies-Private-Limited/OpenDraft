@@ -2,6 +2,7 @@ import { prepareScriptWrite } from '../utils/reviewSave';
 import { getApiBase, getCollabWsUrl } from '../config';
 import { useSettingsStore } from '../stores/settingsStore';
 import { authedFetch, sessionSurvivesUnauthorized } from './authedFetch';
+import { getDeviceId } from './deviceId';
 import { t } from '../i18n';
 import { sanitizeLocations } from '../utils/locationData';
 
@@ -109,6 +110,8 @@ export async function handleNonOkResponse(res: Response, label: string, stillCur
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
+    // Lets the server's activity log say which device made a change.
+    'X-Device-Id': getDeviceId(),
     ...(options?.headers as Record<string, string>),
   };
   const res = await authedFetch(`${getApiBase()}${path}`, { ...options, headers });
@@ -406,6 +409,7 @@ export const api = {
     const res = await authedFetch(`${getApiBase()}/projects/${projectId}/assets/upload`, {
       method: 'POST',
       body: formData,
+      headers: { 'X-Device-Id': getDeviceId() },
     });
     if (!res.ok) await handleNonOkResponse(res, 'Upload');
     return res.json();

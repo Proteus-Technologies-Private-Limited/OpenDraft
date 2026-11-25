@@ -50,6 +50,11 @@ services:
       # Accounts allowed into the admin console at https://$COLLAB_HOST/admin
       # (comma-separated). Unset, /admin answers 404. See docs/ADMIN_CONSOLE.md.
       ADMIN_EMAILS: ${ADMIN_EMAILS:-}
+      # Support history: audit_log rows older than this are deleted daily
+      # (0 = keep forever), and deleted projects/scripts stay restorable from
+      # the admin console for TRASH_RETENTION_DAYS (0 = delete immediately).
+      AUDIT_RETENTION_DAYS: ${AUDIT_RETENTION_DAYS:-365}
+      TRASH_RETENTION_DAYS: ${TRASH_RETENTION_DAYS:-30}
       # Optional demo seeding — leave SEED_DEMO_USER unset in real prod.
       SEED_DEMO_USER: ${SEED_DEMO_USER:-}
       SEED_DEMO_USER_EMAIL: ${SEED_DEMO_USER_EMAIL:-}

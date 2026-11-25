@@ -33,6 +33,9 @@ export interface ServerConfig {
   // Admin console: emails allowed to open /admin (empty = console disabled)
   adminEmails: string[];
 
+  // audit_log rows older than this many days are deleted daily (0 = keep forever)
+  auditRetentionDays: number;
+
   // Database
   dbType: 'sqlite' | 'postgresql';
   dbHost: string;
@@ -98,6 +101,11 @@ function loadConfig(): ServerConfig {
       .split(',')
       .map(s => s.trim().toLowerCase())
       .filter(Boolean),
+
+    auditRetentionDays: (() => {
+      const days = parseInt(process.env.AUDIT_RETENTION_DAYS ?? '365', 10);
+      return Number.isFinite(days) && days >= 0 ? days : 365;
+    })(),
 
     // Database (default: sqlite)
     dbType: (process.env.DB_TYPE === 'postgresql' ? 'postgresql' : 'sqlite') as 'sqlite' | 'postgresql',

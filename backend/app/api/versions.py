@@ -11,7 +11,8 @@ from app.schemas.version import (
     VersionCommitResponse,
     VersionInfo,
 )
-from app.services import git_service
+from app.services import activity_service, git_service
+from app.services.activity_service import project_name
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -34,6 +35,9 @@ async def checkin(project_id: str, body: CheckinRequest):
     git_service.init_repo(path)
 
     result = git_service.commit(path, body.message)
+    if (result or {}).get("hash"):
+        activity_service.record("version_saved", project=project_name(project_id), projectId=project_id,
+                                message=body.message, version=str(result["hash"])[:12])
     return result
 
 
@@ -105,7 +109,10 @@ async def delete_version(project_id: str, commit_hash: str):
     path = _project_path(project_id)
 
     try:
-        return git_service.delete_version(path, commit_hash)
+        result = git_service.delete_version(path, commit_hash)
+        activity_service.record("version_deleted", project=project_name(project_id), projectId=project_id,
+                                version=commit_hash[:12])
+        return result
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
     except Exception as exc:
@@ -123,4 +130,6 @@ async def restore_version(project_id: str, commit_hash: str):
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
+    activity_service.record("version_restored", project=project_name(project_id), projectId=project_id,
+                            version=commit_hash[:12])
     return result

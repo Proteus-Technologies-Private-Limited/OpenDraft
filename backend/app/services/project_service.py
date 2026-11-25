@@ -9,6 +9,7 @@ from dulwich.repo import Repo as DulwichRepo
 from filelock import FileLock
 
 from app.config import get_projects_dir
+from app.services import trash_service
 
 
 def _slugify(name: str) -> str:
@@ -154,12 +155,20 @@ def update_project(
     return data
 
 
-def delete_project(project_id: str) -> None:
-    """Delete an entire project directory."""
+def delete_project(project_id: str) -> dict:
+    """Delete a project: move it to the account's trash, or remove it when the
+    trash is turned off. Returns what was deleted (name, script count)."""
     project_dir = get_projects_dir() / project_id
     if not project_dir.exists():
         raise FileNotFoundError(f"Project '{project_id}' not found")
+    if trash_service.enabled():
+        return trash_service.trash_project(project_id)
+    try:
+        name = json.loads((project_dir / "project.json").read_text(encoding="utf-8")).get("name")
+    except (OSError, ValueError):
+        name = None
     shutil.rmtree(project_dir)
+    return {"kind": "project", "projectId": project_id, "projectName": name or project_id}
 
 
 def ensure_default_project(default_name: str) -> dict:

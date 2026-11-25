@@ -86,3 +86,14 @@ try:
     FREE_PLAN_FILE_LIMIT = int(os.environ.get("FREE_PLAN_FILE_LIMIT", "5"))
 except ValueError:
     FREE_PLAN_FILE_LIMIT = 5
+
+# Deleted projects and scripts are kept in a per-user trash for this many days
+# so support can restore them, then purged. 0 deletes immediately, as before.
+try:
+    TRASH_RETENTION_DAYS = max(0, int(os.environ.get("TRASH_RETENTION_DAYS", "30")))
+except ValueError:
+    TRASH_RETENTION_DAYS = 30
+
+# The backend reports project and script activity to the collab server's audit
+# log (it owns accounts and the admin console). Set to 0/false to turn it off.
+AUDIT_TO_COLLAB = os.environ.get("AUDIT_TO_COLLAB", "1").lower() not in ("0", "false", "no", "off")

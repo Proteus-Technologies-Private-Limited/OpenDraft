@@ -10,7 +10,8 @@ from app.dependencies import require_verified_user
 from app.schemas.project import ProjectCreate, ProjectUpdate, ProjectResponse, ProjectList, ReorderRequest
 from app.schemas.script import OfflineScriptUpdate, ScriptCreate, ScriptUpdate, ScriptMeta, ScriptResponse
 from app.plugins import run_hooks, run_gate_hooks
-from app.services import project_service, script_service
+from app.services import activity_service, project_service, script_service
+from app.services.activity_service import project_name
 from app.services.auth_service import AuthUser
 from app.services.quota_service import QUOTA_CHECK_CREATE_SCRIPT
 
@@ -24,6 +25,7 @@ logger = logging.getLogger(__name__)
 async def create_project(body: ProjectCreate):
     try:
         data = project_service.create_project(body.name)
+        activity_service.record("project_created", project=data.get("name"), projectId=data.get("id"))
         await run_hooks("project:created", project=data)
         return data
     except FileExistsError as exc:
@@ -45,6 +47,8 @@ async def ensure_device_project(
     try:
         data, created = await run_in_threadpool(project_service.ensure_device_project, str(binding_id), body.name)
         if created:
+            activity_service.record("project_created", project=data.get("name"), projectId=data.get("id"),
+                                    via="device sync")
             await run_hooks("project:created", project=data)
         return data
     except ValueError as exc:
@@ -74,10 +78,14 @@ async def reorder_projects(body: ReorderRequest):
 async def update_project(project_id: str, body: ProjectUpdate):
     try:
         props = body.properties.model_dump() if body.properties else None
-        return project_service.update_project(
+        old_name = project_name(project_id) if body.name is not None else None
+        data = project_service.update_project(
             project_id, body.name, props,
             color=body.color, pinned=body.pinned, sort_order=body.sort_order,
         )
+        if body.name is not None and body.name != old_name:
+            activity_service.record("project_renamed", project=body.name, renamedFrom=old_name, projectId=project_id)
+        return data
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
 
@@ -85,11 +93,17 @@ async def update_project(project_id: str, body: ProjectUpdate):
 @router.delete("/{project_id}")
 async def delete_project(project_id: str):
     try:
-        project_service.delete_project(project_id)
+        gone = await run_in_threadpool(project_service.delete_project, project_id)
+        activity_service.record(
+            "project_deleted", project=gone.get("projectName"), projectId=project_id,
+            scripts=gone.get("scriptCount"), trash=gone.get("id"),
+        )
         await run_hooks("project:deleted", project_id=project_id)
         return {"message": f"Project '{project_id}' deleted"}
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
 
 # ── Script endpoints (nested under project) ───────────────────────────────────
@@ -103,11 +117,14 @@ async def create_script(
     # Gate hook: free-plan quota (default) or paid-tier check (Pro).
     await run_gate_hooks(QUOTA_CHECK_CREATE_SCRIPT, user=user)
     try:
-        return script_service.create_script(
+        result = script_service.create_script(
             project_id, body.title, body.content, body.format
         )
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
+    activity_service.record("script_created", project=project_name(project_id), projectId=project_id,
+                            script=result["meta"].get("title"), scriptId=result["meta"].get("id"))
+    return result
 
 
 @router.put("/{project_id}/device-scripts/{script_id}", response_model=ScriptResponse)
@@ -126,12 +143,15 @@ async def ensure_device_script(
     except FileNotFoundError:
         await run_gate_hooks(QUOTA_CHECK_CREATE_SCRIPT, user=user)
     try:
-        return await run_in_threadpool(
+        result = await run_in_threadpool(
             script_service.ensure_device_script, project_id, str(script_id),
             body.title, body.content, body.format,
         )
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
+    activity_service.record("script_created", project=project_name(project_id), projectId=project_id,
+                            script=result["meta"].get("title"), scriptId=str(script_id), via="device sync")
+    return result
 
 
 @router.get("/{project_id}/scripts/", response_model=list[ScriptMeta])
@@ -159,9 +179,13 @@ async def duplicate_script(
     # Duplicating creates a new file — same quota gate applies.
     await run_gate_hooks(QUOTA_CHECK_CREATE_SCRIPT, user=user)
     try:
-        return script_service.duplicate_script(project_id, script_id)
+        result = script_service.duplicate_script(project_id, script_id)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
+    activity_service.record("script_created", project=project_name(project_id), projectId=project_id,
+                            script=result["meta"].get("title"), scriptId=result["meta"].get("id"),
+                            duplicatedFrom=script_id)
+    return result
 
 
 @router.put("/{project_id}/scripts/reorder")
@@ -183,6 +207,7 @@ async def reorder_scripts(project_id: str, body: ReorderRequest):
 async def update_script(project_id: str, script_id: str, body: ScriptUpdate):
     try:
         is_content_save = body.content is not None
+        old_meta = script_service.read_meta(project_id, script_id) if body.title is not None else None
         if is_content_save:
             await run_hooks("script:before_save", project_id=project_id,
                             script_id=script_id, content=body.content)
@@ -194,6 +219,9 @@ async def update_script(project_id: str, script_id: str, body: ScriptUpdate):
         if is_content_save:
             await run_hooks("script:after_save", project_id=project_id,
                             script_id=script_id, content=body.content)
+        if old_meta is not None and body.title != old_meta.get("title"):
+            activity_service.record("script_renamed", project=project_name(project_id), projectId=project_id,
+                                    script=body.title, renamedFrom=old_meta.get("title"), scriptId=script_id)
         return result
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
@@ -230,7 +258,12 @@ async def update_offline_content(
 @router.delete("/{project_id}/scripts/{script_id}")
 async def delete_script(project_id: str, script_id: str):
     try:
-        await run_in_threadpool(script_service.delete_script, project_id, script_id)
+        gone = await run_in_threadpool(script_service.delete_script, project_id, script_id)
+        activity_service.record("script_deleted", project=gone.get("projectName") or project_name(project_id),
+                                projectId=project_id, script=gone.get("scriptTitle"), scriptId=script_id,
+                                trash=gone.get("id"))
         return {"message": f"Script '{script_id}' deleted"}
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
