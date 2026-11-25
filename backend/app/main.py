@@ -11,7 +11,7 @@ from fastapi.responses import FileResponse, JSONResponse
 
 import logging
 
-from app.api import scripts, auth, export, projects, versions, assets, collab, link_preview, formatting_templates, locations
+from app.api import scripts, auth, export, projects, versions, assets, collab, link_preview, formatting_templates, locations, admin
 from app.config import COLLAB_JWT_SECRET, PROJECTS_DIR_BASE, BASE_DIR, DEMO_MODE
 from app.dependencies import require_verified_user
 from app.middleware.user_context import UserContextMiddleware
@@ -101,6 +101,10 @@ app.include_router(locations.router, prefix="/api/projects", tags=["locations"],
 # normally talks directly to the collab-server for invites; these routes are
 # kept for legacy callers and require a verified user.
 app.include_router(collab.router, prefix="/api/collab", tags=["collab"], dependencies=_user_scoped)
+
+# Admin inventory for the collab server's admin console. Authorised by a
+# short-lived token the collab server mints, not by a user session.
+app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
 
 # Not user-scoped: export stubs, link previews, shared formatting templates.
 app.include_router(export.router, prefix="/api/export", tags=["export"])

@@ -9,6 +9,8 @@ export interface ServerConfig {
   port: number;
   backendUrl: string;
   backendUrls: string[];
+  /** True when BACKEND_URL was set; otherwise backendUrls are dev defaults. */
+  backendUrlConfigured: boolean;
   jwtSecret: string;
   jwtAccessExpiry: string;
   jwtRefreshExpiry: string;
@@ -68,6 +70,7 @@ function loadConfig(): ServerConfig {
       .split(',')
       .map(s => s.trim())
       .filter(Boolean),
+    backendUrlConfigured: Boolean(process.env.BACKEND_URL && process.env.BACKEND_URL.trim()),
     jwtSecret,
     jwtAccessExpiry: process.env.JWT_ACCESS_EXPIRY || '15m',
     jwtRefreshExpiry: process.env.JWT_REFRESH_EXPIRY || '7d',

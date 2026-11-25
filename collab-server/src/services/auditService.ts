@@ -13,6 +13,7 @@ export type AuditAction =
   | 'token_refresh_failed'
   | 'refresh_rate_limited'
   | 'admin_revoke_sessions'
+  | 'admin_view_account'
   | 'email_verified'
   | 'google_login'
   | 'new_device_challenge'

@@ -1,5 +1,5 @@
 /**
- * Admin console — server health and who is signed in.
+ * Admin console — server health, who is signed in, and per-account detail.
  *
  * Access is limited to the accounts listed in ADMIN_EMAILS. Admins sign in
  * with their ordinary account; there is no separate admin credential to leak.
@@ -8,6 +8,7 @@
 import { Router } from 'express';
 import type { Request, Response, NextFunction } from 'express';
 import rateLimit from 'express-rate-limit';
+import * as jwt from 'jsonwebtoken';
 import { config } from '../config';
 import { getDB } from '../db';
 import { verifyAccessToken, revokeAllRefreshTokens } from '../services/tokenService';
@@ -349,6 +350,244 @@ router.get('/api/users', async (req, res) => {
   } catch (err) {
     console.error('[admin] users list failed:', err);
     res.status(500).json({ error: 'Could not load users' });
+  }
+});
+
+/**
+ * Where to find the backend's API. BACKEND_URL wins when it is set. Otherwise
+ * the backend is assumed to sit at this collab server's own address without
+ * its "collab." prefix — https://collab.open-draft.com → https://open-draft.com/api —
+ * followed by the local development defaults.
+ *
+ * The raw Host header is used, not X-Forwarded-Host: a browser cannot forge
+ * Host, so the signed admin token only goes where the admin's own console is.
+ */
+export function backendCandidates(hostHeader: string | undefined, protocol: string): string[] {
+  if (config.backendUrlConfigured) return config.backendUrls;
+  const out: string[] = [];
+  const host = String(hostHeader || '').trim().toLowerCase();
+  const m = /^collab\.([a-z0-9.-]+(?::\d+)?)$/.exec(host);
+  if (m) out.push(`${protocol === 'https' ? 'https' : 'http'}://${m[1]}/api`);
+  for (const u of config.backendUrls) if (!out.includes(u)) out.push(u);
+  return out;
+}
+
+/** Ask the Python backend what an account has stored. The backend keeps the
+ *  files; we hold the accounts, so we vouch for the request with a one-minute
+ *  token naming just this account. Only metadata comes back. */
+async function fetchInventory(userId: string, adminEmail: string, backends: string[]): Promise<{ ok: true; data: any; source: string } | { ok: false; error: string; tried: string[] }> {
+  const token = jwt.sign(
+    { sub: userId, type: 'admin_inventory', admin: adminEmail },
+    config.jwtSecret,
+    { expiresIn: 60, audience: 'opendraft-backend-admin' },
+  );
+  const tried: string[] = [];
+  let lastError = 'no backend URL configured (set BACKEND_URL)';
+  for (const base of backends) {
+    tried.push(base);
+    try {
+      const r = await fetch(`${base}/admin/accounts/${encodeURIComponent(userId)}/inventory`, {
+        headers: { Authorization: `Bearer ${token}` },
+        signal: AbortSignal.timeout(15_000),
+      });
+      if (r.ok) return { ok: true, data: await r.json(), source: base };
+      const body: any = await r.json().catch(() => ({}));
+      lastError = `${base} answered ${r.status}${body?.detail ? ': ' + (typeof body.detail === 'string' ? body.detail : JSON.stringify(body.detail)) : ''}`;
+      // A backend that answered with an auth error is the right one, wrongly
+      // configured; trying the next URL would only hide that.
+      if (r.status === 401 || r.status === 403 || r.status === 503) break;
+    } catch (err) {
+      lastError = `${base} unreachable: ${(err as Error).message}`;
+    }
+  }
+  console.warn(`[admin] inventory for ${userId} unavailable: ${lastError}`);
+  return { ok: false, error: lastError, tried };
+}
+
+const DAY_MS = 24 * 3600_000;
+
+/** One account in full: profile, devices, sign-in and collaboration activity,
+ *  and the projects and files it has stored on the backend. */
+router.get('/api/users/:id/summary', async (req, res) => {
+  try {
+    const db = getDB();
+    const user = await db.get<any>(
+      `SELECT id, email, display_name, email_verified, two_factor_enabled, created_at, updated_at,
+              CASE WHEN google_id IS NOT NULL THEN 1 ELSE 0 END AS has_google,
+              CASE WHEN password_hash IS NOT NULL THEN 1 ELSE 0 END AS has_password
+         FROM users WHERE id = ?`,
+      [req.params.id],
+    );
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+    const now = Date.now();
+    const nowIso = new Date(now).toISOString();
+    const monthAgo = new Date(now - 30 * DAY_MS).toISOString();
+    // Failed sign-ins are logged before we know the account, under its email
+    // and with no user id, so they are looked up separately — last 30 days
+    // only, which keeps the scan on the created_at index.
+    const emailLike = '%' + JSON.stringify({ email: String(user.email).toLowerCase() }).slice(1, -1).replace(/[\\%_]/g, m => '\\' + m) + '%';
+
+    const [devices, sessions, actionsAll, actions30, daily, recent, failedLogins, firstLast, invites, documents, inventory] = await Promise.all([
+      db.all<any>(
+        `SELECT device_id, device_name, platform, ip_address, trusted, first_seen_at, last_seen_at
+           FROM user_devices WHERE user_id = ? ORDER BY last_seen_at DESC LIMIT 200`,
+        [user.id],
+      ),
+      db.all<any>(
+        `SELECT device_id, created_at, expires_at FROM refresh_tokens
+          WHERE user_id = ? AND revoked = 0 AND expires_at > ? ORDER BY created_at DESC LIMIT 200`,
+        [user.id, nowIso],
+      ),
+      db.all<{ action: string; c: number | string }>(
+        'SELECT action, COUNT(*) AS c FROM audit_log WHERE user_id = ? GROUP BY action', [user.id],
+      ),
+      db.all<{ action: string; c: number | string }>(
+        'SELECT action, COUNT(*) AS c FROM audit_log WHERE user_id = ? AND created_at > ? GROUP BY action',
+        [user.id, monthAgo],
+      ),
+      db.all<{ day: string; c: number | string }>(
+        `SELECT SUBSTR(created_at, 1, 10) AS day, COUNT(*) AS c FROM audit_log
+          WHERE user_id = ? AND created_at > ? AND action NOT IN ('token_refresh', 'disconnect')
+          GROUP BY SUBSTR(created_at, 1, 10)`,
+        [user.id, monthAgo],
+      ),
+      db.all<any>(
+        `SELECT id, action, document_name, detail, ip_address, created_at FROM audit_log
+          WHERE user_id = ? AND action <> 'token_refresh' ORDER BY id DESC LIMIT 100`,
+        [user.id],
+      ),
+      db.all<any>(
+        `SELECT id, action, document_name, detail, ip_address, created_at FROM audit_log
+          WHERE created_at > ? AND user_id IS NULL AND action = 'login_failed' AND LOWER(detail) LIKE ? ESCAPE '\\'
+          ORDER BY id DESC LIMIT 100`,
+        [monthAgo, emailLike],
+      ),
+      db.get<any>(
+        `SELECT MIN(created_at) AS first_at, MAX(created_at) AS last_at,
+                MAX(CASE WHEN action IN ('login','google_login') THEN created_at END) AS last_login,
+                MAX(CASE WHEN action = 'token_refresh' THEN created_at END) AS last_refresh,
+                MAX(CASE WHEN action = 'connect' THEN created_at END) AS last_collab
+           FROM audit_log WHERE user_id = ?`,
+        [user.id],
+      ),
+      // Invite tokens themselves are never selected.
+      db.all<any>(
+        `SELECT project_id, script_id, collaborator_name, role, active, created_at, expires_at
+           FROM collab_sessions WHERE created_by = ? ORDER BY created_at DESC LIMIT 500`,
+        [user.id],
+      ),
+      db.all<any>(
+        `SELECT document_name, COUNT(*) AS c, MAX(created_at) AS last_at FROM audit_log
+          WHERE user_id = ? AND action = 'connect' AND document_name IS NOT NULL
+          GROUP BY document_name ORDER BY last_at DESC LIMIT 100`,
+        [user.id],
+      ),
+      fetchInventory(user.id, req.user!.email, backendCandidates(req.headers.host, req.protocol)),
+    ]);
+
+    // Logged against the admin, not the account, so looking does not show up
+    // as the account's own activity.
+    await auditService.logEvent('admin_view_account', req.user!.id, null,
+      { by: req.user!.email, target: user.email, targetId: user.id }, clientIp(req));
+
+    const ms = (v: string | null | undefined) => (v ? Date.parse(v) : null);
+    const toCounts = (rows: { action: string; c: number | string }[]) => {
+      const out: Record<string, number> = {};
+      for (const r of rows) out[r.action] = Number(r.c);
+      return out;
+    };
+    const liveDevices = new Set(sessions.map(s => s.device_id).filter(Boolean));
+    const connections = liveStats.listConnections().filter(c => c.userId === user.id);
+    const seen = liveStats.lastSeenAt(user.id);
+
+    const last30 = toCounts(actions30);
+    if (failedLogins.length) last30.login_failed = (last30.login_failed || 0) + failedLogins.length;
+    const days: { day: string; count: number }[] = [];
+    const byDay = new Map(daily.map(d => [d.day, Number(d.c)]));
+    for (const f of failedLogins) {
+      const day = String(f.created_at).slice(0, 10);
+      byDay.set(day, (byDay.get(day) ?? 0) + 1);
+    }
+    const recentEvents = recent.concat(failedLogins).sort((a: any, b: any) => b.id - a.id).slice(0, 100);
+    for (let i = 29; i >= 0; i--) {
+      const day = new Date(now - i * DAY_MS).toISOString().slice(0, 10);
+      days.push({ day, count: byDay.get(day) ?? 0 });
+    }
+
+    // Group invites per shared script.
+    const shared = new Map<string, any>();
+    for (const i of invites) {
+      const key = i.project_id + '|' + i.script_id;
+      let s = shared.get(key);
+      if (!s) {
+        s = { projectId: i.project_id, scriptId: i.script_id, invites: 0, openInvites: 0, roles: {} as Record<string, number>, people: [] as string[], firstAt: null as number | null, lastAt: null as number | null };
+        shared.set(key, s);
+      }
+      s.invites++;
+      const open = Number(i.active) === 1 && Date.parse(i.expires_at) > now;
+      if (open) s.openInvites++;
+      s.roles[i.role] = (s.roles[i.role] || 0) + 1;
+      if (s.people.length < 20 && !s.people.includes(i.collaborator_name)) s.people.push(i.collaborator_name);
+      const at = Date.parse(i.created_at);
+      s.firstAt = s.firstAt ? Math.min(s.firstAt, at) : at;
+      s.lastAt = s.lastAt ? Math.max(s.lastAt, at) : at;
+    }
+
+    res.json({
+      generatedAt: now,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.display_name,
+        verified: !!Number(user.email_verified),
+        twoFactor: !!Number(user.two_factor_enabled),
+        google: !!Number(user.has_google),
+        password: !!Number(user.has_password),
+        createdAt: ms(user.created_at),
+        updatedAt: ms(user.updated_at),
+        isAdmin: config.adminEmails.includes(String(user.email).toLowerCase()),
+        status: connections.length ? 'connected' : seen !== null && now - seen <= ACTIVE_WINDOW_MS ? 'active' : 'idle',
+      },
+      activity: {
+        firstEventAt: ms(firstLast?.first_at),
+        lastEventAt: Math.max(ms(firstLast?.last_at) ?? 0, seen ?? 0) || null,
+        lastLoginAt: ms(firstLast?.last_login),
+        lastRefreshAt: ms(firstLast?.last_refresh),
+        lastCollabAt: ms(firstLast?.last_collab),
+        allTime: toCounts(actionsAll),
+        last30Days: last30,
+        daily: days,
+        recent: recentEvents.map((e: any) => ({
+          id: e.id, action: e.action, document: e.document_name, detail: e.detail, ip: e.ip_address, at: ms(e.created_at),
+        })),
+      },
+      devices: devices.map((d: any) => ({
+        name: d.device_name,
+        platform: d.platform,
+        ip: d.ip_address,
+        trusted: !!Number(d.trusted),
+        firstSeen: ms(d.first_seen_at),
+        lastSeen: ms(d.last_seen_at),
+        signedIn: liveDevices.has(d.device_id),
+      })),
+      sessions: { live: sessions.length, newest: ms(sessions[0]?.created_at) },
+      collaboration: {
+        liveConnections: connections.map(c => ({ document: c.document, role: c.role, ip: c.ip, since: c.since, projectId: c.projectId, scriptId: c.scriptId })),
+        invitesCreated: invites.length,
+        openInvites: invites.filter(i => Number(i.active) === 1 && Date.parse(i.expires_at) > now).length,
+        sharedScripts: Array.from(shared.values()),
+        documentsJoined: documents.map((d: any) => ({ document: d.document_name, connections: Number(d.c), lastAt: ms(d.last_at) })),
+      },
+      storage: inventory.ok
+        ? { available: true, source: inventory.source, ...inventory.data }
+        : { available: false, error: inventory.error, tried: inventory.tried },
+    });
+  } catch (err) {
+    console.error('[admin] account summary failed:', err);
+    res.status(500).json({ error: 'Could not load the account' });
   }
 });
 

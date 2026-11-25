@@ -37,6 +37,13 @@ svg.spark{width:100%;height:48px;display:block}.legend{display:flex;gap:14px;fon
 .pager{display:flex;gap:10px;align-items:center;margin-top:10px}select{font:inherit;padding:5px 8px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--text)}
 .tag{display:inline-block;padding:0 6px;border-radius:4px;font-size:11px;background:var(--bg);border:1px solid var(--line);color:var(--mute);margin-right:4px}
 input[type=search]{max-width:260px;padding:5px 8px}.row{display:flex;gap:10px;align-items:center;margin-bottom:8px}
+a.ulink{color:inherit;text-decoration:none;font-weight:600}a.ulink:hover{color:var(--accent);text-decoration:underline}
+.ahead{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:12px}.ahead h2{margin:0;font-size:20px}.ahead .sp{flex:1}
+details.proj{background:var(--card);border:1px solid var(--line);border-radius:8px;margin-bottom:8px}
+details.proj>summary{cursor:pointer;padding:10px 14px;display:flex;flex-wrap:wrap;gap:6px 16px;align-items:baseline;list-style:none}
+details.proj>summary::-webkit-details-marker{display:none}details.proj>summary:before{content:"\25B8";color:var(--mute);width:10px}details.proj[open]>summary:before{content:"\25BE"}
+details.proj>summary b{flex:1;min-width:160px}details.proj .inner{padding:0 14px 12px}details.proj h4{margin:10px 0 6px;font-size:12px;color:var(--mute);text-transform:uppercase;letter-spacing:.04em}
+svg.days{width:100%;height:76px;display:block}.note{border-left:3px solid var(--warn)}
 </style></head><body>
 <div id="login" hidden>
   <h1>OpenDraft Admin</h1>
@@ -74,6 +81,10 @@ input[type=search]{max-width:260px;padding:5px 8px}.row{display:flex;gap:10px;al
   <div class="grid" id="csumm"></div>
   <section><h2>Sessions</h2><div class="wrap" id="csessions"></div></section>
   <section><h2>Live connections</h2><div class="wrap" id="conns"></div></section>
+</div>
+<div id="v-account" hidden>
+  <a class="back" href="#/users">&larr; Registered users</a>
+  <div id="acct"><div class="card empty">Loading account…</div></div>
 </div>
 </main></div>
 <script>
@@ -213,12 +224,12 @@ function renderUsers(){
   $('usersum').textContent=list.length+' of '+data.users.length;
   $('users').innerHTML=table(['User','Status','Last active','Devices','',''],list.map(function(u){
    var dev=u.sessions.map(function(s){return esc(s.device)+(s.platform?' ('+esc(s.platform)+')':'')+(s.ip?' · '+esc(s.ip):'')+' · '+ago(s.lastRefresh)}).join('<br>');
-   return'<tr><td>'+esc(u.name)+'<div class="sub">'+esc(u.email)+'</div></td><td><span class="pill '+u.status+'">'+u.status+'</span></td><td>'+ago(u.lastActive)+'</td><td class="sub">'+dev+'</td><td></td><td><button class="danger" data-id="'+esc(u.userId)+'" data-email="'+esc(u.email)+'">Sign out</button></td></tr>'}),'No signed-in users.');
+   return'<tr><td>'+ulink(u.userId,u.name)+'<div class="sub">'+esc(u.email)+'</div></td><td><span class="pill '+u.status+'">'+u.status+'</span></td><td>'+ago(u.lastActive)+'</td><td class="sub">'+dev+'</td><td></td><td><button class="danger" data-id="'+esc(u.userId)+'" data-email="'+esc(u.email)+'">Sign out</button></td></tr>'}),'No signed-in users.');
 }
 document.addEventListener('click',async function(e){
   var b=e.target.closest&&e.target.closest('button[data-id]');if(!b)return;
   if(!confirm('Sign '+b.dataset.email+' out of all devices?'))return;
-  try{await api('/users/'+encodeURIComponent(b.dataset.id)+'/revoke-sessions',{method:'POST'});refresh();if(view==='users')fetchUsers()}catch(err){if(err.message!=='auth')alert('Failed: '+err.message)}
+  try{await api('/users/'+encodeURIComponent(b.dataset.id)+'/revoke-sessions',{method:'POST'});refresh();if(view==='users')fetchUsers();if(view==='account')fetchAccount()}catch(err){if(err.message!=='auth')alert('Failed: '+err.message)}
 });
 function renderConns(){
   $('conns').innerHTML=table(['Name','Role','Document','IP','Connected'],data.connections.map(function(c){
@@ -238,7 +249,7 @@ function renderUsersPage(){
   var pages=Math.max(1,Math.ceil(d.matched/d.pageSize));
   $('ucount').textContent=d.matched+(uState.q?' matching':' users')+' · page '+d.page+' of '+pages;
   $('utable').innerHTML=table(['User','Verified','Sign-in','Registered','Last active','Sessions','Status',''],d.users.map(function(u){
-   return'<tr><td>'+esc(u.name)+(u.isAdmin?' <span class="tag">admin</span>':'')+'<div class="sub">'+esc(u.email)+'</div></td>'+
+   return'<tr><td>'+ulink(u.id,u.name)+(u.isAdmin?' <span class="tag">admin</span>':'')+'<div class="sub">'+esc(u.email)+'</div></td>'+
     '<td>'+(u.verified?'<span class="pill connected">yes</span>':'<span class="pill idle">no</span>')+'</td>'+
     '<td>'+(u.password?'<span class="tag">password</span>':'')+(u.google?'<span class="tag">Google</span>':'')+(u.twoFactor?'<span class="tag">2FA</span>':'')+'</td>'+
     '<td>'+fmtDate(u.createdAt)+'</td><td>'+(u.lastActive?ago(u.lastActive):'never')+'</td>'+
@@ -263,11 +274,105 @@ function renderCollabPage(){
    return'<tr><td class="sub">project '+esc(String(x.projectId).slice(0,8))+'<br>script '+esc(String(x.scriptId).slice(0,8))+'</td><td>'+(x.live?'<span class="pill connected">live · '+x.participants.length+'</span>':'<span class="pill idle">invites only</span>')+'</td><td>'+esc(x.host||'—')+'</td><td>'+(who||'<span class="sub">nobody</span>')+'</td><td>'+(x.openInvites?x.openInvites+'<div class="sub">'+inv+'</div>':'0')+'</td><td>'+ago(x.startedAt||x.firstInvite)+'</td></tr>'}),'No active collaboration sessions or open invites.');
   renderConns();
 }
+
+function ulink(id,name){return'<a class="ulink" href="#/account/'+encodeURIComponent(id)+'" title="Open account summary">'+esc(name||'(no name)')+'</a>'}
+function fmtBytes(b){b=Number(b)||0;if(b<1024)return b+' B';if(b<1048576)return(Math.round(b/102.4)/10)+' KB';if(b<1073741824)return(Math.round(b/104857.6)/10)+' MB';return(Math.round(b/107374182.4)/10)+' GB'}
+function fmtWhen(t){return t?new Date(t).toLocaleString(undefined,{year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}):'—'}
+function isoMs(v){var t=v?Date.parse(v):NaN;return isNaN(t)?null:t}
+var acctId='',aData=null,aFilter='',aSeq=0;
+async function fetchAccount(){
+  if(!acctId){$('acct').innerHTML='<div class="card empty">No account selected.</div>';return}
+  var seq=++aSeq;
+  try{var d=await api('/users/'+encodeURIComponent(acctId)+'/summary');if(seq!==aSeq)return;aData=d;renderAccount()}
+  catch(e){if(seq!==aSeq||e.message==='auth')return;
+    $('acct').innerHTML='<div class="card empty bad">Could not load this account: '+esc(e.message==='HTTP 404'?'it no longer exists.':e.message)+'</div>'}
+}
+var ACTION_LABELS={login:'Password sign-ins',google_login:'Google sign-ins',login_failed:'Failed sign-ins',logout:'Sign-outs',token_refresh:'Session renewals',token_refresh_failed:'Refused renewals',register:'Registered',email_verified:'Email verified',new_device_challenge:'New-device checks sent',new_device_verified:'New devices verified',password_changed:'Password changed',password_reset_requested:'Password reset requested',password_reset:'Password reset',device_revoked:'Device removed',connect:'Joined a collaboration',disconnect:'Left a collaboration',suggestion_refused:'Suggestions refused',admin_revoke_sessions:'Signed out by an admin',admin_view_account:'Viewed by an admin'};
+function dayChart(days){
+  var W=600,H=76,n=days.length,max=Math.max.apply(null,[1].concat(days.map(function(d){return d.count}))),bw=W/n;
+  var bars=days.map(function(d,i){var h=d.count?Math.max(2,d.count/max*(H-4)):0;
+    return'<rect x="'+(i*bw+1).toFixed(1)+'" y="'+(H-h).toFixed(1)+'" width="'+(bw-2).toFixed(1)+'" height="'+h.toFixed(1)+'" rx="1.5" fill="var(--accent)"><title>'+esc(d.day)+': '+d.count+' events</title></rect>'}).join('');
+  return'<svg class="days" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" role="img" aria-label="Account events per day over the last 30 days">'+bars+'</svg>'+
+    '<div class="leg" style="justify-content:space-between"><span>'+esc(days[0].day)+'</span><span>busiest day '+max+' events</span><span>today</span></div>';
+}
+function detailText(raw){try{var j=JSON.parse(raw||'null');return j?Object.keys(j).map(function(k){return k+': '+j[k]}).join(', '):''}catch(x){return raw||''}}
+function renderAccount(){
+  var d=aData,u=d.user,a=d.activity,st=d.storage,co=d.collaboration,l30=a.last30Days,all=a.allTime;
+  var n=function(o,k){return o[k]||0};
+  var head='<div class="ahead"><div><h2>'+esc(u.name||'(no name)')+'</h2><div class="sub">'+esc(u.email)+' · id '+esc(u.id)+'</div></div><span class="pill '+u.status+'">'+esc(u.status)+'</span>'+
+    (u.isAdmin?'<span class="tag">admin</span>':'')+(u.verified?'<span class="tag">verified</span>':'<span class="tag bad">not verified</span>')+(u.password?'<span class="tag">password</span>':'')+(u.google?'<span class="tag">Google</span>':'')+(u.twoFactor?'<span class="tag">2FA</span>':'')+
+    '<span class="sp"></span><span class="sub">loaded '+new Date(d.generatedAt).toLocaleTimeString()+'</span><button id="arefresh">Refresh</button>'+
+    (d.sessions.live?'<button class="danger" data-id="'+esc(u.id)+'" data-email="'+esc(u.email)+'">Sign out everywhere</button>':'')+'</div>';
+  var signedInDevices=d.devices.filter(function(x){return x.signedIn}).length;
+  var tiles='<div class="grid">'+
+    tile('Registered',fmtDate(u.createdAt),u.createdAt?ago(u.createdAt).replace(' ago','')+' ago':'')+
+    tile('Last active',a.lastEventAt?ago(a.lastEventAt):'never','last sign-in '+(a.lastLoginAt?ago(a.lastLoginAt):'—'))+
+    tile('Sign-ins (30 days)',n(l30,'login')+n(l30,'google_login'),n(l30,'login_failed')+' failed · '+n(l30,'token_refresh')+' renewals',n(l30,'login_failed')>10?'warn':'')+
+    tile('Devices',d.devices.length,signedInDevices+' signed in now · '+d.sessions.live+' live sessions')+
+    (st.available?tile('Projects',st.totals.projects,st.totals.scripts+' scripts · '+st.totals.assets+' uploaded files')+
+       tile('Storage',fmtBytes(st.totals.sizeBytes),st.totals.versions+' saved versions · '+st.totals.diskFiles+' files on disk')
+      :tile('Projects','?','file storage unavailable','warn'))+
+    tile('Collaboration',co.liveConnections.length?co.liveConnections.length+' live':co.sharedScripts.length,co.sharedScripts.length+' scripts shared · '+co.openInvites+' open invites · last joined '+(a.lastCollabAt?ago(a.lastCollabAt):'never'))+
+    '</div>';
+  var acts=Object.keys(Object.assign({},all,l30)).sort(function(x,y){return(n(all,y)+n(l30,y))-(n(all,x)+n(l30,x))});
+  var activity='<section><h2>Activity, last 30 days</h2><div class="card">'+dayChart(a.daily)+'<div class="sub">Sign-ins, collaboration and account changes per day (session renewals left out). First recorded event '+fmtWhen(a.firstEventAt)+'.</div></div>'+
+    '<div class="wrap" style="margin-top:10px">'+table(['Event','Last 30 days','All time'],acts.map(function(k){
+      var bad=k.indexOf('failed')>=0||k.indexOf('refused')>=0;
+      return'<tr><td class="'+(bad?'bad':'')+'">'+esc(ACTION_LABELS[k]||k)+' <span class="sub">'+esc(k)+'</span></td><td>'+n(l30,k)+'</td><td>'+(k==='login_failed'&&!all[k]?'<span class="sub">30-day only</span>':n(all,k))+'</td></tr>'}),'No recorded activity.')+'</div></section>';
+  $('acct').innerHTML=head+tiles+activity+'<section><h2>Projects and files</h2><div id="astorage"></div></section>'+
+    '<section><h2>Devices</h2><div class="wrap">'+table(['Device','Platform','Last IP','First seen','Last seen','Status'],d.devices.map(function(x){
+      return'<tr><td>'+esc(x.name)+(x.trusted?' <span class="tag">trusted</span>':'')+'</td><td>'+esc(x.platform||'—')+'</td><td>'+esc(x.ip||'—')+'</td><td>'+fmtDate(x.firstSeen)+'</td><td>'+ago(x.lastSeen)+'</td><td>'+(x.signedIn?'<span class="pill connected">signed in</span>':'<span class="pill idle">signed out</span>')+'</td></tr>'}),'No devices recorded for this account.')+'</div></section>'+
+    '<section><h2>Collaboration</h2><div id="acollab"></div></section>'+
+    '<section><h2>Recent activity</h2><div class="wrap">'+table(['When','Event','Document','Detail','IP'],a.recent.map(function(e){
+      var bad=e.action.indexOf('failed')>=0||e.action.indexOf('refused')>=0||e.action.indexOf('limited')>=0;
+      return'<tr><td title="'+esc(fmtWhen(e.at))+'">'+ago(e.at)+'</td><td class="'+(bad?'bad':'')+'">'+esc(ACTION_LABELS[e.action]||e.action)+'</td><td class="sub">'+esc(e.document||'')+'</td><td class="sub">'+esc(detailText(e.detail))+'</td><td>'+esc(e.ip||'')+'</td></tr>'}),'No events recorded.')+
+    '</div><div class="sub" style="margin-top:4px">Latest 100 events; session renewals are counted above but not listed.</div></section>';
+  $('arefresh').onclick=function(){fetchAccount()};
+  renderAccountStorage();renderAccountCollab();
+}
+function scriptIndex(){var m={};var st=aData&&aData.storage;if(st&&st.available)st.projects.forEach(function(p){p.scripts.forEach(function(s){m[p.id+'|'+s.id]={project:p.name,script:s.title}});m[p.id+'|']={project:p.name}});return m}
+function renderAccountCollab(){
+  var co=aData.collaboration,idx=scriptIndex();
+  var name=function(pid,sid){var k=idx[pid+'|'+sid],p=idx[pid+'|'];
+    return k?esc(k.script)+'<div class="sub">'+esc(k.project)+'</div>':p?'<span class="sub">script '+esc(String(sid).slice(0,8))+'</span><div class="sub">'+esc(p.project)+'</div>':'<span class="sub">project '+esc(String(pid).slice(0,8))+' · script '+esc(String(sid).slice(0,8))+'</span>'};
+  var live=co.liveConnections.length?'<div class="wrap" style="margin-bottom:10px">'+table(['In a session now','Role','IP','Since'],co.liveConnections.map(function(c){
+    return'<tr><td>'+name(c.projectId,c.scriptId)+'</td><td>'+esc(c.role)+'</td><td>'+esc(c.ip)+'</td><td>'+ago(c.since)+'</td></tr>'}),'')+'</div>':'';
+  var shared=table(['Script shared by this account','Invites','Roles','People invited','Last invite'],co.sharedScripts.map(function(x){
+    var roles=Object.keys(x.roles).map(function(r){return x.roles[r]+' '+esc(r)}).join(', ');
+    return'<tr><td>'+name(x.projectId,x.scriptId)+'</td><td>'+x.invites+(x.openInvites?'<div class="sub">'+x.openInvites+' still open</div>':'<div class="sub">none open</div>')+'</td><td>'+roles+'</td><td class="sub">'+x.people.map(esc).join(', ')+'</td><td>'+ago(x.lastAt)+'</td></tr>'}),'This account has not invited anyone.');
+  var joined=co.documentsJoined.length?'<div class="wrap" style="margin-top:10px">'+table(['Documents joined','Times','Last joined'],co.documentsJoined.map(function(x){
+    return'<tr><td class="sub">'+esc(x.document)+'</td><td>'+x.connections+'</td><td>'+ago(x.lastAt)+'</td></tr>'}),'')+'</div>':'';
+  $('acollab').innerHTML=live+'<div class="wrap">'+shared+'</div>'+joined;
+}
+function renderAccountStorage(){
+  var st=aData.storage,el=$('astorage');
+  if(!st.available){el.innerHTML='<div class="card note"><b class="warn">File storage could not be reached.</b><div class="sub" style="margin-top:4px">'+esc(st.error)+'</div>'+
+    '<div class="sub" style="margin-top:6px">The collab server asks the Python backend at BACKEND_URL (tried: '+esc((st.tried||[]).join(', ')||'none')+'). Both servers must share the same JWT secret. Accounts that only use the desktop or mobile apps keep their files on their own devices and have nothing stored here.</div></div>';return}
+  if(!st.projects.length){el.innerHTML='<div class="card empty">'+(st.exists?'This account has no projects stored on the server.':'Nothing stored on the server for this account. Desktop and mobile apps keep files on the device; only the web app saves here.')+'</div>';return}
+  var q=aFilter.toLowerCase(),match=function(t){return!q||String(t||'').toLowerCase().indexOf(q)>=0};
+  var list=st.projects.map(function(p){
+    var pm=match(p.name)||match(p.id),scripts=pm?p.scripts:p.scripts.filter(function(s){return match(s.title)||match(s.author)}),assets=pm?p.assets:p.assets.filter(function(x){return match(x.name)});
+    return(pm||scripts.length||assets.length)?{p:p,scripts:scripts,assets:assets}:null}).filter(Boolean);
+  var body=list.map(function(r){var p=r.p,open=!!q||st.projects.length===1;
+    var v=p.versions||{count:0};
+    return'<details class="proj"'+(open?' open':'')+'><summary><b>'+esc(p.name)+(p.deviceSync?' <span class="tag">device sync</span>':'')+(p.pinned?' <span class="tag">pinned</span>':'')+(p.metadataError?' <span class="tag bad">project.json unreadable</span>':'')+'</b>'+
+      '<span class="sub">'+p.scripts.length+' scripts</span><span class="sub">'+p.assets.length+' files</span><span class="sub">'+p.notes+' notes</span><span class="sub">'+v.count+(v.capped?'+':'')+' versions</span><span class="sub">'+fmtBytes(p.sizeBytes)+'</span><span class="sub" title="'+esc(fmtWhen(isoMs(p.lastModified)))+'">changed '+ago(isoMs(p.lastModified))+'</span></summary><div class="inner">'+
+      '<div class="sub">id '+esc(p.id)+' · created '+fmtDate(isoMs(p.createdAt))+' · last version '+(v.last?fmtWhen(isoMs(v.last)):'none')+(p.truncated?' · <span class="warn">list cut short (very large project)</span>':'')+'</div>'+
+      '<h4>Scripts</h4><div class="wrap">'+table(['Title','Author','Pages','Size','Created','Last saved'],r.scripts.map(function(s){
+        return'<tr><td>'+esc(s.title||'(unreadable)')+(s.error?' <span class="tag bad">'+esc(s.error)+'</span>':'')+'<div class="sub">'+esc(s.id)+'</div></td><td>'+esc(s.author||'—')+'</td><td>'+(s.pageCount||'—')+'</td><td>'+fmtBytes(s.sizeBytes)+'</td><td>'+fmtDate(isoMs(s.createdAt))+'</td><td title="'+esc(fmtWhen(isoMs(s.updatedAt)))+'">'+ago(isoMs(s.updatedAt))+'</td></tr>'}),'No scripts.')+'</div>'+
+      (r.assets.length?'<h4>Uploaded files</h4><div class="wrap">'+table(['Name','Type','Size','Uploaded'],r.assets.map(function(x){
+        return'<tr><td>'+esc(x.name)+'</td><td class="sub">'+esc(x.mimeType||'—')+'</td><td>'+fmtBytes(x.sizeBytes)+'</td><td>'+fmtDate(isoMs(x.createdAt))+'</td></tr>'}),'')+'</div>':'')+
+      '</div></details>'}).join('');
+  el.innerHTML='<div class="row"><input id="afilter" type="search" placeholder="Filter projects and files" aria-label="Filter projects and files" value="'+esc(aFilter)+'"><span class="sub">'+list.length+' of '+st.projects.length+' projects'+(st.truncated?' (first '+st.projects.length+' shown)':'')+' · titles, sizes and dates only; script text is never sent</span></div>'+
+    (body||'<div class="card empty">Nothing matches that filter.</div>');
+  var f=$('afilter');f.oninput=function(){aFilter=f.value;var pos=f.selectionStart;renderAccountStorage();var g=$('afilter');g.focus();try{g.setSelectionRange(pos,pos)}catch(e){}};
+}
 function route(){
-  var h=location.hash;view=h.indexOf('#/users')===0?'users':h.indexOf('#/collab')===0?'collab':'overview';
-  $('v-overview').hidden=view!=='overview';$('v-users').hidden=view!=='users';$('v-collab').hidden=view!=='collab';
+  var h=location.hash;view=h.indexOf('#/account/')===0?'account':h.indexOf('#/users')===0?'users':h.indexOf('#/collab')===0?'collab':'overview';
+  $('v-overview').hidden=view!=='overview';$('v-users').hidden=view!=='users';$('v-collab').hidden=view!=='collab';$('v-account').hidden=view!=='account';
   window.scrollTo(0,0);
-  if(view==='users')fetchUsers();else if(data&&view==='collab')renderCollabPage();
+  if(view==='account'){var id='';try{id=decodeURIComponent(h.slice('#/account/'.length))}catch(e){}acctId=id;aData=null;aFilter='';$('acct').innerHTML='<div class="card empty">Loading account…</div>';fetchAccount()}
+  else if(view==='users')fetchUsers();else if(data&&view==='collab')renderCollabPage();
 }
 window.addEventListener('hashchange',route);
 async function refresh(){
