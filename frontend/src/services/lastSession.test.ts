@@ -6,7 +6,7 @@
  * tell that the rest of their script was safe in the library.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { rememberLastSession, readLastSession, clearLastSession } from './lastSession';
+import { rememberLastSession, readLastSession, clearLastSession, forgetLastSessionFor } from './lastSession';
 
 const KEY = 'opendraft:last-session';
 
@@ -117,5 +117,51 @@ describe('lastSession', () => {
 
     expect((await withLabel('main')).readLastSession()?.scriptId).toBe('main-script');
     expect((await withLabel('main-1')).readLastSession()?.scriptId).toBe('second-script');
+  });
+});
+
+// A deleted script must not stay queued to reopen: reopening fails, the editor
+// falls back to the project, the project to the start screen, and the start
+// screen reopened it again — a redirect loop of 404s.
+describe('forgetLastSessionFor', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('forgets the record when its script is deleted', () => {
+    rememberLastSession('p1', 's1');
+    forgetLastSessionFor('p1', 's1');
+    expect(readLastSession()).toBeNull();
+  });
+
+  it('forgets the record when its whole project is deleted', () => {
+    rememberLastSession('p1', 's1');
+    forgetLastSessionFor('p1');
+    expect(readLastSession()).toBeNull();
+  });
+
+  it('keeps the record when something else is deleted', () => {
+    rememberLastSession('p1', 's1');
+    forgetLastSessionFor('p1', 's2');
+    forgetLastSessionFor('p2');
+    expect(readLastSession()).toMatchObject({ projectId: 'p1', scriptId: 's1' });
+  });
+
+  it('keeps a record that belongs to another account unless it matches', () => {
+    rememberLastSession('p1', 's1', 'user-a');
+    forgetLastSessionFor('p9', 's9');
+    expect(readLastSession('user-a')).toMatchObject({ scriptId: 's1' });
+    forgetLastSessionFor('p1', 's1');
+    expect(readLastSession('user-a')).toBeNull();
+  });
+
+  it('never throws on an unreadable record', () => {
+    localStorage.setItem(KEY, '{not json');
+    expect(() => forgetLastSessionFor('p1', 's1')).not.toThrow();
   });
 });

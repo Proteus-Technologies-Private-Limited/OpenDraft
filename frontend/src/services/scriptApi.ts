@@ -14,6 +14,7 @@ import { api } from './api';
 import { cloudApi } from './cloudApi';
 import { offlineCloud } from './offlineCloud';
 import { refreshDeviceScript, wakeDeviceProjectSync } from './deviceProjectSync';
+import { forgetLastSessionFor } from './lastSession';
 import type { ScriptResponse } from './api';
 
 function pickFor(projectId: string, scriptId: string) {
@@ -58,6 +59,7 @@ export const scriptApi = {
     // Clean up the cloud-script marker so a subsequent create with the same
     // (projectId, scriptId) does not resurrect a stale cloud routing.
     useProjectStore.getState().unmarkCloudScript(projectId, scriptId);
+    forgetLastSessionFor(projectId, scriptId);
     return result;
   },
 };

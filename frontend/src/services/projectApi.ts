@@ -13,6 +13,7 @@ import { useProjectStore } from '../stores/projectStore';
 import { api, type ProjectProperties } from './api';
 import { cloudApi } from './cloudApi';
 import { offlineCloud } from './offlineCloud';
+import { forgetLastSessionFor } from './lastSession';
 
 function pick(projectId: string) {
   return useProjectStore.getState().isCloudProject(projectId) ? cloudApi : api;
@@ -36,6 +37,7 @@ export const projectApi = {
     // same id (extremely unlikely, but cheap to be defensive) doesn't get
     // stuck routing to the cloud.
     useProjectStore.getState().unmarkCloudProject(id);
+    forgetLastSessionFor(id);
     return result;
   },
 };

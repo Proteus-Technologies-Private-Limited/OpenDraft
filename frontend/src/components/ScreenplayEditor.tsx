@@ -179,7 +179,7 @@ import {
   hasRecoverableSnapshot,
   type RecoverySnapshot,
 } from '../services/recoveryService';
-import { readLastSession, rememberLastSession, clearLastSession } from '../services/lastSession';
+import { readLastSession, rememberLastSession, clearLastSession, forgetLastSessionFor } from '../services/lastSession';
 import { useBackupStatusStore } from '../stores/backupStatusStore';
 import { runRetext, RETEXT_CATEGORIES, type RetextCategory } from '../editor/grammar/retextProvider';
 import { runHarper } from '../editor/grammar/harperProvider';
@@ -4427,12 +4427,36 @@ const ScreenplayEditor: React.FC = () => {
         useEditorStore.getState().setSaveStatus('idle');
         lastSavedJsonRef.current = '';
         requestAnimationFrame(() => updateScenes());
+        // What was just opened is what is saved. Take that as the baseline once
+        // the editor has settled (plugins may still adjust the document this
+        // frame), so opening, reloading or restoring a script with no edits
+        // neither writes it back on the next auto-save — bumping its modified
+        // date — nor makes the browser ask "Leave site?" on the way out.
+        if (!isHistoryMode) {
+          requestAnimationFrame(() => {
+            try {
+              if (editor.isDestroyed || scriptSwitchingRef.current) return;
+              if (loadedScriptRef.current !== loadKey) return;
+              if (hasEditsSinceLoad(editor)) return;
+              if (useEditorStore.getState().saveStatus !== 'idle') return;
+              const settled = buildSaveContent();
+              if (settled) lastSavedJsonRef.current = JSON.stringify(settled);
+            } catch (baselineErr) {
+              // Without a baseline the next auto-save simply writes once more.
+              console.warn('[load] could not record the saved baseline:', baselineErr);
+            }
+          });
+        }
         // Snapshot the script we just opened; see handleOpenFile. History mode
         // is read-only and must never write a backup of an old version.
         if (!isHistoryMode) useBackupStatusStore.getState().noteDocumentOpened();
       } catch (err) {
         console.error('Failed to load script:', err);
         const errMsg = err instanceof Error ? err.message : String(err);
+        const missing = errMsg.includes('404') || /^(Project|Script) not found:/.test(errMsg);
+        // It is gone (deleted here or on another device): stop offering it as
+        // the script to reopen, or the start screen sends us straight back.
+        if (missing && urlProjectId && urlScriptId) forgetLastSessionFor(urlProjectId, urlScriptId);
         // If the script doesn't exist (404), redirect to the project view
         if (errMsg.includes('404') && urlProjectId) {
           showToast(tg('editor:toast.scriptNotFound'), 'error');

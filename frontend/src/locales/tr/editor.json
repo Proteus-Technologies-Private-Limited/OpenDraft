@@ -226,7 +226,7 @@
     "closeConfirm": "Son değişiklikleriniz kaydedilemedi:\n\n{{error}}\n\nYine de kapatılsın ve bu değişiklikler kaybedilsin mi?",
     "restoreFailed": "Açık olan belge geri yüklenemedi",
     "renderFailed": "İçerik görüntülenemedi: {{error}}",
-    "scriptNotFound": "Senaryo bulunamadı. Bir sürüm geri yüklemesiyle kaldırılmış olabilir.",
+    "scriptNotFound": "Bu senaryo artık kullanılamıyor. Bu cihazda ya da başka bir cihazda silinmiş olabilir.",
     "cloudOtherAccount": "Bu bulut senaryosu oturumunu kapattığınız hesaba ait, bu yüzden kapatıldı. Yeniden açmak için o hesapta oturum açın.",
     "loadScriptFailed": "Senaryo yüklenemedi: {{error}}",
     "openScriptFailed": "Senaryo açılamadı. Arka uç sunucusunun 8000 numaralı bağlantı noktasında çalıştığından emin olun.",

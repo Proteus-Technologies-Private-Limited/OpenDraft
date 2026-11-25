@@ -227,7 +227,7 @@
     "closeConfirm": "No se pudieron guardar tus últimos cambios:\n\n{{error}}\n\n¿Cerrar de todos modos y perder esos cambios?",
     "restoreFailed": "No se pudo restaurar el documento que tenías abierto",
     "renderFailed": "No se pudo mostrar el contenido: {{error}}",
-    "scriptNotFound": "No se encontró el guion. Puede que lo haya quitado la restauración de una versión.",
+    "scriptNotFound": "Este guion ya no está disponible. Puede que se haya eliminado, en este dispositivo o en otro.",
     "cloudOtherAccount": "Ese guion en la nube pertenece a la cuenta de la que cerraste sesión, así que se ha cerrado. Inicia sesión en esa cuenta para volver a abrirlo.",
     "loadScriptFailed": "No se pudo cargar el guion: {{error}}",
     "openScriptFailed": "No se pudo abrir el guion. Comprueba que el servidor backend esté en ejecución en el puerto 8000.",

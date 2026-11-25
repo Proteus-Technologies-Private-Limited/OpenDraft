@@ -27,6 +27,7 @@ import { api } from '../services/api';
 import { cloudApi } from '../services/cloudApi';
 import { offlineCloud } from '../services/offlineCloud';
 import { projectApi } from '../services/projectApi';
+import { forgetLastSessionFor } from '../services/lastSession';
 import { supportsDeviceSync } from '../services/deviceProjectSync';
 import { DeviceProjectSyncControl } from './DeviceProjectSyncControl';
 import { useGoBackTo } from '../hooks/useGoBack';
@@ -50,7 +51,7 @@ import AssetManager from './AssetManager';
 import ProjectPropertiesDialog from './ProjectPropertiesDialog';
 import ProjectStorageDialog from './ProjectStorageDialog';
 import DeleteEmptyProjectDialog from './DeleteEmptyProjectDialog';
-import { isDesktopTauri } from '../services/platform';
+import { isDesktopTauri, isWeb } from '../services/platform';
 import { useLinkedFileStore, type LinkedFileState } from '../stores/linkedFileStore';
 import Select from './Select';
 
@@ -587,7 +588,10 @@ const ProjectView: React.FC = () => {
   // Project's storage source — drives both the routing dispatchers (already
   // handled by projectApi) and the visual badges on individual scripts.
   const isCloud = useProjectStore((s) => projectId ? Boolean(s.cloudProjects[projectId]) : false);
-  const projectSource: 'local' | 'cloud' = isCloud ? 'cloud' : 'local';
+  // The web app keeps every project on the server, so it is Cloud there even
+  // before this browser has a marker for it (opened by link, or restored by
+  // support after being deleted). Display only: routing still follows isCloud.
+  const projectSource: 'local' | 'cloud' = isCloud || isWeb() ? 'cloud' : 'local';
   // All script-level reads/writes (rename, pin, color, delete, duplicate)
   // need to go to the same backend that owns the project. Without this,
   // renaming or deleting a script inside a cloud project would hit local
@@ -914,6 +918,7 @@ const ProjectView: React.FC = () => {
       const deletedTitle = scripts.find((s) => s.id === pendingDeleteId)?.title ?? null;
       await (isCloud ? offlineCloud : api).deleteScript(projectId, pendingDeleteId);
       if (isCloud) useProjectStore.getState().unmarkCloudScript(projectId, pendingDeleteId);
+      forgetLastSessionFor(projectId, pendingDeleteId);
       const remaining = await fetchScripts();
       await fetchFileLinks();
       if (remaining && remaining.length === 0) setEmptyPrompt({ deletedTitle });

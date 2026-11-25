@@ -21,6 +21,7 @@ import { FaCloud, FaDesktop, FaArrowLeft, FaFolder } from 'react-icons/fa';
 import { api } from '../services/api';
 import { cloudApi } from '../services/cloudApi';
 import { offlineCloud } from '../services/offlineCloud';
+import { forgetLastSessionFor } from '../services/lastSession';
 import { activeCloudCounterparts } from '../services/deviceProjectSync';
 import { isWeb, isDesktopTauri } from '../services/platform';
 import { getApiBase } from '../config';
@@ -534,6 +535,8 @@ const ProjectList: React.FC = () => {
     try {
       await (source === 'cloud' ? offlineCloud : api).deleteProject(pendingDeleteId);
       if (source === 'cloud') unmarkCloudProject(pendingDeleteId);
+      // Or the start screen keeps trying to reopen a script that went with it.
+      forgetLastSessionFor(pendingDeleteId);
       showToast(t('list.deleted'), 'success');
       await fetchProjects();
     } catch (err) {

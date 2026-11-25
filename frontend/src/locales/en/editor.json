@@ -226,7 +226,7 @@
     "closeConfirm": "Could not save your latest changes:\n\n{{error}}\n\nClose anyway and lose those changes?",
     "restoreFailed": "Could not restore the document you had open",
     "renderFailed": "Failed to render content: {{error}}",
-    "scriptNotFound": "Script not found. It may have been removed by a version restore.",
+    "scriptNotFound": "This script is no longer available. It may have been deleted, on this device or another.",
     "cloudOtherAccount": "That cloud screenplay belongs to the account you signed out of, so it was closed. Sign in to that account to open it again.",
     "loadScriptFailed": "Failed to load script: {{error}}",
     "openScriptFailed": "Failed to open script. Make sure the backend server is running on port 8000.",

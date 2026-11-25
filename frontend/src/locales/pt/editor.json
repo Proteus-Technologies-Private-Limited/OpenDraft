@@ -227,7 +227,7 @@
     "closeConfirm": "Não foi possível salvar suas últimas alterações:\n\n{{error}}\n\nFechar mesmo assim e perder essas alterações?",
     "restoreFailed": "Não foi possível restaurar o documento que estava aberto",
     "renderFailed": "Falha ao renderizar o conteúdo: {{error}}",
-    "scriptNotFound": "Roteiro não encontrado. Ele pode ter sido removido por uma restauração de versão.",
+    "scriptNotFound": "Este roteiro não está mais disponível. Ele pode ter sido excluído, neste dispositivo ou em outro.",
     "cloudOtherAccount": "Esse roteiro na nuvem pertence à conta da qual você saiu, por isso foi fechado. Entre nessa conta para abri-lo de novo.",
     "loadScriptFailed": "Falha ao carregar o roteiro: {{error}}",
     "openScriptFailed": "Falha ao abrir o roteiro. Verifique se o servidor de back-end está em execução na porta 8000.",

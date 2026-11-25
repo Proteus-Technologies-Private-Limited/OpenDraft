@@ -126,6 +126,28 @@ export function readLastSession(currentUser: string | null = null): LastSessionS
   }
 }
 
+/**
+ * Forget the record when it names something that no longer exists: a script
+ * that was deleted, or any script of a deleted project (pass no scriptId).
+ *
+ * Without this a deleted script stays queued to reopen. Reopening it fails,
+ * the editor falls back to the project, the project falls back to the start
+ * screen, and the start screen reopens the record again — round and round.
+ * Never throws.
+ */
+export function forgetLastSessionFor(projectId: string, scriptId?: string | null): void {
+  try {
+    const raw = localStorage.getItem(storageKey());
+    if (!raw) return;
+    const parsed = JSON.parse(raw) as Partial<LastSessionScript> | null;
+    if (!parsed || parsed.projectId !== projectId) return;
+    if (scriptId && parsed.scriptId !== scriptId) return;
+    localStorage.removeItem(storageKey());
+  } catch (err) {
+    console.warn('[last-session] could not check the record against a deletion:', err);
+  }
+}
+
 /** Forget the open script — on close, or on a deliberate reset to blank. */
 export function clearLastSession(): void {
   try {
