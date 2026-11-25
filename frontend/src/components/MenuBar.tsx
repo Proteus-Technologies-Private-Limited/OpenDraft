@@ -702,6 +702,11 @@ const MenuBar: React.FC<MenuBarProps> = ({
       const content = buildSaveContent();
       await scriptApi.saveScript(currentProject.id, currentScriptId, { content });
       setSaveStatus('saved');
+      // Tell the editor what is saved now. Without it the recovery snapshot
+      // loop still compared against the previous save, wrote this very text
+      // back as "unsaved" a second later, and the next launch offered to
+      // recover changes that were already saved.
+      if (content) onDocumentSaved?.(JSON.stringify(content));
       // A script linked to a file on disk is safe in the library either way,
       // but the writer pressed Save expecting their file to have it too.
       let fileStatus = useLinkedFileStore.getState().byScript[currentScriptId];
@@ -717,9 +722,8 @@ const MenuBar: React.FC<MenuBarProps> = ({
           : t('menu:toasts.savedNotToFileRetry', { name, error: fileStatus.error }), 'error');
       }
       // The user's real copy now holds this text, so there is nothing left to
-      // recover. Done here as well as in the snapshot hook because an explicit
-      // save goes through this path without touching the auto-save bookkeeping
-      // the hook compares against.
+      // recover. Cleared here too, not only by the snapshot hook, so the copy is
+      // gone at once rather than on the hook's next pass.
       clearRecoverySnapshot();
     } catch (err) {
       console.error('Save failed:', err);
@@ -730,7 +734,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
       // get the blocking modal so the user can't miss them.
       reportSaveError(err, 'manual-save');
     }
-  }, [editor, currentProject, currentScriptId, buildSaveContent, setSaveAsOpen, saveInPlace]);
+  }, [editor, currentProject, currentScriptId, buildSaveContent, setSaveAsOpen, saveInPlace, onDocumentSaved]);
 
   /**
    * Leave the editor for another screen of the app.
