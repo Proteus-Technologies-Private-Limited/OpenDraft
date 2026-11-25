@@ -73,7 +73,10 @@ function loadConfig(): ServerConfig {
     backendUrlConfigured: Boolean(process.env.BACKEND_URL && process.env.BACKEND_URL.trim()),
     jwtSecret,
     jwtAccessExpiry: process.env.JWT_ACCESS_EXPIRY || '15m',
-    jwtRefreshExpiry: process.env.JWT_REFRESH_EXPIRY || '7d',
+    // Sliding: every refresh issues a new token with the full lifetime, so
+    // this is how long a device may sit unused before it is signed out. At
+    // 7d most refused refreshes were writers returning after a week away.
+    jwtRefreshExpiry: process.env.JWT_REFRESH_EXPIRY || '90d',
     bcryptRounds: parseInt(process.env.BCRYPT_ROUNDS || '12', 10),
     dataDir: process.env.DATA_DIR || path.join(__dirname, '..', 'data'),
     tlsCert: process.env.TLS_CERT || null,

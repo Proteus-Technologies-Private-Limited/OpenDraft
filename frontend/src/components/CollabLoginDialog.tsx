@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { collabAuthApi, handleAuthResponse, isDeviceChallenge, isUnknownAccountError } from '../services/collabAuth';
 import type { CollabServerConfig } from '../services/collabAuth';
 import { hasSignedUpBefore } from '../services/accountMarker';
+import { readSignedOutAccount } from '../services/signedOutAccount';
 import { initDemoInfo, isDemoMode } from '../services/demoInfo';
 import { showToast } from './Toast';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
@@ -35,6 +36,11 @@ function clearRememberedEmail() {
 const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSuccess }) => {
   const { t } = useTranslation(['collab', 'common']);
   const savedEmail = loadRememberedEmail();
+  // The account whose session ended on its own (expired, refused) — offered
+  // back first, so a signed-out writer returns to the account holding their
+  // scripts instead of guessing at another email.
+  const [sessionEndedEmail] = useState(readSignedOutAccount);
+  const initialEmail = sessionEndedEmail || savedEmail;
 
   const [tab, setTab] = useState<'login' | 'register'>('login');
   const [loading, setLoading] = useState(false);
@@ -44,7 +50,7 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
   const [isDemoServer, setIsDemoServer] = useState<boolean>(isDemoMode());
 
   // Login fields — pre-fill email only
-  const [loginEmail, setLoginEmail] = useState(savedEmail);
+  const [loginEmail, setLoginEmail] = useState(initialEmail);
   const [loginPassword, setLoginPassword] = useState('');
 
   // Register fields — pre-fill email only
@@ -70,7 +76,7 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
   // the login form for an email-entry form. After submitting, we show a
   // generic "if an account exists, an email was sent" confirmation.
   const [forgotMode, setForgotMode] = useState<'form' | 'sent' | null>(null);
-  const [forgotEmail, setForgotEmail] = useState(savedEmail);
+  const [forgotEmail, setForgotEmail] = useState(initialEmail);
 
   // First visit on this device → tell them Sign In needs an account first.
   // After a sign-in that failed for want of one → say so, naming the email.
@@ -367,6 +373,19 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
                   </span>
                   <button type="button" className="settings-auth-notice-action" onClick={() => goToCreateAccount(noAccountEmail)}>
                     {t('login.createAccount')}
+                  </button>
+                </div>
+              ) : sessionEndedEmail ? (
+                <div className="settings-auth-notice" role="status">
+                  <span>
+                    <Trans ns="collab" i18nKey="login.sessionEnded" values={{ email: sessionEndedEmail }} components={{ strong: <strong /> }} />
+                  </span>
+                  <button
+                    type="button"
+                    className="settings-auth-notice-action"
+                    onClick={() => { setForgotEmail(sessionEndedEmail); setForgotMode('form'); }}
+                  >
+                    {t('login.forgotPassword')}
                   </button>
                 </div>
               ) : !knownUser && (

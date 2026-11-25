@@ -54,6 +54,7 @@
     "createAccount": "Create Account",
     "newUserNotice": "New to OpenDraft? You need to create an account before you can sign in.",
     "noAccount": "No account found for <strong>{{email}}</strong>. Check the spelling, or create an account first.",
+    "sessionEnded": "Your session for <strong>{{email}}</strong> has ended. Sign in with this email to get back to your scripts.",
     "forgotIntro": "Enter the email address you used to sign up. We'll email you a link to choose a new password. The link expires in 30 minutes.",
     "email": "Email",
     "emailPlaceholder": "you@example.com",
@@ -80,7 +81,7 @@
     "confirmPlaceholder": "Confirm password",
     "creatingAccount": "Creating account...",
     "rememberEmail": "Remember my email address",
-    "rememberHint": "You stay signed in for up to 7 days using a secure refresh token — no password is stored on this device.",
+    "rememberHint": "You stay signed in for up to 90 days using a secure refresh token — no password is stored on this device.",
     "or": "or",
     "signInWithGoogle": "Sign in with Google",
     "toast": {

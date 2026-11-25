@@ -54,6 +54,7 @@
     "createAccount": "Hesap oluştur",
     "newUserNotice": "OpenDraft'ta yeni misiniz? Oturum açabilmek için önce bir hesap oluşturmanız gerekir.",
     "noAccount": "<strong>{{email}}</strong> için bir hesap bulunamadı. Yazımı kontrol edin veya önce bir hesap oluşturun.",
+    "sessionEnded": "<strong>{{email}}</strong> oturumunuz sona erdi. Senaryolarınıza dönmek için bu e-postayla oturum açın.",
     "forgotIntro": "Kaydolurken kullandığınız e-posta adresini girin. Yeni parola seçmeniz için size bir bağlantı göndereceğiz. Bağlantının süresi 30 dakika içinde dolar.",
     "email": "E-posta",
     "emailPlaceholder": "siz@example.com",
@@ -80,7 +81,7 @@
     "confirmPlaceholder": "Parolayı onaylayın",
     "creatingAccount": "Hesap oluşturuluyor...",
     "rememberEmail": "E-posta adresimi hatırla",
-    "rememberHint": "Güvenli bir yenileme belirteci sayesinde 7 güne kadar oturumunuz açık kalır — bu cihazda parola saklanmaz.",
+    "rememberHint": "Güvenli bir yenileme belirteci sayesinde 90 güne kadar oturumunuz açık kalır — bu cihazda parola saklanmaz.",
     "or": "ya da",
     "signInWithGoogle": "Google ile oturum aç",
     "toast": {

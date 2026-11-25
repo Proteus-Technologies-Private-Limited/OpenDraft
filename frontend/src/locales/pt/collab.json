@@ -54,6 +54,7 @@
     "createAccount": "Criar conta",
     "newUserNotice": "Novo no OpenDraft? É preciso criar uma conta antes de entrar.",
     "noAccount": "Nenhuma conta encontrada para <strong>{{email}}</strong>. Verifique a grafia ou crie uma conta primeiro.",
+    "sessionEnded": "A sua sessão de <strong>{{email}}</strong> terminou. Inicie sessão com este e-mail para voltar aos seus roteiros.",
     "forgotIntro": "Informe o e-mail que você usou no cadastro. Enviaremos um link para você escolher uma nova senha. O link expira em 30 minutos.",
     "email": "E-mail",
     "emailPlaceholder": "voce@exemplo.com",
@@ -80,7 +81,7 @@
     "confirmPlaceholder": "Confirme a senha",
     "creatingAccount": "Criando conta...",
     "rememberEmail": "Lembrar meu endereço de e-mail",
-    "rememberHint": "Você permanece conectado por até 7 dias usando um token de atualização seguro — nenhuma senha é armazenada neste dispositivo.",
+    "rememberHint": "Você permanece conectado por até 90 dias usando um token de atualização seguro — nenhuma senha é armazenada neste dispositivo.",
     "or": "ou",
     "signInWithGoogle": "Entrar com o Google",
     "toast": {

@@ -54,6 +54,7 @@
     "createAccount": "Crear cuenta",
     "newUserNotice": "¿Es tu primera vez en OpenDraft? Necesitas crear una cuenta antes de iniciar sesión.",
     "noAccount": "No hay ninguna cuenta para <strong>{{email}}</strong>. Revisa cómo está escrito o crea una cuenta primero.",
+    "sessionEnded": "Tu sesión de <strong>{{email}}</strong> ha terminado. Inicia sesión con este correo para volver a tus guiones.",
     "forgotIntro": "Introduce la dirección de correo con la que te registraste. Te enviaremos un enlace para elegir una contraseña nueva. El enlace caduca en 30 minutos.",
     "email": "Correo electrónico",
     "emailPlaceholder": "tu@ejemplo.com",
@@ -80,7 +81,7 @@
     "confirmPlaceholder": "Confirma la contraseña",
     "creatingAccount": "Creando cuenta...",
     "rememberEmail": "Recordar mi dirección de correo",
-    "rememberHint": "Mantienes la sesión iniciada hasta 7 días mediante un token de actualización seguro; no se guarda ninguna contraseña en este dispositivo.",
+    "rememberHint": "Mantienes la sesión iniciada hasta 90 días mediante un token de actualización seguro; no se guarda ninguna contraseña en este dispositivo.",
     "or": "o",
     "signInWithGoogle": "Iniciar sesión con Google",
     "toast": {

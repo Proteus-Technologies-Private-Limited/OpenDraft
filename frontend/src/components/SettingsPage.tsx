@@ -6,6 +6,7 @@ import { useSettingsStore } from '../stores/settingsStore';
 import { collabAuthApi, handleAuthResponse, performLogout, isDeviceChallenge, isUnknownAccountError, useSigningOut } from '../services/collabAuth';
 import type { CollabServerConfig, DeviceRecord } from '../services/collabAuth';
 import { hasSignedUpBefore } from '../services/accountMarker';
+import { readSignedOutAccount } from '../services/signedOutAccount';
 import { initDemoInfo, isDemoMode } from '../services/demoInfo';
 import { showToast } from './Toast';
 import { getApiBase } from '../config';
@@ -132,7 +133,7 @@ const SettingsPage: React.FC = () => {
     try { return localStorage.getItem('opendraft:rememberedEmail') || ''; } catch { return ''; }
   })();
   const [authTab, setAuthTab] = useState<'login' | 'register'>('login');
-  const [loginEmail, setLoginEmail] = useState(savedEmail);
+  const [loginEmail, setLoginEmail] = useState(() => readSignedOutAccount() || savedEmail);
   const [loginPassword, setLoginPassword] = useState('');
   const [regEmail, setRegEmail] = useState(savedEmail);
   // First visit on this device → Sign In needs an account first. After a
@@ -194,6 +195,29 @@ const SettingsPage: React.FC = () => {
   }, [collabServerUrl]);
 
   const isLoggedIn = Boolean(collabAuth.accessToken && collabAuth.user);
+
+  // The account whose session ended on its own (expired or refused). Read
+  // per render: the session can end while this page is open. Offered back in
+  // the email field so the writer returns to the account with their scripts.
+  const sessionEndedEmail = isLoggedIn ? null : readSignedOutAccount();
+  const [sendingReset, setSendingReset] = useState(false);
+  useEffect(() => {
+    if (sessionEndedEmail) setLoginEmail((current) => current || sessionEndedEmail);
+  }, [sessionEndedEmail]);
+
+  const handleResetSessionEndedPassword = async () => {
+    if (!sessionEndedEmail) return;
+    setSendingReset(true);
+    try {
+      const r = await collabAuthApi.forgotPassword(sessionEndedEmail);
+      showToast(r.message || t('auth.resetSent'), 'success');
+    } catch (err: any) {
+      console.error('[SettingsPage] password reset request failed:', err);
+      showToast(err?.message || t('auth.resetFailed'), 'error');
+    } finally {
+      setSendingReset(false);
+    }
+  };
   // Demo flag comes from the backend's DEMO_MODE env var (see /api/demo-info).
   const [isDemoServer, setIsDemoServer] = useState<boolean>(isDemoMode());
   useEffect(() => {
@@ -587,7 +611,7 @@ const SettingsPage: React.FC = () => {
       setDeletePassword('');
       setDeleteConfirmation('');
       // Clear local auth state — the access token now references a deleted user.
-      useSettingsStore.getState().clearCollabAuth();
+      useSettingsStore.getState().clearCollabAuth({ deliberate: true });
     } catch (err: any) {
       showToast(err.message || t('account.delete.failed'), 'error');
     } finally {
@@ -1026,6 +1050,20 @@ const SettingsPage: React.FC = () => {
                             </span>
                             <button type="button" className="settings-auth-notice-action" onClick={() => goToCreateAccount(noAccountEmail)}>
                               {t('auth.createAccount')}
+                            </button>
+                          </div>
+                        ) : sessionEndedEmail ? (
+                          <div className="settings-auth-notice" role="status">
+                            <span>
+                              <Trans ns="settings" i18nKey="auth.sessionEnded" values={{ email: sessionEndedEmail }} components={{ strong: <strong /> }} />
+                            </span>
+                            <button
+                              type="button"
+                              className="settings-auth-notice-action"
+                              onClick={handleResetSessionEndedPassword}
+                              disabled={sendingReset}
+                            >
+                              {t('auth.forgotPassword')}
                             </button>
                           </div>
                         ) : !knownUser && (

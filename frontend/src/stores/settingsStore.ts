@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { clearSignedOutAccount, recordSignedOutAccount } from '../services/signedOutAccount';
 import { parseShortcut } from '../utils/shortcuts';
 import { DEFAULT_ELEMENT_MENU_SHORTCUT } from '../utils/elementMenu';
 import { normalizeMacros, type Macro } from '../utils/macros';
@@ -28,7 +29,12 @@ interface SettingsState {
   // Collab auth state
   collabAuth: CollabAuth;
   setCollabAuth: (auth: CollabAuth) => void;
-  clearCollabAuth: () => void;
+  /**
+   * Drop the stored session. Unless `deliberate` (the writer signed out or
+   * deleted the account), the account's email is remembered so the sign-in
+   * forms can say the session ended and offer it back.
+   */
+  clearCollabAuth: (opts?: { deliberate?: boolean }) => void;
 
   // Whether the persisted token has been verified against the server during
   // this app session. Always starts false — a stored token alone never proves
@@ -345,7 +351,9 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     // "Local only" right after sign-in while we wait for /auth/me.
     set({ collabAuth: auth, authVerified: Boolean(auth.accessToken && auth.user) });
   },
-  clearCollabAuth: () => {
+  clearCollabAuth: (opts) => {
+    if (opts?.deliberate) clearSignedOutAccount();
+    else recordSignedOutAccount(get().collabAuth.user?.email);
     localStorage.removeItem(STORAGE_KEY_AUTH);
     set({
       collabAuth: { accessToken: null, refreshToken: null, user: null },

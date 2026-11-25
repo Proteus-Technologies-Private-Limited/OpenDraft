@@ -91,9 +91,10 @@ export async function generateRefreshToken(
   const id = uuidv4();
   const now = new Date();
 
-  // Parse refresh expiry (e.g. '7d' -> 7 days)
+  // Parse refresh expiry (e.g. '90d' -> 90 days)
   const match = config.jwtRefreshExpiry.match(/^(\d+)([smhd])$/);
-  let expiresMs = 7 * 24 * 60 * 60 * 1000; // default 7 days
+  let expiresMs = 90 * 24 * 60 * 60 * 1000; // default 90 days, as in config.ts
+  if (!match) console.warn(`[tokenService] unreadable JWT_REFRESH_EXPIRY "${config.jwtRefreshExpiry}", using 90d`);
   if (match) {
     const num = parseInt(match[1], 10);
     const unit = match[2];

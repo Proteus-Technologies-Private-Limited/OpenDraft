@@ -6,6 +6,7 @@ import { platformFetch } from './platform';
 import { authedFetch, accessTokenExpired, refreshAccessToken } from './authedFetch';
 import { getDeviceInfo, getDeviceId } from './deviceId';
 import { markSignedUp } from './accountMarker';
+import { clearSignedOutAccount } from './signedOutAccount';
 import { t } from '../i18n';
 
 // ── URL helpers ──
@@ -436,6 +437,7 @@ export function handleAuthResponse(response: AuthResponse): CollabAuth {
   // Every sign-in and sign-up path ends here, so this is the one place that
   // needs to remember an account exists on this device.
   markSignedUp();
+  clearSignedOutAccount();
   return auth;
 }
 
@@ -541,5 +543,5 @@ async function runLogout(): Promise<void> {
   await Promise.all(serverCleanup);
 
   // 5. Clear local auth state
-  clearCollabAuth();
+  clearCollabAuth({ deliberate: true });
 }

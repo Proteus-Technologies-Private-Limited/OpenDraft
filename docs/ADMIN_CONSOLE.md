@@ -30,7 +30,7 @@ Files live in the Python backend, accounts in the collab server. On each account
 | `already_used_or_revoked` | Refresh tokens are single-use. A reply lost on a flaky network, or two devices sharing a token, leaves the client holding a spent token |
 | `rate_limited` | More than 60 refreshes / 15 min from one IP (offices, schools, NAT) |
 | `unknown_token` | Database reset/restored, or `JWT_SECRET`/DB changed between deploys |
-| `expired` | Idle past `JWT_REFRESH_EXPIRY` (7d) |
+| `expired` | Device unused for longer than `JWT_REFRESH_EXPIRY` (90d since Nov 2026; was 7d). The sign-in forms then pre-fill that account's email and offer a password reset |
 
 ## Platforms
 Tested on macOS (dev) and Linux in the production Docker image (`node:20-slim`, cgroup v2, 512 MB / 1 CPU limits); numbers matched `docker stats`.

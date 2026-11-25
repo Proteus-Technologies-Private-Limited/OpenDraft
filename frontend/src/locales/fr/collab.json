@@ -54,6 +54,7 @@
     "createAccount": "Créer un compte",
     "newUserNotice": "Nouveau sur OpenDraft ? Vous devez créer un compte avant de pouvoir vous connecter.",
     "noAccount": "Aucun compte n’existe pour <strong>{{email}}</strong>. Vérifiez l’orthographe ou créez d’abord un compte.",
+    "sessionEnded": "Votre session pour <strong>{{email}}</strong> a expiré. Connectez-vous avec cette adresse pour retrouver vos scénarios.",
     "forgotIntro": "Saisissez l’adresse électronique avec laquelle vous vous êtes inscrit. Nous vous enverrons un lien pour choisir un nouveau mot de passe. Le lien expire au bout de 30 minutes.",
     "email": "Courriel",
     "emailPlaceholder": "vous@exemple.fr",
@@ -80,7 +81,7 @@
     "confirmPlaceholder": "Confirmez le mot de passe",
     "creatingAccount": "Création du compte…",
     "rememberEmail": "Mémoriser mon adresse électronique",
-    "rememberHint": "Vous restez connecté jusqu’à 7 jours grâce à un jeton d’actualisation sécurisé ; aucun mot de passe n’est stocké sur cet appareil.",
+    "rememberHint": "Vous restez connecté jusqu’à 90 jours grâce à un jeton d’actualisation sécurisé ; aucun mot de passe n’est stocké sur cet appareil.",
     "or": "ou",
     "signInWithGoogle": "Se connecter avec Google",
     "toast": {

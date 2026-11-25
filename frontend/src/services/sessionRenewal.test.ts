@@ -108,6 +108,36 @@ describe('session renewal', () => {
     expect(localStorage.getItem(AUTH_KEY)).toBeNull();
   });
 
+  // Writers signed out by an expired refresh token kept trying other emails
+  // and creating second, empty accounts. The forms offer the account back.
+  it('remembers which account a refused refresh signed out', async () => {
+    const m = await load({ accessToken: jwt(-60), refreshToken: 'r1' });
+    fetchMock.mockResolvedValueOnce(json(401, { error: 'Invalid or expired refresh token' }));
+    const { readSignedOutAccount } = await import('./signedOutAccount');
+
+    expect(await m.ensureCollabAuthenticated()).toBe('signed-out');
+    expect(readSignedOutAccount()).toBe(USER.email);
+  });
+
+  it('forgets the signed-out account on the next sign-in', async () => {
+    const m = await load({ accessToken: null, refreshToken: null });
+    const { readSignedOutAccount, recordSignedOutAccount } = await import('./signedOutAccount');
+    recordSignedOutAccount(USER.email);
+
+    m.handleAuthResponse({ accessToken: jwt(900), refreshToken: 'r2', user: USER } as never);
+    expect(readSignedOutAccount()).toBeNull();
+  });
+
+  it('does not offer the account back after a deliberate sign-out', async () => {
+    const m = await load({ accessToken: jwt(900), refreshToken: 'r1' });
+    const { readSignedOutAccount, recordSignedOutAccount } = await import('./signedOutAccount');
+    recordSignedOutAccount('older@example.com');
+
+    m.useSettingsStore.getState().clearCollabAuth({ deliberate: true });
+    expect(readSignedOutAccount()).toBeNull();
+    expect(localStorage.getItem(AUTH_KEY)).toBeNull();
+  });
+
   it('adopts a pair another tab already rotated instead of spending the old one', async () => {
     const m = await load({ accessToken: jwt(-60), refreshToken: 'r1' });
     // Another tab refreshed: localStorage moved on, this tab's memory did not.
