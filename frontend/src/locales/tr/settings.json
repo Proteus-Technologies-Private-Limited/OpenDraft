@@ -473,5 +473,11 @@
     "saveFailed": "SmartType listeleri kaydedilemedi: {{message}}. Değişiklikleriniz burada duruyor; yeniden kaydetmeyi deneyin.",
     "save": "Listeleri kaydet",
     "discard": "Değişiklikleri at"
+  },
+  "cloudSync": {
+    "title": "Bulutla eşitleme",
+    "description": "Bir senaryo, ikisi eşitlenmeden önce hem bu cihazda hem de OpenDraft Cloud üzerinde değiştiğinde.",
+    "autoMerge": "Farklı satırlardaki düzenlemeleri otomatik birleştir",
+    "autoMergeHint": "Aynı satırlara dokunmayan düzenlemeler sorulmadan birleştirilir. İki taraf da aynı satırı değiştirdiyse seçimi siz yaparsınız. İki yerde de değişen her senaryoyu birleştirmeden önce gözden geçirmek için bunu kapatın."
   }
 }

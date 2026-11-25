@@ -20,6 +20,7 @@ import {
   claimOpenDocument,
   documentKey,
   findWindowWithDocument,
+  markDocumentShowing,
   releaseOpenDocument,
   type OpenElsewhere,
 } from '../services/openDocuments';
@@ -127,6 +128,11 @@ export function useOpenDocumentGuard(opts: OpenDocumentGuardOptions): OpenDocume
     // ask again, and the claim is refreshed on the next document change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, ready]);
+
+  // While this editor shows a script, a background merge leaves it alone
+  // (scriptOpenAnywhere). Marked from the moment the script is chosen, before
+  // it has loaded, so a merge cannot land between the read and the mount.
+  useEffect(() => markDocumentShowing(projectId, scriptId), [projectId, scriptId]);
 
   // A closed window's claim is cleaned up by the next window that checks, but
   // only if it ever checks — so let go on the way out as well.

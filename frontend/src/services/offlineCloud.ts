@@ -6,11 +6,13 @@ import { showToast } from '../components/Toast';
 import { t } from '../i18n';
 import { useSettingsStore, type CollabAuth } from '../stores/settingsStore';
 import { docHasAnyText } from '../utils/docText';
+import { autoMerge } from '../utils/scriptMerge';
 import { prepareScriptWrite } from '../utils/reviewSave';
 import { uuid } from '../utils/uuid';
 import { ApiError, type ProjectInfo, type ScriptMeta, type ScriptResponse } from './api';
 import { cloudApi, type CloudRequestScope } from './cloudApi';
 import { isTauri } from './platform';
+import { scriptOpenAnywhere } from './openDocuments';
 import {
   cacheOfflineCatalog, clearSyncedOfflineData, editOfflineScript, pendingOfflineScripts, readOfflineCatalog,
   readOfflineScript, removeOfflineScripts, unresolvedOfflineScripts, type OfflineScript,
@@ -221,7 +223,10 @@ export const offlineCloud = {
       const row = await editOfflineScript([...key], current => {
         assertCurrent(scope);
         if (current && (current.state !== 'synced' || current.revision !== cached?.revision)) return current;
-        return { scope: scope.key, projectId, scriptId, revision, script, project, state: 'synced', lastSynced: Date.now() };
+        return {
+          scope: scope.key, projectId, scriptId, revision, script, project, state: 'synced', lastSynced: Date.now(),
+          base: script.content ?? undefined,
+        };
       }).catch(error => {
         if (cached) throw error;
         assertCurrent(scope);
@@ -260,6 +265,9 @@ export const offlineCloud = {
         script: { ...current.script, content: prepared },
         operation: uuid(),
         state: current.state === 'conflict' ? 'conflict' : 'pending',
+        // A synced row's content is the cloud's at its revision: keep it as the
+        // merge base before the first local edit replaces it.
+        base: current.base ?? (current.state === 'synced' ? current.script.content ?? undefined : undefined),
       };
     }).catch(error => {
       if (hasDeviceRow || !onlineOnly.has(id)) throw error;
@@ -319,15 +327,17 @@ async function deleteCloudItem(projectId: string, scriptId?: string) {
   return response;
 }
 
-/** Use the cloud copy or explicitly put the device copy back in the queue.
- * Works for a conflict and for an upload the server rejected (`problem`), so
- * neither can leave a script stuck. */
+/** Use the cloud copy, put the device copy back in the queue, or upload a merge
+ * of the two. Works for a conflict and for an upload the server rejected
+ * (`problem`), so neither can leave a script stuck. Keeping one whole version
+ * first saves the other as a new cloud screenplay, so no text is lost. */
 export async function resolveOfflineCloudConflict(projectId: string, scriptId: string,
-  choice: 'cloud' | 'device', content?: Record<string, unknown>): Promise<'resolved' | 'removed'> {
+  choice: 'cloud' | 'device' | 'merged', content?: Record<string, unknown>): Promise<'resolved' | 'removed'> {
   const scope = requireScope();
   const key: [string, string, string] = [scope.key, projectId, scriptId];
   const local = await readOfflineScript(key);
   if (local?.state !== 'conflict' && local?.state !== 'problem') throw new Error(t('toolbar:status.save.cloudProblem'));
+  if (choice === 'merged' && !content) throw new Error(t('toolbar:status.save.cloudProblem'));
   let cloud: ScriptResponse | undefined;
   try {
     cloud = await cloudApi.getScript(projectId, scriptId, scope);
@@ -335,30 +345,50 @@ export async function resolveOfflineCloudConflict(projectId: string, scriptId: s
     if (!(error instanceof ApiError) || error.status !== 404) throw error;
     // The cloud copy is gone, so there is nothing to upload onto. Say so rather
     // than reporting a generic sync problem.
-    if (choice === 'device') throw new Error(t('toolbar:status.save.cloudDeleted'));
+    if (choice !== 'cloud') throw new Error(t('toolbar:status.save.cloudDeleted'));
   }
   assertCurrent(scope);
   const revision = cloud?.content_revision;
-  if (choice === 'device' && !revision) throw new Error(t('toolbar:status.save.cloudProblem'));
+  if (choice !== 'cloud' && !revision) throw new Error(t('toolbar:status.save.cloudProblem'));
   const prepared = content && prepareScriptWrite({ content }).content;
+
+  // Keep the version that loses as its own screenplay: this device's text
+  // whenever the cloud's replaces it, and the cloud's when this device's
+  // replaces it in a real conflict (a refused upload has no other device's work).
+  const deviceText = (prepared && choice !== 'merged' ? prepared : undefined) ?? local.script.content;
+  const differs = !!cloud?.content && !!deviceText && JSON.stringify(cloud.content) !== JSON.stringify(deviceText);
+  if (differs && cloud && (choice === 'cloud' || (choice === 'device' && local.state === 'conflict'))) {
+    const [title, copy] = choice === 'device'
+      // i18n-ignore: stored as the new screenplay's title.
+      ? [`${cloud.meta.title} (cloud copy)`, cloud.content]
+      // i18n-ignore: stored as the new screenplay's title.
+      : [`${local.script.meta.title} (device copy)`, deviceText];
+    await cloudApi.createScript(projectId, { title, content: copy, format: cloud.meta.format }, scope);
+    assertCurrent(scope);
+  }
+
   const row = await editOfflineScript(key, current => {
     assertCurrent(scope);
     if (current?.state !== 'conflict' && current?.state !== 'problem') {
       throw new Error(t('toolbar:status.save.cloudProblem'));
     }
-    if (choice === 'device' && revision) {
+    if (choice !== 'cloud' && revision) {
       // An autosave that landed during the fetch is newer than the editor
-      // content captured at the click, so it must win.
+      // content captured at the click, so it must win — unless this is a merge,
+      // which the writer built on purpose from both copies.
       const edited = current.operation !== local.operation;
-      const body = !edited && prepared ? prepared : current.script.content;
-      if (prepared && !docHasAnyText(body) && docHasAnyText(current.script.content)) {
+      const body = choice === 'merged' ? prepared! : !edited && prepared ? prepared : current.script.content;
+      if (!docHasAnyText(body) && docHasAnyText(current.script.content) && choice !== 'merged') {
         throw new Error(t('toolbar:status.save.cloudProblem'));
       }
       return { ...current, script: { ...current.script, content: body },
-        revision, state: 'pending', operation: uuid(), inFlight: undefined };
+        revision, base: cloud?.content ?? undefined, state: 'pending', operation: uuid(), inFlight: undefined };
     }
     if (!cloud || !revision) return undefined;
-    return { scope: scope.key, projectId, scriptId, revision, script: cloud, state: 'synced', lastSynced: Date.now() };
+    return {
+      scope: scope.key, projectId, scriptId, revision, script: cloud, state: 'synced', lastSynced: Date.now(),
+      base: cloud.content ?? undefined,
+    };
   });
   assertCurrent(scope);
   if (row) {
@@ -403,8 +433,13 @@ async function upload(scope: Scope, queued: OfflineScript): Promise<boolean> {
       if (!scope.isCurrent() || current?.revision !== row.revision || current.state !== 'pending'
         || current.inFlight?.operation !== sent.operation) return current;
       // A newer edit keeps its body and uses the revision of the acknowledged upload.
-      if (current.operation !== sent.operation) return { ...current, revision, lastSynced, inFlight: undefined };
-      return { ...current, script, revision, lastSynced, state: 'synced', operation: undefined, inFlight: undefined };
+      if (current.operation !== sent.operation) {
+        return { ...current, revision, lastSynced, inFlight: undefined, base: script.content ?? sent.content };
+      }
+      return {
+        ...current, script, revision, lastSynced, state: 'synced', operation: undefined, inFlight: undefined,
+        base: script.content ?? undefined,
+      };
     });
     if (next && scope.isCurrent()) {
       showStatus(next);
@@ -414,6 +449,10 @@ async function upload(scope: Scope, queued: OfflineScript): Promise<boolean> {
   } catch (error) {
     if (!scope.isCurrent()) return false;
     const status = error instanceof ApiError ? error.status : undefined;
+    // The cloud changed since this copy was taken. When the changes do not
+    // overlap and no editor has the script open, merge them and upload again.
+    if (status === 412 && await mergeWithCloud(scope, row, sent.operation)) return false;
+    if (!scope.isCurrent()) return false;
     const state = status === 412 || await missingCloudScript(error, scope, row) ? 'conflict'
       : status !== undefined && status >= 400 && status < 500
         && status !== 401 && status !== 403 && status !== 404 && status !== 408 && status !== 429 ? 'problem' : 'pending';
@@ -424,6 +463,59 @@ async function upload(scope: Scope, queued: OfflineScript): Promise<boolean> {
     if (next && scope.isCurrent()) showStatus(next);
     return scope.isCurrent() && next?.state === 'pending';
   }
+}
+
+/** Three-way merge of a rejected upload with the cloud's newer copy, done only
+ * when nothing overlaps and the script is not open in an editor. The merged
+ * text replaces the device copy and goes back in the queue on the cloud's
+ * revision. Returns whether it did. */
+async function mergeWithCloud(scope: Scope, row: OfflineScript, operation: string): Promise<boolean> {
+  const local = row.script.content;
+  if (!row.base || !local) return false;
+  // Settings → Saving: the writer can ask to review every two-sided change.
+  if (!useSettingsStore.getState().autoMergeEdits) return false;
+  try {
+    if (await scriptOpenAnywhere(row.projectId, row.scriptId)) return false;
+    const cloud = await cloudApi.getScript(row.projectId, row.scriptId, scope);
+    const revision = cloud.content_revision;
+    // The same revision means the cloud did not move: nothing to merge in.
+    if (!scope.isCurrent() || !revision || revision === row.revision || !cloud.content) return false;
+    const merged = autoMerge(row.base, local, cloud.content);
+    if (!merged || (!docHasAnyText(merged) && docHasAnyText(local))) return false;
+    const prepared = prepareScriptWrite({ content: merged }).content;
+    let applied = false;
+    const next = await editOfflineScript([scope.key, row.projectId, row.scriptId], current => {
+      // Only the copy this upload sent: a newer edit is merged on its own turn.
+      if (!scope.isCurrent() || current?.state !== 'pending' || current.operation !== operation
+        || current.inFlight?.operation !== operation) return current;
+      applied = true;
+      return {
+        ...current, script: { ...current.script, content: prepared }, revision, base: cloud.content ?? undefined,
+        operation: uuid(), inFlight: undefined, state: 'pending',
+      };
+    });
+    if (!applied || !next || !scope.isCurrent()) return false;
+    console.info('[cloud] merged cloud changes into', row.scriptId);
+    showStatus(next);
+    wakeOfflineSync();
+    return true;
+  } catch (error) {
+    console.warn('[cloud] could not merge with the cloud copy:', error);
+    return false;
+  }
+}
+
+/** What the merge dialog needs: the last synced copy, this device's and the cloud's. */
+export async function readOfflineCloudMerge(projectId: string, scriptId: string): Promise<{
+  base: Record<string, unknown> | null; device: Record<string, unknown>; cloud: Record<string, unknown>; title: string;
+}> {
+  const scope = requireScope();
+  const local = await readOfflineScript([scope.key, projectId, scriptId]);
+  if (!local?.script.content) throw new Error(t('toolbar:status.save.cloudProblem'));
+  const cloud = await cloudApi.getScript(projectId, scriptId, scope);
+  assertCurrent(scope);
+  if (!cloud.content) throw new Error(t('toolbar:status.save.cloudDeleted'));
+  return { base: local.base ?? null, device: local.script.content, cloud: cloud.content, title: cloud.meta.title };
 }
 
 let timer: ReturnType<typeof setTimeout> | undefined;

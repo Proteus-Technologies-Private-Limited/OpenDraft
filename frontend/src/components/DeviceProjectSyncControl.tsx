@@ -2,9 +2,11 @@ import { useEffect, useState, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import { dispatchApiEvent } from '../services/api';
 import {
-  deviceSyncStatus, readDeviceSyncStatus, DeviceSyncMessage, resolveDeviceSyncIssue, restartDeviceProjectSync, setDeviceProjectSync,
-  subscribeDeviceSync, type DeviceSyncIssue,
+  deviceSyncStatus, readDeviceSyncMerge, readDeviceSyncStatus, DeviceSyncMessage, resolveDeviceSyncIssue,
+  restartDeviceProjectSync, setDeviceProjectSync, subscribeDeviceSync, type DeviceSyncIssue,
 } from '../services/deviceProjectSync';
+import { MergeConflictDialog, type MergeOutcome } from './MergeConflictDialog';
+import { showToast } from './Toast';
 import { useSettingsStore } from '../stores/settingsStore';
 
 type Outcome = 'account' | 'linked' | 'problem';
@@ -16,6 +18,10 @@ export function DeviceProjectSyncControl({ projectId, onSync }: { projectId: str
   const accessToken = useSettingsStore(state => state.collabAuth.accessToken);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<Outcome | string | null>(null);
+  const [merge, setMerge] = useState<null | {
+    issue: DeviceSyncIssue; title: string;
+    base: Record<string, unknown> | null; device: Record<string, unknown>; cloud: Record<string, unknown>;
+  }>(null);
   const lastSynced = status?.lastSynced ?? 0;
   useEffect(() => {
     void readDeviceSyncStatus(projectId).catch(() => setError('problem'));
@@ -49,6 +55,24 @@ export function DeviceProjectSyncControl({ projectId, onSync }: { projectId: str
   };
   const resolve = (issue: DeviceSyncIssue, keep: 'device' | 'cloud') =>
     void run(() => resolveDeviceSyncIssue(projectId, issue.id, keep), true);
+  const openMerge = (issue: DeviceSyncIssue) => void run(async () => {
+    const copies = await readDeviceSyncMerge(projectId, issue.id);
+    setMerge({ issue, ...copies });
+  }, true);
+  // Errors propagate to the dialog, which shows them and stays open.
+  const settleMerge = async (outcome: MergeOutcome) => {
+    if (!merge) return;
+    try {
+      await resolveDeviceSyncIssue(projectId, merge.issue.id, outcome.kind,
+        outcome.kind === 'merged' ? outcome.content : undefined);
+    } catch (failure) {
+      console.error('[cloud] could not settle the merge:', failure);
+      throw failure instanceof DeviceSyncMessage ? failure : new Error(t('sync.resolveFailed'));
+    }
+    setMerge(null);
+    onSync();
+    if (outcome.kind === 'merged') showToast(t('merge.mergedToast'), 'success');
+  };
 
   const summary = error
     ? (error === 'account' ? t('sync.account') : error === 'linked' ? t('sync.linked')
@@ -103,6 +127,10 @@ export function DeviceProjectSyncControl({ projectId, onSync }: { projectId: str
               {issue.kind !== 'quota' && (
                 <>
                   {' '}
+                  {issue.kind === 'conflict' && (
+                    <button className="project-action-btn" type="button" disabled={busy}
+                      onClick={() => openMerge(issue)}>{t('merge.reviewMerge')}</button>
+                  )}
                   <button className="project-action-btn" type="button" disabled={busy}
                     onClick={() => resolve(issue, 'device')}>{t('sync.keepDevice')}</button>
                   <button className="project-action-btn" type="button" disabled={busy}
@@ -113,6 +141,10 @@ export function DeviceProjectSyncControl({ projectId, onSync }: { projectId: str
           ))}
           {issues.some(issue => issue.kind !== 'quota') && <li className="device-sync-note">{t('sync.resolveNote')}</li>}
         </ul>
+      )}
+      {merge && (
+        <MergeConflictDialog title={merge.title || merge.issue.title} base={merge.base} device={merge.device}
+          cloud={merge.cloud} onResolve={settleMerge} onClose={() => setMerge(null)} />
       )}
     </div>
   );

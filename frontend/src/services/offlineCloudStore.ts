@@ -10,6 +10,10 @@ export type OfflineScript = {
   state: 'synced' | 'pending' | 'conflict' | 'problem';
   operation?: string;
   inFlight?: { operation: string; content: Record<string, unknown> };
+  /** The cloud's content at `revision`: the common ancestor for a three-way
+   * merge when the cloud copy changed too. Absent on rows saved before merging
+   * existed, which then fall back to asking about every difference. */
+  base?: Record<string, unknown>;
   lastSynced: number;
 };
 

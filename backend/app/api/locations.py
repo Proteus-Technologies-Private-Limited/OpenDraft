@@ -49,6 +49,33 @@ class LocationUpdate(BaseModel):
     looks: list[LocationLook] | None = None
 
 
+class LocationListReplace(BaseModel):
+    locations: list[dict]
+    expected_revision: str | None = None
+
+
+@router.get("/{project_id}/location-list")
+async def read_location_list(project_id: str):
+    """The whole list and its revision, for device project sync."""
+    try:
+        return location_service.read_location_list(project_id)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+
+@router.put("/{project_id}/location-list")
+async def replace_location_list(project_id: str, body: LocationListReplace):
+    """Replace the whole list if it is still at the expected revision (412 if not)."""
+    try:
+        return location_service.replace_location_list(project_id, body.locations, body.expected_revision)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except location_service.LocationRevisionConflict:
+        raise HTTPException(status_code=412, detail="The location list changed")
+
+
 @router.get("/{project_id}/locations/")
 async def list_locations(project_id: str):
     try:

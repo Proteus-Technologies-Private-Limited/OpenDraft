@@ -96,6 +96,7 @@ const SettingsPage: React.FC = () => {
     collabServerUrl, setCollabServerUrl,
     collabAuth, defaultInviteExpiry, setDefaultInviteExpiry,
     elementMenuOnEnter, setElementMenuOnEnter,
+    autoMergeEdits, setAutoMergeEdits,
     printViaPdf, setPrintViaPdf,
     docxExactHighlights, setDocxExactHighlights,
     elementMenuShortcut, setElementMenuShortcut,
@@ -661,7 +662,7 @@ const SettingsPage: React.FC = () => {
       t('saving.title'), t('saving.library'), t('saving.every'), t('saving.projectFolders'), t('saving.newProjectsIn'),
       t('saving.projectsFolder'), t('saving.fileFormat'), translate('backup:backupSettings.title'),
       translate('backup:backupSettings.enable'), translate('backup:backupSettings.folder'),
-      translate('backup:backupSettings.includeImages'),
+      translate('backup:backupSettings.includeImages'), t('cloudSync.title'), t('cloudSync.autoMerge'),
     ],
     writing: [
       t('smartType.title'), t('smartType.fields.scenePrefixes.label'), t('smartType.fields.times.label'),
@@ -837,6 +838,28 @@ const SettingsPage: React.FC = () => {
             <>
               <SaveSettingsSection />
               <BackupSettingsSection />
+
+      {/* ── Syncing with the cloud: two-sided changes (docs/cloud-sync-merge.md) ── */}
+              <section className="settings-section">
+                <h3 className="settings-section-title">{t('cloudSync.title')}</h3>
+                <p className="settings-section-desc">
+                  {t('cloudSync.description')}
+                </p>
+
+                <div className="settings-row">
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={autoMergeEdits}
+                      onChange={(e) => setAutoMergeEdits(e.target.checked)}
+                    />{' '}
+                    {t('cloudSync.autoMerge')}
+                  </label>
+                  <div className="settings-hint">
+                    {t('cloudSync.autoMergeHint')}
+                  </div>
+                </div>
+              </section>
             </>
           )}
 

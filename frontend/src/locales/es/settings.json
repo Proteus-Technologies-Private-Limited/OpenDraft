@@ -484,5 +484,11 @@
     "saveFailed": "No se pudieron guardar las listas de SmartType: {{message}}. Tus cambios siguen aquí; intenta guardar de nuevo.",
     "save": "Guardar listas",
     "discard": "Descartar cambios"
+  },
+  "cloudSync": {
+    "title": "Sincronización con la nube",
+    "description": "Cuando un guion cambia en este dispositivo y en OpenDraft Cloud antes de que ambos se pongan al día.",
+    "autoMerge": "Fusionar automáticamente las ediciones en líneas distintas",
+    "autoMergeHint": "Las ediciones que no tocan las mismas líneas se combinan sin preguntar. Si ambos cambiaron la misma línea, tú eliges. Desactívalo para revisar cada guion cambiado en los dos sitios antes de fusionarlo."
   }
 }

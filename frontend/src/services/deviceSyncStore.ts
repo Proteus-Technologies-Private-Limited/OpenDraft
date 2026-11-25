@@ -24,6 +24,8 @@ export interface ScriptBase {
   deleted: '' | 'device' | 'cloud';
   /** Hash of an upload that may have been applied without its reply arriving. */
   sending_hash: string;
+  /** The title both sides last agreed on; null before renames were synced. */
+  base_title?: string | null;
 }
 
 export async function readBinding(projectId: string): Promise<DeviceBinding | undefined> {
@@ -70,7 +72,25 @@ export async function projectHasLinkedScripts(projectId: string): Promise<boolea
 
 export async function readScriptBases(projectId: string): Promise<ScriptBase[]> {
   const db = await getDb();
-  return db.select<ScriptBase[]>('SELECT * FROM device_script_sync WHERE project_id = $1', [projectId]);
+  // Not the base bodies: a pass reads every row, and only a merge needs one.
+  return db.select<ScriptBase[]>(
+    `SELECT script_id, content_hash, cloud_revision, device_updated, cloud_updated, deleted, sending_hash, base_title
+     FROM device_script_sync WHERE project_id = $1`, [projectId]);
+}
+
+/** The body last acknowledged by the cloud, for a three-way merge, or null. */
+export async function readScriptBaseContent(projectId: string, scriptId: string): Promise<Record<string, unknown> | null> {
+  const db = await getDb();
+  const rows = await db.select<{ base_content: string | null }[]>(
+    'SELECT base_content FROM device_script_sync WHERE project_id = $1 AND script_id = $2', [projectId, scriptId]);
+  const raw = rows[0]?.base_content;
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as Record<string, unknown>;
+  } catch (error) {
+    console.warn('[cloud] unreadable merge base for', scriptId, error);
+    return null;
+  }
 }
 
 /** Records what the cloud acknowledged. It describes the cloud's copy, so it is
@@ -78,19 +98,30 @@ export async function readScriptBases(projectId: string): Promise<ScriptBase[]> 
  * counterpart (another binding) may not write here. */
 export async function rememberScriptBase(
   binding: DeviceBinding, base: Omit<ScriptBase, 'deleted' | 'sending_hash'>,
+  content: Record<string, unknown> | null,
 ) {
   const db = await getDb();
   await db.execute(
     `INSERT INTO device_script_sync
-       (project_id, script_id, content_hash, cloud_revision, device_updated, cloud_updated, deleted, sending_hash)
-     SELECT project_id, $3, $4, $5, $6, $7, '', '' FROM device_project_sync
+       (project_id, script_id, content_hash, cloud_revision, device_updated, cloud_updated, deleted, sending_hash, base_content)
+     SELECT project_id, $3, $4, $5, $6, $7, '', '', $8 FROM device_project_sync
      WHERE project_id = $1 AND binding_id = $2
      ON CONFLICT(project_id, script_id) DO UPDATE SET
        content_hash = excluded.content_hash, cloud_revision = excluded.cloud_revision,
        device_updated = excluded.device_updated, cloud_updated = excluded.cloud_updated,
-       deleted = '', sending_hash = ''`,
+       deleted = '', sending_hash = '', base_content = excluded.base_content`,
     [binding.project_id, binding.binding_id, base.script_id, base.content_hash, base.cloud_revision,
-      base.device_updated, base.cloud_updated],
+      base.device_updated, base.cloud_updated, content ? JSON.stringify(content) : null],
+  );
+}
+
+/** Records the title both sides now share, so the next rename is told apart. */
+export async function rememberBaseTitle(binding: DeviceBinding, scriptId: string, title: string) {
+  const db = await getDb();
+  await db.execute(
+    `UPDATE device_script_sync SET base_title = $3 WHERE project_id = $1 AND script_id = $2
+       AND EXISTS (SELECT 1 FROM device_project_sync WHERE project_id = $1 AND binding_id = $4)`,
+    [binding.project_id, scriptId, title, binding.binding_id],
   );
 }
 
@@ -166,7 +197,10 @@ export async function pullDeviceContent(
   original?: Awaited<ReturnType<typeof readDeviceContent>>,
   stillOpening = () => true,
 ) {
-  if (!remote || looksLikeTreatment(remote) || (!docHasAnyText(remote) && docHasAnyText(original?.content))) return false;
+  // A body must match its format: a treatment never lands in a screenplay row, nor the reverse.
+  const treatment = normalizeFormat(meta.format) === 'treatment';
+  if (!remote || (!treatment && looksLikeTreatment(remote))
+    || (!docHasAnyText(remote) && docHasAnyText(original?.content))) return false;
   const db = await getDb();
   const body = JSON.stringify(prepareReviewSave(remote));
   const size = new TextEncoder().encode(body).length;
@@ -198,4 +232,58 @@ export async function pullDeviceContent(
     [binding.project_id, meta.id, size, updated, body],
   );
   return true;
+}
+
+// ── Project-level sync: details, locations, pictures ─────────────────────────
+
+export interface ProjectSyncBases {
+  details_base: string | null;
+  locations_base: string | null;
+  locations_revision: string | null;
+  assets_synced: string | null;
+}
+
+export async function readProjectSyncBases(projectId: string): Promise<ProjectSyncBases | undefined> {
+  const db = await getDb();
+  const rows = await db.select<ProjectSyncBases[]>(
+    'SELECT details_base, locations_base, locations_revision, assets_synced FROM device_project_sync WHERE project_id = $1',
+    [projectId],
+  );
+  return rows[0];
+}
+
+/** Records what both sides now agree on. Only for this binding's generation, so
+ * work for a counterpart that was stopped or replaced cannot write here. */
+export async function rememberProjectSyncBases(binding: DeviceBinding, bases: Partial<ProjectSyncBases>) {
+  const entries = Object.entries(bases).filter(([key]) =>
+    ['details_base', 'locations_base', 'locations_revision', 'assets_synced'].includes(key));
+  if (!entries.length) return;
+  const db = await getDb();
+  const sets = entries.map(([key], index) => `${key} = $${index + 3}`).join(', ');
+  await db.execute(
+    `UPDATE device_project_sync SET ${sets} WHERE project_id = $1 AND generation = $2 AND enabled = 1`,
+    [binding.project_id, binding.generation, ...entries.map(([, value]) => value ?? null)],
+  );
+}
+
+/** The project's location list exactly as stored, so a write can be conditional on it. */
+export async function readDeviceLocationsRaw(projectId: string): Promise<string | null> {
+  const db = await getDb();
+  const rows = await db.select<{ data: string }[]>('SELECT data FROM project_locations WHERE project_id = $1', [projectId]);
+  return rows[0]?.data ?? null;
+}
+
+/** Replace the location list only if it is still `original` (null: none stored). */
+export async function writeDeviceLocations(projectId: string, original: string | null, next: unknown[]): Promise<boolean> {
+  const db = await getDb();
+  const data = JSON.stringify(next);
+  const updated = new Date().toISOString();
+  const result = original === null
+    ? await db.execute(
+      `INSERT INTO project_locations (project_id, data, updated_at) VALUES ($1, $2, $3)
+       ON CONFLICT(project_id) DO NOTHING`, [projectId, data, updated])
+    : await db.execute(
+      'UPDATE project_locations SET data = $2, updated_at = $3 WHERE project_id = $1 AND data = $4',
+      [projectId, data, updated, original]);
+  return result.rowsAffected > 0;
 }

@@ -1,6 +1,8 @@
 import json
 import mimetypes
 import os
+import re
+import threading
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -82,6 +84,58 @@ async def upload_asset(
     manifest.append(entry)
     _write_manifest(project_id, manifest)
 
+    return entry
+
+
+# An id from a client is used in a file name, so it must not be able to name a path.
+_ASSET_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")
+_manifest_lock = threading.Lock()
+
+
+async def put_asset_with_id(
+    project_id: str,
+    asset_id: str,
+    file_content: bytes,
+    original_name: str,
+    mime_type: str | None = None,
+) -> dict:
+    """Store an asset under an id the client chose: a device syncing its project
+    keeps the ids its documents already refer to. Idempotent, so a retried
+    upload of the same picture is harmless; an existing id is left as it is."""
+    if not _ASSET_ID_RE.match(asset_id):
+        raise ValueError("Invalid asset id")
+    if len(file_content) > MAX_FILE_SIZE:
+        raise ValueError(f"File size exceeds maximum of {MAX_FILE_SIZE // (1024 * 1024)} MB")
+    assets_path = _assets_dir(project_id)
+    for entry in _read_manifest(project_id):
+        if entry["id"] == asset_id:
+            return entry
+
+    guessed, _ = mimetypes.guess_type(original_name)
+    mime = mime_type or guessed or "application/octet-stream"
+    _, ext = os.path.splitext(original_name)
+    if not re.match(r"^\.[A-Za-z0-9]{1,10}$", ext or ""):
+        ext = ""
+    filename = f"{asset_id}{ext}"
+    async with aiofiles.open(assets_path / filename, "wb") as f:
+        await f.write(file_content)
+
+    entry = {
+        "id": asset_id,
+        "filename": filename,
+        "original_name": original_name,
+        "mime_type": mime,
+        "size_bytes": len(file_content),
+        "tags": [],
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    with _manifest_lock:
+        manifest = _read_manifest(project_id)
+        existing = next((e for e in manifest if e["id"] == asset_id), None)
+        if existing is not None:
+            return existing
+        manifest.append(entry)
+        _write_manifest(project_id, manifest)
     return entry
 
 

@@ -484,5 +484,11 @@
     "saveFailed": "Impossible d’enregistrer les listes SmartType : {{message}}. Vos modifications sont toujours là ; réessayez d’enregistrer.",
     "save": "Enregistrer les listes",
     "discard": "Annuler les modifications"
+  },
+  "cloudSync": {
+    "title": "Synchronisation avec le cloud",
+    "description": "Quand un scénario change sur cet appareil et dans OpenDraft Cloud avant que les deux se soient synchronisés.",
+    "autoMerge": "Fusionner automatiquement les modifications sur des lignes différentes",
+    "autoMergeHint": "Les modifications qui ne touchent pas les mêmes lignes sont combinées sans rien demander. Si les deux côtés ont changé la même ligne, c'est vous qui choisissez. Désactivez cette option pour relire chaque scénario modifié des deux côtés avant la fusion."
   }
 }

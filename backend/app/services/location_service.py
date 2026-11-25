@@ -6,9 +6,11 @@ Stored at {project_dir}/locations.json. Each location has a canonical name
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import re
+import threading
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -123,6 +125,43 @@ def _with_defaults(loc: dict[str, Any]) -> dict[str, Any]:
 
 def list_locations(project_id: str) -> list[dict[str, Any]]:
     return [_with_defaults(loc) for loc in _read(project_id).get("locations", [])]
+
+
+class LocationRevisionConflict(Exception):
+    """The list changed since the revision the client based its change on."""
+
+
+_list_lock = threading.Lock()
+
+
+def _list_revision(locations: list[dict[str, Any]]) -> str:
+    canonical = json.dumps(locations, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def read_location_list(project_id: str) -> dict[str, Any]:
+    """The whole list with a revision, for a device that syncs it as one document."""
+    locations = list_locations(project_id)
+    return {"locations": locations, "revision": _list_revision(locations)}
+
+
+def replace_location_list(
+    project_id: str, locations: list[dict[str, Any]], expected_revision: str | None,
+) -> dict[str, Any]:
+    """Replace the list only if it is still at `expected_revision` (None = no
+    check, used for the first upload into an empty list)."""
+    if not isinstance(locations, list) or not all(isinstance(loc, dict) and loc.get("id") for loc in locations):
+        raise ValueError("Each location needs an id")
+    with _list_lock:
+        current = list_locations(project_id)
+        if expected_revision is not None and _list_revision(current) != expected_revision:
+            raise LocationRevisionConflict()
+        if expected_revision is None and current:
+            raise LocationRevisionConflict()
+        data = _read(project_id)
+        data["locations"] = [_with_defaults(dict(loc)) for loc in locations]
+        _write(project_id, data)
+    return read_location_list(project_id)
 
 
 def get_location(project_id: str, loc_id: str) -> dict[str, Any]:

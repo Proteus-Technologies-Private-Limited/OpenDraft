@@ -473,5 +473,11 @@
     "saveFailed": "Could not save SmartType lists: {{message}}. Your changes are still here; try saving again.",
     "save": "Save lists",
     "discard": "Discard changes"
+  },
+  "cloudSync": {
+    "title": "Syncing with the cloud",
+    "description": "When a screenplay changes on this device and in OpenDraft Cloud before the two catch up with each other.",
+    "autoMerge": "Merge edits on different lines automatically",
+    "autoMergeHint": "Edits that don't touch the same lines are combined without asking. Where both changed the same line, you still choose. Turn this off to review every screenplay changed in both places before it is merged."
   }
 }

@@ -246,7 +246,7 @@ function alignBlocks(a: FlatBlock[], b: FlatBlock[]): Array<[number, number]> {
 }
 
 /** Word-level diff between two strings. */
-function diffWords(a: string, b: string): WordDiff[] {
+export function diffWords(a: string, b: string): WordDiff[] {
   const aWords = a.split(/(\s+)/);
   const bWords = b.split(/(\s+)/);
   const n = aWords.length;

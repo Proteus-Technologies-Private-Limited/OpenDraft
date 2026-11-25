@@ -14,7 +14,7 @@ import { getApiBase } from '../config';
 import { authedFetch } from './authedFetch';
 import { getDeviceId } from './deviceId';
 import { ApiError, handleNonOkResponse } from './api';
-import type { ProjectInfo, ProjectProperties, ScriptMeta, ScriptResponse } from './api';
+import type { LocationEntry, ProjectInfo, ProjectProperties, ScriptMeta, ScriptResponse } from './api';
 import { t } from '../i18n';
 
 const notConfigured = (): string => t('messages:cloud.notConfigured');
@@ -82,7 +82,55 @@ export const cloudApi = {
   updateProject: (
     id: string,
     data: { name?: string; color?: string; pinned?: boolean; sort_order?: number; properties?: Partial<ProjectProperties> },
-  ) => request<ProjectInfo>(`/projects/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    scope?: CloudRequestScope,
+  ) => request<ProjectInfo>(`/projects/${id}`, { method: 'PUT', body: JSON.stringify(data) }, scope),
+
+  /** The whole location list and its revision (device project sync). */
+  readLocationList: (projectId: string, scope: CloudRequestScope) =>
+    request<{ locations: LocationEntry[]; revision: string }>(`/projects/${projectId}/location-list`, undefined, scope),
+
+  /** Replace the location list if it is still at `revision`; 412 when it moved on. */
+  replaceLocationList: (projectId: string, locations: LocationEntry[], revision: string | null, scope: CloudRequestScope) =>
+    request<{ locations: LocationEntry[]; revision: string }>(`/projects/${projectId}/location-list`, {
+      method: 'PUT', body: JSON.stringify({ locations, expected_revision: revision }),
+    }, scope),
+
+  listAssets: (projectId: string, scope?: CloudRequestScope) =>
+    request<{ assets: Array<{ id: string; filename: string; original_name: string; mime_type: string; size_bytes: number }> }>(
+      `/projects/${projectId}/assets/`, undefined, scope).then(r => r.assets ?? []),
+
+  /** An asset's bytes, for bringing a picture onto the device. */
+  downloadAsset: async (projectId: string, assetId: string, scope: CloudRequestScope): Promise<Uint8Array> => {
+    let res: Response;
+    try {
+      res = await authedFetch(`${scope.base}/projects/${projectId}/assets/${assetId}`, {
+        // octet-stream also gives the desktop and mobile apps the longer
+        // budget a picture needs (platformFetch).
+        headers: { 'X-Device-Id': getDeviceId(), Accept: 'application/octet-stream, */*' },
+      }, scope.isCurrent);
+    } catch (err) {
+      throw new Error(t('messages:cloud.cannotReach', { detail: err instanceof Error ? err.message : String(err) }));
+    }
+    if (!res.ok) throw new ApiError(res.status, null, `Cloud asset: ${res.status}`);
+    return new Uint8Array(await res.arrayBuffer());
+  },
+
+  /** Store a device asset in the cloud under the same id (idempotent). */
+  putDeviceAsset: async (projectId: string, assetId: string, bytes: Uint8Array, name: string, mime: string,
+    scope: CloudRequestScope) => {
+    const form = new FormData();
+    form.append('file', new Blob([bytes as BlobPart], { type: mime || 'application/octet-stream' }), name || assetId);
+    let res: Response;
+    try {
+      res = await authedFetch(`${scope.base}/projects/${projectId}/device-assets/${encodeURIComponent(assetId)}`, {
+        method: 'PUT', body: form, headers: { 'X-Device-Id': getDeviceId() },
+      }, scope.isCurrent);
+    } catch (err) {
+      throw new Error(t('messages:cloud.cannotReach', { detail: err instanceof Error ? err.message : String(err) }));
+    }
+    if (!res.ok) throw new ApiError(res.status, await res.json().catch(() => null), `Cloud asset: ${res.status}`);
+    return res.json() as Promise<{ id: string }>;
+  },
 
   deleteProject: (id: string, scope?: CloudRequestScope) =>
     request<{ message: string }>(`/projects/${id}`, { method: 'DELETE' }, scope),

@@ -24,6 +24,14 @@ def doc(text):
     return {"type": "doc", "content": [{"type": "action", "content": [{"type": "text", "text": text}]}]}
 
 
+def doc_lines(*texts):
+    return {"type": "doc", "content": [{"type": "action", "content": [{"type": "text", "text": t}]} for t in texts]}
+
+
+def texts_of(content):
+    return [b["content"][0]["text"] if b.get("content") else "" for b in content["content"]]
+
+
 def now():
     return datetime.now(timezone.utc).isoformat()
 
@@ -36,7 +44,9 @@ async def main(base, auth_path):
     async with async_playwright() as pw:
         # OPENDRAFT_BROWSER=webkit runs the engine the Mac and iOS apps use.
         engine = os.environ.get("OPENDRAFT_BROWSER", "chromium")
-        browser = await getattr(pw, engine).launch()
+        # OPENDRAFT_BROWSER_CHANNEL=chrome uses an installed Google Chrome instead of a Playwright download.
+        channel = os.environ.get("OPENDRAFT_BROWSER_CHANNEL")
+        browser = await getattr(pw, engine).launch(**({"channel": channel} if channel else {}))
         print("engine:", engine, browser.version)
         context = await browser.new_context(viewport={"width": 1300, "height": 900})
         page = await context.new_page()
@@ -143,6 +153,23 @@ async def main(base, auth_path):
                 return s["content"]["content"][0]["content"][0]["text"]
 
             first, second, third = add_script("First", "first v1"), add_script("Second", "second v1"), add_script("Third", "third v1")
+            # A two-paragraph screenplay for the merge checks (M).
+            scene = add_script("Scene", "x")
+            db.execute("UPDATE script_content SET content=? WHERE script_id=?",
+                       (json.dumps(doc_lines("Anna enters.", "Ben waits.")), scene)); db.commit()
+            # Project details and a location, to check they reach the cloud (P).
+            db.execute("UPDATE projects SET properties=? WHERE id=?",
+                       (json.dumps({"logline": "A device logline"}), project))
+            db.execute("INSERT INTO project_locations (project_id, data, updated_at) VALUES (?,?,?)",
+                       (project, json.dumps([{"id": "loc-kitchen", "name": "KITCHEN"}]), stamp)); db.commit()
+
+            def edit_device_doc(sid, content):
+                db.execute("UPDATE script_content SET content=? WHERE script_id=?", (json.dumps(content), sid))
+                db.execute("UPDATE scripts SET updated_at=? WHERE id=?", (now(), sid))
+                db.commit()
+
+            def device_doc(sid):
+                return json.loads(db.execute("SELECT content FROM script_content WHERE script_id=?", (sid,)).fetchone()["content"])
 
             async def nudge():
                 await page.evaluate("window.dispatchEvent(new Event('focus'))")
@@ -169,7 +196,7 @@ async def main(base, auth_path):
             await wait_status("Synced to cloud")
             counter = await counterpart()
             ids = {s["id"] for s in await cloud(f"/projects/{counter}/scripts/")}
-            assert ids == {first, second, third}, ids
+            assert ids == {first, second, third, scene}, ids
             assert await cloud_text(first) == "first v1"
             ok("A  starting sync uploads every screenplay and shows Synced")
             await page.screenshot(path=str(OUT / "a-synced.png"))
@@ -219,6 +246,70 @@ async def main(base, auth_path):
             assert device_text(first) == "first: cloud edit 2"
             assert "First (device copy)" in device_titles(), device_titles()
             ok("C4 'Use the cloud version' takes it and saves the device text as a new screenplay")
+
+            # ---- M: git-style merging ------------------------------------------------
+            # M1: different paragraphs changed on each side merge without asking.
+            edit_device_doc(scene, doc_lines("Anna enters, soaked.", "Ben waits."))
+            await cloud(f"/projects/{counter}/scripts/{scene}", "PUT", {"content": doc_lines("Anna enters.", "Ben waits by the door.")})
+            await wait_status("Synced to cloud")
+            for _ in range(10):
+                if texts_of(device_doc(scene)) == ["Anna enters, soaked.", "Ben waits by the door."]:
+                    break
+                await nudge(); await page.wait_for_timeout(1000)
+            assert texts_of(device_doc(scene)) == ["Anna enters, soaked.", "Ben waits by the door."], device_doc(scene)
+            remote = await cloud(f"/projects/{counter}/scripts/{scene}")
+            assert texts_of(remote["content"]) == ["Anna enters, soaked.", "Ben waits by the door."], remote["content"]
+            assert "Scene (cloud copy)" not in device_titles() and "Scene (device copy)" not in device_titles()
+            ok("M1 changes to different paragraphs on each side merge on their own, on both sides, with no copies")
+
+            # M2: the same paragraph changed differently is a conflict settled in the merge dialog.
+            edit_device_doc(scene, doc_lines("Anna enters, soaked.", "Ben paces."))
+            await cloud(f"/projects/{counter}/scripts/{scene}", "PUT", {"content": doc_lines("Anna enters, soaked.", "Ben sits.")})
+            await wait_status("conflicting copies")
+            row = page.locator(".device-sync-issues li", has_text="Scene").first
+            await row.get_by_role("button", name="Review and merge").click()
+            dialog = page.locator(".merge-dialog")
+            await dialog.wait_for(timeout=10_000)
+            card = dialog.locator(".merge-card").first
+            assert "Ben paces." in await card.inner_text() and "Ben sits." in await card.inner_text(), await card.inner_text()
+            assert await dialog.get_by_role("button", name="Save merged script").is_disabled()
+            await page.screenshot(path=str(OUT / "m-merge-dialog.png"))
+            await dialog.get_by_role("tab", name="Compare").click()
+            await dialog.locator(".script-diff-view").wait_for(timeout=5000)
+            assert "Ben" in await dialog.locator(".script-diff-view").inner_text()
+            await dialog.locator(".merge-compare-picker select").select_option("baseCloud")
+            await page.screenshot(path=str(OUT / "m-merge-compare.png"))
+            ok("M2 a clash opens the merge dialog with both sides, and Compare shows the diff between any two copies")
+            await dialog.get_by_role("tab", name="Merge").click()
+            await card.get_by_role("radio", name="Keep both").click()
+            await dialog.get_by_role("button", name="Save merged script").click()
+            await dialog.wait_for(state="detached", timeout=15_000)
+            await wait_status("Synced to cloud")
+            want = ["Anna enters, soaked.", "Ben paces.", "Ben sits."]
+            assert texts_of(device_doc(scene)) == want, device_doc(scene)
+            remote = await cloud(f"/projects/{counter}/scripts/{scene}")
+            assert texts_of(remote["content"]) == want, remote["content"]
+            ok("M3 'Keep both' then 'Save merged script' writes the merge to the device and the cloud")
+
+            # ---- P: the rest of the project syncs too --------------------------------
+            cloud_project_info = await cloud(f"/projects/{counter}")
+            assert cloud_project_info["properties"].get("logline") == "A device logline", cloud_project_info["properties"]
+            listed_locations = (await cloud(f"/projects/{counter}/location-list"))["locations"]
+            assert [l["id"] for l in listed_locations] == ["loc-kitchen"], listed_locations
+            ok("P1 the project's details and its Location Database reach the cloud")
+            revision = (await cloud(f"/projects/{counter}/location-list"))["revision"]
+            await cloud(f"/projects/{counter}/location-list", "PUT", {"locations": [
+                *listed_locations, {"id": "loc-street", "name": "STREET"}], "expected_revision": revision})
+            await cloud(f"/projects/{counter}", "PUT", {"properties": {**cloud_project_info["properties"], "genre": "Thriller"}})
+            for _ in range(20):
+                await nudge(); await page.wait_for_timeout(1000)
+                row = db.execute("SELECT data FROM project_locations WHERE project_id=?", (project,)).fetchone()
+                props = json.loads(db.execute("SELECT properties FROM projects WHERE id=?", (project,)).fetchone()["properties"])
+                if row and "loc-street" in row["data"] and props.get("genre") == "Thriller":
+                    break
+            assert "loc-street" in row["data"], row["data"]
+            assert props.get("genre") == "Thriller" and props.get("logline") == "A device logline", props
+            ok("P2 a location and a project detail added in the cloud come down to the device")
 
             # ---- D: lost upload reply is not a permanent conflict -------------------
             # (covered by unit tests of effectiveBase; the browser path needs a dropped reply)
@@ -295,6 +386,15 @@ async def main(base, auth_path):
             assert "status-save-error" in (await status_line.get_attribute("class") or ""), \
                 "a conflict must not be shown in the 'saved' colour"
             ok("G1 an offline edit against a changed cloud copy shows the conflict banner with both choices, in the error colour")
+            await banner.get_by_role("button", name="Review and merge").click()
+            dialog = page.locator(".merge-dialog")
+            await dialog.wait_for(timeout=10_000)
+            body_text = await dialog.inner_text()
+            assert "cloud v2" in body_text and "device edit" in body_text, body_text[:400]
+            await page.screenshot(path=str(OUT / "g-merge-dialog.png"))
+            await dialog.get_by_role("button", name="Close").click()
+            await dialog.wait_for(state="detached", timeout=5000)
+            ok("G1b 'Review and merge' on a cloud script shows this device's text beside the cloud's")
             # The cloud copy is then deleted, so there is nothing to upload onto.
             await cloud(f"/projects/{cloud_project}/scripts/{draft}", "DELETE")
             await banner.get_by_role("button", name="Upload my version").click()

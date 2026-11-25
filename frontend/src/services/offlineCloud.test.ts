@@ -5,13 +5,13 @@ import type { OfflineScript } from './offlineCloudStore';
 
 const mocks = vi.hoisted(() => {
   const auth = { accessToken: 'token', user: { id: 'writer' } };
-  const state = { collabAuth: auth };
+  const state: { collabAuth: unknown; autoMergeEdits: boolean } = { collabAuth: auth, autoMergeEdits: true };
   return {
     state, subscribe: vi.fn(), toast: vi.fn(),
     getScript: vi.fn(), upload: vi.fn(), deleteScript: vi.fn(), deleteProject: vi.fn(),
     createScript: vi.fn(), persist: vi.fn(async () => true),
     edit: vi.fn(), read: vi.fn(), pending: vi.fn(), unresolved: vi.fn(),
-    clear: vi.fn(), remove: vi.fn(),
+    clear: vi.fn(), remove: vi.fn(), openAnywhere: vi.fn(async () => false),
   };
 });
 
@@ -28,6 +28,7 @@ vi.mock('./cloudApi', () => ({
     deleteScript: mocks.deleteScript, deleteProject: mocks.deleteProject, createScript: mocks.createScript,
   },
 }));
+vi.mock('./openDocuments', () => ({ scriptOpenAnywhere: mocks.openAnywhere }));
 vi.mock('./offlineCloudStore', () => ({
   readOfflineScript: mocks.read, editOfflineScript: mocks.edit,
   pendingOfflineScripts: mocks.pending, unresolvedOfflineScripts: mocks.unresolved,
@@ -74,9 +75,12 @@ beforeEach(() => {
   vi.useFakeTimers();
   rows.clear();
   mocks.state.collabAuth = { accessToken: 'token', user: { id: 'writer' } };
+  mocks.state.autoMergeEdits = true;
   mocks.upload.mockReset();
   mocks.getScript.mockReset().mockResolvedValue(response('original', 'r0'));
   mocks.toast.mockClear();
+  mocks.createScript.mockReset().mockResolvedValue(response('copy', 'copy'));
+  mocks.openAnywhere.mockReset().mockResolvedValue(false);
   mocks.read.mockReset().mockImplementation(async key => rows.get(JSON.stringify(key)));
   mocks.edit.mockReset().mockImplementation(async (key, change) => {
     const id = JSON.stringify(key);
@@ -249,6 +253,84 @@ describe('offline cloud uploads', () => {
     expect(row()).toMatchObject({ state: 'pending', revision: 'r0' });
     await vi.advanceTimersByTimeAsync(1);
     expect(row()).toMatchObject({ state: 'synced', revision: 'r1' });
+  });
+
+  it('merges non-overlapping cloud changes after a 412 and uploads the merge', async () => {
+    const two = (a: string, b: string) => ({ type: 'doc', content: [
+      { type: 'action', content: [{ type: 'text', text: a }] },
+      { type: 'action', content: [{ type: 'text', text: b }] },
+    ] });
+    const withContent = (content: object, revision: string) => ({ ...response('', revision), content });
+    mocks.getScript.mockResolvedValueOnce(withContent(two('one', 'two'), 'r0'));
+    await offlineCloud.getScript(projectId, scriptId);
+    expect(row()?.base).toEqual(two('one', 'two'));
+    mocks.upload.mockRejectedValueOnce(fail(412)).mockResolvedValueOnce(withContent(two('ONE', 'TWO'), 'r2'));
+    mocks.getScript.mockResolvedValueOnce(withContent(two('one', 'TWO'), 'r1'));
+    await offlineCloud.saveScript(projectId, scriptId, two('ONE', 'two'));
+    await vi.advanceTimersByTimeAsync(10);
+    expect(mocks.upload.mock.lastCall?.slice(2, 4)).toEqual([two('ONE', 'TWO'), 'r1']);
+    expect(row()).toMatchObject({ state: 'synced', revision: 'r2', base: two('ONE', 'TWO') });
+  });
+
+  it('leaves an overlapping or open script as a conflict for the writer', async () => {
+    await offlineCloud.getScript(projectId, scriptId);
+    mocks.upload.mockRejectedValueOnce(fail(412));
+    mocks.getScript.mockResolvedValueOnce(response('cloud edit', 'r1'));
+    await save('device edit');
+    await drain();
+    expect(row()?.state).toBe('conflict');
+
+    rows.clear();
+    await offlineCloud.getScript(projectId, scriptId);
+    mocks.openAnywhere.mockResolvedValue(true);
+    mocks.upload.mockRejectedValueOnce(fail(412));
+    await save('device edit');
+    await drain();
+    expect(row()?.state).toBe('conflict');
+  });
+
+  it('leaves even a non-overlapping change for review when automatic merging is off', async () => {
+    const two = (a: string, b: string) => ({ type: 'doc', content: [
+      { type: 'action', content: [{ type: 'text', text: a }] },
+      { type: 'action', content: [{ type: 'text', text: b }] },
+    ] });
+    const withContent = (content: object, revision: string) => ({ ...response('', revision), content });
+    mocks.state.autoMergeEdits = false;
+    mocks.getScript.mockResolvedValueOnce(withContent(two('one', 'two'), 'r0'));
+    await offlineCloud.getScript(projectId, scriptId);
+    mocks.upload.mockRejectedValueOnce(fail(412));
+    mocks.getScript.mockResolvedValueOnce(withContent(two('one', 'TWO'), 'r1'));
+    await offlineCloud.saveScript(projectId, scriptId, two('ONE', 'two'));
+    await drain();
+    expect(row()?.state).toBe('conflict');
+    expect(mocks.upload).toHaveBeenCalledTimes(1);
+  });
+
+  it('uploads a merge built in the dialog on the current cloud revision', async () => {
+    await offlineCloud.getScript(projectId, scriptId);
+    mocks.upload.mockRejectedValueOnce(fail(412));
+    mocks.getScript.mockResolvedValueOnce(response('cloud edit', 'r1'));
+    await save('device edit');
+    await drain();
+    mocks.getScript.mockResolvedValueOnce(response('cloud edit', 'r1'));
+    mocks.upload.mockResolvedValueOnce(response('merged', 'r2'));
+    await resolveOfflineCloudConflict(projectId, scriptId, 'merged', body('merged'));
+    await drain();
+    expect(mocks.upload.mock.lastCall?.slice(2, 4)).toEqual([body('merged'), 'r1']);
+    expect(mocks.createScript).not.toHaveBeenCalled();
+    expect(row()).toMatchObject({ state: 'synced', revision: 'r2' });
+  });
+
+  it('saves the losing side as a copy when one whole version is kept', async () => {
+    await offlineCloud.getScript(projectId, scriptId);
+    mocks.upload.mockRejectedValueOnce(fail(412));
+    mocks.getScript.mockResolvedValueOnce(response('cloud edit', 'r1'));
+    await save('device edit');
+    await drain();
+    mocks.getScript.mockResolvedValueOnce(response('cloud edit', 'r1'));
+    await resolveOfflineCloudConflict(projectId, scriptId, 'cloud');
+    expect(mocks.createScript).toHaveBeenCalledWith(projectId,
+      expect.objectContaining({ title: 'Test screenplay (device copy)', content: body('device edit') }), expect.anything());
   });
 
   it('removes cached rows after an explicit script or project deletion', async () => {

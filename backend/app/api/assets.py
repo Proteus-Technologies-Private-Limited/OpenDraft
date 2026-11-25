@@ -64,6 +64,26 @@ async def upload_asset(
         raise HTTPException(status_code=400, detail=str(exc))
 
 
+@router.put("/{project_id}/device-assets/{asset_id}")
+async def put_device_asset(
+    project_id: str,
+    asset_id: str,
+    file: UploadFile = File(...),
+):
+    """Store a synced device's asset under its own id, so the documents that
+    refer to it by id resolve in the cloud too. Idempotent."""
+    try:
+        content = await file.read()
+        entry = await asset_service.put_asset_with_id(
+            project_id, asset_id, content, file.filename or "unnamed", file.content_type,
+        )
+        return entry
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
 @router.get("/{project_id}/assets/")
 async def list_assets(project_id: str):
     """List all assets in a project."""

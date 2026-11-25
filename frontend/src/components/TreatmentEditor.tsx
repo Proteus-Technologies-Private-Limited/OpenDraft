@@ -17,6 +17,7 @@ import Dropcursor from '@tiptap/extension-dropcursor';
 import Gapcursor from '@tiptap/extension-gapcursor';
 import Placeholder from '@tiptap/extension-placeholder';
 import { useParams } from 'react-router-dom';
+import { markDocumentShowing } from '../services/openDocuments';
 import { useTranslation } from 'react-i18next';
 import { t as translate } from '../i18n';
 import { api } from '../services/api';
@@ -35,6 +36,8 @@ import Select from './Select';
 const TreatmentEditor: React.FC = () => {
   const { t } = useTranslation(['story', 'common']);
   const { projectId, scriptId } = useParams<{ projectId: string; scriptId: string }>();
+  // A background cloud merge must not write under this editor (scriptOpenAnywhere).
+  useEffect(() => markDocumentShowing(projectId, scriptId), [projectId, scriptId]);
   // Pop back to the project rather than pushing another copy of it, or the
   // project's own back control walks straight back in here (issue #66).
   const handleBack = useGoBackTo(projectId ? `/project/${projectId}` : '/projects');

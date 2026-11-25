@@ -269,7 +269,8 @@ import { startCollabSync, stopCollabSync } from '../services/collabSync';
 import { collabAuthApi, setLogoutCollabTeardown, setLogoutEditorReset, ensureCollabAuthenticated, collabAuthUnavailableMessage } from '../services/collabAuth';
 import { platformFetch, isTauri, isDesktopTauri, needsSelectionHandles } from '../services/platform';
 import { reportSaveError } from '../stores/saveErrorStore';
-import { offlineCloudStatus, resolveOfflineCloudConflict, subscribeOfflineCloud } from '../services/offlineCloud';
+import { offlineCloudStatus, readOfflineCloudMerge, resolveOfflineCloudConflict, subscribeOfflineCloud } from '../services/offlineCloud';
+import { MergeConflictDialog, type MergeOutcome } from './MergeConflictDialog';
 import { pluginRegistry } from '../plugins/registry';
 import { createTrackChangesPlugin, trackChangesPluginKey } from '../editor/trackChanges';
 import type { VersionInfo } from '../services/api';
@@ -630,6 +631,11 @@ const ScreenplayEditor: React.FC = () => {
   const cloudSync = useSyncExternalStore(subscribeOfflineCloud, () =>
     offlineCloudStatus(currentProject?.id, currentScriptId));
   const [resolvingCloudConflict, setResolvingCloudConflict] = useState(false);
+  // The merge dialog for a cloud script changed here and on another device.
+  const [cloudMerge, setCloudMerge] = useState<null | {
+    projectId: string; scriptId: string; title: string;
+    base: Record<string, unknown> | null; device: Record<string, unknown>; cloud: Record<string, unknown>;
+  }>(null);
 
   // ── Collaboration state ──
   const [collabMode, setCollabMode] = useState(false);
@@ -4475,13 +4481,14 @@ const ScreenplayEditor: React.FC = () => {
     })();
   }, [editor, urlProjectId, urlScriptId, urlCommitHash, isHistoryMode, collabMode, collabUserName, currentScriptId, switchCollabDocument, setCurrentProject, setCurrentScriptId, setDocumentTitle, updateScenes, scriptReloadKey, navigate, buildSaveContent]);
 
-  const handleCloudConflict = async (choice: 'cloud' | 'device') => {
-    if (!editor || !currentProject || !currentScriptId || scriptSwitchingRef.current) return;
+  const handleCloudConflict = async (choice: 'cloud' | 'device' | 'merged', merged?: Record<string, unknown>,
+    confirmed = false): Promise<boolean> => {
+    if (!editor || !currentProject || !currentScriptId || scriptSwitchingRef.current) return false;
     const key = choice === 'cloud' ? 'toolbar:status.save.cloudUseConfirm' : 'toolbar:status.save.cloudUploadConfirm';
-    if (!(await confirmAction(tg(key)))) return;
+    if (!confirmed && !(await confirmAction(tg(key)))) return false;
 
-    const content = buildSaveContent();
-    if (choice === 'device' && !content) return;
+    const content = choice === 'merged' ? merged : buildSaveContent();
+    if (choice !== 'cloud' && !content) return false;
     const projectId = currentProject.id;
     const scriptId = currentScriptId;
     const wasEditable = editor.isEditable;
@@ -4492,7 +4499,7 @@ const ScreenplayEditor: React.FC = () => {
     try {
       const outcome = await resolveOfflineCloudConflict(projectId, scriptId, choice, content);
       const current = useProjectStore.getState();
-      if (current.currentProject?.id !== projectId || current.currentScriptId !== scriptId) return;
+      if (current.currentProject?.id !== projectId || current.currentScriptId !== scriptId) return true;
       if (choice === 'device') {
         lastSavedJsonRef.current = JSON.stringify(content);
         lastSavedNonEmptyRef.current = docHasAnyText(content);
@@ -4508,16 +4515,49 @@ const ScreenplayEditor: React.FC = () => {
         setCurrentProject(null);
         navigate('/projects', { replace: true });
       } else {
+        // The cloud version, or the merge just queued: load it into the editor.
+        // The editor's own copy must not be autosaved over it on the way out.
+        if (choice === 'merged') lastSavedJsonRef.current = JSON.stringify(buildSaveContent());
         reloading = true;
         current.triggerScriptReload();
+        if (choice === 'merged') showToast(tg('projects:merge.mergedToast'), 'success');
       }
+      return true;
     } catch (error) {
+      console.warn('[cloud] could not settle the conflict:', error);
+      if (confirmed) throw error;
       showToast(error instanceof Error ? error.message : tg('toolbar:status.save.cloudProblem'), 'error');
+      return false;
     } finally {
       if (!reloading) scriptSwitchingRef.current = false;
       if (!editor.isDestroyed && wasEditable) editor.setEditable(true, false);
       setResolvingCloudConflict(false);
     }
+  };
+
+  /** Open the merge dialog: this editor's text against the cloud's newer copy. */
+  const openCloudMerge = async () => {
+    if (!editor || !currentProject || !currentScriptId || scriptSwitchingRef.current) return;
+    const projectId = currentProject.id;
+    const scriptId = currentScriptId;
+    setResolvingCloudConflict(true);
+    try {
+      const copies = await readOfflineCloudMerge(projectId, scriptId);
+      const device = buildSaveContent() ?? copies.device;
+      const current = useProjectStore.getState();
+      if (current.currentProject?.id !== projectId || current.currentScriptId !== scriptId) return;
+      setCloudMerge({ ...copies, device, projectId, scriptId });
+    } catch (error) {
+      console.error('[cloud] could not open the merge:', error);
+      showToast(error instanceof Error ? error.message : tg('projects:merge.loadFailed'), 'error');
+    } finally {
+      setResolvingCloudConflict(false);
+    }
+  };
+
+  const settleCloudMerge = async (outcome: MergeOutcome) => {
+    const done = await handleCloudConflict(outcome.kind, outcome.kind === 'merged' ? outcome.content : undefined, true);
+    if (done) setCloudMerge(null);
   };
 
   // --- Sync orphaned marks: runs ONCE after editor is ready, not on every doc change ---
@@ -6145,6 +6185,10 @@ const ScreenplayEditor: React.FC = () => {
           </span>
           {!collabMode && !isHistoryMode && (
             <>
+              {cloudSync.state === 'conflict' && (
+                <button type="button" className="save-failure-btn" disabled={resolvingCloudConflict}
+                  onClick={() => void openCloudMerge()}>{tg('projects:merge.reviewMerge')}</button>
+              )}
               <button type="button" className="save-failure-btn" disabled={resolvingCloudConflict}
                 onClick={() => void handleCloudConflict('cloud')}>{tg('toolbar:status.save.cloudUseVersion')}</button>
               <button type="button" className="save-failure-btn" disabled={resolvingCloudConflict}
@@ -6152,6 +6196,10 @@ const ScreenplayEditor: React.FC = () => {
             </>
           )}
         </div>
+      )}
+      {cloudMerge && cloudMerge.projectId === currentProject?.id && cloudMerge.scriptId === currentScriptId && (
+        <MergeConflictDialog title={cloudMerge.title} base={cloudMerge.base} device={cloudMerge.device}
+          cloud={cloudMerge.cloud} onResolve={settleCloudMerge} onClose={() => setCloudMerge(null)} />
       )}
       {saveStatus === 'error' && currentProject && currentScriptId && (
         <div className="save-failure-banner">

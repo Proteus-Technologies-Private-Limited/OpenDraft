@@ -4,18 +4,20 @@
 import { t } from '../i18n';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useStorageStatusStore } from '../stores/storageStatusStore';
-import { normalizeFormat } from '../utils/scriptFormat';
 import { prepareReviewSave } from '../utils/reviewSave';
+import { autoMerge } from '../utils/scriptMerge';
 import { sha256Hex } from '../utils/sha256';
 import { uuid } from '../utils/uuid';
 import { ApiError, api, type ScriptMeta, type ScriptResponse } from './api';
 import { cloudApi } from './cloudApi';
 import { scopeForCloud } from './offlineCloud';
-import { documentKey, findWindowWithDocument } from './openDocuments';
+import { syncProjectExtras } from './deviceProjectExtras';
+import { documentKey, findWindowWithDocument, scriptOpenAnywhere } from './openDocuments';
 import { isTauri } from './platform';
 import {
   activeBindings, disableBinding, enableBinding, forgetScriptBase, noteUploadHash, projectHasLinkedScripts,
-  pullDeviceContent, readBinding, readDeviceContent, readScriptBases, rememberScriptBase, restartBinding,
+  pullDeviceContent, readBinding, readDeviceContent, readScriptBaseContent, readScriptBases, rememberBaseTitle,
+  rememberScriptBase, restartBinding,
   tombstoneScript, updateBinding, type DeviceBinding, type ScriptBase,
 } from './deviceSyncStore';
 import {
@@ -43,6 +45,8 @@ const locks = new Map<string, Promise<unknown>>();
 // What the last pass concluded about a screenplay, so one that has not changed
 // on either side is not downloaded again every 30 seconds.
 const remembered = new Map<string, Remembered>();
+// When the project's details, locations and pictures last synced, per project.
+const extrasSynced = new Map<string, number>();
 const blank = () => ({ issues: [] as DeviceSyncIssue[], onOpen: false, attention: null as DeviceSyncAttention });
 
 /** A failure whose text is meant for the writer, unlike a network or server error. */
@@ -200,7 +204,8 @@ async function reconcileScript(
       if (!canPull) return 'open';
       if (!stillOpening()) return 'pending';
     } else {
-      if (remote.content_revision !== base.cloud_revision) return 'conflict';
+      // Changed here and in the cloud: merge when the changes do not overlap.
+      if (remote.content_revision !== base.cloud_revision) return mergeBothSides(binding, scope, id, local, remote);
       if (!await bindingStillActive(binding, scope)) return 'pending';
       await noteUploadHash(binding, id, localHash!);
       remote = await cloudApi.uploadOfflineScript(remoteId, id, prepareReviewSave(local.content ?? {}), base.cloud_revision, scope);
@@ -229,8 +234,59 @@ async function acknowledge(
   await rememberScriptBase(binding, {
     script_id: id, content_hash: sentHash, cloud_revision: remote.content_revision,
     device_updated: deviceUpdated, cloud_updated: remote.meta.updated_at,
-  });
+  }, remote.content);
   return 'synced';
+}
+
+/** Three-way merge of a screenplay changed on this device and in the cloud,
+ * against the body both last agreed on. Done only when nothing overlaps and no
+ * editor has the screenplay open; otherwise the writer settles it. The merge is
+ * written to the device first (only over the exact body that was read), then
+ * uploaded on the cloud's revision, so neither side's changes are lost. */
+async function mergeBothSides(
+  binding: DeviceBinding, scope: Scope, id: string, local: NonNullable<Awaited<ReturnType<typeof readDeviceContent>>>,
+  remote: ScriptResponse,
+): Promise<Verdict> {
+  // Settings → Saving: the writer can ask to review every two-sided change.
+  if (!useSettingsStore.getState().autoMergeEdits) return 'conflict';
+  const base = await readScriptBaseContent(binding.project_id, id);
+  if (!base || !local.content || !remote.content || !remote.content_revision) return 'conflict';
+  const merged = autoMerge(base, local.content, remote.content);
+  if (!merged) return 'conflict';
+  if (await scriptOpenAnywhere(binding.project_id, id)) return 'conflict';
+  if (!await bindingStillActive(binding, scope)) return 'pending';
+  if (!await pullDeviceContent(binding, remote.meta, prepareReviewSave(merged), local)) return 'conflict';
+  const written = await readDeviceContent(binding.project_id, id);
+  if (!written?.content) return 'pending';
+  const body = prepareReviewSave(written.content);
+  await noteUploadHash(binding, id, digest(written.content));
+  const sent = await cloudApi.uploadOfflineScript(cloudProject(binding), id, body, remote.content_revision, scope);
+  if (!sent.content_revision) return 'problem';
+  await rememberScriptBase(binding, {
+    script_id: id, content_hash: digest(sent.content), cloud_revision: sent.content_revision,
+    device_updated: written.updated_at, cloud_updated: sent.meta.updated_at,
+  }, sent.content);
+  console.info('[cloud] merged both sides of', id);
+  return 'synced';
+}
+
+/** A rename on one side follows to the other. Renamed on both, this device's
+ * title wins. Without a recorded title (synced before renames were), the two
+ * are only remembered once they agree. */
+async function syncTitle(binding: DeviceBinding, scope: Scope, device: ScriptMeta, cloud: ScriptMeta, base?: ScriptBase) {
+  if (!isRealBase(base)) return;
+  if (device.title === cloud.title) {
+    if (base.base_title !== device.title) await rememberBaseTitle(binding, device.id, device.title);
+    return;
+  }
+  if (base.base_title == null || !await bindingStillActive(binding, scope)) return;
+  if (base.base_title === device.title) {
+    await api.saveScript(binding.project_id, device.id, { title: cloud.title, skipFileSync: true });
+    await rememberBaseTitle(binding, device.id, cloud.title);
+  } else {
+    await cloudApi.saveScript(cloudProject(binding), device.id, { title: device.title }, scope);
+    await rememberBaseTitle(binding, device.id, device.title);
+  }
 }
 
 function failureState(error: unknown): Verdict {
@@ -268,8 +324,6 @@ async function syncProject(binding: DeviceBinding, scope: Scope): Promise<void> 
     const issues: DeviceSyncIssue[] = [];
     for (const id of new Set([...device.keys(), ...cloud.keys(), ...last.keys()])) {
       if (!await bindingStillActive(binding, scope)) return;
-      const format = device.get(id)?.format ?? cloud.get(id)?.format;
-      if (format && normalizeFormat(format) !== 'screenplay') continue;
       const key = `${projectId}:${id}`;
       const deviceStamp = device.get(id)?.updated_at;
       const cloudStamp = cloud.get(id)?.updated_at;
@@ -285,9 +339,22 @@ async function syncProject(binding: DeviceBinding, scope: Scope): Promise<void> 
         else remembered.set(key, { device: deviceStamp ?? '', cloud: cloudStamp ?? '', verdict, until });
       }
       verdicts.push(verdict);
+      const pair = [device.get(id), cloud.get(id)] as const;
+      if (verdict === 'synced' && pair[0] && pair[1]) {
+        await syncTitle(binding, scope, pair[0], pair[1], last.get(id)).catch(error =>
+          console.warn('[cloud] could not sync the title of', id, error));
+      }
       if (verdict === 'conflict' || verdict === 'problem' || verdict === 'quota') {
         issues.push({ id, title: device.get(id)?.title ?? cloud.get(id)?.title ?? '', kind: verdict });
       }
+    }
+    if (!await bindingStillActive(binding, scope)) return;
+    // Then the rest of the project: details, locations and pictures. Their
+    // failures are logged and retried on the next pass; the status the writer
+    // sees is the screenplays'.
+    // At most every two minutes: they change far less often than screenplays.
+    if (Date.now() - (extrasSynced.get(projectId) ?? 0) > 120_000) {
+      if (await syncProjectExtras(binding, scope, remoteId, project) === 'synced') extrasSynced.set(projectId, Date.now());
     }
     if (!await bindingStillActive(binding, scope)) return;
     const state = projectState(verdicts);
@@ -347,10 +414,28 @@ export async function refreshDeviceScript(projectId: string, scriptId: string): 
   }
 }
 
-/** A way out of a conflict or a refused screenplay. Whichever side loses is first
- * saved as a new screenplay, so no text is discarded. */
+/** The three copies the merge dialog compares: last synced, this device's and the cloud's. */
+export async function readDeviceSyncMerge(projectId: string, scriptId: string): Promise<{
+  base: Record<string, unknown> | null; device: Record<string, unknown>; cloud: Record<string, unknown>; title: string;
+}> {
+  const scope = scopeForCloud();
+  if (!scope || !supportsDeviceSync()) throw new DeviceSyncMessage(t('toolbar:status.save.cloudSignIn'));
+  const binding = await readBinding(projectId);
+  if (!binding?.enabled || binding.scope !== scope.key) throw new DeviceSyncMessage(t('projects:sync.account'));
+  const [local, remote, base] = await Promise.all([
+    readDeviceContent(projectId, scriptId),
+    cloudApi.getScript(cloudProject(binding), scriptId, scope),
+    readScriptBaseContent(projectId, scriptId),
+  ]);
+  if (!local?.content || !remote.content) throw new DeviceSyncMessage(t('toolbar:status.save.cloudProblem'));
+  return { base, device: local.content, cloud: remote.content, title: remote.meta.title };
+}
+
+/** A way out of a conflict or a refused screenplay. Keeping one side first saves
+ * the other as a new screenplay, so no text is discarded. `merged` writes the
+ * writer's merge of the two to this device and uploads it. */
 export async function resolveDeviceSyncIssue(
-  projectId: string, scriptId: string, keep: 'device' | 'cloud',
+  projectId: string, scriptId: string, keep: 'device' | 'cloud' | 'merged', merged?: Record<string, unknown>,
 ): Promise<void> {
   const scope = scopeForCloud();
   if (!scope || !supportsDeviceSync()) throw new DeviceSyncMessage(t('toolbar:status.save.cloudSignIn'));
@@ -373,7 +458,27 @@ export async function resolveDeviceSyncIssue(
       await api.createScript(projectId, { title, content: prepareReviewSave(content ?? {}), format });
     };
 
-    if (keep === 'device') {
+    if (keep === 'merged') {
+      if (!merged || !device || !local || !remote?.content_revision) throw new DeviceSyncMessage(t('toolbar:status.save.cloudProblem'));
+      // Writing replaces the text; an editor holding the old text would undo it.
+      if (await findWindowWithDocument(documentKey(projectId, scriptId, null) ?? '').catch(() => null)) {
+        throw new DeviceSyncMessage(t('projects:sync.openElsewhere'));
+      }
+      const body = prepareReviewSave(merged);
+      if (!await pullDeviceContent(binding, { ...remote.meta, title: device.title, format: device.format }, body, local)) {
+        throw new DeviceSyncMessage(t('toolbar:status.save.cloudProblem'));
+      }
+      const written = await readDeviceContent(projectId, scriptId);
+      if (!written?.content) throw new DeviceSyncMessage(t('toolbar:status.save.cloudProblem'));
+      await noteUploadHash(binding, scriptId, digest(written.content));
+      const sent = await cloudApi.uploadOfflineScript(remoteId, scriptId, prepareReviewSave(written.content),
+        remote.content_revision, scope);
+      if (!sent.content_revision) throw new DeviceSyncMessage(t('toolbar:status.save.cloudProblem'));
+      await rememberScriptBase(binding, {
+        script_id: scriptId, content_hash: digest(sent.content), cloud_revision: sent.content_revision,
+        device_updated: written.updated_at, cloud_updated: sent.meta.updated_at,
+      }, sent.content);
+    } else if (keep === 'device') {
       if (!device || !local) throw new DeviceSyncMessage(t('toolbar:status.save.cloudProblem'));
       if (remote && !sameText) {
         // i18n-ignore: stored as the new screenplay's title.
@@ -388,7 +493,7 @@ export async function resolveDeviceSyncIssue(
       await rememberScriptBase(binding, {
         script_id: scriptId, content_hash: digest(sent.content), cloud_revision: sent.content_revision,
         device_updated: local.updated_at, cloud_updated: sent.meta.updated_at,
-      });
+      }, sent.content);
     } else {
       if (!remote?.content_revision) throw new DeviceSyncMessage(t('toolbar:status.save.cloudProblem'));
       if (device && local) {
@@ -407,7 +512,7 @@ export async function resolveDeviceSyncIssue(
       await rememberScriptBase(binding, {
         script_id: scriptId, content_hash: digest(remote.content), cloud_revision: remote.content_revision,
         device_updated: pulled.updated_at, cloud_updated: remote.meta.updated_at,
-      });
+      }, remote.content);
     }
     remembered.delete(`${projectId}:${scriptId}`);
   });
@@ -468,7 +573,9 @@ async function drain() {
 
 export function startDeviceProjectSync() {
   if (!supportsDeviceSync()) return;
-  const wake = () => wakeDeviceProjectSync();
+  // Coming back to the app (or online) is when a full pass is worth it,
+  // including the project's details, locations and pictures.
+  const wake = () => { extrasSynced.clear(); wakeDeviceProjectSync(); };
   window.addEventListener('online', wake);
   window.addEventListener('focus', wake);
   window.addEventListener('offline', () => {

@@ -139,6 +139,11 @@ interface SettingsState {
    */
   elementMenuOnEnter: boolean;
   setElementMenuOnEnter: (v: boolean) => void;
+  /** When a screenplay changed here and in the cloud, combine edits that do
+   * not touch the same lines without asking. Off: every one goes to the merge
+   * dialog for review. */
+  autoMergeEdits: boolean;
+  setAutoMergeEdits: (v: boolean) => void;
   /**
    * Shortcut that opens the element menu anywhere, blank line or not, in
    * ProseMirror notation (`Alt-Enter`, `Mod-Shift-e`). '' turns it off. It is
@@ -208,6 +213,7 @@ const STORAGE_KEY_AUTO_SAVE_INTERVAL = 'opendraft:autoSaveIntervalSeconds';
 const STORAGE_KEY_DEFAULT_PROJECT_FOLDER = 'opendraft:defaultProjectFolder';
 const STORAGE_KEY_DEFAULT_FILE_FORMAT = 'opendraft:defaultFileFormat';
 const STORAGE_KEY_ELEMENT_MENU_ON_ENTER = 'opendraft:elementMenuOnEnter';
+const STORAGE_KEY_AUTO_MERGE_EDITS = 'opendraft:autoMergeEdits';
 const STORAGE_KEY_PRINT_VIA_PDF = 'opendraft:printViaPdf';
 const STORAGE_KEY_PDF_TEXT_COLORS = 'opendraft:pdfTextColors';
 const STORAGE_KEY_DOCX_EXACT_HIGHLIGHTS = 'opendraft:docxExactHighlights';
@@ -492,6 +498,12 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   setElementMenuOnEnter: (v) => {
     try { localStorage.setItem(STORAGE_KEY_ELEMENT_MENU_ON_ENTER, v ? '1' : '0'); } catch { /* ignore */ }
     set({ elementMenuOnEnter: v });
+  },
+
+  autoMergeEdits: loadBool(STORAGE_KEY_AUTO_MERGE_EDITS, true),
+  setAutoMergeEdits: (v) => {
+    try { localStorage.setItem(STORAGE_KEY_AUTO_MERGE_EDITS, v ? '1' : '0'); } catch { /* ignore */ }
+    set({ autoMergeEdits: v });
   },
 
   printViaPdf: loadBool(STORAGE_KEY_PRINT_VIA_PDF, true),

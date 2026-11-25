@@ -143,6 +143,49 @@ export async function findWindowWithDocument(
   return claim ? { window: claim.window, title: claim.title } : null;
 }
 
+/** Documents an editor in this window is showing right now, by script key,
+ * counted: during a route change the next editor can mount before the last
+ * one unmounts. */
+const showingHere = new Map<string, number>();
+
+/**
+ * Record that an editor in this window is showing a script, until the returned
+ * function is called (on unmount, or when it moves to another script). This,
+ * not the project store's current script, is what "open here" means for a
+ * background merge: the store keeps the last script after the writer goes back
+ * to the project page, where no editor can autosave over a merge.
+ */
+export function markDocumentShowing(projectId: string | null | undefined, scriptId: string | null | undefined): () => void {
+  const key = documentKey(projectId ?? null, scriptId ?? null, null);
+  if (!key) return () => {};
+  showingHere.set(key, (showingHere.get(key) ?? 0) + 1);
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    const left = (showingHere.get(key) ?? 1) - 1;
+    if (left > 0) showingHere.set(key, left);
+    else showingHere.delete(key);
+  };
+}
+
+/**
+ * Whether a script is open in an editor anywhere: in this window or in another
+ * live window. A background merge must not write under an open editor, whose
+ * next autosave would undo it.
+ */
+export async function scriptOpenAnywhere(projectId: string, scriptId: string): Promise<boolean> {
+  const key = documentKey(projectId, scriptId, null);
+  if (!key) return false;
+  if (showingHere.has(key)) return true;
+  try {
+    return !!await findWindowWithDocument(key);
+  } catch (err) {
+    console.warn('[windows] could not check where a script is open:', err);
+    return true; // unknown: treat as open, so nothing is written under it
+  }
+}
+
 /** Ask the backend to bring another window forward. */
 export async function focusWindow(label: string): Promise<void> {
   const { invoke } = await import('@tauri-apps/api/core');

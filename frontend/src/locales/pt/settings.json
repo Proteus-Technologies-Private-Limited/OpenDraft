@@ -484,5 +484,11 @@
     "saveFailed": "Não foi possível salvar as listas do SmartType: {{message}}. Suas alterações continuam aqui; tente salvar novamente.",
     "save": "Salvar listas",
     "discard": "Descartar alterações"
+  },
+  "cloudSync": {
+    "title": "Sincronização com a nuvem",
+    "description": "Quando um roteiro muda neste dispositivo e no OpenDraft Cloud antes de os dois se sincronizarem.",
+    "autoMerge": "Mesclar automaticamente edições em linhas diferentes",
+    "autoMergeHint": "Edições que não mexem nas mesmas linhas são combinadas sem perguntar. Onde os dois lados mudaram a mesma linha, você escolhe. Desative para revisar cada roteiro alterado nos dois lugares antes da mesclagem."
   }
 }

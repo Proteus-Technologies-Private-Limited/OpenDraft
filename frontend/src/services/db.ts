@@ -122,6 +122,22 @@ async function migrate(db: Database): Promise<void> {
       await db.execute(`ALTER TABLE device_script_sync ADD COLUMN ${column} TEXT NOT NULL DEFAULT ''`);
     }
   }
+  // The acknowledged body itself (JSON), the common ancestor for a three-way
+  // merge when the screenplay then changes on both sides. NULL on rows written
+  // before merging existed; those fall back to asking about every difference.
+  for (const column of ['base_content', 'base_title']) {
+    if (!baseCols.some(c => c.name === column)) {
+      await db.execute(`ALTER TABLE device_script_sync ADD COLUMN ${column} TEXT`);
+    }
+  }
+  // Project-level sync (details, locations, pictures): what was last agreed
+  // with the cloud, as JSON, for the same three-way merge.
+  const projectSyncCols = await db.select<{ name: string }[]>(`PRAGMA table_info(device_project_sync)`);
+  for (const column of ['details_base', 'locations_base', 'locations_revision', 'assets_synced']) {
+    if (!projectSyncCols.some(c => c.name === column)) {
+      await db.execute(`ALTER TABLE device_project_sync ADD COLUMN ${column} TEXT`);
+    }
+  }
 
   // ── Delta versioning ──────────────────────────────────────────────────────
   // Each commit only stores scripts that changed. Unchanged scripts are
