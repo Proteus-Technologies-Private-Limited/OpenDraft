@@ -83,3 +83,70 @@ describe('platformFetch header forwarding', () => {
     expect(lastPayload().headers).toEqual({});
   });
 });
+
+/**
+ * `http_fetch` used to carry text only: a multipart upload arrived with no body
+ * (FastAPI answered 422) and a picture's bytes came back mangled into U+FFFD.
+ * Pictures syncing between a device project and the cloud found it.
+ */
+describe('platformFetch binary bodies', () => {
+  beforeEach(() => {
+    invoke.mockReset();
+    (window as any).__TAURI_INTERNALS__ = {};
+  });
+
+  afterEach(() => {
+    delete (window as any).__TAURI_INTERNALS__;
+  });
+
+  it('sends FormData as multipart bytes with its boundary', async () => {
+    invoke.mockResolvedValue({ status: 200, body: '{"id":"a1"}', encoding: 'text' });
+    const { platformFetch, base64ToBytes } = await loadPlatform();
+    const form = new FormData();
+    form.append('file', new Blob([new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0xff])], { type: 'image/png' }), 'pic.png');
+    const res = await platformFetch('https://open-draft.com/api/projects/p/device-assets/a1', { method: 'PUT', body: form });
+    const p = lastPayload();
+    expect(p.body).toBeUndefined();
+    expect(p.contentType).toMatch(/^multipart\/form-data; boundary=/);
+    const sent = new TextDecoder('latin1').decode(base64ToBytes(p.bodyBase64));
+    expect(sent).toContain('name="file"; filename="pic.png"');
+    expect(sent).toContain('\x89PNG\xff');
+    expect(p.timeoutSecs).toBeGreaterThan(10);
+    expect(await res.json()).toEqual({ id: 'a1' });
+  });
+
+  it('keeps a string body as text with the usual timeout', async () => {
+    invoke.mockResolvedValue({ status: 200, body: '{}', encoding: 'text' });
+    const { platformFetch } = await loadPlatform();
+    await platformFetch('https://open-draft.com/api/x', { method: 'POST', body: '{"a":1}', headers: { 'Content-Type': 'application/json' } });
+    const p = lastPayload();
+    expect(p.body).toBe('{"a":1}');
+    expect(p.bodyBase64).toBeUndefined();
+    expect(p.timeoutSecs).toBeUndefined();
+  });
+
+  it('returns a base64 response as the original bytes', async () => {
+    const { platformFetch, bytesToBase64 } = await loadPlatform();
+    const bytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x00, 0xff, 0xfe]);
+    invoke.mockResolvedValue({ status: 200, body: bytesToBase64(bytes), encoding: 'base64', content_type: 'image/png' });
+    const res = await platformFetch('https://open-draft.com/api/projects/p/assets/a1', {
+      headers: { Accept: 'application/octet-stream, */*' },
+    });
+    expect(lastPayload().timeoutSecs).toBeGreaterThan(10);
+    expect(res.headers.get('Content-Type')).toBe('image/png');
+    expect(new Uint8Array(await res.arrayBuffer())).toEqual(bytes);
+  });
+
+  it('accepts a 204 with no body', async () => {
+    invoke.mockResolvedValue({ status: 204, body: '', encoding: 'text' });
+    const { platformFetch } = await loadPlatform();
+    const res = await platformFetch('https://open-draft.com/api/x', { method: 'DELETE' });
+    expect(res.status).toBe(204);
+  });
+
+  it('round-trips a large buffer through base64', async () => {
+    const { bytesToBase64, base64ToBytes } = await loadPlatform();
+    const big = new Uint8Array(300_000).map((_, i) => (i * 31) & 0xff);
+    expect(base64ToBytes(bytesToBase64(big))).toEqual(big);
+  });
+});

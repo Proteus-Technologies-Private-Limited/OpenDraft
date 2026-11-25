@@ -232,6 +232,40 @@ function collectExtraHeaders(headers: HeadersInit | undefined): Record<string, s
   return out;
 }
 
+/** Seconds a picture upload or download may take (see http_fetch in lib.rs). */
+const BINARY_TRANSFER_TIMEOUT_SECS = 300;
+
+/** Bytes to base64 in chunks, so a large picture does not overflow the call stack. */
+export function bytesToBase64(bytes: Uint8Array): string {
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(binary);
+}
+
+export function base64ToBytes(encoded: string): Uint8Array {
+  const binary = atob(encoded);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+/**
+ * A body that is not a string (FormData, Blob, bytes) as base64, with the
+ * Content-Type the platform gives it — for FormData, multipart with its
+ * boundary. `http_fetch` used to take string bodies only, so every multipart
+ * upload from the desktop and mobile apps arrived empty.
+ */
+async function encodeBinaryBody(body: BodyInit): Promise<{ base64: string; contentType: string | null }> {
+  const request = new Request('https://opendraft.invalid/', { method: 'POST', body });
+  const bytes = new Uint8Array(await request.arrayBuffer());
+  return { base64: bytesToBase64(bytes), contentType: request.headers.get('Content-Type') };
+}
+
+/** Statuses whose Response may not carry a body (the constructor throws). */
+const NULL_BODY_STATUS = new Set([101, 103, 204, 205, 304]);
+
 export async function platformFetch(url: string, options?: RequestInit): Promise<Response> {
   if (!isTauri()) return fetch(url, options);
 
@@ -240,20 +274,36 @@ export async function platformFetch(url: string, options?: RequestInit): Promise
 
   try {
     const { invoke } = await import('@tauri-apps/api/core');
-    const result = await invoke<{ status: number; body: string }>('http_fetch', {
+    const raw = options?.body;
+    let contentType = pickHeader(options?.headers, 'Content-Type');
+    let bodyBase64: string | undefined;
+    if (raw != null && typeof raw !== 'string') {
+      const encoded = await encodeBinaryBody(raw);
+      bodyBase64 = encoded.base64;
+      contentType = contentType ?? encoded.contentType ?? undefined;
+    }
+    // A picture on its way in or out gets longer than the usual budget.
+    const accept = pickHeader(options?.headers, 'Accept') ?? '';
+    const binaryTransfer = bodyBase64 !== undefined || /octet-stream|image\//i.test(accept);
+    const result = await invoke<{ status: number; body: string; encoding?: string; content_type?: string | null }>('http_fetch', {
       url,
       method,
-      body: typeof options?.body === 'string' ? options.body : undefined,
-      contentType: pickHeader(options?.headers, 'Content-Type'),
+      body: typeof raw === 'string' ? raw : undefined,
+      bodyBase64,
+      contentType,
       authorization: pickHeader(options?.headers, 'Authorization'),
       headers: collectExtraHeaders(options?.headers),
+      timeoutSecs: binaryTransfer ? BINARY_TRANSFER_TIMEOUT_SECS : undefined,
     });
 
-    console.log(`[platformFetch] ${method} ${url} → ${result.status} (${result.body.length} bytes)`);
+    const binary = result.encoding === 'base64';
+    console.log(`[platformFetch] ${method} ${url} → ${result.status} (${result.body.length} ${binary ? 'base64 chars' : 'bytes'})`);
 
-    return new Response(result.body, {
+    const body = NULL_BODY_STATUS.has(result.status) ? null
+      : binary ? base64ToBytes(result.body) : result.body;
+    return new Response(body as BodyInit | null, {
       status: result.status,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': result.content_type || 'application/json' },
     });
   } catch (err) {
     console.error(`[platformFetch] ${method} ${url} → invoke FAILED:`, err);

@@ -2952,6 +2952,7 @@ dependencies = [
 name = "opendraft"
 version = "2.16.1"
 dependencies = [
+ "base64 0.22.1",
  "block2",
  "cc",
  "dispatch2",

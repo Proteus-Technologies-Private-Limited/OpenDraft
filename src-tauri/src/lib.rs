@@ -2333,10 +2333,20 @@ fn reveal_path(path: String) -> Result<(), String> {
 /// Wall-clock budget for a single `http_fetch` call.
 const HTTP_FETCH_TIMEOUT_SECS: u64 = 10;
 
+/// Longest budget a caller may ask for: a picture of up to 50 MB (the
+/// server's own asset limit) has to fit over a slow connection.
+const HTTP_FETCH_MAX_TIMEOUT_SECS: u64 = 600;
+
 #[derive(serde::Serialize)]
 struct HttpFetchResponse {
     status: u16,
+    /// The response body: as text when it is valid UTF-8 (`encoding` "text"),
+    /// otherwise its bytes in base64 (`encoding` "base64"). Reading every
+    /// response as text used to replace the bytes of a picture with U+FFFD, so
+    /// nothing binary survived the trip into the web view.
     body: String,
+    encoding: &'static str,
+    content_type: Option<String>,
 }
 
 /// Render a reqwest error with its full `source()` chain.
@@ -2379,6 +2389,12 @@ async fn http_fetch(
     // backend/app/api/auth.py forwards to the collab server so it can name the
     // device, never arrived from desktop or mobile.
     headers: Option<std::collections::HashMap<String, String>>,
+    // A binary request body (a multipart upload, a picture) in base64. Takes
+    // the place of `body`, which can only carry text.
+    body_base64: Option<String>,
+    // Seconds before the request is given up, capped; HTTP_FETCH_TIMEOUT_SECS
+    // when not given. Picture uploads and downloads ask for longer.
+    timeout_secs: Option<u64>,
 ) -> Result<HttpFetchResponse, String> {
     let method_str = method.as_deref().unwrap_or("GET");
     eprintln!("[http_fetch] {} {}", method_str, url);
@@ -2416,8 +2432,18 @@ async fn http_fetch(
         }
     }
 
-    if let Some(b) = &body {
+    if let Some(encoded) = &body_base64 {
+        use base64::Engine as _;
+        let bytes = base64::engine::general_purpose::STANDARD
+            .decode(encoded.as_bytes())
+            .map_err(|e| format!("Invalid request body: {}", e))?;
+        req = req.body(bytes);
+    } else if let Some(b) = &body {
         req = req.body(b.clone());
+    }
+
+    if let Some(secs) = timeout_secs {
+        req = req.timeout(std::time::Duration::from_secs(secs.clamp(1, HTTP_FETCH_MAX_TIMEOUT_SECS)));
     }
 
     let resp = req.send().await
@@ -2428,15 +2454,24 @@ async fn http_fetch(
         })?;
 
     let status = resp.status().as_u16();
-    let body_text = resp.text().await
-        .map_err(|e| format!("Failed to read response body: {}", e))?;
+    let content_type = resp.headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .map(str::to_string);
+    let bytes = resp.bytes().await
+        .map_err(|e| format!("Failed to read response body: {}", describe_reqwest_error(&e)))?;
+    let size = bytes.len();
+    let (body, encoding) = match String::from_utf8(bytes.to_vec()) {
+        Ok(text) => (text, "text"),
+        Err(not_text) => {
+            use base64::Engine as _;
+            (base64::engine::general_purpose::STANDARD.encode(not_text.into_bytes()), "base64")
+        }
+    };
 
-    eprintln!("[http_fetch] {} {} → {} ({} bytes)", method_str, url, status, body_text.len());
+    eprintln!("[http_fetch] {} {} → {} ({} bytes, {})", method_str, url, status, size, encoding);
 
-    Ok(HttpFetchResponse {
-        status,
-        body: body_text,
-    })
+    Ok(HttpFetchResponse { status, body, encoding, content_type })
 }
 
 // ── Link preview command ───────────────────────────────────────────────────
