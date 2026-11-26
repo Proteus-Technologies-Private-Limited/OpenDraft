@@ -29,9 +29,13 @@ pub fn with_panel_windows<'a, R: tauri::Runtime, M: Manager<R>>(
     editor: &str,
 ) -> tauri::WebviewWindowBuilder<'a, R, M> {
     let editor = editor.to_string();
-    // The page asks for "about:blank". window.open('') reaches wry as an empty
-    // URL, which Tauri cannot parse and denies before this handler runs.
-    builder.on_new_window(move |url, features| {
+    // Drag and drop is the page's own (HTML5), as in the browser. Tauri's
+    // native handler takes every drag at the window — a text selection
+    // dragged out of the script included — so the page saw no drag events:
+    // plugin drop targets could not work, and the whole window showed as a
+    // file drop zone. Files dropped on the window are imported by the page's
+    // HTML5 handlers instead (ScreenplayEditor, Fonts, Assets).
+    builder.disable_drag_drop_handler().on_new_window(move |url, features| {
         if url.as_str() == "about:blank" {
             eprintln!("[panels] Opening a panel window for {editor}");
             #[cfg(target_os = "linux")]

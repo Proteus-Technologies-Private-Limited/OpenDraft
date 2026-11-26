@@ -11,6 +11,8 @@
  * title, clearing project context, marking the source — because those differ
  * between entry points.
  */
+import { extractFountainPluginData, hasPluginData } from './pluginData';
+import { usePluginDataStore } from '../stores/pluginDataStore';
 import { spellChecker } from '../editor/spellchecker';
 import type { JSONContent } from '@tiptap/react';
 import { importedFormat, restoreImportedFormat, importedLineSpacingFormat } from './importedFormat';
@@ -191,6 +193,7 @@ export function resetStoresForImport(): void {
   store.resetRevisionState();
   // Genre & pacing belong to the script being replaced, not the import.
   store.setScriptProfile(DEFAULT_SCRIPT_PROFILE);
+  usePluginDataStore.getState().setAll({});
 }
 
 /**
@@ -238,6 +241,7 @@ export function fdxMetadata(parsed: ReturnType<typeof parseFDXFull>): Record<str
   // one with no spacing key is then taken for a script from before the
   // two-line scene-heading standard (utils/elementSpacing). An import is new,
   // so it says so: null follows the template, exactly as a bare import did.
+  if (hasPluginData(parsed.pluginData)) meta._pluginData = parsed.pluginData;
   if (Object.keys(meta).length > 0) meta._sceneHeadingSpaceBefore = null;
   return meta;
 }
@@ -447,6 +451,7 @@ async function parseScreenplayImportInternal(
     }
     if (hydrateStores) {
       resetStoresForImport();
+      usePluginDataStore.getState().setAll(parsed.pluginData);
       applyFdxSideEffects(parsed);
       applyDocumentFont(parsed.documentFont);
       if (spacingFormat && !useFormattingTemplateStore.getState().restoreDocumentTemplate(spacingFormat.id, spacingFormat)) {
@@ -489,10 +494,20 @@ async function parseScreenplayImportInternal(
     };
   }
 
-  // .fountain, .txt, and anything else we were handed as plain text.
-  const doc = parseFountain(text);
-  if (hydrateStores) resetStoresForImport();
-  return { doc, title: '', formatLabel, warnings: [] };
+  // .fountain, .txt, and anything else we were handed as plain text. Plugin
+  // data rides in a boneyard block of its own, taken out before parsing.
+  const { text: fountainText, data: pluginData } = extractFountainPluginData(text);
+  const doc = parseFountain(fountainText);
+  if (hydrateStores) {
+    resetStoresForImport();
+    usePluginDataStore.getState().setAll(pluginData);
+  }
+  return {
+    doc, title: '', formatLabel, warnings: [],
+    // With metadata the payload reads as OpenDraft's, so it says it is a new
+    // script, as fdxMetadata does, or it would be taken for a pre-2-line one.
+    ...(hasPluginData(pluginData) ? { metadata: { _pluginData: pluginData, _sceneHeadingSpaceBefore: null } } : {}),
+  };
 }
 
 /** A successful conversion is not a promise that an external format is lossless. */

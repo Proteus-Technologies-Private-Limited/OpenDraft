@@ -1,6 +1,7 @@
 import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import { rtlPlugins } from './vite.rtl'
+import { buildTimePlugins } from './vite.plugins'
 
 // Vite 8 uses Rolldown which does NOT transpile JS syntax via build.target.
 // So every output chunk is run through esbuild to down-level syntax the
@@ -68,7 +69,9 @@ function legacyTranspile(): Plugin {
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), legacyTranspile()],
+  // buildTimePlugins: plugins from other repos named by OPENDRAFT_PLUGINS
+  // (vite.plugins.ts); none unless it is set.
+  plugins: [buildTimePlugins(), react(), legacyTranspile()],
 
   // Mirrored (right-to-left) rules for Arabic and Persian, emitted beside the
   // originals and scoped to [dir="rtl"] — see vite.rtl.ts.

@@ -17,6 +17,7 @@ from app.config import COLLAB_JWT_SECRET, PROJECTS_DIR_BASE, BASE_DIR, DEMO_MODE
 from app.dependencies import require_verified_user
 from app.middleware.user_context import UserContextMiddleware
 from app.plugins import get_plugin_routers, run_hooks
+from app import frontend_plugins
 from app.services.user_migration import migrate_legacy_projects
 from app.services import quota_service  # noqa: F401 — registers default quota hook
 from app.services import activity_service, trash_service
@@ -138,6 +139,13 @@ app.include_router(formatting_templates.router, prefix="/api/formatting-template
 # Mount plugin routers (registered by external plugins before app startup)
 for _prefix, _router, _tags in get_plugin_routers():
     app.include_router(_router, prefix=_prefix, tags=_tags)
+
+# Runtime frontend plugins: one folder each under backend/plugins (or
+# OPENDRAFT_PLUGINS_DIR), listed at /api/plugins and served from /plugins.
+# Mounted before the SPA catch-all below, which would otherwise answer them.
+frontend_plugins.ensure_plugins_dir()
+app.include_router(frontend_plugins.router, prefix="/api/plugins", tags=["frontend-plugins"])
+app.mount("/plugins", StaticFiles(directory=frontend_plugins.PLUGINS_DIR, check_dir=False), name="frontend-plugins")
 
 
 @app.get("/health")

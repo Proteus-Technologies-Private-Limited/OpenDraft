@@ -20,6 +20,8 @@ import { useEditorStore } from '../stores/editorStore';
 import { useFormattingTemplateStore, activeTemplateSnapshot } from '../stores/formattingTemplateStore';
 import { spellChecker } from '../editor/spellchecker';
 import { grammarIgnore } from '../editor/grammar/grammarIgnore';
+import { currentPluginData } from '../stores/pluginDataStore';
+import { hasPluginData } from './pluginData';
 
 /**
  * Every `_`-prefixed key `buildSaveContent` writes. Used to separate app
@@ -61,6 +63,7 @@ export const SAVE_METADATA_KEYS = [
   '_revisionHistory',
   '_revisionSettings',
   '_scriptProfile',
+  '_pluginData',
 ] as const;
 
 export type SaveMetadataKey = (typeof SAVE_METADATA_KEYS)[number];
@@ -124,6 +127,9 @@ export function buildSaveContent(editor: Editor | null): Record<string, unknown>
     _revisionSettings: store.revisionSettings,
     // Pacing (which scales the runtime estimate) and genres.
     _scriptProfile: store.scriptProfile,
+    // Each plugin's own data (pluginRegistry.setDocumentData). Written only
+    // when a plugin keeps some, so other scripts save exactly as before.
+    ...(hasPluginData(currentPluginData()) ? { _pluginData: currentPluginData() } : {}),
   };
 }
 

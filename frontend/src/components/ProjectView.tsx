@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { normalizePluginData } from '../utils/pluginData';
+import { usePluginDataStore } from '../stores/pluginDataStore';
 import { ModalOverlay } from './ModalOverlay';
 import type { JSONContent } from '@tiptap/react';
 import { withoutSuggestionsJSON } from '../editor/suggestions';
@@ -857,6 +859,7 @@ const ProjectView: React.FC = () => {
     edStore.setScenes([]);
     edStore.resetRevisionState();
     edStore.setScriptProfile(DEFAULT_SCRIPT_PROFILE);
+    usePluginDataStore.getState().setAll({});
     // Tell MenuBar (which mounts inside ScreenplayEditor on '/') to prompt
     // for a script format. The flag is consumed by MenuBar's mount effect.
     edStore.setPendingFormatPromptInProject(true);
@@ -1050,13 +1053,14 @@ const ProjectView: React.FC = () => {
               await downloadFDX(labelSavedContent(content as Parameters<typeof downloadFDX>[0], content), title, profiles, cats, tags,
                 undefined, undefined, undefined, undefined, undefined,
                 { mode: rev.revisionMode, color: rev.revisionColor, settings: rev.revisionSettings },
-                { sceneNumbersVisible: (content as Record<string, unknown>)?._sceneNumbersVisible !== false });
+                { sceneNumbersVisible: (content as Record<string, unknown>)?._sceneNumbersVisible !== false, pluginData: normalizePluginData((content as Record<string, unknown>)?._pluginData) });
             }
             break;
           case 'fountain':
             await downloadFountain(content as any, title, {
               revisionSettings: readRevisionState(content).revisionSettings,
               sceneNumbersVisible: (content as Record<string, unknown>)?._sceneNumbersVisible !== false,
+              pluginData: normalizePluginData((content as Record<string, unknown>)?._pluginData),
             });
             break;
           case 'pdf':

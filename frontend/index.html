@@ -152,7 +152,9 @@
       // Catch fatal JS errors that prevent React from mounting.
       // Shows a visible error overlay instead of a blank screen.
       window.addEventListener('error', function(e) {
-        if (window.__odBooted) return;
+        // Also while runtime plugins load (src/plugins/runtimeLoader.ts): a
+        // broken plugin is logged and skipped, it never stops the app.
+        if (window.__odBooted || window.__odLoadingPlugins) return;
         var d = document.getElementById('_fatal');
         if (!d) {
           d = document.createElement('div');
@@ -164,7 +166,7 @@
         d.innerHTML += '\n[ERROR] ' + (e.message || e) + '\n  at ' + (e.filename || '?') + ':' + (e.lineno || '?') + '\n';
       });
       window.addEventListener('unhandledrejection', function(e) {
-        if (window.__odBooted) return;
+        if (window.__odBooted || window.__odLoadingPlugins) return;
         var d = document.getElementById('_fatal');
         if (!d) {
           d = document.createElement('div');

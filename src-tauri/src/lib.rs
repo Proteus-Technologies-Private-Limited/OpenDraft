@@ -3692,6 +3692,8 @@ pub fn run() {
                             .inner_size(1280.0, 800.0)
                             .min_inner_size(800.0, 600.0)
                             .resizable(true)
+                            // HTML5 drag and drop, as every other window (desktop_windows::with_panel_windows).
+                            .disable_drag_drop_handler()
                             .build()
                         {
                             Ok(_new_win) => {

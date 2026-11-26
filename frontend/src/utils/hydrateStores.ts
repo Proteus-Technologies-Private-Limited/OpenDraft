@@ -1,4 +1,6 @@
 import { spellChecker } from '../editor/spellchecker';
+import { normalizePluginData } from './pluginData';
+import { usePluginDataStore } from '../stores/pluginDataStore';
 import { readSourceFidelity } from './sourceFidelity';
 /**
  * Restore the `_`-prefixed app metadata from an imported `.odraft` payload.
@@ -85,6 +87,7 @@ export function hydrateEditorStoresFromContent(
   // Always set: a script saved before profiles existed opens as Standard with
   // no genres, not with whatever the previous script had.
   store.setScriptProfile(normalizeScriptProfile(c._scriptProfile));
+  usePluginDataStore.getState().setAll(normalizePluginData(c._pluginData));
 
   const templates = useFormattingTemplateStore.getState();
   if (c._templateId !== undefined || c._templateSnapshot !== undefined || templates.documentTemplate || templates.unreadableTemplateSnapshot != null) {

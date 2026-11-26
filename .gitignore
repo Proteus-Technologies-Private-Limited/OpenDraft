@@ -66,6 +66,8 @@ test-doc.*
 
 # Backend static (built artifact)
 backend/static/
+# Runtime frontend plugins installed on this server (backend/app/frontend_plugins.py)
+backend/plugins/
 
 # Runtime project data
 backend/data/

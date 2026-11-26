@@ -1,4 +1,6 @@
 // Final Draft XML (.fdx) parser — full formatting & layout support
+import { readFdxPluginData } from './pluginData';
+import type { PluginDocumentData } from '../stores/pluginDataStore';
 import { isNumberableElementId } from './elementNumbers';
 import { uuid } from './uuid';
 import { isDocumentFont, isDocumentSize } from './fonts';
@@ -246,6 +248,8 @@ export interface FDXParseResult {
    * script is single-spaced, which is nearly every file.
    */
   lineSpacing: ImportedLineSpacing | null;
+  /** Plugins' own data from `<OpenDraftPluginData>`; empty for other apps' files. */
+  pluginData: PluginDocumentData;
 }
 
 /** One `<ElementSettings>`: its Type and its ParagraphSpec's `Spacing`. */
@@ -407,7 +411,7 @@ export function parseFDXFull(xmlString: string): FDXParseResult {
   // Use 'FinalDraft > Content' to skip the TitlePage > Content element
   const contentEl = xmlDoc.querySelector('FinalDraft > Content');
   if (!contentEl) {
-    return { doc: { type: 'doc', content: [{ type: 'action', content: [] }] }, pageLayout, documentFont, castList: [], characterHighlighting: [], tagCategories: [], tagItems: [], beats: [], beatColumns: [], revisions, lineSpacing };
+    return { doc: { type: 'doc', content: [{ type: 'action', content: [] }] }, pageLayout, documentFont, castList: [], characterHighlighting: [], tagCategories: [], tagItems: [], beats: [], beatColumns: [], revisions, lineSpacing, pluginData: readFdxPluginData(xmlDoc) };
   }
 
   // Iterate direct children (Paragraph and DualDialogue elements)
@@ -724,6 +728,7 @@ export function parseFDXFull(xmlString: string): FDXParseResult {
     beatColumns,
     revisions,
     lineSpacing,
+    pluginData: readFdxPluginData(xmlDoc),
   };
 }
 

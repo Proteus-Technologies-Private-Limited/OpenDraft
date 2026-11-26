@@ -13,6 +13,7 @@
  * In's .fadein is a zip archive, written in one non-atomic pass, so it is left
  * to Open File from Disk, where every save is one the writer asked for.
  */
+import { normalizePluginData } from './pluginData';
 import { findTemplate } from '../stores/formattingTemplateStore';
 import type { FormattingTemplate } from '../stores/formattingTypes';
 import { withoutSuggestionsJSON } from '../editor/suggestions';
@@ -162,11 +163,11 @@ export function serializeContentForFormat(
         { family: font.family, size: font.size },
         undefined,
         { mode: revision.revisionMode, color: revision.revisionColor, settings: revision.revisionSettings },
-        { sceneNumbersVisible },
+        { sceneNumbersVisible, pluginData: normalizePluginData(m._pluginData) },
       );
     case 'fountain':
     case 'txt':
-      return exportFountain(doc, { revisionSettings: revision.revisionSettings, sceneNumbersVisible });
+      return exportFountain(doc, { revisionSettings: revision.revisionSettings, sceneNumbersVisible, pluginData: normalizePluginData(m._pluginData) });
     case 'osf':
       return exportOSF(doc, {
         pageLayout: m._pageLayout as PageLayout | undefined,
