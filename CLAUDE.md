@@ -11,6 +11,7 @@ The core exposes a plugin architecture so Pro features can be added without modi
 - **Frontend:** `frontend/src/plugins/registry.ts` — `pluginRegistry.register()` to add menu items, sidebar panels, routes, editor extensions, and `importers` / `exporters` / `reports`
 - **Backend:** `backend/app/plugins.py` — `register_router()` and `register_hook()` for API routes and lifecycle hooks
 - **Integration points:** MenuBar appends plugin menu items, App.tsx renders plugin routes, ScreenplayEditor renders plugin panels and editor extensions
+- **Building a plugin in another repo:** `docs/PLUGIN_DEVELOPMENT.md` is the guide to hand a coding agent (contract, slots, host wiring, platform limits, rules)
 - **Importers** join every import path through `utils/importScreenplay.ts` (`importExtensions()`, `isBinaryImportExtension()` …) — a plugin can add a format but never take over a built-in one. **Exporters** are listed under File → Export. **Reports** return a `ReportTable` and appear in Tools → Analytics → Reports beside the built-in ones (`utils/scriptReports.ts`), with the same CSV and PDF export
 
 ### Key Rules
@@ -91,6 +92,17 @@ Reuses `IOS_CERTIFICATE` (Apple Distribution) and `APPSTORE_API_KEY*` secrets. A
 ## Promotion & Articles
 
 Promotion materials (blog posts, articles, social media content) go in `Promotion/posts/` in the project root — **not** in `docs/`.
+
+---
+
+## Changes Go Through Pull Requests
+
+Every change reaches `main` through a pull request: branch off an up-to-date
+`main`, push the branch, open a PR, merge it. The "Protect main" ruleset rejects
+direct pushes to `main` for everyone — the admin bypass only applies inside a
+PR, and no approval is required, so you can merge your own. Never push to
+`main` directly or look for a way round the rule. Tags are not covered, so
+release tags still push as before.
 
 ---
 

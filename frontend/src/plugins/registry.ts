@@ -38,6 +38,11 @@ export function resolvePluginText(key: string | undefined, fallback: string): st
 export type MenuSection = 'File' | 'Edit' | 'Format' | 'View' | 'Production' | 'Tools' | 'Help';
 
 export interface PluginContext {
+  /**
+   * The screenplay editor. In the context `init` receives this always reads
+   * the editor open right now — keep the context and read `ctx.editor` when
+   * you need it; it is null while no script is open.
+   */
   editor: Editor | null;
 }
 
@@ -77,8 +82,18 @@ export interface PluginMenuEntry {
   icon?: ReactNode;
 }
 
+export interface PluginPanelProps {
+  editor: Editor | null;
+}
+
 export interface PluginPanelEntry {
   id: string;
+  /**
+   * `right-sidebar`: a vertical tab beside the script. `bottom-panel`: a tab
+   * under the script that opens the panel above the status bar. `toolbar`: an
+   * item the writer can place on the toolbar. `status-bar`: drawn at the end
+   * of the status bar. Every slot passes `{ editor }`.
+   */
   slot: 'right-sidebar' | 'bottom-panel' | 'toolbar' | 'status-bar';
   component: React.ComponentType<any>;
   label: string;
@@ -336,7 +351,15 @@ export interface OpenDraftPlugin {
    * through `registerGrammarProvider`; an add-on's are withheld while it is off.
    */
   grammarProviders?: Record<string, GrammarProvider>;
-  init?: (ctx: PluginContext) => Promise<void>;
+  /**
+   * Runs once, the first time a script's editor is ready while the plugin is
+   * active (for an add-on: once it is on). Registered after that, or turned on
+   * later, it runs straight away if a script is open. `ctx.editor` follows the
+   * editor that is open, so keep `ctx` rather than the editor itself. A throw
+   * is logged and does not stop other plugins.
+   */
+  init?: (ctx: PluginContext) => void | Promise<void>;
+  /** Called when the plugin is unregistered. */
   destroy?: () => void;
 }
 
@@ -414,6 +437,19 @@ export class PluginRegistry {
   private _grammarProviders: Map<string, GrammarProvider> = new Map();
   private _grammarListeners: Array<() => void> = [];
   private _enabledAddOns: Set<string> | null = null;
+  /** The editor open right now, as reported by the screenplay editor. */
+  private _editor: Editor | null = null;
+  /** Plugins whose `init` has run (or is running). */
+  private _initialised: Set<string> = new Set();
+  /** The context every `init` receives: `editor` reads the live editor. */
+  private readonly _context: PluginContext;
+
+  constructor() {
+    const current = (): Editor | null => this._editor;
+    this._context = {
+      get editor() { return current(); },
+    };
+  }
 
   private get _enabled(): Set<string> {
     if (!this._enabledAddOns) this._enabledAddOns = readEnabledAddOns();
@@ -446,6 +482,8 @@ export class PluginRegistry {
   /** Register a plugin. Replaces any existing plugin with the same id. */
   register(plugin: OpenDraftPlugin): void {
     this._plugins.set(plugin.id, plugin);
+    // A replacement under the same id is a new plugin: its own init runs.
+    this._initialised.delete(plugin.id);
     if (plugin.optIn && this._enabled.has(plugin.id)) {
       // Turned on in an earlier session: it starts working again now.
       this._runActivate(plugin).catch((err) => {
@@ -453,6 +491,7 @@ export class PluginRegistry {
       });
     }
     this._notify(plugin);
+    void this._initPending();
   }
 
   // ── Add-ons ──
@@ -496,6 +535,7 @@ export class PluginRegistry {
     }
     writeEnabledAddOns(this._enabled);
     this._notify(plugin);
+    await this._initPending();
   }
 
   /**
@@ -522,8 +562,15 @@ export class PluginRegistry {
   /** Unregister a plugin by id. Calls destroy() if defined. */
   unregister(id: string): void {
     const plugin = this._plugins.get(id);
-    if (plugin?.destroy) plugin.destroy();
+    if (plugin?.destroy) {
+      try {
+        plugin.destroy();
+      } catch (err) {
+        console.error(`[plugins] ${id} reported an error while being removed`, err);
+      }
+    }
     this._plugins.delete(id);
+    this._initialised.delete(id);
     this._notify(plugin);
   }
 
@@ -630,15 +677,45 @@ export class PluginRegistry {
     return actions;
   }
 
-  /** Initialize all plugins. Call once after the editor is ready. */
-  async initAll(ctx: PluginContext): Promise<void> {
+  // ── The open editor and plugin init ──
+
+  /**
+   * The screenplay editor calls this when its editor is ready, and with null
+   * when it goes away. The first time there is an editor, every active
+   * plugin's `init` runs.
+   */
+  setEditor(editor: Editor | null): Promise<void> {
+    this._editor = editor;
+    return this._initPending();
+  }
+
+  /** Forget `editor` if it is still the open one (an unmounting editor calls this). */
+  releaseEditor(editor: Editor): void {
+    if (this._editor === editor) this._editor = null;
+  }
+
+  /** The editor open right now, or null. */
+  getEditor(): Editor | null {
+    return this._editor;
+  }
+
+  /** Run `init` for every active plugin with an editor at hand. Same as `setEditor(ctx.editor)`. */
+  initAll(ctx: PluginContext): Promise<void> {
+    return this.setEditor(ctx.editor);
+  }
+
+  /** Run `init` for active plugins that have not had it yet, once an editor exists. */
+  private async _initPending(): Promise<void> {
+    if (!this._editor) return;
     for (const plugin of this._active()) {
-      if (plugin.init) {
-        try {
-          await plugin.init(ctx);
-        } catch (err) {
-          console.error(`Plugin ${plugin.id} init failed:`, err);
-        }
+      if (!plugin.init || this._initialised.has(plugin.id)) continue;
+      // The script closed while an earlier init ran: the rest wait for the next one.
+      if (!this._editor) return;
+      this._initialised.add(plugin.id);
+      try {
+        await plugin.init(this._context);
+      } catch (err) {
+        console.error(`[plugins] ${plugin.id} could not start`, err);
       }
     }
   }

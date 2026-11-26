@@ -53,13 +53,20 @@ _hooks: dict[str, list[Callable[..., Any]]] = {}
 def register_hook(event: str, callback: Callable[..., Any]) -> None:
     """Register a callback for a lifecycle event.
 
+    Callbacks may be sync or async and are called with keyword arguments.
+
     Built-in events:
-        app:startup       — app is starting
-        app:shutdown      — app is shutting down
+        app:startup        — the app has started, before it serves requests (app)
+        app:shutdown       — the app is stopping (app)
         script:before_save — before a script is saved (project_id, script_id, content)
         script:after_save  — after a script is saved (project_id, script_id, content)
-        project:created   — after a project is created (project)
-        project:deleted   — after a project is deleted (project_id)
+        project:created    — after a project is created (project)
+        project:deleted    — after a project is deleted (project_id)
+        quota:check:create_script — gate before a script is created (user);
+                             raise HTTPException to refuse
+
+    Register hooks before ``app.main`` is imported. Only this registry is
+    called by core: a host that keeps its own list must forward to it.
     """
     _hooks.setdefault(event, []).append(callback)
 
@@ -74,11 +81,9 @@ async def run_hooks(event: str, **kwargs: Any) -> None:
             # Support async callbacks
             if hasattr(result, "__await__"):
                 await result
-        except Exception as exc:
+        except Exception:
             import logging
-            logging.getLogger("plugins").error(
-                "Hook %s callback failed: %s", event, exc
-            )
+            logging.getLogger("plugins").exception("Hook %s callback failed", event)
 
 
 async def run_gate_hooks(event: str, **kwargs: Any) -> None:

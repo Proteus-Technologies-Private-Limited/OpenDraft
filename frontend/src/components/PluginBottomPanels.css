@@ -1,0 +1,111 @@
+/**
+ * Plugin panels under the script: an open panel above a horizontal tab strip,
+ * both between the editor and the status bar.
+ */
+
+.plugin-bottom-panels {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  width: 100%;
+}
+
+.plugin-bottom-panels__content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  max-height: 60vh;
+  background: var(--fd-navigator-bg, var(--fd-bg, #2b2b2b));
+  border-top: 1px solid var(--fd-border, rgba(255, 255, 255, 0.06));
+  overflow: hidden;
+}
+
+.plugin-bottom-panels__body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+/* Drag handle on the TOP edge — the vertical twin of the sidebar's resize handle. */
+.plugin-bottom-panels__resize {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  cursor: row-resize;
+  background: transparent;
+  z-index: 11;
+  transition: background 0.15s;
+}
+.plugin-bottom-panels__resize:hover,
+.plugin-bottom-panels__resize:active,
+.plugin-bottom-panels__resize:focus-visible {
+  background: var(--fd-accent, #4a9eff);
+  outline: none;
+}
+
+.plugin-bottom-panels__close {
+  position: absolute;
+  top: 6px;
+  inset-inline-end: 8px;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--fd-text, #e0e0e0);
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  z-index: 10;
+  opacity: 0.65;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.plugin-bottom-panels__close:hover {
+  background: var(--fd-input-bg, rgba(255, 255, 255, 0.06));
+  border-color: var(--fd-border, rgba(255, 255, 255, 0.12));
+  opacity: 1;
+}
+
+.plugin-bottom-panels__strip {
+  display: flex;
+  flex-direction: row;
+  gap: 2px;
+  padding: 0 4px;
+  overflow-x: auto;
+  background: var(--fd-menu-bg, #333);
+  border-top: 1px solid var(--fd-border, rgba(255, 255, 255, 0.06));
+}
+
+.plugin-bottom-panels__tab {
+  background: transparent;
+  color: var(--fd-text, #e0e0e0);
+  border: none;
+  border-top: 2px solid transparent;
+  padding: 4px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  opacity: 0.6;
+  transition: background 0.15s, opacity 0.15s, border-color 0.15s;
+}
+.plugin-bottom-panels__tab:hover {
+  background: var(--fd-overlay-subtle, rgba(255, 255, 255, 0.04));
+  opacity: 0.95;
+}
+.plugin-bottom-panels__tab--active {
+  background: var(--fd-overlay-subtle, rgba(255, 255, 255, 0.06));
+  border-top-color: var(--fd-accent, #4a9eff);
+  opacity: 1;
+}
+
+@media print {
+  .plugin-bottom-panels { display: none !important; }
+}
