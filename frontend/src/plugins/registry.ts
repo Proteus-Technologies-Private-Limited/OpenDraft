@@ -13,6 +13,8 @@
 import type { Editor, JSONContent } from '@tiptap/core';
 import type { ReactNode } from 'react';
 import { i18next } from '../i18n';
+import { usePluginDataStore } from '../stores/pluginDataStore';
+import { toStorableEntry } from '../utils/pluginData';
 
 /**
  * The words a plugin shows. A plugin that brought its own translations
@@ -735,6 +737,50 @@ export class PluginRegistry {
     if (changed?.grammarProviders && Object.keys(changed.grammarProviders).length > 0) {
       this._notifyGrammar();
     }
+  }
+
+  // ── Document data ──
+  //
+  // Each plugin can keep one JSON value inside the open script, under its own
+  // id. It is saved and reopened with the script, carried through .odraft,
+  // backups, FDX and Fountain, and synced to collaborators. Core keeps an
+  // entry even while its plugin is off or not installed, so a script never
+  // loses a plugin's data by being opened without it.
+
+  /**
+   * The value `pluginId` keeps in the open script, or undefined. Treat it as
+   * read-only: change it through `setDocumentData`.
+   */
+  getDocumentData<T = unknown>(pluginId: string): T | undefined {
+    return usePluginDataStore.getState().data[pluginId] as T | undefined;
+  }
+
+  /**
+   * Keep `value` in the open script under `pluginId` (undefined removes it).
+   * The value is stored as a JSON copy and the script is marked for saving.
+   * Throws, with a message fit to show, when the value is not JSON or is over
+   * the size limit (2 MB serialized).
+   */
+  setDocumentData(pluginId: string, value: unknown): void {
+    if (!pluginId) throw new Error('setDocumentData needs the plugin id.');
+    const entry = value === undefined ? undefined : toStorableEntry(pluginId, value);
+    usePluginDataStore.getState().setEntry(pluginId, entry);
+  }
+
+  /**
+   * Listen for any change to the open script's plugin data — a plugin's own
+   * writes, a script opened or imported, a collaborator's edit. Returns
+   * unsubscribe. Read the new value with `getDocumentData`.
+   */
+  subscribeDocumentData(listener: () => void): () => void {
+    return usePluginDataStore.subscribe((state, prev) => {
+      if (state.data === prev.data) return;
+      try {
+        listener();
+      } catch (err) {
+        console.error('[plugins] a document-data listener failed', err);
+      }
+    });
   }
 
   // ── Grammar providers ──

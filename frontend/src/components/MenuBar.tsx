@@ -1,4 +1,5 @@
 import ElementNumberDialog from './ElementNumberDialog';
+import { usePluginDataStore } from '../stores/pluginDataStore';
 import { mapElementNumberTarget, type ElementNumberTarget } from '../editor/elementNumberTarget';
 import { collectNumberedElements, elementNumberAt, elementNumbersPluginKey } from '../editor/extensions/ElementNumbers';
 import SourceBackupRecovery from './SourceBackupRecovery';
@@ -1949,6 +1950,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
     store.resetRevisionState();
     // A new screenplay starts at Standard pacing with no genres.
     store.setScriptProfile(DEFAULT_SCRIPT_PROFILE);
+    usePluginDataStore.getState().setAll({});
     if (window.location.pathname !== '/') {
       window.history.replaceState(null, '', '/');
     }
@@ -2178,7 +2180,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
         { family: s.fontFamily, size: s.fontSize },
         buildExportFootnotePlan(exportJSON(editor), s.pageLayout, s.notes, s.generalNotes),
         { mode: s.revisionMode, color: s.revisionColor, settings: s.revisionSettings },
-          { sceneNumbersVisible: s.sceneNumbersVisible, elementNumbersVisible: s.elementNumbersVisible });
+          { sceneNumbersVisible: s.sceneNumbersVisible, elementNumbersVisible: s.elementNumbersVisible, pluginData: usePluginDataStore.getState().data });
     } catch (err) {
       console.error('FDX export failed:', err);
       showToast(t('menu:toasts.exportFailed', { message: err instanceof Error ? err.message : String(err) }), 'error');
@@ -2206,6 +2208,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
       await downloadFountain(exportJSON(editor), documentTitle, {
         revisionSettings: useEditorStore.getState().revisionSettings,
         sceneNumbersVisible: useEditorStore.getState().sceneNumbersVisible,
+        pluginData: usePluginDataStore.getState().data,
       });
     } catch (err) {
       console.error('Fountain export failed:', err);

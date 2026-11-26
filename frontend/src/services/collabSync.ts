@@ -22,6 +22,8 @@ import { validTemplatePageLayout } from '../utils/templateSnapshot';
 import { useEditorStore, DEFAULT_PAGE_LAYOUT, type GeneralNote, type NoteInfo, type PageLayout } from '../stores/editorStore';
 import { normalizeRevisionSettings } from '../editor/revisionColors';
 import { normalizeScriptProfile } from '../utils/scriptProfile';
+import { currentPluginData, usePluginDataStore } from '../stores/pluginDataStore';
+import { normalizePluginData } from '../utils/pluginData';
 import {
   addedNoteIds,
   mergeNoteLists,
@@ -51,6 +53,9 @@ const SYNC_KEYS = [
   'revisionSettings',
   // Pacing changes everyone's runtime estimate, so it is shared like the rest.
   'scriptProfile',
+  // Plugins' own data (pluginRegistry.setDocumentData), as one value: the last
+  // writer wins, as with the script profile.
+  'pluginData',
 ] as const;
 
 type SyncKey = (typeof SYNC_KEYS)[number];
@@ -72,6 +77,7 @@ let tombMap: Y.Map<string> | null = null;
 let fromYjs = false;
 let unsubStore: (() => void) | null = null;
 let unsubTemplates: (() => void) | null = null;
+let unsubPluginData: (() => void) | null = null;
 let prevFormat: string | null = null;
 let prevSharedFormat: string | null = null;
 let mayPublishFormat = false;
@@ -125,6 +131,7 @@ export function startCollabSync(
       metaMap!.set('revisionHistory', JSON.stringify(store.revisionHistory));
       metaMap!.set('revisionSettings', JSON.stringify(store.revisionSettings));
       metaMap!.set('scriptProfile', JSON.stringify(store.scriptProfile));
+      metaMap!.set('pluginData', JSON.stringify(currentPluginData()));
       if (canEditFormat()) metaMap!.set(FORMAT_KEY, formatSnapshot());
       pruneTombstones(Date.now());
     });
@@ -176,6 +183,7 @@ export function startCollabSync(
   };
   unsubStore = useEditorStore.subscribe(publishChanges);
   unsubTemplates = useFormattingTemplateStore.subscribe(publishChanges);
+  unsubPluginData = usePluginDataStore.subscribe(publishChanges);
 }
 
 /**
@@ -196,6 +204,8 @@ export function stopCollabSync(): void {
   mayPublishFormat = false;
   unsubTemplates?.();
   unsubTemplates = null;
+  unsubPluginData?.();
+  unsubPluginData = null;
   prevNoteLists = null;
   lastRemoteIds = { notes: undefined, generalNotes: undefined };
   adoptNextNotes = { notes: false, generalNotes: false };
@@ -226,6 +236,7 @@ function takeSnapshot(): Record<SyncKey, string> {
     revisionHistory: JSON.stringify(s.revisionHistory),
     revisionSettings: JSON.stringify(s.revisionSettings),
     scriptProfile: JSON.stringify(s.scriptProfile),
+    pluginData: JSON.stringify(currentPluginData()),
   };
 }
 
@@ -491,6 +502,18 @@ function applyYjsToStore() {
         }
       } catch (err) {
         console.warn('[collabSync] could not apply script profile', err);
+      }
+    }
+
+    const pd = metaMap.get('pluginData');
+    if (pd) {
+      try {
+        const next = normalizePluginData(pd);
+        if (JSON.stringify(next) !== JSON.stringify(currentPluginData())) {
+          usePluginDataStore.getState().setAll(next);
+        }
+      } catch (err) {
+        console.warn('[collabSync] could not apply plugin data', err);
       }
     }
 

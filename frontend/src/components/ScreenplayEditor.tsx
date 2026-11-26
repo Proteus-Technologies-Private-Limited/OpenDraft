@@ -1,4 +1,6 @@
 import { readSourceFidelity } from '../utils/sourceFidelity';
+import { normalizePluginData } from '../utils/pluginData';
+import { usePluginDataStore } from '../stores/pluginDataStore';
 import React, { useEffect, useLayoutEffect, useCallback, useRef, useState, useMemo, useSyncExternalStore } from 'react';
 import { panelResize } from '../utils/panelResize';
 import { ModalOverlay } from './ModalOverlay';
@@ -3337,6 +3339,7 @@ const ScreenplayEditor: React.FC = () => {
     store.setScenes([]);
     store.setPageLayout({ ...DEFAULT_PAGE_LAYOUT });
     store.setScriptProfile(DEFAULT_SCRIPT_PROFILE);
+    usePluginDataStore.getState().setAll({});
     // Replacing the content above counted as an edit to the screenplay that
     // was still current; a blank document has nothing unsaved.
     store.setSaveStatus('idle');
@@ -3876,8 +3879,12 @@ const ScreenplayEditor: React.FC = () => {
     });
     const unsubTemplate = subscribeActiveTemplate(persistMetadataChange);
     const unsubLanguages = onScriptLanguagesChange(persistMetadataChange);
+    // A plugin's own data (pluginRegistry.setDocumentData) saves like a note.
+    const unsubPluginData = usePluginDataStore.subscribe((state, prev) => {
+      if (state.data !== prev.data) persistMetadataChange();
+    });
 
-    return () => { unsub(); unsubTemplate(); unsubLanguages(); if (timer) clearTimeout(timer); };
+    return () => { unsub(); unsubTemplate(); unsubLanguages(); unsubPluginData(); if (timer) clearTimeout(timer); };
   }, [editor, hasSaveTarget, currentProject, currentScriptId, buildSaveContent, isCollabGuest, isHistoryMode, autoSaveLibrary]);
 
   // A never-saved blank still needs to advertise its language choice as unsaved.
@@ -4325,6 +4332,7 @@ const ScreenplayEditor: React.FC = () => {
           store.setPageLayout({ ...DEFAULT_PAGE_LAYOUT });
           // Pacing and genres; a script without them opens as Standard.
           store.setScriptProfile(normalizeScriptProfile((content as Record<string, unknown> | null | undefined)?._scriptProfile));
+          usePluginDataStore.getState().setAll(normalizePluginData((content as Record<string, unknown> | null | undefined)?._pluginData));
           const parseAttr = (val: unknown): unknown[] => {
             if (typeof val === 'string') { try { const p = JSON.parse(val); return Array.isArray(p) ? p : []; } catch { return []; } }
             if (Array.isArray(val)) return val;
@@ -4995,6 +5003,7 @@ const ScreenplayEditor: React.FC = () => {
         store.setPlotlines([]);
         store.setPageLayout({ ...DEFAULT_PAGE_LAYOUT });
         store.setScriptProfile(normalizeScriptProfile((content as Record<string, unknown> | null | undefined)?._scriptProfile));
+        usePluginDataStore.getState().setAll(normalizePluginData((content as Record<string, unknown> | null | undefined)?._pluginData));
         // Default per-doc spell/grammar to off; the block below overrides
         // from the loaded content if the user had enabled them previously.
         store.setSpellCheckEnabled(false);
@@ -5446,11 +5455,8 @@ const ScreenplayEditor: React.FC = () => {
     setDragOverEditor(false);
   }, []);
 
-  const handleEditorDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOverEditor(false);
-
-    const file = e.dataTransfer.files[0];
+  /** A file dropped on the window: import it, asking first when there are unsaved changes. */
+  const acceptDroppedFile = useCallback((file: File | undefined) => {
     if (!file) return;
 
     if (!isImportableExtension(extensionOf(file.name))) {
@@ -5467,7 +5473,15 @@ const ScreenplayEditor: React.FC = () => {
     } else {
       importDroppedFile(file);
     }
-  }, [hasUnsavedChanges, importDroppedFile]);
+  }, [hasUnsavedChanges, importDroppedFile, tg]);
+
+  const handleEditorDrop = useCallback((e: React.DragEvent) => {
+    // Text dragged inside the script is ProseMirror's; only files are ours.
+    if (!e.dataTransfer.types.includes('Files')) return;
+    e.preventDefault();
+    setDragOverEditor(false);
+    acceptDroppedFile(e.dataTransfer.files[0]);
+  }, [acceptDroppedFile]);
 
   const handleDropConfirmSave = useCallback(async () => {
     // Save current content first, then import
@@ -5504,112 +5518,47 @@ const ScreenplayEditor: React.FC = () => {
     setPendingDropFile(null);
   }, []);
 
-  // ── Tauri native drag-and-drop handler ──
-  // On desktop Tauri, the webview intercepts OS file drops at the native level,
-  // so the browser's drop event may not include the actual files. We listen for
-  // Tauri's onDragDropEvent which provides file paths directly.
-  const pendingDropPathRef = useRef<string | null>(null);
+  // ── Files dropped anywhere in the window ──
+  // HTML5 on every platform (desktop windows have Tauri's native drag-drop
+  // handler off — see desktop_windows::with_panel_windows). A file dropped
+  // outside the editor is imported too, as the native handler did, unless a
+  // drop zone of its own (Fonts, the Asset Manager) took it. Without this the
+  // web view would open a file dropped elsewhere as a page. Text and other
+  // drags are left alone: the script and plugin panels handle those.
   useEffect(() => {
     if (!editor) return;
-    let cancelled = false;
-    let unlistenFn: (() => void) | null = null;
-
-    (async () => {
-      const { isTauri } = await import('../services/platform');
-      if (!isTauri() || cancelled) return;
-
-      try {
-        const { getCurrentWebview } = await import('@tauri-apps/api/webview');
-        const { invoke } = await import('@tauri-apps/api/core');
-        const webview = getCurrentWebview();
-
-        const unlisten = await webview.onDragDropEvent((event) => {
-          if (cancelled) return;
-          const payload = event.payload;
-
-          if (payload.type === 'enter' || payload.type === 'over') {
-            setDragOverEditor(true);
-          } else if (payload.type === 'leave') {
-            setDragOverEditor(false);
-          } else if (payload.type === 'drop') {
-            setDragOverEditor(false);
-            // If drop is over the asset manager, forward file paths for upload
-            const pos = payload.position;
-            if (pos) {
-              const el = document.elementFromPoint(pos.x, pos.y);
-              // Font files dropped on the Fonts dialog are installed, not
-              // imported as a script — the dialog reads the paths itself.
-              if (el?.closest('.fonts-dropzone')) {
-                const paths = payload.paths;
-                if (paths && paths.length > 0) {
-                  window.dispatchEvent(new CustomEvent('tauri-font-drop', { detail: { paths } }));
-                }
-                return;
-              }
-              if (el?.closest('.asset-manager')) {
-                const paths = payload.paths;
-                if (paths && paths.length > 0) {
-                  window.dispatchEvent(new CustomEvent('tauri-asset-drop', { detail: { paths } }));
-                }
-                return;
-              }
-            }
-            const paths = payload.paths;
-            if (!paths || paths.length === 0) return;
-            const filePath = paths[0];
-            if (!isImportableExtension(extensionOf(filePath))) {
-              showToast(
-                tg('editor:toast.unsupportedType', { types: importExtensions().map((e) => `.${e}`).join(', ') }),
-                'error',
-              );
-              return;
-            }
-
-            // Read the file through Tauri and hand it to the same importer the
-            // browser drop path uses — archives have to be read as bytes.
-            const importTauriFile = async (path: string) => {
-              try {
-                const filename = path.replace(/^.*[\\/]/, '') || 'Untitled';
-                let file: File;
-                if (isBinaryImportExtension(extensionOf(filename))) {
-                  const data = await invoke<number[]>('read_binary_file', { path });
-                  file = new File([new Uint8Array(data)] as BlobPart[], filename, { type: 'application/zip' });
-                } else {
-                  const text = await invoke<string>('read_text_file', { path });
-                  file = new File([text], filename, { type: 'text/plain' });
-                }
-
-                if (hasUnsavedChanges()) {
-                  pendingDropPathRef.current = path;
-                  setPendingDropFile(file);
-                  setDropConfirmOpen(true);
-                } else {
-                  importDroppedFile(file);
-                }
-              } catch (err) {
-                console.error('Failed to read dropped file:', err);
-                showToast(tg('editor:toast.readFileFailed', { error: err instanceof Error ? err.message : String(err) }), 'error');
-              }
-            };
-            importTauriFile(filePath);
-          }
-        });
-
-        if (cancelled) {
-          unlisten();
-        } else {
-          unlistenFn = unlisten;
-        }
-      } catch (err) {
-        console.error('Failed to set up Tauri drag-drop listener:', err);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-      unlistenFn?.();
+    const carriesFiles = (e: DragEvent) => Array.from(e.dataTransfer?.types ?? []).includes('Files');
+    const onDragOver = (e: DragEvent) => {
+      if (!carriesFiles(e)) return;
+      e.preventDefault();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+      setDragOverEditor(true);
     };
-  }, [editor, hasUnsavedChanges, importDroppedFile]);
+    const onDragLeave = (e: DragEvent) => {
+      // Leaving the window itself, not moving between elements.
+      if (!e.relatedTarget) setDragOverEditor(false);
+    };
+    const onDrop = (e: DragEvent) => {
+      if (!carriesFiles(e)) return;
+      setDragOverEditor(false);
+      if (e.defaultPrevented) return; // the editor or a drop zone took it
+      e.preventDefault();
+      try {
+        acceptDroppedFile(e.dataTransfer?.files?.[0]);
+      } catch (err) {
+        console.error('Failed to import dropped file:', err);
+        showToast(tg('editor:toast.importFileFailed', { error: err instanceof Error ? err.message : String(err) }), 'error');
+      }
+    };
+    window.addEventListener('dragover', onDragOver);
+    window.addEventListener('dragleave', onDragLeave);
+    window.addEventListener('drop', onDrop);
+    return () => {
+      window.removeEventListener('dragover', onDragOver);
+      window.removeEventListener('dragleave', onDragLeave);
+      window.removeEventListener('drop', onDrop);
+    };
+  }, [editor, acceptDroppedFile, tg]);
 
   /**
    * Move images that live outside a project into the one being saved to.

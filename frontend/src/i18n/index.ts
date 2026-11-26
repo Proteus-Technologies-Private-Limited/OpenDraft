@@ -108,6 +108,9 @@ export async function initI18n(): Promise<void> {
       },
     });
   }
+  // Plugins register before the app starts, and init() replaces the resource
+  // store, so their words are held until now.
+  flushPendingPluginResources();
 
   await switchTo(wanted);
 }
@@ -161,10 +164,25 @@ export async function setLanguage(pref: LanguagePreference): Promise<void> {
  *
  *   addPluginResources('my-plugin', { en: { export: 'Export' }, es: { export: 'Exportar' } });
  */
+type PluginBundles = Partial<Record<LanguageCode, Record<string, unknown>>>;
+
+/** Words added before i18next started; init() would otherwise discard them. */
+const pendingPluginResources: Array<[string, PluginBundles]> = [];
+
+function flushPendingPluginResources(): void {
+  for (const [namespace, bundles] of pendingPluginResources.splice(0)) addPluginResources(namespace, bundles);
+}
+
 export function addPluginResources(
   namespace: string,
-  bundles: Partial<Record<LanguageCode, Record<string, unknown>>>,
+  bundles: PluginBundles,
 ): void {
+  // Safe to call at import time: a plugin registered before the app starts
+  // has its words applied as soon as i18next is ready.
+  if (!i18next.isInitialized) {
+    pendingPluginResources.push([namespace, bundles]);
+    return;
+  }
   for (const [code, bundle] of Object.entries(bundles)) {
     if (!bundle) continue;
     try {

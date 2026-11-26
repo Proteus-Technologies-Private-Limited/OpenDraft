@@ -1,4 +1,6 @@
 // Fountain format exporter
+import { pluginDataFountainBlock } from './pluginData';
+import type { PluginDocumentData } from '../stores/pluginDataStore';
 import type { JSONContent } from '@tiptap/react';
 import { jsonBlockRuns, mergeRuns, singleLine } from './nodeText';
 import { sanitizeExportFilename } from './exportFilename';
@@ -14,6 +16,9 @@ export interface FountainExportOptions {
   /** False leaves `#12#` scene numbers out — hidden numbers, kept on the
    *  scenes while locked, are not printed ones. Absent writes them. */
   sceneNumbersVisible?: boolean;
+  /** Plugins' own data for this script (`_pluginData`), written as a boneyard
+   *  block at the end that OpenDraft reads back and every app skips. */
+  pluginData?: PluginDocumentData | null;
 }
 
 /**
@@ -559,6 +564,9 @@ export function exportFountain(doc: JSONContent, options: FountainExportOptions 
       }
     }
   });
+
+  const pluginBlock = pluginDataFountainBlock(options.pluginData);
+  if (pluginBlock) lines.push('', pluginBlock);
 
   return lines.join('\n');
 }

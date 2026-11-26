@@ -5,6 +5,18 @@
  * Tabs always visible; active panel only when one is open.
  */
 
+/* The panel and its strip side by side, filling the height they are given. */
+.plugin-panel-tabs {
+  display: flex;
+  flex-direction: row;
+  align-self: stretch;
+  min-width: 0;
+  min-height: 0;
+  max-height: 100%;
+}
+.plugin-panel-tabs__content { min-height: 0; }
+.fold-panel-content > .plugin-panel-tabs { flex: 1; }
+
 .plugin-panel-tabs__strip {
   display: flex;
   flex-direction: column;
@@ -104,4 +116,64 @@
   background: var(--fd-input-bg, rgba(255, 255, 255, 0.06));
   border-color: var(--fd-border, rgba(255, 255, 255, 0.12));
   opacity: 1;
+}
+
+/* Small screens: a plugin panel opens as an overlay from the right, as the
+   built-in side panels do (styles/screenplay.css, ≤900px and ≤480px), instead
+   of taking its width out of the page. Without this, a 300px plugin panel on a
+   390px phone left the script a column one character wide. The tab strip
+   stays where it is; the panel carries an inline width from the desktop
+   resize handle, which only `!important` outranks. */
+@media (max-width: 900px) {
+  .plugin-panel-tabs__content {
+    /* Clear of the system status bar. Android under-reports the inset, so it
+       gets the same 28px floor as the built-in panels (screenplay.css). */
+    --plugin-panel-top: env(safe-area-inset-top, 0px);
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    right: 36px; /* clear of the tab strip */
+    /* Over the page but under dialogs (.dialog-overlay is 3000): a dialog
+       opened while the panel is up — Save, say — must come out on top. */
+    z-index: 2900;
+    width: min(320px, calc(100vw - 36px)) !important;
+    min-width: 0 !important;
+    max-width: calc(100vw - 36px);
+    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.4);
+    padding-top: var(--plugin-panel-top);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  html.android .plugin-panel-tabs__content {
+    --plugin-panel-top: max(env(safe-area-inset-top, 0px), 28px);
+  }
+  /* The close and pop-out buttons are positioned, so padding does not move
+     them; without this they sat in the status bar, out of reach. */
+  .plugin-panel-tabs__content > .plugin-panel-tabs__close {
+    top: calc(var(--plugin-panel-top) + 6px);
+  }
+  /* No drag-to-resize on an overlay. */
+  .plugin-panel-tabs__resize { display: none; }
+}
+
+@media (max-width: 480px) {
+  .plugin-panel-tabs__content {
+    width: calc(100vw - 36px - env(safe-area-inset-left, 0px)) !important;
+    border-left: none;
+  }
+}
+
+/* Inside a foldable's panel dock the dock does the placing, as it does for
+   the built-in panels (styles/screenplay.css, .fold-panel-content). */
+.fold-panel-content .plugin-panel-tabs__content {
+  --plugin-panel-top: 0px;
+  position: relative;
+  inset: auto;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100%;
+  flex: 1;
+  box-shadow: none;
+  z-index: auto;
+  padding-top: 0;
+  padding-bottom: 0;
 }

@@ -1,4 +1,6 @@
 // Final Draft XML (.fdx) exporter — full formatting & layout support
+import { pluginDataFdxLines } from './pluginData';
+import type { PluginDocumentData } from '../stores/pluginDataStore';
 import type { JSONContent } from '@tiptap/react';
 import type { CharacterProfile, TagCategory, TagItem, BeatInfo, BeatColumn, PageLayout } from '../stores/editorStore';
 import { resolveHeaderFooter } from '../stores/editorStore';
@@ -295,6 +297,9 @@ export interface FDXExportOptions {
    *  Draft keeps a numbered element's number. False hides references; absent
    * preserves stored source references without enabling automatic numbering. */
   elementNumbersVisible?: boolean;
+  /** Plugins' own data for this script (`_pluginData`), written as
+   *  `<OpenDraftPluginData>` so an OpenDraft re-import gets it back. */
+  pluginData?: PluginDocumentData | null;
 }
 
 export interface FDXRevisionState {
@@ -783,6 +788,8 @@ export function exportFDX(doc: JSONContent, _title: string = 'Untitled', charact
   }
 
   lines.push(...buildRevisions(doc, revisions));
+
+  lines.push(...pluginDataFdxLines(options.pluginData));
 
   lines.push('</FinalDraft>');
 

@@ -1,3 +1,6 @@
+// First: plugins compiled in at build time (OPENDRAFT_PLUGINS, see
+// vite.plugins.ts) must be registered before anything renders. Empty unless set.
+import 'virtual:opendraft-plugins';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
@@ -15,6 +18,7 @@ import { initCustomFonts } from './services/customFonts';
 import { detectDeviceFonts } from './utils/deviceFonts';
 import { applyAppearance, applyNativeTheme, readAppearance } from './utils/appearance';
 import { initI18n } from './i18n';
+import { loadRuntimePlugins } from './plugins/runtimeLoader';
 import { watchFoldPosture, isFoldableDevice } from './utils/foldPosture';
 import { recordSession } from './services/storeReview';
 import { nativeKeyboardTop } from './utils/softKeyboard';
@@ -302,6 +306,16 @@ async function init() {
       invoke('set_window_title', { title: 'Untitled Screenplay' }).catch(() => {});
     });
   });
+
+  // Plugins installed on the server (backend/plugins/<id>/), web only. Before
+  // the first render, so their panels, menus and editor extensions are there
+  // from the start; a missing, slow or broken plugin is logged and skipped,
+  // and this never waits longer than a few seconds.
+  try {
+    await loadRuntimePlugins();
+  } catch (err) {
+    console.error('[plugins] runtime plugins were not loaded', err);
+  }
 
   // Clear the loading-timeout diagnostic (and remove overlay if it fired early)
   if ((window as any)._renderTimeout) clearTimeout((window as any)._renderTimeout);
