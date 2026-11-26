@@ -16,7 +16,7 @@ from app.api import scripts, auth, export, projects, versions, assets, collab, l
 from app.config import COLLAB_JWT_SECRET, PROJECTS_DIR_BASE, BASE_DIR, DEMO_MODE
 from app.dependencies import require_verified_user
 from app.middleware.user_context import UserContextMiddleware
-from app.plugins import get_plugin_routers
+from app.plugins import get_plugin_routers, run_hooks
 from app.services.user_migration import migrate_legacy_projects
 from app.services import quota_service  # noqa: F401 — registers default quota hook
 from app.services import activity_service, trash_service
@@ -57,10 +57,15 @@ async def lifespan(app: FastAPI):
             + "=" * 72
         )
     purger = asyncio.create_task(_purge_trash_forever()) if trash_service.enabled() else None
-    yield
-    if purger is not None:
-        purger.cancel()
-    await activity_service.close()
+    # Plugins start after core is ready; a failing hook is logged, not fatal.
+    await run_hooks("app:startup", app=app)
+    try:
+        yield
+    finally:
+        await run_hooks("app:shutdown", app=app)
+        if purger is not None:
+            purger.cancel()
+        await activity_service.close()
 
 
 app = FastAPI(

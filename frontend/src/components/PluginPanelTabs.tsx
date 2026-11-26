@@ -116,7 +116,10 @@ export const PluginPanelTabs: React.FC<Props> = ({
         setActivation(value => value + 1);
       }
     };
-    const closeHandler = () => {
+    const closeHandler = (e: Event) => {
+      // A close aimed at another slot's panel (a bottom panel) leaves this one open.
+      const target = (e as CustomEvent<{ panelId?: string }>).detail?.panelId;
+      if (target && !pluginRegistry.getPanels('right-sidebar').some((p) => p.id === target)) return;
       const content = document.activeElement?.closest<HTMLElement>('.plugin-panel-tabs__content');
       const tab = content?.getAttribute('aria-labelledby');
       if (tab) document.getElementById(tab)?.focus();

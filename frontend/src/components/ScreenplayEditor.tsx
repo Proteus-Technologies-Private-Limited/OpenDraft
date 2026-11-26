@@ -108,6 +108,7 @@ import ScriptNotes from './ScriptNotes';
 import CharacterProfiles from './CharacterProfiles';
 import TagsPanel from './TagsPanel';
 import { PluginPanelTabs, type ActivePluginPanel } from './PluginPanelTabs';
+import { PluginBottomPanels, PluginStatusBarItems } from './PluginBottomPanels';
 import LocationDatabase from './LocationDatabase';
 import SceneDetailsPanel from './SceneDetailsPanel';
 import DialogueTuner from './DialogueTuner';
@@ -2514,6 +2515,16 @@ const ScreenplayEditor: React.FC = () => {
 
   // Keep editor ref updated for onSynced callback
   collabEditorRef.current = editor;
+  // Tell plugins which editor is open: the first one starts their init, and the
+  // context init receives keeps reading the current one. A history view is
+  // read-only and shows no plugin UI, so it is not reported.
+  useEffect(() => {
+    if (!editor || isHistoryMode) return;
+    pluginRegistry.setEditor(editor).catch((err) => {
+      console.error('[plugins] could not start plugins for this script', err);
+    });
+    return () => { pluginRegistry.releaseEditor(editor); };
+  }, [editor, isHistoryMode]);
   useEffect(() => {
     if (!editor) return;
     const release = () => { postureAnchorHeldRef.current = false; zoomAnchorUntilRef.current = 0; };
@@ -6607,12 +6618,11 @@ const ScreenplayEditor: React.FC = () => {
         )}
 
       </div>
+      {!isHistoryMode && <PluginBottomPanels editor={editor} />}
       {!isHistoryMode && (
         <div className="status-bar-row" style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
           <StatusBar editor={editor} editorMain={editorMainEl} />
-          {pluginRegistry.getPanels('status-bar').map((p) => (
-            <p.component key={p.id} />
-          ))}
+          <PluginStatusBarItems editor={editor} />
         </div>
       )}
       {!isHistoryMode && <SearchReplace editor={editor} />}

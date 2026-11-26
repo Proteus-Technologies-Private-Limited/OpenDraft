@@ -264,10 +264,16 @@ Update the version in the footer of every `.html` file in `user-manual/`.
 
 ### 5. Commit version bump
 
+`main` only takes changes through a pull request (the "Protect main" ruleset
+blocks direct pushes, admins included), so the bump goes on a branch:
+
 ```bash
+git switch -c release/vX.Y.Z
 git add -A
 git commit -m "Bump version to X.Y.Z"
-git push origin main
+git push -u origin release/vX.Y.Z
+gh pr create --base main --title "Release vX.Y.Z" --body "Version bump for vX.Y.Z"
+# merge the PR, then: git switch main && git pull
 ```
 
 ### 6. Create the GitHub release
