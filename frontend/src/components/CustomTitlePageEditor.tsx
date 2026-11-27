@@ -164,8 +164,8 @@ export default function CustomTitlePageEditor({ schema, nodes, onChange, layout,
     <div className="tp-custom-editor">
       <fieldset className="tp-custom-controls" disabled={uploading}>
         <div className="tp-custom-buttons">
-          <button className="props-btn" type="button" onClick={addText}>{t('titlePage.addText')}</button>
-          <button className="props-btn" type="button" onClick={() => imageInput.current?.click()}>{t('titlePage.addImage')}</button>
+          <button className="dialog-btn" type="button" onClick={addText}>{t('titlePage.addText')}</button>
+          <button className="dialog-btn" type="button" onClick={() => imageInput.current?.click()}>{t('titlePage.addImage')}</button>
           <input ref={imageInput} type="file" accept="image/*" hidden onChange={event => {
             void addImage(event.currentTarget.files?.[0]);
             event.currentTarget.value = '';
@@ -195,7 +195,7 @@ export default function CustomTitlePageEditor({ schema, nodes, onChange, layout,
             {lineNumbers.map((line, index) => <option key={index} value={index}>{line}</option>)}
           </Select>
         </label>
-        <button className="props-btn" type="button" disabled={!item || isSpacer(item)} onClick={() => {
+        <button className="dialog-btn" type="button" disabled={!item || isSpacer(item)} onClick={() => {
           const updated = [...rows];
           updated.splice(selected, 1);
           updateRows(updated, Math.max(0, Math.min(selected, updated.length - 1)));

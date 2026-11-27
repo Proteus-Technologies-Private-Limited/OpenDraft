@@ -2771,6 +2771,7 @@ body {
   width: min(780px, 96vw); max-width: 96vw; max-height: 85vh;
   display: flex; flex-direction: column;
 }
+.tp-editor-dialog--custom { width: min(900px, 96vw); max-height: 91vh; }
 .tp-editor-body {
   display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
   padding: 16px; overflow-y: auto; flex: 1;
@@ -2782,10 +2783,14 @@ body {
 .tp-layout-choice {
   display: flex; gap: 6px; padding: 10px 16px 0;
 }
+.tp-layout-choice .dialog-btn, .tp-custom-controls .dialog-btn {
+  min-height: 30px; padding: 4px 10px;
+}
 .tp-layout-choice button[aria-pressed="true"] {
   border-color: var(--fd-accent);
-  color: var(--fd-accent);
+  background: var(--fd-toolbar-hover);
 }
+.tp-custom-controls .dialog-btn:disabled { opacity: .5; cursor: default; }
 .tp-custom-editor {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 180px;

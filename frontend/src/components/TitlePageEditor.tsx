@@ -301,12 +301,12 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
 
   return (
     <ModalOverlay className="dialog-overlay" onClick={onClose} dialogLabel={t('titlePage.title')}>
-      <div className="tp-editor-dialog" onClick={(e) => e.stopPropagation()}>
+      <div className={custom ? 'tp-editor-dialog tp-editor-dialog--custom' : 'tp-editor-dialog'} onClick={(e) => e.stopPropagation()}>
         <div className="dialog-header">{t('titlePage.title')}</div>
         <div className="tp-layout-choice">
-          <button type="button" className="props-btn" aria-pressed={!custom} disabled={imagePending}
+          <button type="button" className="dialog-btn" aria-pressed={!custom} disabled={imagePending}
             onClick={() => changeLayout(false)}>{t('titlePage.standardLayout')}</button>
-          <button type="button" className="props-btn" aria-pressed={custom} disabled={imagePending}
+          <button type="button" className="dialog-btn" aria-pressed={custom} disabled={imagePending}
             onClick={() => changeLayout(true)}>{t('common:custom')}</button>
         </div>
         {custom ? (
