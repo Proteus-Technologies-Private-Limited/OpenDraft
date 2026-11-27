@@ -12,12 +12,15 @@
  * The script body is merged paragraph by paragraph (top-level nodes compared
  * whole, attributes and marks included), the way git merges lines: both sides
  * are aligned against the base, regions where only one side differs from the
- * base are taken from it, and regions where both differ become conflicts.
+ * base are taken from it, and regions where both differ are split further —
+ * paragraph by paragraph when nothing was added, removed or moved, else by
+ * diffing each side against the base within the region — so only changes that
+ * really overlap become conflicts.
  *
  * The `_`-prefixed metadata beside the body (see saveContent.ts) is merged per
  * key. Lists of records with an `id` (notes, tags, character profiles, beats …)
- * are merged record by record, lists of words as sets, and anything else as one
- * value.
+ * are merged record by record, lists of words as sets, plugin data (`_pluginData`)
+ * plugin by plugin, and anything else as one value.
  *
  * Track-changes proposals live in `_reviewSnapshot`; inputs are first restored
  * with `restoreReviewContent`, so suggestions are merged as part of the
@@ -27,6 +30,7 @@
 import type { JSONContent } from '@tiptap/core';
 import { prepareReviewSave, restoreReviewContent, REVIEW_SNAPSHOT_KEY } from './reviewSave';
 import { jsonBlockText } from './nodeText';
+import { PLUGIN_DATA_KEY } from './pluginData';
 
 export type ScriptContent = Record<string, unknown>;
 export type MergeSide = 'device' | 'cloud';
@@ -241,8 +245,73 @@ function trimCommon(device: JSONContent[], cloud: JSONContent[], deviceKeys: str
   };
 }
 
-function slice<T>(list: T[], [from, to]: [number, number]): T[] {
-  return list.slice(from, to);
+/** One side's change to a region: base paragraphs [b0, b1) became side
+ * paragraphs [s0, s1). b0 === b1 is an insertion at that gap. */
+interface Hunk { side: MergeSide; b0: number; b1: number; s0: number; s1: number }
+
+function hunksOf(side: MergeSide, baseKeys: string[], sideKeys: string[]): { hunks: Hunk[]; matched: Map<number, number> } {
+  const pairs = alignKeys(baseKeys, sideKeys);
+  const hunks: Hunk[] = [];
+  let b = 0, s = 0;
+  for (const [i, j] of [...pairs, [baseKeys.length, sideKeys.length] as [number, number]]) {
+    if (i > b || j > s) hunks.push({ side, b0: b, b1: i, s0: s, s1: j });
+    b = i + 1; s = j + 1;
+  }
+  return { hunks, matched: new Map(pairs) };
+}
+
+/** Two changes from different sides touch the same base paragraphs (or insert
+ * at the same place). A change that only borders another does not. */
+function overlaps(x: Hunk, y: Hunk): boolean {
+  const xi = x.b0 === x.b1, yi = y.b0 === y.b1;
+  if (xi && yi) return x.b0 === y.b0;
+  if (xi) return y.b0 < x.b0 && x.b0 < y.b1;
+  if (yi) return x.b0 < y.b0 && y.b0 < x.b1;
+  return x.b0 < y.b1 && y.b0 < x.b1;
+}
+
+interface HunkGroup { b0: number; b1: number; hunks: Hunk[] }
+
+/** Diff each side against the base within one region and group the changes
+ * that overlap; each group is taken from its one side, or is a conflict. */
+function groupHunks(device: Hunk[], cloud: Hunk[]): HunkGroup[] {
+  const all = [...device, ...cloud];
+  const parent = all.map((_, i) => i);
+  const find = (i: number): number => (parent[i] === i ? i : (parent[i] = find(parent[i])));
+  // Both lists are in base order and disjoint, so each device change is only
+  // checked against the cloud changes near it.
+  let from = 0;
+  for (let i = 0; i < device.length; i++) {
+    while (from < cloud.length && cloud[from].b1 < device[i].b0) from++;
+    for (let j = from; j < cloud.length; j++) {
+      if (cloud[j].b0 > device[i].b1) break;
+      if (overlaps(device[i], cloud[j])) parent[find(i)] = find(device.length + j);
+    }
+  }
+  const groups = new Map<number, HunkGroup>();
+  all.forEach((hunk, i) => {
+    const root = find(i);
+    const group = groups.get(root);
+    if (!group) groups.set(root, { b0: hunk.b0, b1: hunk.b1, hunks: [hunk] });
+    else {
+      group.b0 = Math.min(group.b0, hunk.b0);
+      group.b1 = Math.max(group.b1, hunk.b1);
+      group.hunks.push(hunk);
+    }
+  });
+  // An insertion at a gap goes before a change that starts there.
+  return [...groups.values()].sort((a, b) => a.b0 - b.b0 || a.b1 - b.b1);
+}
+
+/** What one side holds in place of base paragraphs [b0, b1) of a group. */
+function sideRange(group: HunkGroup, side: MergeSide, matched: Map<number, number>): [number, number] | null {
+  const own = group.hunks.filter(hunk => hunk.side === side);
+  if (group.b0 === group.b1) return own.length ? [own[0].s0, own[0].s1] : null;
+  const first = own.find(hunk => hunk.b0 === group.b0);
+  const last = own.find(hunk => hunk.b1 === group.b1);
+  const start = first ? first.s0 : matched.get(group.b0);
+  const end = last ? last.s1 : (matched.get(group.b1 - 1) ?? -2) + 1;
+  return start === undefined || end < start ? null : [start, end];
 }
 
 function mergeBody(
@@ -261,48 +330,96 @@ function mergeBody(
     if (segment.kind === 'same' && last?.kind === 'same') last.blocks.push(...segment.blocks);
     else if (segment.kind !== 'same' || segment.blocks.length) segments.push(segment);
   };
-  for (const region of diff3Regions(baseKeys, deviceKeys, cloudKeys)) {
-    const b = slice(base, region.base), d = slice(device, region.device), c = slice(cloud, region.cloud);
-    if (region.stable) { push({ kind: 'same', blocks: d }); continue; }
-    const bk = slice(baseKeys, region.base).join('\n');
-    const dk = slice(deviceKeys, region.device).join('\n');
-    const ck = slice(cloudKeys, region.cloud).join('\n');
+
+  /** Base paragraphs [b0, b1) became device [d0, d1) and cloud [c0, c1). Takes
+   * them when only one side (or both alike) changed them; false otherwise. */
+  const settle = (b0: number, b1: number, d0: number, d1: number, c0: number, c1: number): boolean => {
+    const b = base.slice(b0, b1), d = device.slice(d0, d1), c = cloud.slice(c0, c1);
+    const bk = baseKeys.slice(b0, b1).join('\n');
+    const dk = deviceKeys.slice(d0, d1).join('\n');
+    const ck = cloudKeys.slice(c0, c1).join('\n');
     if (dk === ck) {
-      if (d.length || b.length) push({ kind: 'auto', from: 'both', blocks: d, replaced: b });
-      continue;
+      if (dk === bk && !twoWay) push({ kind: 'same', blocks: d });
+      else if (d.length || b.length) push({ kind: 'auto', from: 'both', blocks: d, replaced: b });
+      return true;
     }
-    if (!twoWay && dk === bk) { counts.cloud++; push({ kind: 'auto', from: 'cloud', blocks: c, replaced: b }); continue; }
-    if (!twoWay && ck === bk) { counts.device++; push({ kind: 'auto', from: 'device', blocks: d, replaced: b }); continue; }
-    // Neighbouring paragraphs edited on different sides (a line of dialogue
-    // here, its parenthetical there) are one region to diff3, which git would
-    // call a conflict. When no paragraph was added or removed, merge each one
-    // on its own and ask only about those both sides changed.
-    if (!twoWay && b.length > 1 && b.length === d.length && b.length === c.length) {
-      const bks = slice(baseKeys, region.base), dks = slice(deviceKeys, region.device), cks = slice(cloudKeys, region.cloud);
-      for (let i = 0; i < b.length; i++) {
-        if (dks[i] === cks[i]) push(dks[i] === bks[i] ? { kind: 'same', blocks: [d[i]] } : { kind: 'auto', from: 'both', blocks: [d[i]], replaced: [b[i]] });
-        else if (dks[i] === bks[i]) { counts.cloud++; push({ kind: 'auto', from: 'cloud', blocks: [c[i]], replaced: [b[i]] }); }
-        else if (cks[i] === bks[i]) { counts.device++; push({ kind: 'auto', from: 'device', blocks: [d[i]], replaced: [b[i]] }); }
-        else {
-          const id = `text-${conflicts.length}`;
-          conflicts.push({
-            kind: 'text', id, base: [b[i]], device: [d[i]], cloud: [c[i]],
-            scene: sceneBefore(device, region.device[0] + i + 1),
-          });
-          push({ kind: 'conflict', conflictId: id });
-        }
-      }
-      continue;
-    }
-    const trimmed = trimCommon(d, c, slice(deviceKeys, region.device), slice(cloudKeys, region.cloud));
+    if (twoWay) return false;
+    if (dk === bk) { counts.cloud++; push({ kind: 'auto', from: 'cloud', blocks: c, replaced: b }); return true; }
+    if (ck === bk) { counts.device++; push({ kind: 'auto', from: 'device', blocks: d, replaced: b }); return true; }
+    return false;
+  };
+
+  /** Both sides changed the same place: ask, leaving out what they changed alike at its edges. */
+  const ask = (b0: number, b1: number, d0: number, d1: number, c0: number, c1: number) => {
+    const d = device.slice(d0, d1), c = cloud.slice(c0, c1);
+    const trimmed = trimCommon(d, c, deviceKeys.slice(d0, d1), cloudKeys.slice(c0, c1));
     if (trimmed.head.length) push({ kind: 'auto', from: 'both', blocks: trimmed.head, replaced: [] });
     const id = `text-${conflicts.length}`;
     conflicts.push({
-      kind: 'text', id, base: b, device: trimmed.device, cloud: trimmed.cloud,
-      scene: sceneBefore(device, region.device[0] + trimmed.head.length + 1) ?? sceneBefore(cloud, region.cloud[0] + 1),
+      kind: 'text', id, base: base.slice(b0, b1), device: trimmed.device, cloud: trimmed.cloud,
+      scene: sceneBefore(device, d0 + trimmed.head.length + 1) ?? sceneBefore(cloud, c0 + 1),
     });
     push({ kind: 'conflict', conflictId: id });
     if (trimmed.tail.length) push({ kind: 'auto', from: 'both', blocks: trimmed.tail, replaced: [] });
+  };
+
+  /** Diff each side against the base within one region, then take each change
+   * that no change on the other side overlaps from its own side, and ask only
+   * about those that do. False when that would not split the region. */
+  const mergeHunks = (region: Region): boolean => {
+    const [rb, rbEnd] = region.base, [rd, rdEnd] = region.device, [rc, rcEnd] = region.cloud;
+    const bks = baseKeys.slice(rb, rbEnd);
+    const dev = hunksOf('device', bks, deviceKeys.slice(rd, rdEnd));
+    const cl = hunksOf('cloud', bks, cloudKeys.slice(rc, rcEnd));
+    const groups = groupHunks(dev.hunks, cl.hunks);
+    if (groups.length < 2) return false;
+    // Where a side stands at a gap of the base, for a group it adds nothing to.
+    const gapAt = (side: { hunks: Hunk[]; matched: Map<number, number> }, gap: number): number => {
+      if (gap === 0) return 0;
+      const before = side.matched.get(gap - 1);
+      if (before !== undefined) return before + 1;
+      return side.hunks.find(hunk => hunk.b0 < gap && hunk.b1 >= gap)?.s1 ?? 0;
+    };
+    // Plan the whole region first, so anything inconsistent falls back to one question.
+    const plan: Array<{ group: HunkGroup; d: [number, number]; c: [number, number] }> = [];
+    let cursor = 0;
+    for (const group of groups) {
+      if (group.b0 < cursor) return false;
+      const d = sideRange(group, 'device', dev.matched) ?? (group.b0 === group.b1 ? [gapAt(dev, group.b0), gapAt(dev, group.b0)] : null);
+      const c = sideRange(group, 'cloud', cl.matched) ?? (group.b0 === group.b1 ? [gapAt(cl, group.b0), gapAt(cl, group.b0)] : null);
+      if (!d || !c) return false;
+      for (let i = cursor; i < group.b0; i++) if (!dev.matched.has(i) || !cl.matched.has(i)) return false;
+      plan.push({ group, d: d as [number, number], c: c as [number, number] });
+      cursor = group.b1;
+    }
+    for (let i = cursor; i < bks.length; i++) if (!dev.matched.has(i) || !cl.matched.has(i)) return false;
+    cursor = 0;
+    const keep = (to: number) => {
+      for (let i = cursor; i < to; i++) push({ kind: 'same', blocks: [device[rd + dev.matched.get(i)!]] });
+    };
+    for (const { group, d, c } of plan) {
+      keep(group.b0);
+      const args = [rb + group.b0, rb + group.b1, rd + d[0], rd + d[1], rc + c[0], rc + c[1]] as const;
+      if (!settle(...args)) ask(...args);
+      cursor = group.b1;
+    }
+    keep(bks.length);
+    return true;
+  };
+
+  for (const region of diff3Regions(baseKeys, deviceKeys, cloudKeys)) {
+    const [b0, b1] = region.base, [d0, d1] = region.device, [c0, c1] = region.cloud;
+    if (region.stable) { push({ kind: 'same', blocks: device.slice(d0, d1) }); continue; }
+    if (settle(b0, b1, d0, d1, c0, c1)) continue;
+    // Neighbouring paragraphs edited on different sides (a line of dialogue
+    // here, its parenthetical there; a line removed here, the next one edited
+    // there and a line added after it) are one region to diff3, which git would
+    // call a conflict. Diff each side against the base within the region so
+    // each change no change on the other side overlaps is taken on its own.
+    // Paragraphs are never paired up by position: a side that replaced two
+    // paragraphs with two others may have edited one and removed the other.
+    if (!twoWay && mergeHunks(region)) continue;
+    ask(b0, b1, d0, d1, c0, c1);
   }
   return segments;
 }
@@ -393,6 +510,38 @@ function mergePrimitives(base: unknown[] | undefined, device: unknown[] | undefi
   return out;
 }
 
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  !!value && typeof value === 'object' && !Array.isArray(value);
+
+/** Metadata kept as a map of independent entries, merged entry by entry. */
+const KEYED_MAPS = new Set([PLUGIN_DATA_KEY]);
+
+/** Merge a map entry by entry, e.g. `_pluginData` by plugin id, so two plugins
+ * changing their own data on different sides do not clash. An entry both sides
+ * changed differently is a conflict, held in place by a marker. */
+function mergeKeyed(
+  key: string, base: Record<string, unknown> | undefined, device: Record<string, unknown> | undefined,
+  cloud: Record<string, unknown> | undefined, twoWay: boolean, conflicts: MergeConflict[],
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const id of new Set([...Object.keys(device ?? {}), ...Object.keys(cloud ?? {})])) {
+    const bv = base?.[id], dv = device?.[id], cv = cloud?.[id];
+    let value: unknown;
+    if (same(dv, cv)) value = dv;
+    else if (twoWay && (dv === undefined || cv === undefined)) value = dv ?? cv;
+    else if (!twoWay && same(dv, bv)) value = cv;
+    else if (!twoWay && same(cv, bv)) value = dv;
+    else {
+      const conflictId = `item-${conflicts.length}`;
+      conflicts.push({ kind: 'item', id: conflictId, key, itemId: id, label: id, device: dv, cloud: cv });
+      out[id] = { __conflict: conflictId };
+      continue;
+    }
+    if (value !== undefined) out[id] = value;
+  }
+  return out;
+}
+
 function mergeMetadata(
   base: ScriptContent | null, device: ScriptContent, cloud: ScriptContent, twoWay: boolean,
   conflicts: MergeConflict[],
@@ -409,7 +558,10 @@ function mergeMetadata(
     if (!twoWay && same(cv, bv)) { if (dv !== undefined) out[key] = dv; continue; }
     if (twoWay && (dv === undefined || cv === undefined)) { out[key] = dv ?? cv; continue; }
     const kind = listKind(bv, dv, cv);
-    if (kind === 'records') {
+    if (KEYED_MAPS.has(key) && [bv, dv, cv].every(value => value === undefined || isPlainObject(value))) {
+      out[key] = mergeKeyed(key, bv as Record<string, unknown> | undefined, dv as Record<string, unknown> | undefined,
+        cv as Record<string, unknown> | undefined, twoWay, conflicts);
+    } else if (kind === 'records') {
       out[key] = mergeRecords(key, bv as Rec[] | undefined, dv as Rec[] | undefined, cv as Rec[] | undefined, twoWay, conflicts);
     } else if (kind === 'primitives') {
       out[key] = mergePrimitives(bv as unknown[] | undefined, dv as unknown[] | undefined, cv as unknown[] | undefined, twoWay);
@@ -472,17 +624,31 @@ export function applyMerge(result: ScriptMergeResult, choices: Record<string, Me
     if (choice === 'device' || choice === 'both') body.push(...conflict.device);
     if (choice === 'cloud' || choice === 'both') body.push(...conflict.cloud);
   }
+  const markerOf = (item: unknown) => item && typeof item === 'object' ? (item as { __conflict?: string }).__conflict : undefined;
+  const chosenFor = (marker: string) => {
+    const conflict = conflicts.get(marker) as ItemConflict | undefined;
+    return conflict && (pick(marker) === 'cloud' ? conflict.cloud : conflict.device);
+  };
   const metadata: ScriptContent = {};
   for (const [key, value] of Object.entries(result.metadata)) {
-    metadata[key] = Array.isArray(value)
-      ? value.flatMap(item => {
-        const marker = item && typeof item === 'object' ? (item as { __conflict?: string }).__conflict : undefined;
+    if (Array.isArray(value)) {
+      metadata[key] = value.flatMap(item => {
+        const marker = markerOf(item);
         if (!marker) return [item];
-        const conflict = conflicts.get(marker) as ItemConflict | undefined;
-        const chosen = conflict && (pick(marker) === 'cloud' ? conflict.cloud : conflict.device);
+        const chosen = chosenFor(marker);
         return chosen === undefined ? [] : [chosen];
-      })
-      : value;
+      });
+    } else if (KEYED_MAPS.has(key) && isPlainObject(value)) {
+      const entries: Record<string, unknown> = {};
+      for (const [id, item] of Object.entries(value)) {
+        const marker = markerOf(item);
+        const chosen = marker ? chosenFor(marker) : item;
+        if (chosen !== undefined) entries[id] = chosen;
+      }
+      metadata[key] = entries;
+    } else {
+      metadata[key] = value;
+    }
   }
   for (const conflict of result.conflicts) {
     if (conflict.kind !== 'item' || conflict.itemId !== undefined) continue;
@@ -501,6 +667,28 @@ export function autoMerge(
   if (!base) return null;
   const result = mergeScripts(base, device, cloud);
   return result.conflicts.length ? null : applyMerge(result, {});
+}
+
+/** The copies a merge was built from. `device` is absent when the caller keeps
+ * its own (an open editor's text). */
+export interface MergeCopies {
+  base: ScriptContent | null;
+  device?: ScriptContent;
+  cloud: ScriptContent;
+  /** The cloud revision `cloud` was read at: a merge built on it is saved only onto it. */
+  cloudRevision?: string;
+}
+
+/** Marks an error as "the merge was built on a copy that has changed since":
+ * nothing was saved, and the dialog builds the merge again from `copies`. */
+export function withMergeCopies<E extends Error>(error: E, copies: MergeCopies): E & { mergeCopies: MergeCopies } {
+  return Object.assign(error, { mergeCopies: copies });
+}
+
+/** The copies to rebuild a merge from, when `error` says it went out of date. */
+export function outdatedMergeCopies(error: unknown): MergeCopies | null {
+  const copies = error && typeof error === 'object' ? (error as { mergeCopies?: MergeCopies }).mergeCopies : undefined;
+  return copies && typeof copies === 'object' && copies.cloud && typeof copies.cloud === 'object' ? copies : null;
 }
 
 /** Plain text of some paragraphs, for previews. */

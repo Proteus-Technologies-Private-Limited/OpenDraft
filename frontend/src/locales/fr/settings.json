@@ -166,7 +166,9 @@
     "turnOff": "Désactiver",
     "title": "Modules complémentaires",
     "description": "Fonctionnalités facultatives que vous pouvez choisir d’utiliser.",
-    "settingsButton": "Réglages…"
+    "settingsButton": "Réglages…",
+    "recommended": "Recommandé",
+    "recommendedHint": "Recommandé pour vous. Il reste désactivé jusqu’à ce que vous l’activiez et vérifiiez ce qu’il fait."
   },
   "dictionaryLibrary": {
     "renamePrompt": "Renommer le dictionnaire",

@@ -162,7 +162,9 @@
     "turnOff": "Turn Off",
     "title": "Add-ons",
     "description": "Turn optional features on or off.",
-    "settingsButton": "Settings…"
+    "settingsButton": "Settings…",
+    "recommended": "Recommended",
+    "recommendedHint": "Recommended for you. It stays off until you turn it on and review what it does."
   },
   "dictionaryLibrary": {
     "renamePrompt": "Rename dictionary",

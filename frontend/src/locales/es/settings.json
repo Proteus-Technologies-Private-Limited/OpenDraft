@@ -166,7 +166,9 @@
     "turnOff": "Desactivar",
     "title": "Complementos",
     "description": "Funciones opcionales que puedes elegir usar.",
-    "settingsButton": "Ajustes…"
+    "settingsButton": "Ajustes…",
+    "recommended": "Recomendado",
+    "recommendedHint": "Recomendado para ti. Sigue desactivado hasta que lo actives y revises lo que hace."
   },
   "dictionaryLibrary": {
     "renamePrompt": "Renombrar diccionario",

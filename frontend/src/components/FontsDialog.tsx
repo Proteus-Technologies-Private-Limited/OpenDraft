@@ -113,42 +113,6 @@ const FontsDialog: React.FC<Props> = ({ onClose }) => {
     }
   }, [addFiles, t]);
 
-  // On desktop Tauri the webview swallows OS file drops, so the browser's drop
-  // event carries no files — only paths, forwarded from the editor's native
-  // listener (see ScreenplayEditor). Read them and install them the same way.
-  useEffect(() => {
-    const handler = async (e: Event) => {
-      const paths = (e as CustomEvent).detail?.paths as string[] | undefined;
-      if (!paths || paths.length === 0) return;
-      setBusy(true);
-      setDragging(false);
-      const failures: { fileName: string; message: string }[] = [];
-      const files: FontSource[] = [];
-      try {
-        const { invoke } = await import('@tauri-apps/api/core');
-        for (const path of paths) {
-          const fileName = path.replace(/^.*[\\/]/, '') || 'font';
-          try {
-            const data = await invoke<number[]>('read_binary_file', { path });
-            files.push({ name: fileName, bytes: new Uint8Array(data).buffer });
-          } catch (err) {
-            failures.push({ fileName, message: t('fonts.readFailed', { error: (err as Error)?.message || String(err) }) });
-          }
-        }
-      } catch (err) {
-        failures.push({ fileName: '', message: t('fonts.dropReadFailed', { error: (err as Error)?.message || String(err) }) });
-      } finally {
-        setBusy(false);
-      }
-      // addFiles replaces the error list with its own, so unreadable paths are
-      // added afterwards rather than being wiped by it.
-      if (files.length > 0) await addFiles(files);
-      if (failures.length > 0) setErrors((prev) => [...prev, ...failures]);
-    };
-    window.addEventListener('tauri-font-drop', handler);
-    return () => window.removeEventListener('tauri-font-drop', handler);
-  }, [addFiles, t]);
-
   const handleRemove = useCallback(async (font: CustomFont) => {
     setBusy(true);
     try {

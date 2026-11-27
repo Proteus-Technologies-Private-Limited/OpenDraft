@@ -2355,10 +2355,14 @@ struct HttpFetchResponse {
 /// connection, a rejected certificate and a hit timeout all render as the
 /// identical, useless `error sending request for url (...)`. The cause that
 /// actually names the problem lives further down the chain, so walk it.
-fn describe_reqwest_error(err: &reqwest::Error) -> String {
+///
+/// `timeout_secs` is the budget the request actually ran under — a picture
+/// transfer gets far longer than the default, and saying "10s" about a request
+/// that waited five minutes sends whoever reads the log the wrong way.
+fn describe_reqwest_error(err: &reqwest::Error, timeout_secs: u64) -> String {
     let mut parts = vec![err.to_string()];
     if err.is_timeout() {
-        parts.push(format!("timed out after {}s", HTTP_FETCH_TIMEOUT_SECS));
+        parts.push(format!("timed out after {}s", timeout_secs));
     }
     if err.is_connect() {
         parts.push("could not establish a connection".to_string());
@@ -2442,13 +2446,17 @@ async fn http_fetch(
         req = req.body(b.clone());
     }
 
-    if let Some(secs) = timeout_secs {
-        req = req.timeout(std::time::Duration::from_secs(secs.clamp(1, HTTP_FETCH_MAX_TIMEOUT_SECS)));
+    // The budget this request really runs under, so a failure reports it.
+    let effective_timeout_secs = timeout_secs
+        .map(|secs| secs.clamp(1, HTTP_FETCH_MAX_TIMEOUT_SECS))
+        .unwrap_or(HTTP_FETCH_TIMEOUT_SECS);
+    if timeout_secs.is_some() {
+        req = req.timeout(std::time::Duration::from_secs(effective_timeout_secs));
     }
 
     let resp = req.send().await
         .map_err(|e| {
-            let detail = describe_reqwest_error(&e);
+            let detail = describe_reqwest_error(&e, effective_timeout_secs);
             eprintln!("[http_fetch] {} {} → FAILED: {}", method_str, url, detail);
             format!("Request to {} failed: {}", url, detail)
         })?;
@@ -2459,7 +2467,7 @@ async fn http_fetch(
         .and_then(|v| v.to_str().ok())
         .map(str::to_string);
     let bytes = resp.bytes().await
-        .map_err(|e| format!("Failed to read response body: {}", describe_reqwest_error(&e)))?;
+        .map_err(|e| format!("Failed to read response body: {}", describe_reqwest_error(&e, effective_timeout_secs)))?;
     let size = bytes.len();
     let (body, encoding) = match String::from_utf8(bytes.to_vec()) {
         Ok(text) => (text, "text"),

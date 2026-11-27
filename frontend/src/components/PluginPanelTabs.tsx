@@ -26,6 +26,7 @@ import { useTranslation } from 'react-i18next';
 import type { Editor } from '@tiptap/react';
 
 import { pluginRegistry, resolvePluginText, type PluginPanelEntry } from '../plugins/registry';
+import { isCloseRequestFor } from '../plugins/panelClose';
 import './PluginPanelTabs.css';
 import { useEditorTransactions } from '../hooks/useEditorTransactions';
 import { PanelPopoutButton } from './PanelPopout';
@@ -117,9 +118,10 @@ export const PluginPanelTabs: React.FC<Props> = ({
       }
     };
     const closeHandler = (e: Event) => {
-      // A close aimed at another slot's panel (a bottom panel) leaves this one open.
+      // A close aimed at another slot's panel (a bottom panel, by id or by
+      // coming from inside one) leaves this one open.
       const target = (e as CustomEvent<{ panelId?: string }>).detail?.panelId;
-      if (target && !pluginRegistry.getPanels('right-sidebar').some((p) => p.id === target)) return;
+      if (!isCloseRequestFor('right-sidebar', target, document.activeElement)) return;
       const content = document.activeElement?.closest<HTMLElement>('.plugin-panel-tabs__content');
       const tab = content?.getAttribute('aria-labelledby');
       if (tab) document.getElementById(tab)?.focus();

@@ -162,7 +162,9 @@
     "turnOff": "Kapat",
     "title": "Eklentiler",
     "description": "Kullanmayı seçebileceğiniz isteğe bağlı özellikler.",
-    "settingsButton": "Ayarlar…"
+    "settingsButton": "Ayarlar…",
+    "recommended": "Önerilen",
+    "recommendedHint": "Sizin için öneriliyor. Siz açıp ne yaptığını gözden geçirene kadar kapalı kalır."
   },
   "dictionaryLibrary": {
     "renamePrompt": "Sözlüğü yeniden adlandır",

@@ -725,7 +725,18 @@ const MenuBar: React.FC<MenuBarProps> = ({
       // The user's real copy now holds this text, so there is nothing left to
       // recover. Cleared here too, not only by the snapshot hook, so the copy is
       // gone at once rather than on the hook's next pass.
-      clearRecoverySnapshot();
+      //
+      // Only while the document still IS what was saved. A slow save leaves
+      // the writer typing; the snapshot hook may already have stored those
+      // newer words, and clearing now would delete the one copy of them.
+      let unchangedSinceSave = false;
+      try {
+        const now = buildSaveContent();
+        unchangedSinceSave = !!content && !!now && JSON.stringify(now) === JSON.stringify(content);
+      } catch (err) {
+        console.warn('[save] could not compare the document with what was saved; keeping the recovery copy:', err);
+      }
+      if (unchangedSinceSave) clearRecoverySnapshot();
     } catch (err) {
       console.error('Save failed:', err);
       const msg = err instanceof Error ? err.message : String(err);

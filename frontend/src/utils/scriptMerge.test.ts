@@ -161,3 +161,109 @@ describe('neighbouring edits', () => {
     expect(merged && texts(merged).slice(2, 4)).toEqual(['ANNA (V.O.)', 'Good morning.']);
   });
 });
+
+describe('regions where paragraphs were added or removed', () => {
+  const lines = (...words: string[]) => doc(words.map(word => p('action', word)));
+
+  it('takes a deletion, an edit to the next paragraph and an addition after it from their own sides', () => {
+    // Removed A and added N on the device; edited B in the cloud.
+    const result = mergeScripts(lines('A', 'B'), lines('B', 'N'), lines('A', 'B2'));
+    expect(result.conflicts).toHaveLength(0);
+    expect(texts(applyMerge(result, {}))).toEqual(['B2', 'N']);
+  });
+
+  it('still asks when both sides changed the same paragraph', () => {
+    const result = mergeScripts(lines('A', 'B', 'C'), lines('B', 'Cd'), lines('A', 'B', 'Cc'));
+    expect(result.conflicts).toHaveLength(1);
+    const conflict = result.conflicts[0];
+    expect(conflict.kind === 'text' && [conflict.device.length, conflict.cloud.length]).toEqual([1, 1]);
+    expect(texts(applyMerge(result, { [conflict.id]: 'device' }))).toEqual(['B', 'Cd']);
+    expect(texts(applyMerge(result, { [conflict.id]: 'cloud' }))).toEqual(['B', 'Cc']);
+  });
+
+  /**
+   * Every pair of edits to a three-paragraph script: each side keeps, edits or
+   * removes each paragraph, may add one of its own, and may move paragraphs.
+   * Checked for every way of settling the conflicts:
+   * - nothing either side wrote is lost without being asked about;
+   * - a paragraph both sides kept appears exactly once;
+   * - unless a side moved paragraphs, no paragraph appears in two versions.
+   */
+  it('never loses or duplicates a paragraph in any pair of edits to a short script', () => {
+    const baseWords = ['A', 'B', 'C'];
+    const variants = (side: 'd' | 'c') => {
+      const pool = [...baseWords, ...baseWords.map(word => word + side), 'N' + side];
+      const out: string[][] = [];
+      const grow = (current: string[]) => {
+        out.push(current);
+        if (current.length === 4) return;
+        for (const word of pool) {
+          if (current.some(other => other[0] === word[0])) continue; // one version of each paragraph
+          grow([...current, word]);
+        }
+      };
+      grow([]);
+      return out;
+    };
+    // Versions of one base paragraph share a family; each added paragraph is its own.
+    const family = (word: string) => (word[0] === 'N' ? word : word[0]);
+    const moved = (words: string[]) => {
+      const order = words.map(family).filter(f => baseWords.includes(f));
+      return order.some((f, i) => i > 0 && order[i - 1] > f);
+    };
+    const failures: string[] = [];
+    const devices = variants('d'), clouds = variants('c');
+    for (const device of devices) {
+      for (const cloud of clouds) {
+        const result = mergeScripts(lines(...baseWords), lines(...device), lines(...cloud));
+        const settle = (choice: 'device' | 'cloud' | 'both') => {
+          const out = texts(applyMerge(result, Object.fromEntries(result.conflicts.map(c => [c.id, choice]))));
+          return out.length === 1 && out[0] === '' ? [] : out;
+        };
+        const label = `${device.join('')}|${cloud.join('')}`;
+        const both = settle('both');
+        for (const word of [...device, ...cloud]) {
+          if (!baseWords.includes(word) && !both.includes(word)) failures.push(`${label}: lost ${word}`);
+        }
+        for (const choice of ['device', 'cloud', 'both'] as const) {
+          const out = choice === 'both' ? both : settle(choice);
+          for (const word of baseWords) {
+            if (device.includes(word) && cloud.includes(word) && !moved(device) && !moved(cloud)
+              && out.filter(w => w === word).length !== 1) {
+              failures.push(`${label}: ${word} kept by both appears ${out.filter(w => w === word).length} times (${choice})`);
+            }
+          }
+          if (choice !== 'both' && !moved(device) && !moved(cloud)) {
+            const families = out.map(family);
+            if (new Set(families).size !== families.length) failures.push(`${label}: duplicated in ${out.join('')} (${choice})`);
+          }
+        }
+      }
+    }
+    expect(devices.length * clouds.length).toBeGreaterThan(10_000);
+    expect(failures.slice(0, 20)).toEqual([]);
+  }, 120_000);
+});
+
+describe('plugin data', () => {
+  it('merges each plugin\'s data on its own', () => {
+    const merged = autoMerge(
+      doc([], { _pluginData: { a: { n: 1 }, b: { n: 1 } } }),
+      doc([], { _pluginData: { a: { n: 2 }, b: { n: 1 } } }),
+      doc([], { _pluginData: { a: { n: 1 }, b: { n: 3 }, c: { n: 1 } } }),
+    );
+    expect(merged?._pluginData).toEqual({ a: { n: 2 }, b: { n: 3 }, c: { n: 1 } });
+  });
+
+  it('asks only about a plugin both sides changed', () => {
+    const result = mergeScripts(
+      doc([], { _pluginData: { a: { n: 1 }, b: { n: 1 } } }),
+      doc([], { _pluginData: { a: { n: 2 }, b: { n: 2 } } }),
+      doc([], { _pluginData: { a: { n: 3 }, b: { n: 1 } } }),
+    );
+    expect(result.conflicts).toMatchObject([{ kind: 'item', key: '_pluginData', itemId: 'a' }]);
+    const conflict = result.conflicts[0];
+    expect(applyMerge(result, { [conflict.id]: 'cloud' })._pluginData).toEqual({ a: { n: 3 }, b: { n: 2 } });
+    expect(applyMerge(result, { [conflict.id]: 'device' })._pluginData).toEqual({ a: { n: 2 }, b: { n: 2 } });
+  });
+});

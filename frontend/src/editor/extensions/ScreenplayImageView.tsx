@@ -2,8 +2,7 @@ import React, { useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { NodeViewWrapper, type NodeViewProps } from '@tiptap/react';
 import { useImageSrc } from '../../hooks/useImageSrc';
-
-const LINE_HEIGHT_PX = 16; // 12pt — matches pagination LINE_HEIGHT_PT
+import { IMAGE_LINE_HEIGHT_PX as LINE_HEIGHT_PX, imageHeightLines, naturalImageLayout } from '../../utils/imageLines';
 
 /**
  * React NodeView for the screenplayImage node. Resolves the image through the
@@ -24,10 +23,9 @@ export const ScreenplayImageView: React.FC<NodeViewProps> = ({ node, updateAttri
     const img = imgRef.current;
     if (!img) return;
     const colWidth = (img.closest('.ProseMirror') as HTMLElement | null)?.clientWidth || 600;
-    const naturalW = img.naturalWidth || 300;
-    const w = width && width > 0 ? width : Math.min(naturalW, Math.round(colWidth * 0.9));
-    const renderedH = (img.naturalHeight / (img.naturalWidth || 1)) * w;
-    const heightLines = Math.max(1, Math.ceil(renderedH / LINE_HEIGHT_PX) + 1);
+    // Shared with the Title Page dialog, which measures an image before it is
+    // ever displayed here — the two must agree on the result.
+    const { width: w, heightLines } = naturalImageLayout(img.naturalWidth, img.naturalHeight, colWidth, width);
     if (!width || node.attrs.heightLines !== heightLines) {
       updateAttributes({ width: w, heightLines });
     }
@@ -44,7 +42,7 @@ export const ScreenplayImageView: React.FC<NodeViewProps> = ({ node, updateAttri
     const aspect = (img.naturalHeight || 1) / (img.naturalWidth || 1);
     const onMove = (me: MouseEvent) => {
       const w = Math.max(40, Math.round(startW + (me.clientX - startX)));
-      const heightLines = Math.max(1, Math.ceil((w * aspect) / LINE_HEIGHT_PX) + 1);
+      const heightLines = imageHeightLines(w, aspect);
       updateAttributes({ width: w, heightLines });
     };
     const onUp = () => {

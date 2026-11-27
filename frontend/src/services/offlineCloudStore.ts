@@ -14,6 +14,10 @@ export type OfflineScript = {
    * merge when the cloud copy changed too. Absent on rows saved before merging
    * existed, which then fall back to asking about every difference. */
   base?: Record<string, unknown>;
+  /** Settling a conflict by keeping one whole version first saves the other as
+   * a new cloud screenplay. Recorded once that copy exists, so a retry after a
+   * later step failed does not save it a second time. */
+  keptCopy?: { choice: 'cloud' | 'device'; digest: string };
   lastSynced: number;
 };
 

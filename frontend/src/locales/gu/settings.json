@@ -162,7 +162,9 @@
     "turnOff": "બંધ કરો",
     "title": "એડ-ઑન",
     "description": "વૈકલ્પિક સુવિધાઓ જે આપ વાપરવાનું પસંદ કરી શકો.",
-    "settingsButton": "સેટિંગ્સ…"
+    "settingsButton": "સેટિંગ્સ…",
+    "recommended": "ભલામણ કરેલ",
+    "recommendedHint": "તમારા માટે ભલામણ કરેલ. તમે તેને ચાલુ કરીને તે શું કરે છે તે જોઈ ન લો ત્યાં સુધી તે બંધ રહેશે."
   },
   "dictionaryLibrary": {
     "renamePrompt": "શબ્દકોશનું નામ બદલો",

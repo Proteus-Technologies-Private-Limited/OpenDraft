@@ -137,6 +137,17 @@ describe('platformFetch binary bodies', () => {
     expect(new Uint8Array(await res.arrayBuffer())).toEqual(bytes);
   });
 
+  it('gives a picture download from the editor or an export the long budget', async () => {
+    // useImageSrc and the exporters send PICTURE_ACCEPT; before they did, a
+    // few-MB picture on a slow link failed at the default 10 s.
+    const { platformFetch, PICTURE_ACCEPT } = await loadPlatform();
+    invoke.mockResolvedValue({ status: 200, body: '', encoding: 'text' });
+    await platformFetch('https://open-draft.com/api/projects/p/assets/a1', {
+      headers: new Headers({ Accept: PICTURE_ACCEPT }),
+    });
+    expect(lastPayload().timeoutSecs).toBe(300);
+  });
+
   it('accepts a 204 with no body', async () => {
     invoke.mockResolvedValue({ status: 204, body: '', encoding: 'text' });
     const { platformFetch } = await loadPlatform();

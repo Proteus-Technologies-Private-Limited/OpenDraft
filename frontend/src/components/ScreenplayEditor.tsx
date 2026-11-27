@@ -1,5 +1,7 @@
 import { readSourceFidelity } from '../utils/sourceFidelity';
 import { normalizePluginData } from '../utils/pluginData';
+import { dragCarriesFiles } from '../utils/fileDropGuard';
+import { isNotFoundError } from '../utils/notFound';
 import { usePluginDataStore } from '../stores/pluginDataStore';
 import React, { useEffect, useLayoutEffect, useCallback, useRef, useState, useMemo, useSyncExternalStore } from 'react';
 import { panelResize } from '../utils/panelResize';
@@ -4259,6 +4261,9 @@ const ScreenplayEditor: React.FC = () => {
       return;
     }
     (async () => {
+      // Which half of the open failed: a missing project leaves nothing to go
+      // back to, a missing script still has its project view.
+      let projectLoaded = false;
       try {
         // Flush unsaved changes to the CURRENT script before switching so
         // metadata (character profiles, relationships, etc.) is not lost.
@@ -4279,6 +4284,7 @@ const ScreenplayEditor: React.FC = () => {
         }
 
         const project = await projectApi.getProject(urlProjectId);
+        projectLoaded = true;
         setCurrentProject(project);
         setCurrentScriptId(isHistoryMode ? null : urlScriptId);
         // Loading a project-backed script means we're no longer editing an
@@ -4492,19 +4498,20 @@ const ScreenplayEditor: React.FC = () => {
       } catch (err) {
         console.error('Failed to load script:', err);
         const errMsg = err instanceof Error ? err.message : String(err);
-        const missing = errMsg.includes('404') || /^(Project|Script) not found:/.test(errMsg);
+        // From the error's status or its library's "not found", never a "404"
+        // somewhere in the message — see utils/notFound.
+        const missing = isNotFoundError(err);
         // It is gone (deleted here or on another device): stop offering it as
         // the script to reopen, or the start screen sends us straight back.
-        if (missing && urlProjectId && urlScriptId) forgetLastSessionFor(urlProjectId, urlScriptId);
-        // If the script doesn't exist (404), redirect to the project view
-        if (errMsg.includes('404') && urlProjectId) {
+        // An old version that is missing says nothing about the script itself.
+        if (missing && urlProjectId && urlScriptId && !(isHistoryMode && projectLoaded)) {
+          forgetLastSessionFor(urlProjectId, urlScriptId);
+        }
+        if (missing) {
+          // Say so plainly rather than showing the internal id, and leave the
+          // dead route: for the project view when only the script is gone.
           showToast(tg('editor:toast.scriptNotFound'), 'error');
-          navigate(`/project/${urlProjectId}`, { replace: true });
-        } else if (/^(Project|Script) not found:/.test(errMsg)) {
-          // The library has no such project or script: say so plainly rather
-          // than showing the internal id, and leave the dead route.
-          showToast(tg('editor:toast.scriptNotFound'), 'error');
-          navigate('/', { replace: true });
+          navigate(projectLoaded && urlProjectId ? `/project/${urlProjectId}` : '/', { replace: true });
         } else {
           showToast(tg('editor:toast.loadScriptFailed', { error: errMsg }), 'error');
         }
@@ -5536,12 +5543,16 @@ const ScreenplayEditor: React.FC = () => {
   // HTML5 on every platform (desktop windows have Tauri's native drag-drop
   // handler off — see desktop_windows::with_panel_windows). A file dropped
   // outside the editor is imported too, as the native handler did, unless a
-  // drop zone of its own (Fonts, the Asset Manager) took it. Without this the
-  // web view would open a file dropped elsewhere as a page. Text and other
+  // drop zone of its own (Fonts, the Asset Manager) took it. Text and other
   // drags are left alone: the script and plugin panels handle those.
+  //
+  // On `document`, not `window`: App's file-drop guard (utils/fileDropGuard)
+  // is on `window` and cancels any file drop still uncancelled when it gets
+  // there, on every screen. Bubbling reaches document first, so the import
+  // here always runs before the guard, whatever order the two mounted in.
   useEffect(() => {
     if (!editor) return;
-    const carriesFiles = (e: DragEvent) => Array.from(e.dataTransfer?.types ?? []).includes('Files');
+    const carriesFiles = dragCarriesFiles;
     const onDragOver = (e: DragEvent) => {
       if (!carriesFiles(e)) return;
       e.preventDefault();
@@ -5564,13 +5575,13 @@ const ScreenplayEditor: React.FC = () => {
         showToast(tg('editor:toast.importFileFailed', { error: err instanceof Error ? err.message : String(err) }), 'error');
       }
     };
-    window.addEventListener('dragover', onDragOver);
-    window.addEventListener('dragleave', onDragLeave);
-    window.addEventListener('drop', onDrop);
+    document.addEventListener('dragover', onDragOver);
+    document.addEventListener('dragleave', onDragLeave);
+    document.addEventListener('drop', onDrop);
     return () => {
-      window.removeEventListener('dragover', onDragOver);
-      window.removeEventListener('dragleave', onDragLeave);
-      window.removeEventListener('drop', onDrop);
+      document.removeEventListener('dragover', onDragOver);
+      document.removeEventListener('dragleave', onDragLeave);
+      document.removeEventListener('drop', onDrop);
     };
   }, [editor, acceptDroppedFile, tg]);
 

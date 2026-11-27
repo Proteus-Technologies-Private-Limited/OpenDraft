@@ -280,6 +280,15 @@ export interface PluginSceneAction {
 // Plugins marked `optIn` and plugins deployed on the web server are managed in
 // Settings → Add-ons. An off add-on contributes no menu items, panels, editor
 // extensions, importers, exporters or reports.
+//
+// Anything that sends the writer's words off the device — an AI assistant above
+// all — must be an add-on the writer turns on themselves: OpenDraft never makes
+// that choice for the writer, and neither does an administrator's or a
+// manifest's default. An add-on that declares `privacy` (what leaves the
+// device) without `staysOnDevice`, or has `settings` for the activation dialog
+// to ask for, is never started by a default; it waits for the writer to turn it on in Settings →
+// Add-ons, where the dialog shows what leaves the device and asks for its
+// settings. A default of "on" only suggests it (`isAddOnSuggested`).
 
 /** What an add-on's settings screen is given. */
 export interface PluginSettingsProps {
@@ -327,6 +336,12 @@ export interface OpenDraftPlugin {
   privacy?: string;
   /** Translation key for `privacy`. */
   privacyKey?: string;
+  /**
+   * Set to true when nothing the add-on handles leaves the device, even though
+   * it states `privacy` (e.g. "makes no network requests"). Only then may a
+   * default turn it on without the writer; an add-on with `settings` still waits.
+   */
+  staysOnDevice?: boolean;
   /** Settings screen, shown when the add-on is turned on and from Settings → Add-ons. */
   settings?: React.ComponentType<PluginSettingsProps>;
   /**
@@ -352,13 +367,20 @@ export interface OpenDraftPlugin {
   grammarProviders?: Record<string, GrammarProvider>;
   /**
    * Runs once, the first time a script's editor is ready while the plugin is
-   * active (for an add-on: once it is on). Registered after that, or turned on
-   * later, it runs straight away if a script is open. `ctx.editor` follows the
+   * active (for an add-on: once it is on and its `onActivate` has succeeded).
+   * Registered after that, or turned on later, it runs straight away if a
+   * script is open. An add-on turned off has `destroy` called and gets `init`
+   * again when it is turned back on. `ctx.editor` follows the
    * editor that is open, so keep `ctx` rather than the editor itself. A throw
    * is logged and does not stop other plugins.
    */
   init?: (ctx: PluginContext) => void | Promise<void>;
-  /** Called when the plugin is unregistered. */
+  /**
+   * Undoes `init`. Called when the plugin is unregistered or replaced by a
+   * plugin registered under the same id, and — for an add-on whose `init` has
+   * run — when the writer turns it off, so listeners added in `init` stop. An
+   * add-on turned back on gets `init` again. A throw is logged.
+   */
   destroy?: () => void;
 }
 
@@ -446,7 +468,15 @@ export class PluginRegistry {
   private _grammarListeners: Array<() => void> = [];
   private _enabledAddOns = new Set<string>();
   private _legacyEnabledAddOns: Set<string> | null = null;
-  private _runtimeAddOnDefaults: ReadonlyMap<string, boolean> = new Map();
+  /**
+   * Deployed (runtime) plugins, with the default the server gives each: the
+   * admin's or the manifest's choice, or null when neither made one.
+   */
+  private _runtimeAddOnDefaults: ReadonlyMap<string, boolean | null> = new Map();
+  /** Add-ons whose default is on but which wait for the writer to turn them on. */
+  private _suggestedAddOns = new Set<string>();
+  /** Add-ons whose `onActivate` is still running; their `init` waits for it. */
+  private _activating = new Set<OpenDraftPlugin>();
   /** The editor open right now, as reported by the screenplay editor. */
   private _editor: Editor | null = null;
   /** Plugins whose `init` has run (or is running). */
@@ -468,7 +498,59 @@ export class PluginRegistry {
 
   private async _runActivate(plugin: OpenDraftPlugin): Promise<void> {
     if (!plugin.onActivate) return;
-    await plugin.onActivate();
+    this._activating.add(plugin);
+    try {
+      await plugin.onActivate();
+    } finally {
+      this._activating.delete(plugin);
+    }
+  }
+
+  /** Start an add-on that registered already turned on; roll it back if `onActivate` fails. */
+  private async _startAddOn(plugin: OpenDraftPlugin): Promise<void> {
+    this._enabledAddOns.add(plugin.id);
+    try {
+      await this._runActivate(plugin);
+    } catch (err) {
+      console.error(`[add-ons] ${plugin.id} could not start and has been left off`, err);
+      if (this._plugins.get(plugin.id) === plugin && this._enabledAddOns.delete(plugin.id)) this._notify(plugin);
+      return;
+    }
+    if (this._plugins.get(plugin.id) === plugin && this.isAddOnEnabled(plugin.id)) await this._initPending();
+  }
+
+  /** Call a plugin's `destroy`, containing anything it throws. */
+  private _destroy(plugin: OpenDraftPlugin, why: string): void {
+    if (!plugin.destroy) return;
+    try {
+      plugin.destroy();
+    } catch (err) {
+      console.error(`[plugins] ${plugin.id} reported an error while being ${why}`, err);
+    }
+  }
+
+  /**
+   * The default for a deployed plugin, or undefined for one built into the
+   * app. A deployed plugin that is not an add-on by itself was always on
+   * before deployed plugins became add-ons, so with no admin or manifest
+   * default it starts on; one that is opt-in by itself keeps its own default.
+   */
+  private _runtimeDefault(plugin: OpenDraftPlugin): boolean | undefined {
+    const value = this._runtimeAddOnDefaults.get(plugin.id);
+    if (value === undefined) return undefined;
+    if (value !== null) return value;
+    return plugin.optIn ? undefined : true;
+  }
+
+  /**
+   * Whether a default may turn this add-on on without the writer. Not when it
+   * has settings the activation dialog asks for, nor when it declares what
+   * leaves the device — unless it also says it `staysOnDevice`: the writer has
+   * to see those and turn it on themselves.
+   */
+  private _mayStartWithoutAsking(plugin: OpenDraftPlugin | undefined): boolean {
+    if (!plugin || plugin.settings) return false;
+    return plugin.staysOnDevice === true || (!plugin.privacy && !plugin.privacyKey);
   }
 
   /**
@@ -484,24 +566,26 @@ export class PluginRegistry {
     return this._upgradeHandler;
   }
 
-  /** Called before loading deployed plugins, which are all managed as add-ons. */
-  setRuntimeAddOnDefaults(defaults: ReadonlyMap<string, boolean>): void {
+  /**
+   * Called before loading deployed plugins, which are all managed as add-ons.
+   * A null default means neither the admin nor the manifest chose one.
+   */
+  setRuntimeAddOnDefaults(defaults: ReadonlyMap<string, boolean | null>): void {
     this._runtimeAddOnDefaults = defaults;
   }
 
   /** Register a plugin. Replaces any existing plugin with the same id. */
   register(plugin: OpenDraftPlugin): void {
-    const defaultEnabled = this._runtimeAddOnDefaults.get(plugin.id);
-    if (defaultEnabled !== undefined && !plugin.optIn) plugin = { ...plugin, optIn: true };
+    const replaced = this._plugins.get(plugin.id);
+    if (replaced) this._destroy(replaced, 'replaced');
+    const runtimeDefault = this._runtimeDefault(plugin);
+    if (runtimeDefault !== undefined && !plugin.optIn) plugin = { ...plugin, optIn: true };
     this._plugins.set(plugin.id, plugin);
     // A replacement under the same id is a new plugin: its own init runs.
     this._initialised.delete(plugin.id);
     this._enabledAddOns.delete(plugin.id);
-    if (plugin.optIn && this._startsEnabled(plugin.id, defaultEnabled ?? false)) {
-      this._enabledAddOns.add(plugin.id);
-      this._runActivate(plugin).catch((err) => {
-        console.error(`[add-ons] ${plugin.id} could not start`, err);
-      });
+    if (plugin.optIn && this._startsEnabled(plugin.id, runtimeDefault ?? false)) {
+      void this._startAddOn(plugin);
     }
     this._notify(plugin);
     void this._initPending();
@@ -509,11 +593,30 @@ export class PluginRegistry {
 
   // ── Add-ons ──
 
+  /**
+   * Whether a newly registered add-on starts on: the writer's saved choice,
+   * else the default — but a default never turns on an add-on that has to ask
+   * the writer first (see `_mayStartWithoutAsking`); that one is only suggested.
+   */
   private _startsEnabled(id: string, defaultEnabled: boolean): boolean {
+    this._suggestedAddOns.delete(id);
     const preference = readAddOnPreference(id);
     if (preference !== undefined) return preference;
     this._legacyEnabledAddOns ??= readLegacyEnabledAddOns();
-    return this._legacyEnabledAddOns.has(id) || defaultEnabled;
+    if (this._legacyEnabledAddOns.has(id)) return true;
+    if (!defaultEnabled) return false;
+    if (this._mayStartWithoutAsking(this._plugins.get(id))) return true;
+    this._suggestedAddOns.add(id);
+    return false;
+  }
+
+  /**
+   * Whether an off add-on's default is on, but it waits for the writer because
+   * it declares what leaves the device or has settings to ask for. Settings →
+   * Add-ons can use this to recommend it; only the writer can turn it on.
+   */
+  isAddOnSuggested(id: string): boolean {
+    return this._suggestedAddOns.has(id) && !this.isAddOnEnabled(id);
   }
 
   /** Every add-on, on or off, sorted by name — for Settings → Add-ons. */
@@ -554,6 +657,7 @@ export class PluginRegistry {
       throw new Error(`${plugin.name} could not be turned on: ${err instanceof Error ? err.message : String(err)}`);
     }
     if (this._plugins.get(id) !== plugin || !this.isAddOnEnabled(id)) return;
+    this._suggestedAddOns.delete(id);
     writeAddOnPreference(id, true);
     this._notify(plugin);
     await this._initPending();
@@ -567,8 +671,11 @@ export class PluginRegistry {
   async disableAddOn(id: string, ctx: PluginDeactivateContext = { forgetSettings: false }): Promise<void> {
     const plugin = this._plugins.get(id);
     if (!this._enabledAddOns.delete(id)) return;
+    this._suggestedAddOns.delete(id);
     writeAddOnPreference(id, false);
     this._notify(plugin);
+    // Undo init, so what it set up stops; turning the add-on on again runs init again.
+    if (plugin && this._initialised.delete(id)) this._destroy(plugin, 'turned off');
     if (!plugin?.onDeactivate) return;
     try {
       await plugin.onDeactivate(ctx);
@@ -583,15 +690,10 @@ export class PluginRegistry {
   /** Unregister a plugin by id. Calls destroy() if defined. */
   unregister(id: string): void {
     const plugin = this._plugins.get(id);
-    if (plugin?.destroy) {
-      try {
-        plugin.destroy();
-      } catch (err) {
-        console.error(`[plugins] ${id} reported an error while being removed`, err);
-      }
-    }
+    if (plugin) this._destroy(plugin, 'removed');
     this._plugins.delete(id);
     this._enabledAddOns.delete(id);
+    this._suggestedAddOns.delete(id);
     this._initialised.delete(id);
     this._notify(plugin);
   }
@@ -731,6 +833,8 @@ export class PluginRegistry {
     if (!this._editor) return;
     for (const plugin of this._active()) {
       if (!plugin.init || this._initialised.has(plugin.id)) continue;
+      // An add-on still starting: its init runs once `onActivate` has succeeded.
+      if (this._activating.has(plugin)) continue;
       // The script closed while an earlier init ran: the rest wait for the next one.
       if (!this._editor) return;
       this._initialised.add(plugin.id);

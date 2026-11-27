@@ -207,10 +207,13 @@ const SettingsPage: React.FC = () => {
   }, [sessionEndedEmail]);
 
   const handleResetSessionEndedPassword = async () => {
-    if (!sessionEndedEmail) return;
+    // The field starts with the ended session's email, but the writer may have
+    // typed the account they actually mean; reset that one.
+    const email = loginEmail.trim() || sessionEndedEmail;
+    if (!email) return;
     setSendingReset(true);
     try {
-      const r = await collabAuthApi.forgotPassword(sessionEndedEmail);
+      const r = await collabAuthApi.forgotPassword(email);
       showToast(r.message || t('auth.resetSent'), 'success');
     } catch (err: any) {
       console.error('[SettingsPage] password reset request failed:', err);

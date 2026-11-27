@@ -207,15 +207,21 @@ const AddOnsSettingsSection: React.FC<{ embedded?: boolean }> = ({ embedded = fa
       <ul className="addon-list">
         {addOns.map((plugin) => {
           const on = pluginRegistry.isAddOnEnabled(plugin.id);
+          // On by default, but it sends data off the device or has settings, so
+          // only the writer can turn it on: recommend it rather than start it.
+          const recommended = !on && pluginRegistry.isAddOnSuggested(plugin.id);
           const toggleId = `addon-toggle-${plugin.id}`;
+          const hintId = `addon-recommended-${plugin.id}`;
           return (
             <li key={plugin.id} className="addon-item">
               <div className="addon-item-text">
                 <label htmlFor={toggleId} className="addon-name">
                   {addOnName(plugin)} <span className="addon-version">{plugin.version}</span>
+                  {recommended && <span className="addon-recommended">{t('addOns.recommended')}</span>}
                 </label>
                 {addOnDescription(plugin) && <div className="addon-desc">{addOnDescription(plugin)}</div>}
                 {addOnPrivacy(plugin) && <div className="settings-hint">{addOnPrivacy(plugin)}</div>}
+                {recommended && <div className="settings-hint" id={hintId}>{t('addOns.recommendedHint')}</div>}
               </div>
               <div className="addon-item-actions">
                 {on && plugin.settings && (
@@ -230,6 +236,7 @@ const AddOnsSettingsSection: React.FC<{ embedded?: boolean }> = ({ embedded = fa
                     role="switch"
                     checked={on}
                     aria-checked={on}
+                    aria-describedby={recommended ? hintId : undefined}
                     onChange={() => setPending({ kind: on ? 'disable' : 'activate', plugin })}
                   />{' '}
                   {on ? t('common:on') : t('common:off')}

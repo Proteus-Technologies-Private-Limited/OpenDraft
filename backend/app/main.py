@@ -27,7 +27,8 @@ logger = logging.getLogger(__name__)
 STATIC_DIR = BASE_DIR / "static"
 
 # Deleted projects and scripts older than TRASH_RETENTION_DAYS are purged at
-# startup and then this often.
+# startup and then this often. With the trash off (0), whatever it still holds
+# from before is purged once at startup.
 TRASH_PURGE_INTERVAL_SEC = 6 * 3600
 
 
@@ -35,6 +36,8 @@ async def _purge_trash_forever() -> None:
     while True:
         try:
             await asyncio.to_thread(trash_service.purge_expired)
+            if not trash_service.enabled():
+                return
         except Exception:
             logger.exception("Trash purge failed; will try again in %d s", TRASH_PURGE_INTERVAL_SEC)
         await asyncio.sleep(TRASH_PURGE_INTERVAL_SEC)
@@ -57,7 +60,7 @@ async def lifespan(app: FastAPI):
             "root to generate a shared secret for backend + collab-server.\n"
             + "=" * 72
         )
-    purger = asyncio.create_task(_purge_trash_forever()) if trash_service.enabled() else None
+    purger = asyncio.create_task(_purge_trash_forever()) if trash_service.enabled() or trash_service.has_entries() else None
     # Plugins start after core is ready; a failing hook is logged, not fatal.
     await run_hooks("app:startup", app=app)
     try:
@@ -141,11 +144,13 @@ for _prefix, _router, _tags in get_plugin_routers():
     app.include_router(_router, prefix=_prefix, tags=_tags)
 
 # Runtime frontend plugins: one folder each under backend/plugins (or
-# OPENDRAFT_PLUGINS_DIR), listed at /api/plugins and served from /plugins.
-# Mounted before the SPA catch-all below, which would otherwise answer them.
+# OPENDRAFT_PLUGINS_DIR), listed at /api/plugins and served from /plugins —
+# only the files of plugins that list includes, never hidden files or anything
+# outside a plugin's folder (not a StaticFiles mount over the whole directory).
+# Added before the SPA catch-all below, which would otherwise answer them.
 frontend_plugins.ensure_plugins_dir()
 app.include_router(frontend_plugins.router, prefix="/api/plugins", tags=["frontend-plugins"])
-app.mount("/plugins", StaticFiles(directory=frontend_plugins.PLUGINS_DIR, check_dir=False), name="frontend-plugins")
+app.include_router(frontend_plugins.files_router, prefix="/plugins", tags=["frontend-plugins"])
 
 
 @app.get("/health")

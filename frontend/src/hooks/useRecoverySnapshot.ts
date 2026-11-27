@@ -24,6 +24,7 @@ import type { Editor } from '@tiptap/react';
 import {
   writeRecoverySnapshot,
   clearRecoverySnapshot,
+  recoverySlotKey,
   setRecoveryUnavailableHandler,
   type RecoveryFailureReason,
 } from '../services/recoveryService';
@@ -116,6 +117,28 @@ function metadataUnchanged(a: StoreState, b: StoreState): boolean {
   );
 }
 
+/**
+ * Whether this window's slot still holds a snapshot.
+ *
+ * The hook remembers what it last wrote so an unchanged document is not
+ * rewritten every pass, but it is not the only thing that touches the slot: a
+ * manual save, a save in place and the recovery prompt all clear it. A save
+ * that finished after the writer had typed more cleared the snapshot holding
+ * those newer words, and the hook — still remembering them as written — never
+ * put them back, so a crash then lost them. Only the key's presence is read,
+ * not the payload, so this stays cheap enough for every pass.
+ */
+function snapshotStillStored(): boolean {
+  try {
+    return localStorage.getItem(recoverySlotKey()) !== null;
+  } catch (err) {
+    // Storage that cannot be read cannot be written either; retrying every
+    // pass would only repeat the failure.
+    console.warn('[recovery] could not check the recovery snapshot:', err);
+    return true;
+  }
+}
+
 export function useRecoverySnapshot(opts: RecoverySnapshotOptions): void {
   // Latest values, so the interval doesn't need re-creating on every keystroke.
   const optsRef = useRef(opts);
@@ -193,7 +216,9 @@ export function useRecoverySnapshot(opts: RecoverySnapshotOptions): void {
         return;
       }
 
-      if (json === lastSnapshotJsonRef.current) return;
+      // Unchanged since the last write — unless something cleared that write
+      // since, in which case it has to go back.
+      if (json === lastSnapshotJsonRef.current && snapshotStillStored()) return;
 
       const stored = writeRecoverySnapshot({
         content,

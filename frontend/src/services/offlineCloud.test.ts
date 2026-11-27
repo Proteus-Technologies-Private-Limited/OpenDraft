@@ -1,6 +1,9 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError, type ScriptResponse } from './api';
-import { offlineCloud, offlineCloudStatus, resolveOfflineCloudConflict, startOfflineCloudSync } from './offlineCloud';
+import {
+  offlineCloud, offlineCloudStatus, readOfflineCloudMerge, resolveOfflineCloudConflict, startOfflineCloudSync,
+} from './offlineCloud';
+import { outdatedMergeCopies } from '../utils/scriptMerge';
 import type { OfflineScript } from './offlineCloudStore';
 
 const mocks = vi.hoisted(() => {
@@ -11,7 +14,7 @@ const mocks = vi.hoisted(() => {
     getScript: vi.fn(), upload: vi.fn(), deleteScript: vi.fn(), deleteProject: vi.fn(),
     createScript: vi.fn(), persist: vi.fn(async () => true),
     edit: vi.fn(), read: vi.fn(), pending: vi.fn(), unresolved: vi.fn(),
-    clear: vi.fn(), remove: vi.fn(), openAnywhere: vi.fn(async () => false),
+    clear: vi.fn(), remove: vi.fn(), openAnywhere: vi.fn(async () => false), showingNow: vi.fn(() => false),
   };
 });
 
@@ -28,7 +31,7 @@ vi.mock('./cloudApi', () => ({
     deleteScript: mocks.deleteScript, deleteProject: mocks.deleteProject, createScript: mocks.createScript,
   },
 }));
-vi.mock('./openDocuments', () => ({ scriptOpenAnywhere: mocks.openAnywhere }));
+vi.mock('./openDocuments', () => ({ scriptOpenAnywhere: mocks.openAnywhere, scriptShowingNow: mocks.showingNow }));
 vi.mock('./offlineCloudStore', () => ({
   readOfflineScript: mocks.read, editOfflineScript: mocks.edit,
   pendingOfflineScripts: mocks.pending, unresolvedOfflineScripts: mocks.unresolved,
@@ -81,6 +84,7 @@ beforeEach(() => {
   mocks.toast.mockClear();
   mocks.createScript.mockReset().mockResolvedValue(response('copy', 'copy'));
   mocks.openAnywhere.mockReset().mockResolvedValue(false);
+  mocks.showingNow.mockReset().mockReturnValue(false);
   mocks.read.mockReset().mockImplementation(async key => rows.get(JSON.stringify(key)));
   mocks.edit.mockReset().mockImplementation(async (key, change) => {
     const id = JSON.stringify(key);
@@ -313,6 +317,8 @@ describe('offline cloud uploads', () => {
     await save('device edit');
     await drain();
     mocks.getScript.mockResolvedValueOnce(response('cloud edit', 'r1'));
+    await readOfflineCloudMerge(projectId, scriptId);
+    mocks.getScript.mockResolvedValueOnce(response('cloud edit', 'r1'));
     mocks.upload.mockResolvedValueOnce(response('merged', 'r2'));
     await resolveOfflineCloudConflict(projectId, scriptId, 'merged', body('merged'));
     await drain();
@@ -365,5 +371,116 @@ describe('offline cloud uploads', () => {
       title: 'Test screenplay (copy)', content: body('queued copy'), format: 'json',
     }, expect.objectContaining({ key: scope }));
     expect(mocks.getScript).toHaveBeenCalledOnce();
+  });
+  it('does not upload a merge when the cloud changed while the dialog was open, and rebuilds it', async () => {
+    await offlineCloud.getScript(projectId, scriptId);
+    mocks.upload.mockRejectedValueOnce(fail(412));
+    mocks.getScript.mockResolvedValueOnce(response('cloud edit', 'r1'));
+    await save('device edit');
+    await drain();
+    expect(row()?.state).toBe('conflict');
+    mocks.getScript.mockResolvedValueOnce(response('cloud edit', 'r1'));
+    const opened = await readOfflineCloudMerge(projectId, scriptId);
+    expect(opened.cloudRevision).toBe('r1');
+    const uploads = mocks.upload.mock.calls.length;
+
+    // Another device saves r2 while the writer is choosing.
+    mocks.getScript.mockResolvedValueOnce(response('another device', 'r2'));
+    const failure = await resolveOfflineCloudConflict(projectId, scriptId, 'merged', body('merged on r1'), opened.cloudRevision)
+      .catch(error => error);
+    expect(failure).toBeInstanceOf(Error);
+    expect(failure.message).toBe('toolbar:status.save.cloudChangedDuringMerge');
+    expect(outdatedMergeCopies(failure)).toMatchObject({ cloud: body('another device'), cloudRevision: 'r2', base: body('original') });
+    await drain();
+    expect(mocks.upload.mock.calls.length).toBe(uploads);
+    expect(row()).toMatchObject({ state: 'conflict', script: { content: body('device edit') } });
+
+    // The merge rebuilt on r2 goes up on r2.
+    mocks.getScript.mockResolvedValueOnce(response('another device', 'r2'));
+    mocks.upload.mockResolvedValueOnce(response('merged on r2', 'r3'));
+    await resolveOfflineCloudConflict(projectId, scriptId, 'merged', body('merged on r2'), 'r2');
+    await drain();
+    expect(mocks.upload.mock.lastCall?.slice(2, 4)).toEqual([body('merged on r2'), 'r2']);
+    expect(row()).toMatchObject({ state: 'synced', revision: 'r3' });
+  });
+
+  it('also catches a cloud change when the caller does not pass the revision back', async () => {
+    await offlineCloud.getScript(projectId, scriptId);
+    mocks.upload.mockRejectedValueOnce(fail(412));
+    mocks.getScript.mockResolvedValueOnce(response('cloud edit', 'r1'));
+    await save('device edit');
+    await drain();
+    mocks.getScript.mockResolvedValueOnce(response('cloud edit', 'r1'));
+    await readOfflineCloudMerge(projectId, scriptId);
+    mocks.getScript.mockResolvedValueOnce(response('another device', 'r2'));
+    await expect(resolveOfflineCloudConflict(projectId, scriptId, 'merged', body('merged')))
+      .rejects.toThrow('toolbar:status.save.cloudChangedDuringMerge');
+    // The rebuilt merge is on r2 now.
+    mocks.getScript.mockResolvedValueOnce(response('another device', 'r2'));
+    mocks.upload.mockResolvedValueOnce(response('merged', 'r3'));
+    await resolveOfflineCloudConflict(projectId, scriptId, 'merged', body('merged'));
+    await drain();
+    expect(mocks.upload.mock.lastCall?.slice(2, 4)).toEqual([body('merged'), 'r2']);
+  });
+
+  it('explains a full plan instead of failing when the losing version cannot be kept as a copy', async () => {
+    await offlineCloud.getScript(projectId, scriptId);
+    mocks.upload.mockRejectedValueOnce(fail(412));
+    mocks.getScript.mockResolvedValueOnce(response('cloud edit', 'r1'));
+    await save('device edit');
+    await drain();
+    mocks.getScript.mockResolvedValueOnce(response('cloud edit', 'r1'));
+    mocks.createScript.mockRejectedValueOnce(fail(402));
+    await expect(resolveOfflineCloudConflict(projectId, scriptId, 'cloud'))
+      .rejects.toThrow('toolbar:status.save.cloudCopyQuotaDevice');
+    expect(row()).toMatchObject({ state: 'conflict', script: { content: body('device edit') } });
+
+    mocks.getScript.mockResolvedValueOnce(response('cloud edit', 'r1'));
+    mocks.createScript.mockRejectedValueOnce(fail(402));
+    await expect(resolveOfflineCloudConflict(projectId, scriptId, 'device'))
+      .rejects.toThrow('toolbar:status.save.cloudCopyQuotaCloud');
+    expect(row()).toMatchObject({ state: 'conflict', script: { content: body('device edit') } });
+  });
+
+  it('does not save the kept copy twice when a retry follows a failed step', async () => {
+    await offlineCloud.getScript(projectId, scriptId);
+    mocks.upload.mockRejectedValueOnce(fail(412));
+    mocks.getScript.mockResolvedValueOnce(response('cloud edit', 'r1'));
+    await save('device edit');
+    await drain();
+    const store = mocks.edit.getMockImplementation()!;
+    mocks.createScript.mockImplementationOnce(async () => {
+      // The copy is saved; recording it works; the final write then fails.
+      mocks.edit.mockImplementationOnce(store).mockImplementationOnce(async () => { throw new Error('Storage full'); });
+      return response('device edit', 'copy');
+    });
+    mocks.getScript.mockResolvedValueOnce(response('cloud edit', 'r1'));
+    await expect(resolveOfflineCloudConflict(projectId, scriptId, 'cloud')).rejects.toThrow('Storage full');
+    expect(row()).toMatchObject({ state: 'conflict', keptCopy: { choice: 'cloud' } });
+
+    mocks.getScript.mockResolvedValueOnce(response('cloud edit', 'r1'));
+    await expect(resolveOfflineCloudConflict(projectId, scriptId, 'cloud')).resolves.toBe('resolved');
+    expect(mocks.createScript).toHaveBeenCalledOnce();
+    expect(row()).toMatchObject({ state: 'synced', script: { content: body('cloud edit') } });
+    expect(row()?.keptCopy).toBeUndefined();
+  });
+
+  it('leaves a background merge for the writer when the script is opened while the cloud copy is fetched', async () => {
+    const two = (a: string, b: string) => ({ type: 'doc', content: [
+      { type: 'action', content: [{ type: 'text', text: a }] },
+      { type: 'action', content: [{ type: 'text', text: b }] },
+    ] });
+    const withContent = (content: object, revision: string) => ({ ...response('', revision), content });
+    mocks.getScript.mockResolvedValueOnce(withContent(two('one', 'two'), 'r0'));
+    await offlineCloud.getScript(projectId, scriptId);
+    mocks.upload.mockRejectedValueOnce(fail(412));
+    mocks.getScript.mockImplementationOnce(async () => {
+      mocks.showingNow.mockReturnValue(true); // an editor mounts mid-fetch
+      return withContent(two('one', 'TWO'), 'r1');
+    });
+    await offlineCloud.saveScript(projectId, scriptId, two('ONE', 'two'));
+    await drain();
+    expect(mocks.upload).toHaveBeenCalledTimes(1);
+    expect(row()).toMatchObject({ state: 'conflict', revision: 'r0', script: { content: two('ONE', 'two') } });
   });
 });

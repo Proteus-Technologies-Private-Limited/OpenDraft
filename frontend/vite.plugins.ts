@@ -26,7 +26,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { Plugin } from 'vite';
+import { normalizePath, type Plugin } from 'vite';
 
 const FRONTEND = path.dirname(fileURLToPath(import.meta.url));
 const SRC = path.join(FRONTEND, 'src');
@@ -61,9 +61,28 @@ function isBareImport(source: string): boolean {
   return !/^(\.|\/|\\|\0|[a-zA-Z]:|virtual:|node:)/.test(source) && !source.startsWith('@core/');
 }
 
+/**
+ * A test for "is this module one of the plugins' own files (not one of their
+ * node_modules)?".
+ *
+ * Vite's module ids always use `/`, but `path.resolve` gives `\` on Windows,
+ * so both sides go through Vite's `normalizePath` (`normalize`, swappable for
+ * tests) and are compared with `/`.
+ */
+export function pluginFileMatcher(
+  roots: string[],
+  normalize: (p: string) => string = normalizePath,
+): (file: string) => boolean {
+  const prefixes = roots.map((root) => normalize(root).replace(/\/+$/, '') + '/');
+  return (file: string) => {
+    const id = normalize(file);
+    return prefixes.some((prefix) => id.startsWith(prefix)) && !id.includes('/node_modules/');
+  };
+}
+
 export function buildTimePlugins(entries = buildTimePluginEntries()): Plugin {
   const roots = [...new Set(entries.map(pluginRoot))].filter((root) => !FRONTEND.startsWith(root + path.sep) && root !== FRONTEND);
-  const inPlugin = (file: string) => roots.some((root) => file.startsWith(root + path.sep));
+  const inPlugin = pluginFileMatcher(roots);
   const coreImporter = path.join(SRC, 'main.tsx');
 
   return {
@@ -83,7 +102,7 @@ export function buildTimePlugins(entries = buildTimePluginEntries()): Plugin {
       if (source === VIRTUAL_ID) return RESOLVED_VIRTUAL_ID;
       if (!importer || !entries.length) return null;
       const from = importer.split('?')[0];
-      if (!inPlugin(from) || from.includes(`${path.sep}node_modules${path.sep}`)) return null;
+      if (!inPlugin(from)) return null;
       if (source.startsWith('@core/')) {
         return this.resolve(path.join(SRC, source.slice('@core/'.length)), importer, { ...options, skipSelf: true });
       }
@@ -95,7 +114,7 @@ export function buildTimePlugins(entries = buildTimePluginEntries()): Plugin {
     load(id) {
       if (id !== RESOLVED_VIRTUAL_ID) return null;
       if (!entries.length) return '// No build-time plugins (OPENDRAFT_PLUGINS is not set).\nexport {};\n';
-      return `${entries.map((entry) => `import ${JSON.stringify(entry)};`).join('\n')}\nexport {};\n`;
+      return `${entries.map((entry) => `import ${JSON.stringify(normalizePath(entry))};`).join('\n')}\nexport {};\n`;
     },
   };
 }

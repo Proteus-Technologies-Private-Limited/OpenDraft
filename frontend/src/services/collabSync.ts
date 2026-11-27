@@ -14,6 +14,13 @@
  * in a second map, "noteTombstones" (id → when deleted), so the merge can tell
  * a note deleted elsewhere from one that has not reached the other side yet.
  * Older versions neither read nor write that map, and see plain notes lists.
+ *
+ * Plugin document data (pluginRegistry.setDocumentData) has a map of its own,
+ * "pluginData", one key per plugin id holding that plugin's JSON, so two
+ * collaborators' different plugins never overwrite each other; only two edits
+ * to the same plugin's entry race. Older versions kept every plugin's data as
+ * one value, "pluginData" in "metadata". That value is still written beside
+ * the map for them, and what they write into it is merged back by plugin.
  */
 
 import * as Y from 'yjs';
@@ -22,7 +29,7 @@ import { validTemplatePageLayout } from '../utils/templateSnapshot';
 import { useEditorStore, DEFAULT_PAGE_LAYOUT, type GeneralNote, type NoteInfo, type PageLayout } from '../stores/editorStore';
 import { normalizeRevisionSettings } from '../editor/revisionColors';
 import { normalizeScriptProfile } from '../utils/scriptProfile';
-import { currentPluginData, usePluginDataStore } from '../stores/pluginDataStore';
+import { currentPluginData, usePluginDataStore, type PluginDocumentData } from '../stores/pluginDataStore';
 import { normalizePluginData } from '../utils/pluginData';
 import {
   addedNoteIds,
@@ -53,9 +60,8 @@ const SYNC_KEYS = [
   'revisionSettings',
   // Pacing changes everyone's runtime estimate, so it is shared like the rest.
   'scriptProfile',
-  // Plugins' own data (pluginRegistry.setDocumentData), as one value: the last
-  // writer wins, as with the script profile.
-  'pluginData',
+  // Plugin data is not here: it has a map of its own, one key per plugin
+  // (see "Plugin document data" below).
 ] as const;
 
 type SyncKey = (typeof SYNC_KEYS)[number];
@@ -74,6 +80,16 @@ export const NOTE_TOMBSTONE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 let metaMap: Y.Map<string> | null = null;
 let tombMap: Y.Map<string> | null = null;
+let pluginMap: Y.Map<string> | null = null;
+/** The key in "metadata" where older versions keep all plugins' data as one value. */
+const LEGACY_PLUGIN_DATA_KEY = 'pluginData';
+/** One plugin's entry as last written to or read from Yjs. */
+interface PluginEntrySeen { ref: unknown; json: string }
+/** The plugin data store's object as last written to or read from Yjs, to skip unchanged updates by reference. */
+let prevPluginData: PluginDocumentData | null = null;
+let prevPluginEntries = new Map<string, PluginEntrySeen>();
+/** Each plugin's JSON in the legacy value as last seen, to tell what an older version changed in it. */
+let prevLegacyEntries = new Map<string, string>();
 let fromYjs = false;
 let unsubStore: (() => void) | null = null;
 let unsubTemplates: (() => void) | null = null;
@@ -110,6 +126,7 @@ export function startCollabSync(
 
   metaMap = ydoc.getMap('metadata');
   tombMap = ydoc.getMap('noteTombstones');
+  pluginMap = ydoc.getMap('pluginData');
 
   mayPublishFormat = isHost;
   // ── 1. Host seeds Yjs map from current store ──
@@ -131,7 +148,7 @@ export function startCollabSync(
       metaMap!.set('revisionHistory', JSON.stringify(store.revisionHistory));
       metaMap!.set('revisionSettings', JSON.stringify(store.revisionSettings));
       metaMap!.set('scriptProfile', JSON.stringify(store.scriptProfile));
-      metaMap!.set('pluginData', JSON.stringify(currentPluginData()));
+      seedPluginData();
       if (canEditFormat()) metaMap!.set(FORMAT_KEY, formatSnapshot());
       pruneTombstones(Date.now());
     });
@@ -144,10 +161,12 @@ export function startCollabSync(
   // ── 2. Yjs → Store: observe changes from other collaborators ──
   metaMap.observe(yMapObserver);
   tombMap.observe(tombstoneObserver);
+  pluginMap.observe(pluginMapObserver);
 
   // For guests: apply whatever is already in the Yjs map (host may have seeded it)
   if (!isHost) {
     applyYjsToStore();
+    adoptSharedPluginData();
   }
 
   // ── 3. Store → Yjs: subscribe to Zustand store changes ──
@@ -161,9 +180,10 @@ export function startCollabSync(
 
     // Only write keys that actually changed (by stringified value)
     const changed = SYNC_KEYS.filter((key) => !prev || curr[key] !== prev[key]);
+    const pluginChanges = pluginDataChanges();
     const format = formatSnapshot();
     const formatChanged = mayPublishFormat && canEditFormat() && format !== prevFormat;
-    if (changed.length === 0 && !formatChanged) {
+    if (changed.length === 0 && !formatChanged && !pluginChanges) {
       // Do not queue a restricted participant's private changes for later publication.
       prevFormat = format;
       return;
@@ -175,6 +195,7 @@ export function startCollabSync(
         if (changed.includes(key)) recordNoteDeletions(key);
       }
       for (const key of changed) map.set(key, curr[key]);
+      if (pluginChanges) writePluginChanges(pluginChanges);
       if (formatChanged) map.set(FORMAT_KEY, formatForPublishing(format, prevFormat, map.get(FORMAT_KEY)));
       prevSharedFormat = map.get(FORMAT_KEY) ?? null;
     });
@@ -198,6 +219,13 @@ export function stopCollabSync(): void {
     tombMap.unobserve(tombstoneObserver);
     tombMap = null;
   }
+  if (pluginMap) {
+    pluginMap.unobserve(pluginMapObserver);
+    pluginMap = null;
+  }
+  prevPluginData = null;
+  prevPluginEntries = new Map();
+  prevLegacyEntries = new Map();
   prevSnapshot = null;
   prevFormat = null;
   prevSharedFormat = null;
@@ -236,7 +264,6 @@ function takeSnapshot(): Record<SyncKey, string> {
     revisionHistory: JSON.stringify(s.revisionHistory),
     revisionSettings: JSON.stringify(s.revisionSettings),
     scriptProfile: JSON.stringify(s.scriptProfile),
-    pluginData: JSON.stringify(currentPluginData()),
   };
 }
 
@@ -289,6 +316,7 @@ function rememberStore() {
   prevFormat = formatSnapshot();
   prevSharedFormat = metaMap?.get(FORMAT_KEY) ?? null;
   prevNoteLists = { notes: s.notes, generalNotes: s.generalNotes };
+  rememberPluginData();
 }
 
 const isDeleted = (id: string) => !!tombMap?.has(id);
@@ -384,6 +412,21 @@ function yMapObserver(event: Y.YMapEvent<string>) {
   // Our own writes are already in the store.
   if (event.transaction.local) return;
   applyYjsToStore();
+  // The all-plugins value changed with no per-plugin write beside it: an
+  // older version wrote it.
+  if (!event.keysChanged.has(LEGACY_PLUGIN_DATA_KEY)) return;
+  try {
+    if (pluginMap && [...event.transaction.changed.keys()].some((t) => (t as unknown) === pluginMap)) {
+      // This version wrote it with the per-plugin map: note it as seen, so
+      // an older version's next write is compared with what it saw.
+      const legacy = readLegacyPluginData();
+      if (legacy) prevLegacyEntries = legacy.entries;
+    } else {
+      mergeLegacyPluginData();
+    }
+  } catch (err) {
+    console.warn('[collabSync] could not merge plugin data from a collaborator on an older version', err);
+  }
 }
 
 /**
@@ -505,18 +548,6 @@ function applyYjsToStore() {
       }
     }
 
-    const pd = metaMap.get('pluginData');
-    if (pd) {
-      try {
-        const next = normalizePluginData(pd);
-        if (JSON.stringify(next) !== JSON.stringify(currentPluginData())) {
-          usePluginDataStore.getState().setAll(next);
-        }
-      } catch (err) {
-        console.warn('[collabSync] could not apply plugin data', err);
-      }
-    }
-
     const bam = metaMap.get('beatArrangeMode');
     if (bam) {
       try { const mode = JSON.parse(bam); if (mode === 'auto' || mode === 'custom') store.setBeatArrangeMode(mode); } catch { /* ignore */ }
@@ -526,4 +557,227 @@ function applyYjsToStore() {
   }
   rememberStore();
   writeBackNotes(writeBack);
+}
+
+// ── Plugin document data ──
+//
+// One key per plugin id in the "pluginData" map, holding that plugin's JSON.
+// The all-plugins value older versions read and write ("pluginData" in
+// "metadata") is kept up to date beside it, built from the same JSON.
+
+interface PluginChanges {
+  set: Map<string, string>;
+  removed: string[];
+  entries: Map<string, PluginEntrySeen>;
+}
+
+function entryJson(id: string, value: unknown): string | null {
+  try {
+    const json = JSON.stringify(value);
+    return json === undefined ? null : json;
+  } catch (err) {
+    console.warn(`[collabSync] could not share the "${id}" plugin's data`, err);
+    return null;
+  }
+}
+
+/**
+ * Each plugin's entry in `data` with its JSON. An entry that is the same
+ * object as last time keeps the JSON it had: setEntry leaves the other
+ * plugins' entries as they were, so only the one that changed is serialized.
+ */
+function describePluginData(data: PluginDocumentData): Map<string, PluginEntrySeen> {
+  const out = new Map<string, PluginEntrySeen>();
+  for (const [id, value] of Object.entries(data)) {
+    const seen = prevPluginEntries.get(id);
+    if (seen && seen.ref === value) {
+      out.set(id, seen);
+      continue;
+    }
+    const json = entryJson(id, value);
+    if (json !== null) out.set(id, { ref: value, json });
+  }
+  return out;
+}
+
+/** Note the plugin data store as it is now as already shared. */
+function rememberPluginData() {
+  const data = currentPluginData();
+  if (data === prevPluginData) return;
+  prevPluginEntries = describePluginData(data);
+  prevPluginData = data;
+}
+
+/**
+ * What changed in the plugin data since it was last shared, or null. The
+ * store's object is replaced on every change, so an unchanged reference —
+ * every editor-store or template change — costs nothing.
+ */
+function pluginDataChanges(): PluginChanges | null {
+  const data = currentPluginData();
+  if (data === prevPluginData) return null;
+  const entries = describePluginData(data);
+  const set = new Map<string, string>();
+  for (const [id, entry] of entries) {
+    if (prevPluginEntries.get(id)?.json !== entry.json) set.set(id, entry.json);
+  }
+  const removed = [...prevPluginEntries.keys()].filter((id) => !entries.has(id));
+  prevPluginData = data;
+  prevPluginEntries = entries;
+  if (set.size === 0 && removed.length === 0) return null;
+  return { set, removed, entries };
+}
+
+/** The all-plugins value for older versions, from JSON already made. */
+function writeLegacyPluginData(entries: Map<string, PluginEntrySeen>) {
+  if (!metaMap) return;
+  const parts: string[] = [];
+  for (const [id, entry] of entries) parts.push(`${JSON.stringify(id)}:${entry.json}`);
+  metaMap.set(LEGACY_PLUGIN_DATA_KEY, `{${parts.join(',')}}`);
+  prevLegacyEntries = new Map([...entries].map(([id, entry]) => [id, entry.json]));
+}
+
+/** Inside a transaction: this copy's plugin changes, by plugin. */
+function writePluginChanges(changes: PluginChanges) {
+  if (!pluginMap) return;
+  for (const [id, json] of changes.set) pluginMap.set(id, json);
+  for (const id of changes.removed) pluginMap.delete(id);
+  writeLegacyPluginData(changes.entries);
+}
+
+/** Inside the host's seeding transaction: the shared plugin data becomes the host's. */
+function seedPluginData() {
+  if (!pluginMap) return;
+  const entries = describePluginData(currentPluginData());
+  const stale: string[] = [];
+  pluginMap.forEach((_json, id) => { if (!entries.has(id)) stale.push(id); });
+  for (const id of stale) pluginMap.delete(id);
+  for (const [id, entry] of entries) {
+    if (pluginMap.get(id) !== entry.json) pluginMap.set(id, entry.json);
+  }
+  writeLegacyPluginData(entries);
+}
+
+function setPluginDataFromYjs(next: PluginDocumentData) {
+  fromYjs = true;
+  try {
+    usePluginDataStore.getState().setAll(next);
+  } finally {
+    fromYjs = false;
+  }
+}
+
+/** The store becomes what the per-plugin map holds. */
+function applyPluginMapToStore() {
+  if (!pluginMap) return;
+  const map = pluginMap;
+  const current = currentPluginData();
+  const next: PluginDocumentData = {};
+  let differs = false;
+  map.forEach((json, id) => {
+    const seen = prevPluginEntries.get(id);
+    if (seen && seen.json === json && current[id] === seen.ref) {
+      next[id] = seen.ref;
+      return;
+    }
+    try {
+      next[id] = JSON.parse(json);
+      differs = true;
+    } catch (err) {
+      console.warn(`[collabSync] the "${id}" plugin's data from a collaborator is unreadable; kept this copy's`, err);
+      if (id in current) next[id] = current[id];
+    }
+  });
+  for (const id of Object.keys(current)) {
+    if (!map.has(id)) differs = true;
+  }
+  if (differs) setPluginDataFromYjs(next);
+  rememberPluginData();
+}
+
+function pluginMapObserver(event: Y.YMapEvent<string>) {
+  if (event.transaction.local) return;
+  try {
+    applyPluginMapToStore();
+  } catch (err) {
+    console.warn('[collabSync] could not apply plugin data from a collaborator', err);
+  }
+}
+
+/** Each plugin's JSON in the all-plugins value, or null when it is absent. */
+function readLegacyPluginData(): { data: PluginDocumentData; entries: Map<string, string> } | null {
+  const raw = metaMap?.get(LEGACY_PLUGIN_DATA_KEY);
+  if (raw === undefined) return null;
+  const data = normalizePluginData(raw);
+  const entries = new Map<string, string>();
+  for (const [id, value] of Object.entries(data)) {
+    const json = entryJson(id, value);
+    if (json !== null) entries.set(id, json);
+  }
+  return { data, entries };
+}
+
+/**
+ * An older version wrote the all-plugins value. Take only the plugins it
+ * changed since the value was last seen — the rest of it may be its stale
+ * copy of what another collaborator changed meanwhile — and pass them on in
+ * the per-plugin map. With `adopt` (a guest joining a session that has no
+ * per-plugin data yet) the value is taken whole, as before.
+ */
+function mergeLegacyPluginData(adopt = false) {
+  if (!pluginMap) return;
+  const legacy = readLegacyPluginData();
+  if (!legacy) return;
+  const current = currentPluginData();
+  const next: PluginDocumentData = adopt ? {} : { ...current };
+  const changedIds: string[] = [];
+  const removedIds: string[] = [];
+  for (const [id, json] of legacy.entries) {
+    if (!adopt && (prevLegacyEntries.get(id) === json || pluginMap.get(id) === json)) continue;
+    next[id] = legacy.data[id];
+    changedIds.push(id);
+  }
+  if (!adopt) {
+    for (const id of prevLegacyEntries.keys()) {
+      if (!legacy.entries.has(id) && id in next) {
+        delete next[id];
+        removedIds.push(id);
+      }
+    }
+  }
+  prevLegacyEntries = legacy.entries;
+  const storeChanged = adopt
+    ? JSON.stringify(next) !== JSON.stringify(current)
+    : changedIds.length > 0 || removedIds.length > 0;
+  if (storeChanged) setPluginDataFromYjs(next);
+  // Into the per-plugin map, so this version's collaborators (and anyone
+  // who joins later) have it by plugin too.
+  const map = pluginMap;
+  const write = () => {
+    for (const id of changedIds) {
+      const json = legacy.entries.get(id);
+      if (json !== undefined && map.get(id) !== json) map.set(id, json);
+    }
+    for (const id of removedIds) map.delete(id);
+  };
+  if (changedIds.length > 0 || removedIds.length > 0) {
+    if (map.doc) map.doc.transact(write);
+    else write();
+  }
+  rememberPluginData();
+}
+
+/** A guest joining: take the shared plugin data, by plugin or (from an older host) whole. */
+function adoptSharedPluginData() {
+  try {
+    if (pluginMap && pluginMap.size > 0) {
+      applyPluginMapToStore();
+      const legacy = readLegacyPluginData();
+      if (legacy) prevLegacyEntries = legacy.entries;
+    } else {
+      mergeLegacyPluginData(true);
+    }
+  } catch (err) {
+    console.warn('[collabSync] could not apply the shared plugin data', err);
+  }
 }

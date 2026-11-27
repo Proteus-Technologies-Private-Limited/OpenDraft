@@ -18,7 +18,7 @@ import logging
 
 import jwt
 from fastapi import APIRouter, Header, HTTPException, status
-from pydantic import BaseModel, StrictBool
+from pydantic import BaseModel, ConfigDict, StrictBool
 
 from app import frontend_plugins
 from app.config import COLLAB_JWT_SECRET
@@ -67,13 +67,20 @@ def _verify_admin_token(authorization: str | None, user_id: str | None = None, t
 
 
 class PluginDefault(BaseModel):
-    defaultEnabled: StrictBool
+    """The admin's default for one plugin: on, off, or null to clear the admin's
+    choice so the plugin's own default (its manifest, else its kind) decides.
+    The key is required; only true, false and null are accepted."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    defaultEnabled: StrictBool | None
 
 
 @router.get("/plugins")
 def get_plugins(authorization: str | None = Header(default=None)):
+    """Every deployed plugin, with where its default comes from (adminDefault, manifestDefault)."""
     _verify_admin_token(authorization, token_type=ADMIN_PLUGIN_TOKEN_TYPE)
-    return frontend_plugins.list_frontend_plugins()
+    return frontend_plugins.list_frontend_plugins(for_admin=True)
 
 
 @router.post("/plugins/{plugin_id}")
@@ -86,8 +93,13 @@ def set_plugin_default(plugin_id: str, body: PluginDefault, authorization: str |
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Could not save the plugin default")
     if not updated:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Plugin is not installed")
-    logger.info("admin %s set plugin %s default to %s", payload.get("admin", "unknown"), plugin_id, body.defaultEnabled)
-    return {"id": plugin_id, "defaultEnabled": body.defaultEnabled}
+    choice = "the plugin's own default" if body.defaultEnabled is None else body.defaultEnabled
+    logger.info("admin %s set plugin %s default to %s", payload.get("admin", "unknown"), plugin_id, choice)
+    plugin = next((p for p in frontend_plugins.list_frontend_plugins(for_admin=True) if p["id"] == plugin_id), None)
+    if plugin is None:
+        # Removed between saving and re-reading: report what was saved.
+        return {"id": plugin_id, "adminDefault": body.defaultEnabled, "defaultEnabled": body.defaultEnabled}
+    return plugin
 
 
 @router.get("/accounts/{user_id}/inventory")
