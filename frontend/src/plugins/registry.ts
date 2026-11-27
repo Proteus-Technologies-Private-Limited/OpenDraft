@@ -313,12 +313,14 @@ export interface OpenDraftPlugin {
   /** Translation key for `description`. */
   descriptionKey?: string;
   /**
-   * An add-on: listed in Settings → Add-ons, off by default when bundled. Its
+   * An add-on: listed in Settings → Add-ons. Its
    * menu items, panels, editor extensions, importers, exporters and reports
    * are withheld while it is off. Editor extensions take effect the next time
    * a script is opened.
    */
   optIn?: boolean;
+  /** Initial state of a bundled add-on. A saved user preference takes priority. */
+  defaultEnabled?: boolean;
   /**
    * Plain statement of what leaves the device and where it goes, shown before
    * the writer turns the add-on on. Expected for any add-on that uses the
@@ -491,13 +493,13 @@ export class PluginRegistry {
 
   /** Register a plugin. Replaces any existing plugin with the same id. */
   register(plugin: OpenDraftPlugin): void {
-    const defaultEnabled = this._runtimeAddOnDefaults.get(plugin.id);
-    if (defaultEnabled !== undefined && !plugin.optIn) plugin = { ...plugin, optIn: true };
+    const runtimeDefault = this._runtimeAddOnDefaults.get(plugin.id);
+    if (runtimeDefault !== undefined && !plugin.optIn) plugin = { ...plugin, optIn: true };
     this._plugins.set(plugin.id, plugin);
     // A replacement under the same id is a new plugin: its own init runs.
     this._initialised.delete(plugin.id);
     this._enabledAddOns.delete(plugin.id);
-    if (plugin.optIn && this._startsEnabled(plugin.id, defaultEnabled ?? false)) {
+    if (plugin.optIn && this._startsEnabled(plugin.id, runtimeDefault ?? plugin.defaultEnabled ?? false)) {
       this._enabledAddOns.add(plugin.id);
       this._runActivate(plugin).catch((err) => {
         console.error(`[add-ons] ${plugin.id} could not start`, err);

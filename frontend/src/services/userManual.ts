@@ -121,6 +121,7 @@ const FALLBACK_PAGES: ManualPage[] = [
   { slug: 'outline.html', title: 'Outline', section: 'Story Planning' },
   { slug: 'characters.html', title: 'Character Profiles', section: 'Characters & Notes' },
   { slug: 'script-notes.html', title: 'Script Notes', section: 'Characters & Notes' },
+  { slug: 'sidekick.html', title: 'Sidekick', section: 'Characters & Notes' },
   { slug: 'script-statistics.html', title: 'Script Statistics & Timing', section: 'Analysis' },
   { slug: 'tags.html', title: 'Tags & Entities', section: 'Production' },
   { slug: 'locations.html', title: 'Location Profiles', section: 'Production' },

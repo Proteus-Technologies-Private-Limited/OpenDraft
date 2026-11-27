@@ -27,11 +27,13 @@ import { i18next } from '../i18n';
 import { pluginRegistry, type OpenDraftPlugin } from '../plugins/registry';
 import aiAssistant from './ai-assistant';
 import dictation from './dictation';
+import sidekick from './sidekick';
 
 /** Every add-on that ships with the core. */
 export const CORE_ADDONS: readonly OpenDraftPlugin[] = [
   aiAssistant,
   dictation,
+  sidekick,
 ];
 
 /** Why an add-on cannot be registered, or null when it can. */

@@ -4581,14 +4581,24 @@ const MenuBar: React.FC<MenuBarProps> = ({
           <div className="dialog-body about-body">
             <div className="about-title">Open Draft</div>{/* i18n-ignore: product name */}
             {/* i18n-ignore: release.sh rewrites these two literals each release */}
-            <div className="about-version">Version 2.16.1</div>
+            <div className="about-version">Version 2.17.0</div>
             <div className="about-tagline">{t('menu:about.tagline')}</div>
 
             <div className="about-whats-new">
               {/* i18n-ignore: release.sh rewrites this literal each release */}
-              <div className="about-section-title">What's New in 2.16.1</div>
+              <div className="about-section-title">What's New in 2.17.0</div>
               <div className="about-changelog">
               {/* i18n-ignore-start: release notes stay English in phase 1 */}
+              <div className="about-subsection-title">v2.17.0</div>
+              <ul className="about-list">
+                <li><strong>Sidekick</strong> &mdash; Open <em>Tools &rarr; Sidekick &rarr; Show Sidekick</em> to keep to-dos, ideas and cut passages with the screenplay. Choose a task type to file selected text or add a standalone idea. Find the original passage, restore a cut, or export a task list. Sidekick is on by default and can be switched off in <em>System Settings &rarr; Add-ons</em>.</li>
+                <li><strong>Custom Title Pages</strong> &mdash; In the Title Page editor, choose <em>Custom</em> to arrange your own text blocks, fields and images. The custom page travels with the screenplay and appears in PDF and Word output.</li>
+                <li><strong>Whole-Project Cloud Sync</strong> &mdash; Sync device projects with their screenplays, treatments, project details, locations and assets. Edits to different lines can merge automatically. Use <em>Review and merge</em> to compare copies and choose what to keep when edits overlap.</li>
+                <li><strong>Notes and Trackpad Selection</strong> &mdash; The Notes toolbar button opens or closes the panel. To attach a note to selected text, choose <em>Add Script Note</em> from the screenplay context menu. You can drag to select screenplay text with a mouse or trackpad in the mobile editor.</li>
+                <li><strong>Saving and Sign-In</strong> &mdash; A script you just saved no longer offers crash recovery on reopening. Deleting an open script closes it cleanly. You can stay signed in for up to 90 days between visits. If the session expires, OpenDraft offers your last account.</li>
+                <li><strong>Drag and Drop on Desktop</strong> &mdash; Drop a supported screenplay file into the writing window to import it.</li>
+                <li><strong>Add-ons and Plugin Data</strong> &mdash; Developers can bundle plugins for desktop and mobile or deploy web add-ons on a server. Plugins can keep their data with the screenplay and contribute panels, file formats and reports.</li>
+              </ul>
               <div className="about-subsection-title">v2.16.1</div>
               <ul className="about-list">
                 <li><strong>Opens Again</strong> &mdash; <NotOnApple apple="On iPhone and iPad, 2.16.0 closed as soon as the editor opened.">On some devices, 2.16.0 closed as soon as the editor opened.</NotOnApple> It opens normally again, with everything 2.16.0 brought.</li>

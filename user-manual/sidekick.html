@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sidekick - OpenDraft User Manual</title>
+  <meta name="description" content="Track writing tasks and keep ideas and cut passages with your screenplay in OpenDraft Sidekick.">
+  <link rel="canonical" href="https://proteus-technologies-private-limited.github.io/OpenDraft/user-manual/sidekick.html">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="../images/OpenDraft.png">
+</head>
+<body>
+
+<header class="header">
+  <button class="menu-toggle" onclick="toggleSidebar()" aria-label="Toggle menu">&#9776;</button>
+  <a href="index.html" class="header-logo">
+    <img src="../images/OpenDraft.png" alt="OpenDraft">
+    <span>OpenDraft Manual</span>
+  </a>
+  <div class="header-search">
+    <span class="search-icon">&#128269;</span>
+    <input type="text" id="searchInput" placeholder="Search the manual..." autocomplete="off">
+    <span class="search-shortcut">/</span>
+  </div>
+  <nav class="header-nav">
+    <a href="../">Home</a>
+    <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft" target="_blank">GitHub</a>
+    <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases" target="_blank">Download</a>
+  </nav>
+</header>
+
+<div class="search-results" id="searchResults"></div>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Getting Started</div>
+    <a href="index.html" class="sidebar-link">Home</a>
+    <a href="getting-started.html" class="sidebar-link">Getting Started</a>
+    <a href="installation.html" class="sidebar-link">Installation</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Writing</div>
+    <a href="writing-screenplay.html" class="sidebar-link">Writing Your Screenplay</a>
+    <a href="formatting.html" class="sidebar-link">Formatting</a>
+    <a href="title-page.html" class="sidebar-link">Title Page</a>
+    <a href="find-replace.html" class="sidebar-link">Find &amp; Replace</a>
+    <a href="spell-check.html" class="sidebar-link">Spell Check</a>
+    <a href="ai-assistant.html" class="sidebar-link">AI Assistant</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Story Planning</div>
+    <a href="scene-navigator.html" class="sidebar-link">Scene Navigator</a>
+    <a href="index-cards.html" class="sidebar-link">Index Cards</a>
+    <a href="beat-board.html" class="sidebar-link">Beat Board</a>
+    <a href="outline.html" class="sidebar-link">Outline</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Characters &amp; Notes</div>
+    <a href="characters.html" class="sidebar-link">Character Profiles</a>
+    <a href="script-notes.html" class="sidebar-link">Script Notes</a>
+    <a href="sidekick.html" class="sidebar-link active">Sidekick</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Analysis</div>
+    <a href="script-statistics.html" class="sidebar-link">Script Statistics &amp; Timing</a>
+    <a href="table-read.html" class="sidebar-link">Table Read</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Production</div>
+    <a href="tags.html" class="sidebar-link">Tags &amp; Entities</a>
+    <a href="locations.html" class="sidebar-link">Location Profiles</a>
+    <a href="scene-details.html" class="sidebar-link">Scene Details</a>
+    <a href="revision-mode.html" class="sidebar-link">Revision Mode</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Projects &amp; Files</div>
+    <a href="projects.html" class="sidebar-link">Managing Projects</a>
+    <a href="version-history.html" class="sidebar-link">Version History</a>
+    <a href="backups.html" class="sidebar-link">Backups &amp; Recovery</a>
+    <a href="import-export.html" class="sidebar-link">Import &amp; Export</a>
+    <a href="format-compatibility.html" class="sidebar-link">Format Compatibility</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Collaboration</div>
+    <a href="collaboration.html" class="sidebar-link">Real-Time Collaboration</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Customization</div>
+    <a href="themes.html" class="sidebar-link">Themes</a>
+    <a href="page-setup.html" class="sidebar-link">Page Setup</a>
+    <a href="keyboard-shortcuts.html" class="sidebar-link">Keyboard Shortcuts</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Developers</div>
+    <a href="plugin-development.html" class="sidebar-link">Plugin &amp; Add-on Development</a>
+  </div>
+</nav>
+
+<main class="main">
+  <div class="content">
+
+    <div class="breadcrumb">
+      <a href="index.html">Home</a><span class="sep">/</span>Sidekick
+    </div>
+
+    <h1>Sidekick</h1>
+    <p class="page-subtitle">Keep rewrites, ideas and cut passages with the screenplay they belong to.</p>
+
+    <h2 id="open">Open Sidekick</h2>
+    <p>With a screenplay open, choose <strong>Tools &gt; Sidekick &gt; Show Sidekick</strong>. You can also open it from the task count in the status bar when that count is visible. Sidekick is built in and on by default. To turn it off or back on, go to <strong>Tools &gt; System Settings &gt; Add-ons</strong>.</p>
+
+    <h2 id="file">File text or add an idea</h2>
+    <ol class="steps">
+      <li>Select a word or passage in the screenplay. On a touchscreen, press and hold the text, then adjust the selection handles.</li>
+      <li>Open Sidekick and tap a task type. With a mouse, you can also drag selected text onto a type. <strong>To Do</strong> accepts a cursor when you want to leave a reminder at that place. <strong>Idea Bank</strong> lets you start a task anywhere.</li>
+      <li>Open the new card to edit the subject, add a note, or change its status. <strong>To Do</strong> copies the selection. <strong>Hold for Later</strong> and <strong>Cut but Keep</strong> move it out of the screenplay and store the excerpt on the card.</li>
+    </ol>
+
+    <figure class="screenshot">
+      <img src="screenshots/release-2.17.0/sidekick-types.png" alt="Sidekick panel with task type buttons, a search field and a To Do card linked to a scene" width="400" loading="lazy">
+      <figcaption class="screenshot-label">Sidekick groups task types under To track and Keep for later.</figcaption>
+    </figure>
+
+    <h2 id="review">Review and restore tasks</h2>
+    <p>Search by subject, note, excerpt or scene. Use <strong>Show</strong> to switch between pending, done and used, or all tasks. On a card linked to the screenplay, <strong>Go to</strong> jumps to the source. Use <strong>Insert</strong> to put a kept excerpt back into the screenplay. To restore moved text at its original location, choose <strong>Go to</strong> first, reopen the panel if it closed, then choose <strong>Insert</strong>.</p>
+
+    <figure class="screenshot">
+      <img src="screenshots/release-2.17.0/sidekick-desktop.png" alt="A screenplay with the Sidekick panel open and a Polish Dialogue card showing its source and excerpt" loading="lazy">
+      <figcaption class="screenshot-label">A task card shows the excerpt, scene and actions for returning to the script.</figcaption>
+    </figure>
+
+    <h2 id="types">Change task types</h2>
+    <p>Open <strong>Task types</strong> in the panel. For each type, choose whether it copies or moves the selection and whether it requires selected text, accepts a cursor, or can be used without a script link. You can hide types you rarely use or create one for this screenplay.</p>
+
+    <h2 id="save-export">Save, share and export</h2>
+    <p>Save the screenplay to keep its tasks. They travel with the script in OpenDraft backups, OpenDraft files, Final Draft and Fountain round trips through OpenDraft, and live collaboration. Sidekick makes no separate network requests. Turning it off leaves its tasks in the screenplay.</p>
+    <p>For a standalone list, choose <strong>File &gt; Export &gt; Sidekick Tasks (.md)</strong>. For a table you can save as CSV or PDF, choose <strong>Tools &gt; Analytics &gt; Reports &gt; Sidekick tasks</strong>.</p>
+
+    <div class="page-nav">
+      <a href="script-notes.html">
+        <span class="nav-label">&larr; Previous</span>
+        <span class="nav-title">Script Notes</span>
+      </a>
+      <a href="tags.html" class="nav-next">
+        <span class="nav-label">Next &rarr;</span>
+        <span class="nav-title">Tags &amp; Entities</span>
+      </a>
+    </div>
+
+  </div>
+  <footer class="footer">
+    OpenDraft User Manual &middot; v2.17.0 &middot; Made by Proteus Technologies
+  </footer>
+</main>
+
+<script src="search.js"></script>
+</body>
+</html>

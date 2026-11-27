@@ -1,0 +1,256 @@
+/*
+ * OD Sidekick. Colours come from core's theme variables (--fd-*), so the
+ * panel follows light and dark themes; each type's colour is --sk-type-color.
+ * Everything is scoped under .sk-* so nothing leaks into the app.
+ */
+
+.sk-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  color: var(--fd-text, #e0e0e0);
+  font-size: 13px;
+  line-height: 1.4;
+  box-sizing: border-box;
+}
+.sk-panel *, .sk-panel *::before, .sk-panel *::after { box-sizing: border-box; }
+
+.plugin-panel-tabs__content[data-plugin-panel='od-sidekick-panel'] > .plugin-panel-tabs__close[data-panel-popout] {
+  right: 36px;
+}
+.sk-panel__header {
+  display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 8px;
+  flex-shrink: 0;
+  /* Room on the end side for core's own pop-out and close buttons. */
+  padding: 10px 64px 8px 12px;
+  border-bottom: 1px solid var(--fd-border, rgba(255, 255, 255, 0.08));
+}
+/* Everything below the header scrolls; the header (and core's buttons over it) stays. */
+.sk-panel__scroll {
+  flex: 1; min-height: 0;
+  overflow-y: auto;
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 10px 12px 16px;
+}
+.sk-panel > .sk-banner { margin: 8px 12px 0; }
+.sk-panel__title { margin: 0; font-size: 15px; font-weight: 600; }
+.sk-panel__summary { color: var(--fd-text-muted, #9a9a9a); font-size: 12px; white-space: nowrap; }
+
+.sk-help { margin: 0; color: var(--fd-text-muted, #9a9a9a); font-size: 12px; }
+.sk-pad { padding: 8px 0; }
+
+.sk-visually-hidden {
+  position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+/* ── Inputs ── */
+.sk-input, .sk-select, .sk-note {
+  font: inherit;
+  color: inherit;
+  background: var(--fd-input-bg, rgba(255, 255, 255, 0.06));
+  border: 1px solid var(--fd-border, rgba(255, 255, 255, 0.12));
+  border-radius: 4px;
+  padding: 4px 6px;
+  min-height: 28px;
+}
+.sk-input:focus-visible, .sk-select:focus-visible, .sk-note:focus-visible, .sk-subject:focus-visible {
+  outline: 2px solid var(--fd-accent, #4a9eff);
+  outline-offset: 0;
+}
+.sk-select { padding-right: 2px; max-width: 100%; }
+.sk-note { width: 100%; resize: vertical; min-height: 44px; }
+
+.sk-toolbar { display: flex; gap: 6px; }
+.sk-toolbar .sk-input { flex: 1; min-width: 0; }
+
+/* ── Drop grid ── */
+.sk-drop {
+  display: flex; flex-direction: column; gap: 6px;
+  margin: -4px; padding: 4px;
+  border-radius: 8px;
+  outline: 2px dashed transparent;
+  outline-offset: 2px;
+  transition: outline-color 0.12s, background 0.12s;
+}
+/* A drag is over the panel: show where it can land. */
+.sk-drop--active {
+  outline-color: var(--fd-accent, #4a9eff);
+  background: color-mix(in srgb, var(--fd-accent, #4a9eff) 6%, transparent);
+}
+.sk-drop--active .sk-help { color: var(--fd-accent, #4a9eff); font-weight: 600; }
+.sk-drop--active .sk-chip { border-style: solid; }
+.sk-drop__group { display: flex; flex-direction: column; gap: 4px; }
+.sk-drop__heading {
+  margin: 2px 0 0; font-size: 11px; font-weight: 600; letter-spacing: 0.4px;
+  text-transform: uppercase; color: var(--fd-text-muted, #9a9a9a);
+}
+.sk-drop__chips { display: flex; flex-wrap: wrap; gap: 4px; }
+
+.sk-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  min-height: 30px; padding: 4px 9px;
+  font: inherit; font-size: 12px; color: inherit;
+  background: color-mix(in srgb, var(--sk-type-color) 14%, transparent);
+  border: 1px dashed color-mix(in srgb, var(--sk-type-color) 70%, transparent);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.12s, transform 0.12s, border-color 0.12s;
+}
+.sk-chip svg { color: var(--sk-type-color); flex-shrink: 0; }
+.sk-chip:hover { background: color-mix(in srgb, var(--sk-type-color) 24%, transparent); }
+.sk-chip:focus-visible { outline: 2px solid var(--fd-accent, #4a9eff); outline-offset: 1px; }
+.sk-chip[aria-disabled='true'] { opacity: 0.6; }
+.sk-chip--over {
+  background: color-mix(in srgb, var(--sk-type-color) 38%, transparent);
+  border-style: solid;
+  border-color: var(--sk-type-color);
+  transform: scale(1.04);
+  opacity: 1 !important;
+}
+
+/* ── Groups & cards ── */
+.sk-list { display: flex; flex-direction: column; gap: 8px; }
+.sk-group { display: flex; flex-direction: column; gap: 6px; }
+.sk-group__heading { margin: 0; font-size: 12px; font-weight: 600; }
+.sk-group__toggle {
+  display: flex; align-items: center; gap: 6px; width: 100%;
+  min-height: 28px; padding: 2px 0;
+  font: inherit; color: inherit; background: none; border: none; cursor: pointer; text-align: start;
+}
+.sk-group__toggle svg { font-size: 10px; opacity: 0.7; }
+.sk-group__toggle:focus-visible { outline: 2px solid var(--fd-accent, #4a9eff); border-radius: 3px; }
+.sk-group__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--sk-type-color); }
+.sk-group__count { margin-inline-start: auto; color: var(--fd-text-muted, #9a9a9a); font-weight: 400; }
+.sk-group--types { border-top: 1px solid var(--fd-border, rgba(255, 255, 255, 0.08)); padding-top: 6px; }
+
+.sk-card {
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 8px 9px;
+  background: var(--fd-overlay-subtle, rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--fd-border, rgba(255, 255, 255, 0.08));
+  border-inline-start: 3px solid var(--sk-type-color);
+  border-radius: 5px;
+}
+.sk-card--closed { opacity: 0.62; }
+.sk-card--closed .sk-subject { text-decoration: line-through; }
+.sk-card__head { display: flex; align-items: center; gap: 6px; }
+.sk-check { width: 16px; height: 16px; margin: 0; accent-color: var(--sk-type-color); flex-shrink: 0; cursor: pointer; }
+.sk-card__kind-icon { color: var(--sk-type-color); display: inline-flex; flex-shrink: 0; }
+.sk-subject {
+  flex: 1; min-width: 0;
+  font: inherit; font-weight: 600; color: inherit;
+  background: transparent; border: 1px solid transparent; border-radius: 3px;
+  padding: 2px 4px;
+}
+.sk-subject:hover { border-color: var(--fd-border, rgba(255, 255, 255, 0.12)); }
+.sk-card__meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; font-size: 12px; }
+.sk-card__meta .sk-select { min-height: 24px; padding: 1px 4px; font-size: 12px; }
+.sk-card__scene {
+  flex: 1 1 120px; min-width: 0;
+  color: var(--fd-text-muted, #9a9a9a);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.sk-card__actions { display: flex; flex-wrap: wrap; gap: 4px; }
+.ProseMirror .sk-script-selection { background: color-mix(in srgb, var(--fd-accent, #4a9eff) 36%, transparent); }
+
+.sk-action, .sk-icon-button, .sk-link, .sk-status {
+  display: inline-flex; align-items: center; gap: 4px;
+  font: inherit; font-size: 12px; color: inherit; cursor: pointer;
+}
+.sk-action {
+  min-height: 26px; padding: 2px 8px;
+  background: transparent;
+  border: 1px solid var(--fd-border, rgba(255, 255, 255, 0.12));
+  border-radius: 4px;
+}
+.sk-action:hover, .sk-icon-button:hover { background: var(--fd-overlay-light, rgba(255, 255, 255, 0.08)); }
+.sk-action:focus-visible, .sk-icon-button:focus-visible, .sk-link:focus-visible, .sk-status:focus-visible {
+  outline: 2px solid var(--fd-accent, #4a9eff); outline-offset: 1px;
+}
+.sk-action:disabled { opacity: 0.5; cursor: default; }
+.sk-action--danger:hover { color: var(--fd-error-text, #ff6b6b); }
+.sk-action svg { font-size: 11px; }
+.sk-icon-button {
+  flex-shrink: 0; justify-content: center; width: 28px; height: 28px; padding: 0;
+  background: transparent; border: 1px solid transparent; border-radius: 4px;
+}
+.sk-link { padding: 0; background: none; border: none; color: var(--fd-accent, #4a9eff); align-self: flex-start; }
+
+/* ── Excerpt: the script in miniature, through core's own element styles ── */
+.sk-excerpt-wrap { display: flex; flex-direction: column; gap: 2px; }
+.sk-excerpt {
+  --script-scale: 0.45;
+  --indent-scale: 0.32;
+  font-family: 'Courier Prime', 'Courier New', Courier, monospace;
+  font-size: 11.5px;
+  line-height: 1.25;
+  padding: 6px 8px;
+  /* The page's own colours, so it reads like the script in either theme. */
+  background: var(--fd-page-bg, #fff);
+  color: var(--page-ink, #111);
+  border: 1px solid var(--fd-border, rgba(255, 255, 255, 0.08));
+  border-radius: 3px;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+.sk-excerpt .screenplay-element { line-height: 1.25; }
+.sk-excerpt .scene-heading { margin-top: 0; }
+.sk-excerpt > :first-child { margin-top: 0 !important; }
+.sk-excerpt--plain { white-space: pre-wrap; font-family: inherit; font-size: 12px; }
+.sk-excerpt--folded {
+  max-height: 7.5em;
+  -webkit-mask-image: linear-gradient(to bottom, #000 65%, transparent);
+  mask-image: linear-gradient(to bottom, #000 65%, transparent);
+}
+
+/* ── Type manager ── */
+.sk-types { display: flex; flex-direction: column; gap: 6px; }
+.sk-types__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.sk-types__row { display: flex; align-items: center; gap: 6px; min-height: 30px; }
+.sk-types__row--hidden .sk-types__name, .sk-types__row--hidden .sk-types__icon { opacity: 0.45; }
+.sk-types__icon { color: var(--sk-type-color); display: inline-flex; width: 16px; justify-content: center; }
+.sk-types__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sk-types__kind { color: var(--fd-text-muted, #9a9a9a); font-size: 11px; }
+.sk-types__row .sk-link { align-self: center; padding: 4px; }
+.sk-types__behavior { flex: 1 0 100%; display: grid; gap: 6px; padding: 6px 0; }
+.sk-types__behavior label { display: grid; gap: 2px; }
+.sk-types__new { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.sk-types__new .sk-input { flex: 1 1 140px; min-width: 0; }
+.sk-swatches { display: flex; gap: 4px; border: none; padding: 0; margin: 0; }
+.sk-swatch {
+  position: relative; width: 20px; height: 20px; border-radius: 50%; cursor: pointer;
+  border: 2px solid transparent;
+}
+.sk-swatch:has(input:checked) { border-color: var(--fd-text, #fff); }
+.sk-swatch:has(input:focus-visible) { outline: 2px solid var(--fd-accent, #4a9eff); outline-offset: 1px; }
+.sk-swatch input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+
+/* ── Banners ── */
+.sk-banner {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 6px 8px; border-radius: 4px; font-size: 12px;
+  background: var(--fd-overlay-medium, rgba(255, 255, 255, 0.1));
+}
+.sk-banner--error { background: color-mix(in srgb, var(--fd-error-text, #ff6b6b) 16%, transparent); }
+.sk-panel__scroll > .sk-banner:last-child { position: sticky; bottom: 0; }
+
+/* ── Status bar ── */
+.sk-status {
+  margin-inline-start: 8px; padding: 0 6px; height: 20px;
+  background: none; border: 1px solid transparent; border-radius: 3px;
+  color: var(--fd-text-muted, inherit); white-space: nowrap;
+}
+.sk-status:hover { color: var(--fd-text, inherit); border-color: var(--fd-border, rgba(255, 255, 255, 0.12)); }
+
+/* Touch screens: bigger targets. */
+@media (pointer: coarse) {
+  .sk-chip { min-height: 38px; padding: 6px 12px; font-size: 13px; }
+  .sk-action { min-height: 36px; padding: 4px 10px; }
+  .sk-icon-button { width: 38px; height: 38px; }
+  .sk-check { width: 22px; height: 22px; }
+  .sk-select, .sk-input { min-height: 36px; }
+}

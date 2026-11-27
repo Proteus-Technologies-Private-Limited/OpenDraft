@@ -62,7 +62,7 @@ Every field except `id`, `name` and `version` is optional.
 | `sceneActions` | Buttons in Scene Details, per scene or per shot, with an optional preview | `PluginSceneAction`, `PluginSceneBrief` |
 | `grammarProviders` | Extra writing suggestions next to the built-in rules | `GrammarProvider` → `GrammarIssue[]` |
 | `init`, `destroy` | Start-up work once a script is open; clean-up when the plugin is removed | `PluginContext` |
-| `optIn`, `privacy`, `settings`, `onActivate`, `onDeactivate` | Makes the plugin an add-on the writer turns on in Settings → Add-ons | `PluginSettingsProps`, `PluginDeactivateContext` |
+| `optIn`, `defaultEnabled`, `privacy`, `settings`, `onActivate`, `onDeactivate` | Lists the plugin in Settings → Add-ons and sets its initial state. A saved user choice takes priority. | `PluginSettingsProps`, `PluginDeactivateContext` |
 | `nameKey`, `descriptionKey`, `labelKey`… | Translated text (see section 5) | — |
 
 Other registry calls:
@@ -251,6 +251,16 @@ have no server to load them from, and the stores do not allow code downloaded
 at run time. Ship to the apps with a build-time plugin (next section) — the
 same `src/register.ts` serves both. A runtime plugin's script runs with the
 app's full rights: install only plugins you trust.
+
+### Frontend: bundled Sidekick
+
+Sidekick ships from `frontend/src/addons/sidekick/` and registers through
+`CORE_ADDONS`. The source was brought in from OD-Sidekick at
+`03e302cddebc93bc7ee03d72f677a0821a440f12` under its included MIT license.
+It uses the plugin ID `od-sidekick` for compatibility with existing script
+data. A deployed web copy with the same ID is skipped in builds that include
+Sidekick. The writer can turn Sidekick off in Settings → Add-ons. Its tasks
+remain in the script. [Sidekick manual](../user-manual/sidekick.html)
 
 ### Frontend: build-time plugins (desktop, mobile, and web builds)
 

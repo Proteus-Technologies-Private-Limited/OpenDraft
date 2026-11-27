@@ -7,6 +7,6 @@ import type { resources } from './resources';
 declare module 'i18next' {
   interface CustomTypeOptions {
     defaultNS: 'common';
-    resources: typeof resources;
+    resources: typeof resources & { 'od-sidekick': typeof import('../addons/sidekick/i18n').en };
   }
 }
