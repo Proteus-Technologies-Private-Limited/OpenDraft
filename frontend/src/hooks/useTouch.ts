@@ -73,7 +73,9 @@ export function useDelayedUnmount(isOpen: boolean, durationMs = 250) {
 
 interface SwipeEdgeConfig {
   edge: 'left' | 'right';
-  /** Width of the invisible hit zone at the edge (px). */
+  /** Distance from the edge to the start of the hit zone (px). */
+  edgeInsetPx?: number;
+  /** Width of the invisible hit zone (px). */
   edgeZonePx?: number;
   /** Minimum travel distance to trigger (px). */
   thresholdPx?: number;
@@ -93,6 +95,7 @@ interface SwipeEdgeConfig {
 export function useSwipeEdge(config: SwipeEdgeConfig) {
   const {
     edge,
+    edgeInsetPx = 0,
     edgeZonePx = 20,
     thresholdPx = 60,
     onSwipe,
@@ -125,11 +128,8 @@ export function useSwipeEdge(config: SwipeEdgeConfig) {
       const bounds = el ? el.getBoundingClientRect() : null;
       const left = bounds ? bounds.left : 0;
       const right = bounds ? bounds.right : window.innerWidth;
-      const inZone =
-        edge === 'left'
-          ? touch.clientX < left + edgeZonePx
-          : touch.clientX > right - edgeZonePx;
-      if (inZone) {
+      const distanceFromEdge = edge === 'left' ? touch.clientX - left : right - touch.clientX;
+      if (distanceFromEdge >= edgeInsetPx && distanceFromEdge < edgeInsetPx + edgeZonePx) {
         startRef.current = { x: touch.clientX, y: touch.clientY };
       }
     };
@@ -167,7 +167,7 @@ export function useSwipeEdge(config: SwipeEdgeConfig) {
     // this effect first runs — the manual's layout appears only once its
     // status has loaded — and a ref changing does not re-render on its own.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [edge, edgeZonePx, thresholdPx, onSwipe, enabled, maxWidthPx, root, root?.current]);
+  }, [edge, edgeInsetPx, edgeZonePx, thresholdPx, onSwipe, enabled, maxWidthPx, root, root?.current]);
 }
 
 // ── Swipe on a panel to dismiss it ──────────────────────────────────────────
