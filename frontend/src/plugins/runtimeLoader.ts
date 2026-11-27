@@ -13,6 +13,11 @@
  * and the app starts as if it were not there. The same goes for a server
  * without the endpoint, a slow one, or a script that fails to load.
  *
+ * A plugin's style sheet is added before its script runs. If the script fails
+ * to load, or loads without registering a plugin under its id, the sheet is
+ * removed again. A registered add-on that is off keeps its sheet, disabled, so
+ * turning it on needs no reload; the sheet follows the add-on on and off.
+ *
  * The desktop and mobile apps have no server: they include plugins at build
  * time (frontend/vite.plugins.ts), and this does nothing there.
  */
@@ -26,7 +31,13 @@ export interface RuntimePluginInfo {
   name: string;
   version: string;
   apiVersion: number;
-  defaultEnabled: boolean;
+  /**
+   * The admin's or the manifest's default, or null when neither set one: a
+   * plain plugin then starts on (as before deployed plugins became add-ons)
+   * and an opt-in one off. Either way an add-on that declares what leaves the
+   * device, or has settings, waits for the writer (see registry.ts).
+   */
+  defaultEnabled: boolean | null;
   /** URL of the script, from the server root. */
   script: string;
   /** URL of the style sheet, or null. */
@@ -68,7 +79,7 @@ export function parsePluginList(raw: unknown): RuntimePluginInfo[] {
       name: typeof p.name === 'string' ? p.name : p.id,
       version: typeof p.version === 'string' ? p.version : '',
       apiVersion: typeof p.apiVersion === 'number' ? p.apiVersion : 0,
-      defaultEnabled: p.defaultEnabled === true,
+      defaultEnabled: typeof p.defaultEnabled === 'boolean' ? p.defaultEnabled : null,
       script: p.script,
       style: typeof p.style === 'string' && p.style ? p.style : null,
     });
@@ -112,16 +123,45 @@ function serverRoot(): string {
   return getApiBase().replace(/\/api\/?$/, '');
 }
 
-function addStyle(url: string): void {
+function styleSheetsOf(id: string): HTMLLinkElement[] {
+  if (typeof document === 'undefined') return [];
+  return Array.from(document.querySelectorAll<HTMLLinkElement>('link[data-opendraft-plugin="style"]'))
+    .filter((link) => link.dataset.opendraftPluginId === id);
+}
+
+/** Take a plugin's style sheet off the page: its script never started a plugin. */
+export function removePluginStyle(id: string): void {
+  for (const link of styleSheetsOf(id)) link.remove();
+}
+
+/** Apply each runtime plugin's sheet only while the plugin is active (an add-on that is on). */
+function syncPluginStyles(ids: readonly string[]): void {
+  for (const id of ids) {
+    const active = pluginRegistry.isActive(id);
+    for (const link of styleSheetsOf(id)) link.disabled = !active;
+  }
+}
+
+let styleSync: (() => void) | null = null;
+
+function watchPluginStyles(ids: readonly string[]): void {
+  styleSync?.();
+  syncPluginStyles(ids);
+  styleSync = pluginRegistry.subscribe(() => syncPluginStyles(ids));
+}
+
+function addStyle(id: string, url: string): void {
   const link = document.createElement('link');
   link.rel = 'stylesheet';
   link.href = url;
   link.dataset.opendraftPlugin = 'style';
+  link.dataset.opendraftPluginId = id;
   link.onerror = () => console.warn(`[plugins] could not load the style sheet ${url}`);
   document.head.appendChild(link);
 }
 
-function addScript(url: string, timeoutMs: number): Promise<boolean> {
+/** Resolves true once the script ran, false if it failed, null if it is still loading when time runs out. */
+function addScript(url: string, timeoutMs: number, onFailed: () => void): Promise<boolean | null> {
   return new Promise((resolve) => {
     const script = document.createElement('script');
     script.src = url;
@@ -129,12 +169,13 @@ function addScript(url: string, timeoutMs: number): Promise<boolean> {
     script.dataset.opendraftPlugin = 'script';
     const timer = setTimeout(() => {
       console.warn(`[plugins] ${url} is taking long to load; the app starts without waiting for it`);
-      resolve(false);
+      resolve(null);
     }, timeoutMs);
     script.onload = () => { clearTimeout(timer); resolve(true); };
     script.onerror = () => {
       clearTimeout(timer);
       console.error(`[plugins] could not load ${url}`);
+      onFailed();
       resolve(false);
     };
     document.head.appendChild(script);
@@ -144,8 +185,11 @@ function addScript(url: string, timeoutMs: number): Promise<boolean> {
 export interface LoadOptions {
   /** The list, as the server gives it (a test passes its own). */
   fetchList?: (signal: AbortSignal) => Promise<unknown>;
-  /** Add the plugin's files to the page (a test passes its own). */
-  addFiles?: (plugin: RuntimePluginInfo, url: (path: string) => string, timeoutMs: number) => Promise<boolean>;
+  /**
+   * Add the plugin's files to the page (a test passes its own). Resolves true
+   * once the script ran, false if it failed, null if it is still loading.
+   */
+  addFiles?: (plugin: RuntimePluginInfo, url: (path: string) => string, timeoutMs: number) => Promise<boolean | null>;
   budgetMs?: number;
 }
 
@@ -156,9 +200,10 @@ async function defaultFetchList(signal: AbortSignal): Promise<unknown> {
   return res.json();
 }
 
-async function defaultAddFiles(plugin: RuntimePluginInfo, url: (path: string) => string, timeoutMs: number): Promise<boolean> {
-  if (plugin.style) addStyle(url(plugin.style));
-  return addScript(url(plugin.script), timeoutMs);
+async function defaultAddFiles(plugin: RuntimePluginInfo, url: (path: string) => string, timeoutMs: number): Promise<boolean | null> {
+  if (plugin.style) addStyle(plugin.id, url(plugin.style));
+  // Also when the script fails after the start-up budget ran out.
+  return addScript(url(plugin.script), timeoutMs, () => removePluginStyle(plugin.id));
 }
 
 /**
@@ -204,11 +249,15 @@ export async function loadRuntimePlugins(options: LoadOptions = {}): Promise<str
   installQueue();
 
   if (typeof window !== 'undefined') window.__odLoadingPlugins = true;
+  /** Plugins whose script ran (true) or failed (false); a script still loading has no entry. */
+  const outcome = new Map<string, boolean>();
   try {
     await Promise.all(usable.map(async (plugin) => {
       try {
-        await addFiles(plugin, url, left());
+        const ran = await addFiles(plugin, url, left());
+        if (ran !== null) outcome.set(plugin.id, ran);
       } catch (err) {
+        outcome.set(plugin.id, false);
         console.error(`[plugins] could not load ${plugin.id}`, err);
       }
     }));
@@ -216,10 +265,20 @@ export async function loadRuntimePlugins(options: LoadOptions = {}): Promise<str
     if (typeof window !== 'undefined') window.__odLoadingPlugins = false;
   }
 
-  const loaded = usable.map((p) => p.id).filter((id) => pluginRegistry.getAll().some((p) => p.id === id));
+  const registered = (id: string) => pluginRegistry.getAll().some((p) => p.id === id);
+  const loaded = usable.map((p) => p.id).filter(registered);
   for (const plugin of usable) {
-    if (!loaded.includes(plugin.id)) console.warn(`[plugins] ${plugin.id} loaded but did not register a plugin under that id`);
+    if (loaded.includes(plugin.id)) continue;
+    if (outcome.get(plugin.id) === true) {
+      console.warn(`[plugins] ${plugin.id} loaded but did not register a plugin under that id; its style sheet was removed`);
+      removePluginStyle(plugin.id);
+    } else if (outcome.get(plugin.id) === false) {
+      removePluginStyle(plugin.id);
+    }
+    // No outcome: the script missed the start-up budget and may still register;
+    // its sheet stays, disabled until it does (and removed if it fails).
   }
+  watchPluginStyles(usable.map((p) => p.id));
   if (loaded.length) console.info(`[plugins] started ${loaded.join(', ')} from the server`);
   return loaded;
 }

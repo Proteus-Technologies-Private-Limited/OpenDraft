@@ -162,7 +162,9 @@
     "turnOff": "বন্ধ করুন",
     "title": "অ্যাড-অন",
     "description": "ঐচ্ছিক সুবিধা, যা আপনি চাইলে ব্যবহার করতে পারেন।",
-    "settingsButton": "সেটিংস…"
+    "settingsButton": "সেটিংস…",
+    "recommended": "প্রস্তাবিত",
+    "recommendedHint": "আপনার জন্য প্রস্তাবিত। আপনি এটি চালু করে এটি কী করে তা দেখে না নেওয়া পর্যন্ত এটি বন্ধ থাকবে।"
   },
   "dictionaryLibrary": {
     "renamePrompt": "অভিধানের নাম বদলান",

@@ -197,10 +197,15 @@ export async function pullDeviceContent(
   original?: Awaited<ReturnType<typeof readDeviceContent>>,
   stillOpening = () => true,
 ) {
-  // A body must match its format: a treatment never lands in a screenplay row, nor the reverse.
+  // A body must match its format: a treatment never lands in a screenplay row,
+  // nor a screenplay in a treatment row (an empty placeholder block is neither).
   const treatment = normalizeFormat(meta.format) === 'treatment';
-  if (!remote || (!treatment && looksLikeTreatment(remote))
-    || (!docHasAnyText(remote) && docHasAnyText(original?.content))) return false;
+  if (!remote) return false;
+  if (treatment ? !looksLikeTreatment(remote) && docHasAnyText(remote) : looksLikeTreatment(remote)) {
+    console.warn('[cloud] refused a body that is not a', treatment ? 'treatment' : 'screenplay', 'for', meta.id);
+    return false;
+  }
+  if (!docHasAnyText(remote) && docHasAnyText(original?.content)) return false;
   const db = await getDb();
   const body = JSON.stringify(prepareReviewSave(remote));
   const size = new TextEncoder().encode(body).length;

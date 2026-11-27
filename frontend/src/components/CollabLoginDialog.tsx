@@ -383,7 +383,12 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
                   <button
                     type="button"
                     className="settings-auth-notice-action"
-                    onClick={() => { setForgotEmail(sessionEndedEmail); setForgotMode('form'); }}
+                    onClick={() => {
+                      // The field starts with the ended session's email, but the
+                      // writer may have typed the account they actually mean.
+                      setForgotEmail(loginEmail.trim() || sessionEndedEmail);
+                      setForgotMode('form');
+                    }}
                   >
                     {t('login.forgotPassword')}
                   </button>

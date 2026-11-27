@@ -376,8 +376,28 @@ type BackendResult =
   | { ok: true; data: any; source: string }
   | { ok: false; error: string; tried: string[]; status?: number; detail?: string };
 
+/**
+ * Whether `base` is an OpenDraft backend. Without BACKEND_URL the first
+ * candidate is a guess (this site's address minus "collab."), and that can be
+ * another site whose 404 means "no such page", not "no such trash entry".
+ * The backend's admin API refuses a request with no token with a JSON
+ * `detail`, as 401 (or 503 while it has no shared secret); a site that is not
+ * the backend does not.
+ */
+export async function isOpenDraftBackend(base: string): Promise<boolean> {
+  try {
+    const r = await fetch(`${base}/admin/plugins`, { signal: AbortSignal.timeout(5_000) });
+    if (r.status !== 401 && r.status !== 503) return false;
+    const body: any = await r.json().catch(() => null);
+    return typeof body?.detail === 'string';
+  } catch (err) {
+    console.warn(`[admin] could not check whether ${base} is the OpenDraft backend: ${(err as Error).message}`);
+    return false;
+  }
+}
+
 /** Call the backend's admin API, trying each candidate address in turn. */
-async function callBackend(
+export async function callBackend(
   path: string,
   token: string,
   backends: string[],
@@ -402,10 +422,17 @@ async function callBackend(
       const response: any = await r.json().catch(() => ({}));
       const detail = response?.detail ? (typeof response.detail === 'string' ? response.detail : JSON.stringify(response.detail)) : '';
       lastError = `${base} answered ${r.status}${detail ? ': ' + detail : ''}`;
-      // The backend answered about the request itself (not found, conflict):
-      // that is the answer, not a reason to try another address.
-      if (r.status === 404 && method === 'POST' || r.status === 409 || r.status === 400) {
+      // The backend answered about the request itself (bad request, conflict,
+      // not found): that is the answer, not a reason to try another address.
+      // A 404 can also come from a candidate that is some other site, so it
+      // only counts once that address has shown it is the backend.
+      if (r.status === 400 || r.status === 409 || r.status === 422) {
         return { ok: false, error: lastError, tried, status: r.status, detail };
+      }
+      if (r.status === 404 && method === 'POST') {
+        if (await isOpenDraftBackend(base)) return { ok: false, error: lastError, tried, status: r.status, detail };
+        lastError = `${base} answered 404 and is not the OpenDraft backend`;
+        continue;
       }
       // A backend that answered with an auth error is the right one, wrongly
       // configured; trying the next URL would only hide that.
@@ -420,14 +447,42 @@ async function callBackend(
 router.get('/api/plugins', (req, res) => managePlugins(req, res));
 router.post('/api/plugins/:id', (req, res) => managePlugins(req, res));
 
+/**
+ * The plugin-default change an admin asked for, or an error saying why it was
+ * refused. `defaultEnabled` must be present and exactly true, false or null
+ * (null clears the admin's choice, so the plugin's own default decides).
+ */
+export function parsePluginDefaultUpdate(
+  pluginId: unknown,
+  body: unknown,
+): { ok: true; pluginId: string; defaultEnabled: boolean | null } | { ok: false; error: string } {
+  if (typeof pluginId !== 'string' || !/^[a-z0-9][a-z0-9-]{0,63}$/.test(pluginId)) {
+    return { ok: false, error: 'A plugin ID in lower-case letters, digits and hyphens is required' };
+  }
+  if (!body || typeof body !== 'object' || Array.isArray(body) || !Object.prototype.hasOwnProperty.call(body, 'defaultEnabled')) {
+    return { ok: false, error: 'defaultEnabled is required: true, false, or null for the plugin\'s own default' };
+  }
+  const extra = Object.keys(body).filter((k) => k !== 'defaultEnabled');
+  if (extra.length) return { ok: false, error: `Unexpected field(s): ${extra.join(', ')}` };
+  const value: unknown = (body as { defaultEnabled: unknown }).defaultEnabled;
+  if (value !== true && value !== false && value !== null) {
+    return { ok: false, error: 'defaultEnabled must be true, false, or null for the plugin\'s own default' };
+  }
+  return { ok: true, pluginId, defaultEnabled: value };
+}
+
 async function managePlugins(req: Request, res: Response): Promise<void> {
   const admin = req.user!;
   const pluginId = req.params.id;
   const updating = req.method === 'POST';
-  const defaultEnabled: unknown = req.body?.defaultEnabled;
-  if (updating && (typeof pluginId !== 'string' || !/^[a-z0-9][a-z0-9-]{0,63}$/.test(pluginId) || typeof defaultEnabled !== 'boolean')) {
-    res.status(400).json({ error: 'A plugin ID and a boolean defaultEnabled value are required' });
-    return;
+  let defaultEnabled: boolean | null = null;
+  if (updating) {
+    const parsed = parsePluginDefaultUpdate(pluginId, req.body);
+    if (!parsed.ok) {
+      res.status(400).json({ error: parsed.error });
+      return;
+    }
+    defaultEnabled = parsed.defaultEnabled;
   }
   const token = jwt.sign(
     { sub: admin.id, type: 'admin_plugins', admin: admin.email },
@@ -709,8 +764,14 @@ router.post('/api/users/:id/trash/:entry/restore', async (req, res) => {
     );
     if (!result.ok) {
       console.warn(`[admin] restore of ${entry} for ${target.id} failed: ${result.error}`);
-      res.status(result.status === 409 ? 409 : result.status === 404 ? 404 : 502)
-        .json({ error: result.detail || result.error });
+      // The backend's own refusals (400 bad entry, 404 gone, 409 conflict)
+      // reach the console with their reason. Anything else is the backend
+      // being unreachable or misconfigured, which is a 502 for the console.
+      const status = result.status;
+      const passThrough = status !== undefined && status >= 400 && status < 500 && status !== 401 && status !== 403;
+      res.status(passThrough ? status : 502).json({
+        error: passThrough ? (result.detail || result.error) : `Could not reach the backend to restore: ${result.error}`,
+      });
       return;
     }
     const restored = result.data?.restored || {};
@@ -720,6 +781,7 @@ router.post('/api/users/:id/trash/:entry/restore', async (req, res) => {
       project: restored.projectName,
       script: restored.scriptTitle,
       deletedAt: restored.deletedAt,
+      ...(restored.renamed && { restoredAs: restored.restoredProjectId, restoredName: restored.restoredProjectName }),
     }, clientIp(req));
     res.json({ status: 'ok', restored });
   } catch (err) {

@@ -15179,8 +15179,10 @@ html.phone .menu-bar.chrome-comfortable .menu-item { min-height: 46px; }
 /* ============ FOCUS MODE (View → Focus Mode) ============ */
 /* Side panels, their resize handles and the status bar step aside; the menus
    are already reduced to the floating button (Hidden mode). The panels stay
-   mounted, so each comes back exactly as it was. */
+   mounted, so each comes back exactly as it was. Plugin bottom panels sit
+   outside .editor-layout, so they are named on their own. */
 .app-container.focus-mode .editor-layout > :not(.editor-center),
+.app-container.focus-mode .plugin-bottom-panels,
 .app-container.focus-mode .status-bar-row { display: none !important; }
 
 /* Typewriter scrolling needs room below the last line to hold it mid-screen. */

@@ -178,7 +178,9 @@
     "turnOff": "إيقاف",
     "title": "الإضافات",
     "description": "ميزات اختيارية يمكنك استخدامها.",
-    "settingsButton": "الإعدادات…"
+    "settingsButton": "الإعدادات…",
+    "recommended": "موصى به",
+    "recommendedHint": "موصى به لك. يبقى متوقفًا حتى تشغّله وتراجع ما يفعله."
   },
   "dictionaryLibrary": {
     "renamePrompt": "إعادة تسمية القاموس",

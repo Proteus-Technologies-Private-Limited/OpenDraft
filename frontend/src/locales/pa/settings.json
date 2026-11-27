@@ -162,7 +162,9 @@
     "turnOff": "ਬੰਦ ਕਰੋ",
     "title": "ਐਡ-ਆਨ",
     "description": "ਚੋਣਵੇਂ ਫ਼ੀਚਰ ਜੋ ਤੁਸੀਂ ਵਰਤਣ ਲਈ ਚੁਣ ਸਕਦੇ ਹੋ।",
-    "settingsButton": "ਸੈਟਿੰਗਾਂ…"
+    "settingsButton": "ਸੈਟਿੰਗਾਂ…",
+    "recommended": "ਸਿਫ਼ਾਰਸ਼ੀ",
+    "recommendedHint": "ਤੁਹਾਡੇ ਲਈ ਸਿਫ਼ਾਰਸ਼ੀ। ਜਦੋਂ ਤੱਕ ਤੁਸੀਂ ਇਸਨੂੰ ਚਾਲੂ ਕਰਕੇ ਇਹ ਨਹੀਂ ਦੇਖ ਲੈਂਦੇ ਕਿ ਇਹ ਕੀ ਕਰਦਾ ਹੈ, ਇਹ ਬੰਦ ਰਹੇਗਾ।"
   },
   "dictionaryLibrary": {
     "renamePrompt": "ਡਿਕਸ਼ਨਰੀ ਦਾ ਨਾਮ ਬਦਲੋ",

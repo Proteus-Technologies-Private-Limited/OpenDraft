@@ -97,7 +97,8 @@ td.nowrap{white-space:nowrap}
 <div id="v-plugins" hidden>
   <a class="back" href="#/">&larr; Overview</a>
   <h2>Add-ons</h2>
-  <p class="sub">Choose the default for each deployed web add-on. Writers can override it in Settings → Add-ons. Changes take effect when they next load OpenDraft.</p>
+  <p class="sub">Choose the default for each deployed web add-on: Enabled, Disabled, or the add-on&rsquo;s own default (what its plugin.json sets, or, if it sets nothing, what the add-on itself decides). A writer&rsquo;s own choice in Settings → Add-ons always wins. Changes take effect when writers next load OpenDraft.</p>
+  <div class="card note" style="margin-bottom:8px">A default of Enabled never switches on an add-on that sends data off the writer&rsquo;s device or needs settings filled in. Writers see it as <b>Recommended</b> in Settings → Add-ons and turn it on themselves.</div>
   <div class="wrap" id="plugins"></div>
   <p id="plugins-status" role="status"></p>
 </div>
@@ -337,7 +338,7 @@ function describeEvent(e){
     else out.push('<span class="sub">sending not recorded (before this was logged)</span>');
     return out.join(' ');
   }
-  if(a==='admin_restore')return'restored '+esc(j.kind||'')+' '+esc(j.script||j.project||'')+' <span class="sub">by '+esc(j.by||'')+'</span>';
+  if(a==='admin_restore')return'restored '+esc(j.kind||'')+' '+esc(j.script||j.project||'')+(j.restoredName?' as '+esc(j.restoredName):'')+' <span class="sub">by '+esc(j.by||'')+'</span>';
   if(a==='login_failed')return esc(j.email||'')+' <span class="sub">'+esc((j.reason||'').replace(/_/g,' '))+'</span>';
   if(a==='token_refresh_failed'&&j.reason)return esc(REASONS[j.reason]||j.reason);
   var rest={};Object.keys(j).forEach(function(k){if(k!=='device')rest[k]=j[k]});
@@ -469,9 +470,12 @@ document.addEventListener('click',async function(e){
   var c=e.target.closest&&e.target.closest('button[data-cat]');
   if(c){aCat=c.dataset.cat;renderAccountEvents();return}
   var b=e.target.closest&&e.target.closest('button[data-restore]');if(!b)return;
-  if(!confirm('Restore the '+b.dataset.kind+' "'+b.dataset.name+'" into this account? It reappears where it was deleted from.'))return;
+  if(!confirm('Restore the '+b.dataset.kind+' "'+b.dataset.name+'" into this account? It reappears where it was deleted from'+(b.dataset.kind==='project'?'; if a project with the same id exists again, it comes back beside it, named "… (restored)".':'.')))return;
   b.disabled=true;b.textContent='Restoring…';
-  try{await api('/users/'+encodeURIComponent(acctId)+'/trash/'+encodeURIComponent(b.dataset.restore)+'/restore',{method:'POST'});fetchAccount()}
+  try{var rr=await api('/users/'+encodeURIComponent(acctId)+'/trash/'+encodeURIComponent(b.dataset.restore)+'/restore',{method:'POST'});
+    var rs=(rr&&rr.restored)||{};
+    if(rs.renamed)alert('A project with the id "'+(rs.projectId||'')+'" exists again, so this one was restored beside it as "'+(rs.restoredProjectName||'')+'" (id '+(rs.restoredProjectId||'')+').');
+    fetchAccount()}
   catch(err){b.disabled=false;b.textContent='Restore';if(err.message!=='auth')alert('Could not restore: '+(err.detail||err.message))}
 });
 async function lookup(ev){
@@ -491,29 +495,43 @@ function route(){
   if(view==='account'){var id='';try{id=decodeURIComponent(h.slice('#/account/'.length))}catch(e){}acctId=id;aData=null;aFilter='';aCat='all';aQuery='';$('acct').innerHTML='<div class="card empty">Loading account…</div>';fetchAccount()}
   else if(view==='users')fetchUsers();else if(view==='plugins')fetchPlugins();else if(data&&view==='collab')renderCollabPage();
 }
+function pluginChoice(v){return v===true?'true':v===false?'false':'default'}
+function pluginOwnDefault(p){
+  return p.manifestDefault===true?'on':p.manifestDefault===false?'off':'none set';
+}
+function pluginInEffect(p){
+  var v=p.defaultEnabled;
+  return v===true?'On unless the writer turns it off':v===false?'Off unless the writer turns it on':'Left to the add-on: a plain add-on starts on, one that asks first starts off';
+}
+function pluginRow(p){
+  var choice=pluginChoice('adminDefault' in p?p.adminDefault:p.defaultEnabled);
+  function opt(v,label){return '<option value="'+v+'"'+(choice===v?' selected':'')+'>'+esc(label)+'</option>'}
+  return '<tr><td><b>'+esc(p.name)+'</b><div class="sub">'+esc(p.id)+'</div></td><td>'+esc(p.version)+'</td><td>'+
+    '<select aria-label="Default for '+esc(p.name)+'" data-plugin="'+esc(p.id)+'" data-current="'+choice+'">'+
+    opt('true','Enabled')+opt('false','Disabled')+opt('default','Add-on\u2019s own default ('+pluginOwnDefault(p)+')')+'</select>'+
+    '<div class="sub" data-effect="'+esc(p.id)+'">'+esc(pluginInEffect(p))+'</div></td></tr>';
+}
 async function fetchPlugins(){
   var el=$('plugins'),status=$('plugins-status');
   el.innerHTML='';status.textContent='Loading add-ons…';
   try {
     var plugins=await api('/plugins');
-    el.innerHTML=table(['Add-on','Version','Default'],plugins.map(function(p){
-      var enabled=p.defaultEnabled===true;
-      return '<tr><td><b>'+esc(p.name)+'</b><div class="sub">'+esc(p.id)+'</div></td><td>'+esc(p.version)+'</td><td>'+
-        '<select aria-label="Default for '+esc(p.name)+'" data-plugin="'+esc(p.id)+'" data-current="'+enabled+'">'+
-        '<option value="true"'+(enabled?' selected':'')+'>Enabled</option>'+
-        '<option value="false"'+(!enabled?' selected':'')+'>Disabled</option></select></td></tr>';
-    }),'No web add-ons are deployed.');
+    if(!Array.isArray(plugins))throw new Error('the backend did not send a list of add-ons');
+    el.innerHTML=table(['Add-on','Version','Default'],plugins.map(pluginRow),'No web add-ons are deployed.');
     status.textContent='';
   } catch(e){if(e.message!=='auth')status.textContent='Could not load add-ons. '+(e.detail||e.message)}
 }
 $('plugins').addEventListener('change',async function(e){
-  var select=e.target, id=select.dataset.plugin, status=$('plugins-status');
+  var select=e.target, id=select.dataset&&select.dataset.plugin, status=$('plugins-status');
   if(!id)return;
+  var value=select.value==='true'?true:select.value==='false'?false:null;
   select.disabled=true;status.textContent='';
   try {
-    var saved=await api('/plugins/'+encodeURIComponent(id),{method:'POST',body:{defaultEnabled:select.value==='true'}});
-    select.value=select.dataset.current=String(saved.defaultEnabled);
-    status.textContent='Default saved.';
+    var saved=await api('/plugins/'+encodeURIComponent(id),{method:'POST',body:{defaultEnabled:value}});
+    select.value=select.dataset.current=pluginChoice(saved&&saved.adminDefault!==undefined?saved.adminDefault:value);
+    var effect=document.querySelector('[data-effect="'+CSS.escape(id)+'"]');
+    if(effect&&saved&&'defaultEnabled' in saved)effect.textContent=pluginInEffect(saved);
+    status.textContent=value===null?'Default cleared: the add-on\u2019s own default applies.':'Default saved.';
   } catch(e){
     select.value=select.dataset.current;
     if(e.message!=='auth')status.textContent='Could not save the default. '+(e.detail||e.message);

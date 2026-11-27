@@ -92,7 +92,8 @@ describe('add-ons', () => {
     function open(defaultEnabled: boolean, onActivate = vi.fn()) {
       const registry = new PluginRegistry();
       registry.setRuntimeAddOnDefaults(new Map([['assistant', defaultEnabled], ['unchanged', defaultEnabled]]));
-      registry.register(addOn({ optIn: undefined, onActivate }));
+      // Nothing leaves the device and there is nothing to ask: a default may start it.
+      registry.register(addOn({ optIn: undefined, privacy: undefined, onActivate }));
       registry.register({ id: 'unchanged', name: 'Unchanged', version: '1.0.0' });
       return registry;
     }
@@ -177,6 +178,77 @@ describe('add-ons', () => {
     registry.subscribeGrammar(rescan);
     await registry.enableAddOn('assistant');
     expect(rescan).not.toHaveBeenCalled();
+  });
+
+  it('are never started by a default when they say what leaves the device or have settings', async () => {
+    const onActivate = vi.fn();
+    const registry = new PluginRegistry();
+    registry.setRuntimeAddOnDefaults(new Map<string, boolean | null>([
+      ['assistant', true], ['keyed', true], ['translated', true], ['plain', null],
+    ]));
+    registry.register(addOn({ onActivate }));
+    registry.register(addOn({ id: 'keyed', privacy: undefined, settings: () => null, onActivate }));
+    registry.register(addOn({ id: 'translated', privacy: undefined, privacyKey: 'x.privacy', onActivate }));
+    // A deployed plain plugin with a privacy statement and no default stays off too.
+    registry.register({ id: 'plain', name: 'Plain', version: '1', privacy: 'Sends text away.', onActivate });
+    await Promise.resolve();
+    for (const id of ['assistant', 'keyed', 'translated', 'plain']) {
+      expect(registry.isAddOnEnabled(id), id).toBe(false);
+      expect(registry.isAddOnSuggested(id), id).toBe(true);
+    }
+    expect(onActivate).not.toHaveBeenCalled();
+    expect(contributions(registry)).toEqual(NOTHING);
+    expect(localStorage.getItem(ADDON_PREFERENCE_PREFIX + 'assistant')).toBeNull();
+
+    // The writer turns it on themselves; that choice is remembered as usual.
+    await registry.enableAddOn('assistant');
+    expect(registry.isAddOnSuggested('assistant')).toBe(false);
+    const next = new PluginRegistry();
+    next.setRuntimeAddOnDefaults(new Map([['assistant', true]]));
+    next.register(addOn());
+    expect(next.isAddOnEnabled('assistant')).toBe(true);
+  });
+
+  it('may be started by a default when their privacy statement says nothing leaves the device', async () => {
+    const onActivate = vi.fn();
+    const registry = new PluginRegistry();
+    registry.setRuntimeAddOnDefaults(new Map<string, boolean | null>([['local', true], ['local-keyed', true]]));
+    registry.register(addOn({ id: 'local', privacy: 'Makes no network requests.', staysOnDevice: true, onActivate }));
+    // Settings still have to be asked for, so this one waits for the writer.
+    registry.register(addOn({ id: 'local-keyed', staysOnDevice: true, settings: () => null }));
+    await Promise.resolve();
+    expect(registry.isAddOnEnabled('local')).toBe(true);
+    expect(onActivate).toHaveBeenCalledTimes(1);
+    expect(registry.isAddOnEnabled('local-keyed')).toBe(false);
+    expect(registry.isAddOnSuggested('local-keyed')).toBe(true);
+  });
+
+  it('keep a deployed plain plugin on when neither the admin nor its manifest set a default', () => {
+    const registry = new PluginRegistry();
+    registry.setRuntimeAddOnDefaults(new Map<string, boolean | null>([['plain', null], ['own-opt-in', null], ['admin-off', false]]));
+    registry.register({ id: 'plain', name: 'Plain', version: '1' });
+    registry.register({ id: 'own-opt-in', name: 'Own', version: '1', optIn: true });
+    registry.register({ id: 'admin-off', name: 'Off', version: '1' });
+    expect(registry.getAddOns().map((p) => p.id)).toEqual(['admin-off', 'own-opt-in', 'plain']);
+    expect(registry.isActive('plain')).toBe(true);
+    expect(registry.isActive('own-opt-in')).toBe(false);
+    expect(registry.isActive('admin-off')).toBe(false);
+  });
+
+  it('are left off, contributing nothing, when onActivate fails as they start', async () => {
+    localStorage.setItem(ADDON_PREFERENCE_PREFIX + 'assistant', 'true');
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const registry = new PluginRegistry();
+    const listener = vi.fn();
+    registry.subscribe(listener);
+    registry.register(addOn({ onActivate: async () => { throw new Error('no server'); } }));
+    await vi.waitFor(() => expect(registry.isAddOnEnabled('assistant')).toBe(false));
+    expect(contributions(registry)).toEqual(NOTHING);
+    expect(listener).toHaveBeenCalledTimes(2);
+    expect(error).toHaveBeenCalledWith(expect.stringContaining('could not start'), expect.any(Error));
+    // The writer's choice is kept: it tries again next time.
+    expect(localStorage.getItem(ADDON_PREFERENCE_PREFIX + 'assistant')).toBe('true');
+    error.mockRestore();
   });
 
   it('refuse an add-on that is not installed', async () => {

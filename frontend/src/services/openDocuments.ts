@@ -186,6 +186,22 @@ export async function scriptOpenAnywhere(projectId: string, scriptId: string): P
   }
 }
 
+/**
+ * Whether a script may be open in an editor, answered without waiting, for the
+ * last moment before a background merge writes (inside its storage
+ * transaction, where nothing can be awaited). Shown in this window, or claimed
+ * by any other window: claims are not checked against the live windows here,
+ * so a stale one only makes the merge wait for the writer, never write under
+ * an editor. `scriptOpenAnywhere` is the full check made before the fetch.
+ */
+export function scriptShowingNow(projectId: string, scriptId: string): boolean {
+  const key = documentKey(projectId, scriptId, null);
+  if (!key) return false;
+  if (showingHere.has(key)) return true;
+  const label = currentWindowLabel();
+  return readEntries().some((entry) => entry.key === key && entry.window !== label);
+}
+
 /** Ask the backend to bring another window forward. */
 export async function focusWindow(label: string): Promise<void> {
   const { invoke } = await import('@tauri-apps/api/core');

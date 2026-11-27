@@ -14,7 +14,7 @@
 import type { Node as PMNode, Mark, Schema } from '@tiptap/pm/model';
 import type { TitlePageAttrs } from '../editor/extensions/TitlePage';
 import { DEFAULT_TITLE_PAGE_CREDIT, hasTitlePageContent } from './titlePageBlocks';
-import { customTitleBlockLines } from './customTitlePage';
+import { CUSTOM_TITLE_FIELDS, customTitleBlockLines, replaceBlockText } from './customTitlePage';
 
 export type TpData = Omit<TitlePageAttrs, 'field'>;
 
@@ -202,4 +202,71 @@ export function padCustomTitlePage(nodes: readonly PMNode[], schema: Schema, lin
   const blanks = Array.from({ length: Math.max(0, Math.floor(linesPerPage - used)) }, () =>
     schema.nodes.titlePage.create({ field: 'blank', tpCustom: true }));
   return [...nodes, ...blanks];
+}
+
+/** What the Standard form showed: its fields and its images. */
+export interface StandardTitlePage {
+  data: TpData;
+  images: { imagesAbove: Record<string, unknown>[]; imagesBelow: Record<string, unknown>[] };
+}
+
+const TEXT_KEYS = [
+  'tpTitle', 'tpCredit', 'tpWrittenBy', 'tpBasedOn', 'tpDraft', 'tpDraftDate',
+  'tpContact', 'tpCopyright', 'tpWgaRegistration', 'tpNotes',
+] as const satisfies readonly (keyof TpData)[];
+
+/** The custom blocks that hold a Standard field's text. Notes are read back
+ * from the Notes field and from any free text line (see readCustomTitleFields). */
+function blocksForKey(nodes: readonly PMNode[], key: typeof TEXT_KEYS[number]): number[] {
+  const found: number[] = [];
+  nodes.forEach((node, index) => {
+    if (node.type.name !== 'titlePage') return;
+    const field = String(node.attrs.field);
+    if (key === 'tpNotes') {
+      if (field === 'date' || (field === 'blank' && node.textContent.trim())) found.push(index);
+      else if (!Object.hasOwn(CUSTOM_TITLE_FIELDS, field) && node.textContent.trim()) found.push(index);
+    } else if (Object.hasOwn(CUSTOM_TITLE_FIELDS, field)
+        && CUSTOM_TITLE_FIELDS[field as keyof typeof CUSTOM_TITLE_FIELDS] === key) {
+      found.push(index);
+    }
+  });
+  return found;
+}
+
+/**
+ * Carry edits made in the Standard form into the custom draft the writer left.
+ *
+ * `before` is what the Standard form showed on arrival from the custom page
+ * (that is, what the draft reads as), `after` what it shows now. Every changed
+ * field is written into the one custom block holding it, keeping the custom
+ * arrangement and the block's own formatting. Nothing changed: the draft comes
+ * back as it is. Returns null when an edit has no single block to go into — a
+ * field the custom page does not show, notes spread over several lines, or an
+ * image added, removed or moved — and the caller has to rebuild the custom page
+ * from the Standard fields instead.
+ */
+export function applyStandardEdits(
+  draft: readonly PMNode[],
+  schema: Schema,
+  before: StandardTitlePage,
+  after: StandardTitlePage,
+): PMNode[] | null {
+  if (JSON.stringify(before.images) !== JSON.stringify(after.images)) return null;
+  const updated = [...draft];
+  for (const key of TEXT_KEYS) {
+    const was = before.data[key] ?? '';
+    const now = after.data[key] ?? '';
+    if (was === now) continue;
+    const blocks = blocksForKey(updated, key);
+    if (blocks.length !== 1) return null;
+    updated[blocks[0]] = replaceBlockText(updated[blocks[0]], now, schema);
+  }
+  const size = Number(after.data.tpTitleFontSize) || 12;
+  if ((Number(before.data.tpTitleFontSize) || 12) !== size) {
+    const titles = blocksForKey(updated, 'tpTitle');
+    if (titles.length !== 1) return null;
+    const title = updated[titles[0]];
+    updated[titles[0]] = title.type.create({ ...title.attrs, tpTitleFontSize: size }, title.content, title.marks);
+  }
+  return updated;
 }

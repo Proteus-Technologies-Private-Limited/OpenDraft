@@ -113,10 +113,23 @@ describe('session renewal', () => {
   it('remembers which account a refused refresh signed out', async () => {
     const m = await load({ accessToken: jwt(-60), refreshToken: 'r1' });
     fetchMock.mockResolvedValueOnce(json(401, { error: 'Invalid or expired refresh token' }));
-    const { readSignedOutAccount } = await import('./signedOutAccount');
+    const { readSignedOutAccount, REMEMBERED_EMAIL_KEY } = await import('./signedOutAccount');
+    // Only a writer who ticked "Remember email" gets the account offered back.
+    localStorage.setItem(REMEMBERED_EMAIL_KEY, USER.email);
 
     expect(await m.ensureCollabAuthenticated()).toBe('signed-out');
     expect(readSignedOutAccount()).toBe(USER.email);
+  });
+
+  it('does not keep the signed-out account when "Remember email" is off', async () => {
+    const m = await load({ accessToken: jwt(-60), refreshToken: 'r1' });
+    fetchMock.mockResolvedValueOnce(json(401, { error: 'Invalid or expired refresh token' }));
+    const { readSignedOutAccount, REMEMBERED_EMAIL_KEY } = await import('./signedOutAccount');
+    localStorage.removeItem(REMEMBERED_EMAIL_KEY);
+
+    expect(await m.ensureCollabAuthenticated()).toBe('signed-out');
+    expect(readSignedOutAccount()).toBeNull();
+    expect(localStorage.getItem('opendraft:signedOutEmail')).toBeNull();
   });
 
   it('forgets the signed-out account on the next sign-in', async () => {

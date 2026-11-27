@@ -20,6 +20,7 @@ import { wrapForDrawing } from './bidi';
 import { sanitizeExportFilename } from './exportFilename';
 import { findTitlePageRegion, titlePageNodeInfo } from './titlePageRegion';
 import { titlePageAlignment, titlePageTextLines, titlePageTextSize } from './customTitlePage';
+import { IMAGE_LINE_HEIGHT_PX, imageHeightLines, PT_PER_PX } from './imageLines';
 import { extractAvBodies } from './avDocument';
 import { drawAvBody, avRowNodes, avFrameKey } from './avPdfTable';
 import { readColumnConfig } from '../editor/extensions/AvBlock';
@@ -585,6 +586,11 @@ function measureLine(pdf: jsPDF, lineRuns: TextRun[], fonts: FontContext): numbe
   return total;
 }
 
+/** Lines a title-page image occupies in the editor and the paginator. */
+function titleImageLines(attrs: Record<string, unknown> | undefined): number {
+  return Math.max(1, Number(attrs?.heightLines) || 8);
+}
+
 // --- Main export function ---
 
 export interface PDFExportOptions {
@@ -749,10 +755,11 @@ export interface RenderedPDF {
   /**
    * Something the writer has to be told about the file they just got.
    *
-   * At present only one thing qualifies: a bundled face that would not load,
-   * which leaves the script it was for blank on the page. That is the shape
-   * issue #128 was reported in — a PDF that had simply lost its dialogue — and
-   * it must never be silent again, on any platform.
+   * Two things qualify: a bundled face that would not load, which leaves the
+   * script it was for blank on the page — the shape issue #128 was reported
+   * in, a PDF that had simply lost its dialogue, and it must never be silent
+   * again, on any platform — and a title page too long for its sheet, whose
+   * overflowing lines and images are left out.
    */
   warning?: string;
 }
@@ -1104,8 +1111,11 @@ async function renderPDFAtScale(doc: JSONContent, title: string, layout: PageLay
     placements?.push({ srcIndex, sheet: pageNumber, top, bottom });
   };
 
+  /** Told to the writer with the file when part of the title page was left off. */
+  let titlePageWarning: string | undefined;
+
   // Pre-load title-page images (rendered in document order).
-  const titleImgData = new Map<number, { dataUrl: string; wPt: number; hPt: number }>();
+  const titleImgData = new Map<number, { dataUrl: string; wPt: number; hPt: number; lines: number }>();
   if (hasTitlePage) {
     const contentW = pageWidthPt - (layout.leftMargin + layout.rightMargin) * PTS_PER_INCH;
     for (let k = 0; k < titleItems.length; k++) {
@@ -1118,7 +1128,12 @@ async function renderPDFAtScale(doc: JSONContent, title: string, layout: PageLay
       const widthPx = Number(it.attrs?.width) || 0;
       let wPt = widthPx > 0 ? widthPx * 0.75 : Math.min(d.width * 0.75, contentW * 0.6);
       wPt = Math.min(wPt, contentW);
-      titleImgData.set(k, { dataUrl: d.dataUrl, wPt, hPt: wPt * (d.height / (d.width || 1)) });
+      const aspect = d.height / (d.width || 1);
+      const hPt = wPt * aspect;
+      // The lines the editor and the paginator give it, never fewer than it
+      // needs to be drawn without running into the line below.
+      const lines = Math.max(titleImageLines(it.attrs), imageHeightLines(wPt / PT_PER_PX, aspect));
+      titleImgData.set(k, { dataUrl: d.dataUrl, wPt, hPt, lines });
     }
   }
 
@@ -1130,15 +1145,24 @@ async function renderPDFAtScale(doc: JSONContent, title: string, layout: PageLay
     const bottom = pageHeightPt - bottomMarginPt;
     let y = topMarginPt;
     let dropped = 0;
+    let droppedImages = 0;
     for (let k = 0; k < titleItems.length; k++) {
       const it = titleItems[k];
       if (it.kind === 'image') {
         const im = titleImgData.get(k);
-        if (!im || y + im.hPt > bottom) continue;
-        const align = (it.attrs?.align as string) || 'center';
-        const x = align === 'left' ? leftX : align === 'right' ? rightX - im.wPt : centerX - im.wPt / 2;
-        pdf.addImage(im.dataUrl, 'PNG', x, y, im.wPt, im.hPt);
-        y += im.hPt + 6;
+        // Advance by whole 12pt lines, as the editor counts the image — not by
+        // its drawn height, which left every line below it up to a line and a
+        // half higher in the PDF than on screen. A picture that could not be
+        // loaded keeps its space, as the editor's placeholder does.
+        const advance = (im?.lines ?? titleImageLines(it.attrs)) * IMAGE_LINE_HEIGHT_PX * PT_PER_PX;
+        if (im && y + im.hPt <= bottom) {
+          const align = (it.attrs?.align as string) || 'center';
+          const x = align === 'left' ? leftX : align === 'right' ? rightX - im.wPt : centerX - im.wPt / 2;
+          pdf.addImage(im.dataUrl, 'PNG', x, y, im.wPt, im.hPt);
+        } else if (im) {
+          droppedImages++;
+        }
+        y += advance;
       } else {
         const isTitle = it.field === 'title';
         const custom = it.attrs?.tpCustom === true;
@@ -1176,10 +1200,17 @@ async function renderPDFAtScale(doc: JSONContent, title: string, layout: PageLay
         // silently skipped by the bounds check above (issue #52).
       }
     }
-    if (dropped > 0) {
+    if (dropped > 0 || droppedImages > 0) {
+      // The Title Page dialog refuses a custom page that runs past the bottom
+      // margin, so this is a page laid out some other way — an import, or a
+      // standard page with tall images. The writer has to hear about it: the
+      // PDF is missing part of its title page.
       console.warn(
-        `[pdf] ${dropped} title-page line(s) did not fit the page and were not drawn.`,
+        `[pdf] title page overflow in "${title}": ${dropped} text line(s) and ${droppedImages} image(s) `
+        + `past the bottom margin (${bottom.toFixed(1)}pt) were not drawn; content reached ${y.toFixed(1)}pt `
+        + `over ${titleItems.length} title-page block(s).`,
       );
+      titlePageWarning = t('format:titlePage.pdfOverflow');
     }
 
     // Start the screenplay on a fresh sheet. This is physical page 2 of the
@@ -2068,7 +2099,7 @@ async function renderPDFAtScale(doc: JSONContent, title: string, layout: PageLay
   return {
     bytes: new Uint8Array(pdf.output('arraybuffer')),
     filename,
-    warning: fallbackWarning(fonts.fallbacks),
+    warning: [fallbackWarning(fonts.fallbacks), titlePageWarning].filter(Boolean).join(' ') || undefined,
   };
 }
 

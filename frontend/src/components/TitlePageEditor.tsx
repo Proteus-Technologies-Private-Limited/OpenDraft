@@ -11,7 +11,8 @@ import { useImageSrc } from '../hooks/useImageSrc';
 import { getPageMetrics } from '../editor/pagination';
 import { findTitlePageRegion, titlePageAttrsCarryData, titlePageNodeInfo } from '../utils/titlePageRegion';
 import { DEFAULT_TITLE_PAGE_CREDIT } from '../utils/titlePageBlocks';
-import { buildTitlePageBlocks, customizeTitlePageBlocks, deriveFields, trimCustomTitlePage } from '../utils/titlePageDialogBlocks';
+import { applyStandardEdits, buildTitlePageBlocks, customizeTitlePageBlocks, deriveFields, trimCustomTitlePage, type StandardTitlePage } from '../utils/titlePageDialogBlocks';
+import { measureImageFile } from '../utils/imageLines';
 import { customTitleBlockLines, readCustomTitleFields } from '../utils/customTitlePage';
 import CustomTitlePageEditor from './CustomTitlePageEditor';
 import { showToast } from './Toast';
@@ -110,6 +111,21 @@ function currentLinesPerPage(): number {
   return getPageMetrics(useEditorStore.getState().pageLayout).linesPerPage;
 }
 
+/**
+ * Width of the editor's text column in CSS px — what the image NodeView sizes a
+ * new image against — so an image measured in the dialog gets the same width
+ * and line count it would have got had it been dropped into the script.
+ */
+function imageColumnWidth(editor: Editor, contentWidthIn: number): number {
+  try {
+    const width = editor.view.dom.clientWidth;
+    if (width > 0) return width;
+  } catch (err) {
+    console.warn('[TitlePage] editor column unavailable; sizing the image from the page margins', err);
+  }
+  return Math.round(contentWidthIn * 96);
+}
+
 function titlePageNodes(editor: Editor): PMNode[] {
   const nodes = editor.state.doc.children;
   const region = findTitlePageRegion(nodes.map(node =>
@@ -166,6 +182,10 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
   const [images, setImages] = useState(initial.images);
   const [custom, setCustom] = useState(initial.custom);
   const [customDraft, setCustomDraft] = useState<PMNode[] | null>(initial.custom ? initial.nodes : null);
+  // What the Standard form showed when it was last filled from the custom
+  // draft. Switching back compares against it, so edits made in Standard reach
+  // the custom page rather than being dropped for the older draft.
+  const [draftBase, setDraftBase] = useState<StandardTitlePage | null>(null);
   const [imagePending, setImagePending] = useState(false);
   const pageLayout = useEditorStore(s => s.pageLayout);
   const customLines = getPageMetrics({ ...pageLayout, fontSize: 12 }).linesPerPage;
@@ -207,16 +227,39 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
 
   function changeLayout(nextCustom: boolean) {
     if (nextCustom === custom) return;
-    if (nextCustom && !customDraft) {
-      const standard = data === initial.data && images === initial.images && initial.nodes.length
-        ? initial.nodes
-        : buildTitlePageBlocks(editor, data, images.imagesAbove, images.imagesBelow, currentLinesPerPage());
-      setCustomDraft(customizeTitlePageBlocks(standard, editor.schema, data));
-    } else if (!nextCustom && customDraft) {
-      setData({ ...EMPTY_ATTRS, ...readCustomTitleFields(customDraft.map(node => node.toJSON())) });
-      setImages(classifyTitleImages(customDraft));
+    try {
+      if (nextCustom) {
+        // Keep the custom draft when it still matches the Standard form, and
+        // write the writer's Standard edits into it when they fit; only when
+        // they cannot be placed is the custom page rebuilt from the fields —
+        // and then the writer is told, since its arrangement is replaced.
+        let draft = customDraft && draftBase
+          ? applyStandardEdits(customDraft, editor.schema, draftBase, { data, images })
+          : customDraft;
+        const rebuilt = !!customDraft && !draft;
+        if (!draft) {
+          const standard = data === initial.data && images === initial.images && initial.nodes.length
+            ? initial.nodes
+            : buildTitlePageBlocks(editor, data, images.imagesAbove, images.imagesBelow, currentLinesPerPage());
+          draft = customizeTitlePageBlocks(standard, editor.schema, data);
+        }
+        setCustomDraft(draft);
+        setDraftBase(null);
+        if (rebuilt) showToast(t('titlePage.customRebuilt'), 'info');
+      } else if (customDraft) {
+        const base: StandardTitlePage = {
+          data: { ...EMPTY_ATTRS, ...readCustomTitleFields(customDraft.map(node => node.toJSON())) },
+          images: classifyTitleImages(customDraft),
+        };
+        setData(base.data);
+        setImages(base.images);
+        setDraftBase(base);
+      }
+      setCustom(nextCustom);
+    } catch (err) {
+      console.error(`[TitlePage] switching to the ${nextCustom ? 'custom' : 'standard'} layout failed`, err);
+      showToast(t('titlePage.layoutFailed', { error: err instanceof Error ? err.message : String(err) }), 'error');
     }
-    setCustom(nextCustom);
   }
 
   // --- Title-page image: upload and insert a screenplayImage node at the chosen
@@ -233,19 +276,23 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
     const placement = imagePosition;
     setImagePending(true);
     try {
+      // Measured before it is laid out: the page is spaced around the image's
+      // height, and the default 8 lines is wrong for nearly every image.
+      const size = await measureImageFile(file, imageColumnWidth(editor, contentWidth));
       // Shared with the body-image paths: a project asset when there is a
       // project, the scratch store when there isn't, never bytes in the document.
-      const attrs = await buildImageAttrs(file, ['title-page-image']);
+      const attrs = { ...await buildImageAttrs(file, ['title-page-image']), ...size };
       warnIfImageDegraded(attrs);
       setImages(prev => placement === 'above'
         ? { ...prev, imagesAbove: [...prev.imagesAbove, attrs] }
         : { ...prev, imagesBelow: [...prev.imagesBelow, attrs] });
     } catch (err) {
+      console.error('[TitlePage] adding a title-page image failed', err);
       showToast(t('titlePage.imageFailed', { error: err instanceof Error ? err.message : String(err) }), 'error');
     } finally {
       setImagePending(false);
     }
-  }, [imagePosition, t]);
+  }, [imagePosition, t, editor, contentWidth]);
 
   const handleSyncFromProject = useCallback(() => {
     const { documentTitle } = useEditorStore.getState();
@@ -311,7 +358,8 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
         </div>
         {custom ? (
           <CustomTitlePageEditor schema={editor.schema} nodes={customDraft ?? []} onChange={setCustomDraft}
-            layout={pageLayout} linesPerPage={customLines} contentWidth={contentWidth} onUploadChange={setImagePending} />
+            layout={pageLayout} linesPerPage={customLines} contentWidth={contentWidth} onUploadChange={setImagePending}
+            imageColumnWidth={() => imageColumnWidth(editor, contentWidth)} />
         ) : (
         <div className="tp-editor-body">
           <div className="tp-editor-form">

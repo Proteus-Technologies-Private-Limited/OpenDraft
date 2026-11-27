@@ -5,14 +5,14 @@ import { t } from '../i18n';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useStorageStatusStore } from '../stores/storageStatusStore';
 import { prepareReviewSave } from '../utils/reviewSave';
-import { autoMerge } from '../utils/scriptMerge';
+import { autoMerge, withMergeCopies } from '../utils/scriptMerge';
 import { sha256Hex } from '../utils/sha256';
 import { uuid } from '../utils/uuid';
 import { ApiError, api, type ScriptMeta, type ScriptResponse } from './api';
 import { cloudApi } from './cloudApi';
 import { scopeForCloud } from './offlineCloud';
 import { syncProjectExtras } from './deviceProjectExtras';
-import { documentKey, findWindowWithDocument, scriptOpenAnywhere } from './openDocuments';
+import { documentKey, findWindowWithDocument, scriptOpenAnywhere, scriptShowingNow } from './openDocuments';
 import { isTauri } from './platform';
 import {
   activeBindings, disableBinding, enableBinding, forgetScriptBase, noteUploadHash, projectHasLinkedScripts,
@@ -47,6 +47,10 @@ const locks = new Map<string, Promise<unknown>>();
 const remembered = new Map<string, Remembered>();
 // When the project's details, locations and pictures last synced, per project.
 const extrasSynced = new Map<string, number>();
+// What each open merge dialog was built on, by `projectId:scriptId`: the cloud
+// revision and this device's body. A merge is saved only over those exact
+// copies; a change to either meanwhile is merged in first.
+const mergedAgainst = new Map<string, { revision: string; device: string }>();
 const blank = () => ({ issues: [] as DeviceSyncIssue[], onOpen: false, attention: null as DeviceSyncAttention });
 
 /** A failure whose text is meant for the writer, unlike a network or server error. */
@@ -255,7 +259,10 @@ async function mergeBothSides(
   if (!merged) return 'conflict';
   if (await scriptOpenAnywhere(binding.project_id, id)) return 'conflict';
   if (!await bindingStillActive(binding, scope)) return 'pending';
-  if (!await pullDeviceContent(binding, remote.meta, prepareReviewSave(merged), local)) return 'conflict';
+  // Checked again at the write: an editor opened since would hold the text from
+  // before the merge, and its next autosave would undo it.
+  if (!await pullDeviceContent(binding, remote.meta, prepareReviewSave(merged), local,
+    () => !scriptShowingNow(binding.project_id, id))) return 'conflict';
   const written = await readDeviceContent(binding.project_id, id);
   if (!written?.content) return 'pending';
   const body = prepareReviewSave(written.content);
@@ -354,7 +361,7 @@ async function syncProject(binding: DeviceBinding, scope: Scope): Promise<void> 
     // sees is the screenplays'.
     // At most every two minutes: they change far less often than screenplays.
     if (Date.now() - (extrasSynced.get(projectId) ?? 0) > 120_000) {
-      if (await syncProjectExtras(binding, scope, remoteId, project) === 'synced') extrasSynced.set(projectId, Date.now());
+      if (await syncProjectExtras(binding, scope, remoteId) === 'synced') extrasSynced.set(projectId, Date.now());
     }
     if (!await bindingStillActive(binding, scope)) return;
     const state = projectState(verdicts);
@@ -414,9 +421,11 @@ export async function refreshDeviceScript(projectId: string, scriptId: string): 
   }
 }
 
-/** The three copies the merge dialog compares: last synced, this device's and the cloud's. */
+/** The three copies the merge dialog compares: last synced, this device's and
+ * the cloud's, and the cloud revision the merge is built on. */
 export async function readDeviceSyncMerge(projectId: string, scriptId: string): Promise<{
   base: Record<string, unknown> | null; device: Record<string, unknown>; cloud: Record<string, unknown>; title: string;
+  cloudRevision: string;
 }> {
   const scope = scopeForCloud();
   if (!scope || !supportsDeviceSync()) throw new DeviceSyncMessage(t('toolbar:status.save.cloudSignIn'));
@@ -427,15 +436,22 @@ export async function readDeviceSyncMerge(projectId: string, scriptId: string): 
     cloudApi.getScript(cloudProject(binding), scriptId, scope),
     readScriptBaseContent(projectId, scriptId),
   ]);
-  if (!local?.content || !remote.content) throw new DeviceSyncMessage(t('toolbar:status.save.cloudProblem'));
-  return { base, device: local.content, cloud: remote.content, title: remote.meta.title };
+  if (!local?.content || !remote.content || !remote.content_revision) {
+    throw new DeviceSyncMessage(t('toolbar:status.save.cloudProblem'));
+  }
+  mergedAgainst.set(`${projectId}:${scriptId}`, { revision: remote.content_revision, device: digest(local.content) });
+  return { base, device: local.content, cloud: remote.content, title: remote.meta.title, cloudRevision: remote.content_revision };
 }
 
 /** A way out of a conflict or a refused screenplay. Keeping one side first saves
  * the other as a new screenplay, so no text is discarded. `merged` writes the
- * writer's merge of the two to this device and uploads it. */
+ * writer's merge of the two to this device and uploads it — only over the
+ * copies it was built from (`readDeviceSyncMerge`): if either changed while the
+ * writer was merging, nothing is saved and the error carries the new copies
+ * (`outdatedMergeCopies`) for the dialog to build the merge again. */
 export async function resolveDeviceSyncIssue(
   projectId: string, scriptId: string, keep: 'device' | 'cloud' | 'merged', merged?: Record<string, unknown>,
+  mergedRevision?: string,
 ): Promise<void> {
   const scope = scopeForCloud();
   if (!scope || !supportsDeviceSync()) throw new DeviceSyncMessage(t('toolbar:status.save.cloudSignIn'));
@@ -445,6 +461,7 @@ export async function resolveDeviceSyncIssue(
       throw new DeviceSyncMessage(t('projects:sync.account'));
     }
     const remoteId = cloudProject(binding);
+    const mergeKey = `${projectId}:${scriptId}`;
     const device = (await api.listScripts(projectId)).find(value => value.id === scriptId);
     const local = device && await readDeviceContent(projectId, scriptId);
     let remote: ScriptResponse | undefined;
@@ -464,6 +481,19 @@ export async function resolveDeviceSyncIssue(
       if (await findWindowWithDocument(documentKey(projectId, scriptId, null) ?? '').catch(() => null)) {
         throw new DeviceSyncMessage(t('projects:sync.openElsewhere'));
       }
+      const against = mergedAgainst.get(mergeKey);
+      const revision = mergedRevision ?? against?.revision;
+      if (revision !== remote.content_revision || against?.device !== digest(local.content)) {
+        // Another device saved, or this one did, while the dialog was open:
+        // saving now would drop that change, so build the merge again with it.
+        if (!local.content || !remote.content) throw new DeviceSyncMessage(t('toolbar:status.save.cloudProblem'));
+        const base = await readScriptBaseContent(projectId, scriptId);
+        mergedAgainst.set(mergeKey, { revision: remote.content_revision, device: digest(local.content) });
+        console.info('[cloud] a copy changed during the merge of', scriptId, { revision, now: remote.content_revision });
+        throw withMergeCopies(new DeviceSyncMessage(t('toolbar:status.save.cloudChangedDuringMerge')), {
+          base, device: local.content, cloud: remote.content, cloudRevision: remote.content_revision,
+        });
+      }
       const body = prepareReviewSave(merged);
       if (!await pullDeviceContent(binding, { ...remote.meta, title: device.title, format: device.format }, body, local)) {
         throw new DeviceSyncMessage(t('toolbar:status.save.cloudProblem'));
@@ -471,8 +501,22 @@ export async function resolveDeviceSyncIssue(
       const written = await readDeviceContent(projectId, scriptId);
       if (!written?.content) throw new DeviceSyncMessage(t('toolbar:status.save.cloudProblem'));
       await noteUploadHash(binding, scriptId, digest(written.content));
-      const sent = await cloudApi.uploadOfflineScript(remoteId, scriptId, prepareReviewSave(written.content),
-        remote.content_revision, scope);
+      let sent: ScriptResponse;
+      try {
+        sent = await cloudApi.uploadOfflineScript(remoteId, scriptId, prepareReviewSave(written.content),
+          remote.content_revision, scope);
+      } catch (error) {
+        if (!(error instanceof ApiError) || error.status !== 412) throw error;
+        // The cloud moved on in the moment since it was read. The merge is kept
+        // on this device; build it again against the cloud's newer copy.
+        const fresh = await cloudApi.getScript(remoteId, scriptId, scope);
+        if (!fresh.content || !fresh.content_revision) throw new DeviceSyncMessage(t('toolbar:status.save.cloudProblem'));
+        mergedAgainst.set(mergeKey, { revision: fresh.content_revision, device: digest(written.content) });
+        throw withMergeCopies(new DeviceSyncMessage(t('toolbar:status.save.cloudChangedDuringMerge')), {
+          base: await readScriptBaseContent(projectId, scriptId), device: written.content, cloud: fresh.content,
+          cloudRevision: fresh.content_revision,
+        });
+      }
       if (!sent.content_revision) throw new DeviceSyncMessage(t('toolbar:status.save.cloudProblem'));
       await rememberScriptBase(binding, {
         script_id: scriptId, content_hash: digest(sent.content), cloud_revision: sent.content_revision,
@@ -514,7 +558,8 @@ export async function resolveDeviceSyncIssue(
         device_updated: pulled.updated_at, cloud_updated: remote.meta.updated_at,
       }, remote.content);
     }
-    remembered.delete(`${projectId}:${scriptId}`);
+    remembered.delete(mergeKey);
+    mergedAgainst.delete(mergeKey);
   });
   wakeDeviceProjectSync();
 }
