@@ -27,18 +27,14 @@ export function TaskCard({ task, type, types, editor, autoFocus, onDelete, onErr
   const { t } = useTranslation(PLUGIN_ID);
   const id = useId();
   const subjectRef = useRef<HTMLInputElement>(null);
-  const [subject, setSubject] = useState(task.subject);
-  const [note, setNote] = useState(task.note);
+  const cancelSubjectEdit = useRef(false);
+  const [subjectDraft, setSubjectDraft] = useState<string | null>(null);
+  const [noteDraft, setNoteDraft] = useState<string | null>(null);
+  const note = noteDraft ?? task.note;
   const [noteOpen, setNoteOpen] = useState(task.note !== '');
   const [copied, setCopied] = useState(false);
   const kind = type?.kind ?? 'track';
   const closed = task.status === 'done' || task.status === 'used';
-
-  // Follow changes from elsewhere (a collaborator, an undo) unless being edited here.
-  useEffect(() => {
-    if (document.activeElement !== subjectRef.current) setSubject(task.subject);
-  }, [task.subject]);
-  useEffect(() => setNote(task.note), [task.note]);
 
   // A new task is shown, and with a mouse its subject is ready to retype. On a
   // touch screen focusing the field would raise the on-screen keyboard over
@@ -60,12 +56,15 @@ export function TaskCard({ task, type, types, editor, autoFocus, onDelete, onErr
   const save = (patch: TaskPatch) => {
     const error = updateData((data) => updateTask(data, task.id, patch));
     if (error) onError(t('errors.saveFailed', { message: error }));
+    return !error;
   };
 
   const commitSubject = () => {
-    const next = subject.trim();
-    if (!next) setSubject(task.subject);
-    else if (next !== task.subject) save({ subject: next });
+    const subject = subjectDraft?.trim();
+    const cancel = cancelSubjectEdit.current;
+    cancelSubjectEdit.current = false;
+    if (!cancel && subject && subject !== task.subject && !save({ subject })) return;
+    setSubjectDraft(null);
   };
 
   const goTo = (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -145,12 +144,14 @@ export function TaskCard({ task, type, types, editor, autoFocus, onDelete, onErr
           id={`${id}-subject`}
           ref={subjectRef}
           className="sk-subject"
-          value={subject}
-          onChange={(e) => setSubject(e.target.value)}
+          value={subjectDraft ?? task.subject}
+          onChange={(e) => setSubjectDraft(e.target.value)}
           onBlur={commitSubject}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') { e.preventDefault(); commitSubject(); subjectRef.current?.blur(); }
-            if (e.key === 'Escape') { setSubject(task.subject); subjectRef.current?.blur(); }
+            if (e.key !== 'Enter' && e.key !== 'Escape') return;
+            e.preventDefault();
+            cancelSubjectEdit.current = e.key === 'Escape';
+            e.currentTarget.blur();
           }}
         />
       </div>
@@ -179,8 +180,12 @@ export function TaskCard({ task, type, types, editor, autoFocus, onDelete, onErr
             rows={2}
             value={note}
             placeholder={t('task.notePlaceholder')}
-            onChange={(e) => setNote(e.target.value)}
-            onBlur={() => { if (note !== task.note) save({ note }); if (!note) setNoteOpen(false); }}
+            onChange={(e) => setNoteDraft(e.target.value)}
+            onBlur={() => {
+              if (note !== task.note && !save({ note })) return;
+              setNoteDraft(null);
+              if (!note) setNoteOpen(false);
+            }}
           />
         </>
       )}

@@ -37,20 +37,17 @@
   cursor: pointer;
   width: 100%;
   text-align: center;
-  opacity: 0.6;
-  transition: background 0.15s, opacity 0.15s, border-color 0.15s;
+  transition: background 0.15s, border-color 0.15s;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 .plugin-panel-tabs__tab:hover {
   background: var(--fd-overlay-subtle, rgba(255, 255, 255, 0.04));
-  opacity: 0.95;
 }
 .plugin-panel-tabs__tab--active {
   background: var(--fd-overlay-subtle, rgba(255, 255, 255, 0.06));
   border-left-color: var(--fd-accent, #4a9eff);
-  opacity: 1;
 }
 
 .plugin-panel-tabs__tab-label {
