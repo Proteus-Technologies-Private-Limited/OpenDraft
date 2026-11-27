@@ -44,7 +44,6 @@ import {
 import { useEditorStore, useEditorFields } from '../stores/editorStore';
 import { useEditorSelector } from '../hooks/useEditorTransactions';
 import type { ElementType } from '../stores/editorStore';
-import { addScriptNoteAtSelection, scriptNoteAtSelection } from '../utils/addScriptNote';
 import { panelButtonAction } from '../utils/panelButton';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { BUILT_IN_ELEMENT_IDS } from '../stores/formattingTypes';
@@ -814,24 +813,6 @@ const ControlBar: React.FC<ControlBarProps> = ({ editor, bar, items, hidden, edi
     // The layout's labels change widths without changing the item list.
   }, [isTop, hideOrder, toolbarLayout, toolbarMode, foldState.foldable, foldState.size, foldState.fold, docksAvailable, laptopActive]);
 
-  // ── Notes handler (shared between inline and overflow) ──
-  const handleNotesClick = useCallback((e: React.PointerEvent | React.MouseEvent) => {
-    e.preventDefault();
-    if (!editor) { toggleScriptNotes(); return; }
-    // A second click closes the panel, but only when it would otherwise add a
-    // note to the whole current element or focus a note under the caret. With
-    // a selection it must still add the note the writer selected.
-    if (panelButtonAction(
-      scriptNotesOpen,
-      editor.state.selection.empty,
-      scriptNoteAtSelection(editor) !== null,
-    ) === 'close') {
-      toggleScriptNotes();
-      return;
-    }
-    addScriptNoteAtSelection(editor);
-  }, [editor, scriptNotesOpen, toggleScriptNotes]);
-
   // ── Tags handler (shared between inline and overflow) ──
   const handleTagsClick = useCallback((e: React.PointerEvent | React.MouseEvent) => {
     e.preventDefault();
@@ -1184,8 +1165,8 @@ const ControlBar: React.FC<ControlBarProps> = ({ editor, bar, items, hidden, edi
         aria-pressed={scriptNotesOpen}
         title={t('toolbar.scriptNotes')}
         aria-label={mode === 'icon' ? t('layout.labels.notes') : undefined}
-        onPointerDown={(e) => { handleNotesClick(e); closeOverflow(inOverflow); }}
-        onClick={e => { if (e.detail === 0) { handleNotesClick(e); closeOverflow(inOverflow); } }}
+        onPointerDown={e => e.preventDefault()}
+        onClick={() => { toggleScriptNotes(); closeOverflow(inOverflow); }}
       >
         {face(mode, <FaStickyNote />, t('layout.labels.notes'))}
       </button>

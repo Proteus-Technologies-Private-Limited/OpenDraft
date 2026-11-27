@@ -28,6 +28,7 @@ import { inchesToOsf, pointsToOsf } from './layoutUnits';
 import type { JSONContent } from '@tiptap/react';
 import { sanitizeExportFilename } from './exportFilename';
 import { titlePageAttrsCarryData } from './titlePageRegion';
+import { readCustomTitleFields } from './customTitlePage';
 import { isNonPrintingType } from './nonPrinting';
 import { blockRevision, osfRevisionColors, osfRevisionIndex } from './revisionExport';
 import { latestRevision, type RevisionSettings } from '../editor/revisionColors';
@@ -294,9 +295,8 @@ function dualDialogue(node: JSONContent): string[] {
   return out;
 }
 
-function titlePageBlock(node: JSONContent | null): string {
-  if (!node) return '';
-  const attrs = (node.attrs ?? {}) as Record<string, unknown>;
+function titlePageBlock(attrs: Record<string, unknown> | null | undefined): string {
+  if (!attrs) return '';
 
   const paras: string[] = [];
   // The draft and its date share one bookmark, so they share one paragraph.
@@ -423,7 +423,7 @@ export function exportOSF(doc: JSONContent, options: OSFExportOptions = {}): str
       '        <text></text>', '      </para>'].join('\n'),
   );
 
-  const titlePage = titlePageBlock(titlePageNode);
+  const titlePage = titlePageBlock(readCustomTitleFields(doc.content ?? []) ?? titlePageNode?.attrs);
 
   // Revisions: the table every revised paragraph's mark points into, and
   // which revision is current. Written only when there is something to say.

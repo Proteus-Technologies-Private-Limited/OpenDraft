@@ -3,12 +3,8 @@ import type { Mark } from '@tiptap/pm/model';
 import { useEditorStore, NOTE_COLORS } from '../stores/editorStore';
 import { singleLine } from './nodeText';
 
-/**
- * The note mark under the caret, or null. Shared with the toolbar button,
- * which must know whether a click would focus a note instead of closing the
- * panel.
- */
-export function scriptNoteAtSelection(editor: Editor): Mark | null {
+/** The note mark under the caret, or null. */
+function scriptNoteAtSelection(editor: Editor): Mark | null {
   const noteMarkType = editor.schema.marks.scriptNote;
   if (!noteMarkType) return null;
   const $from = editor.state.selection.$from;
@@ -21,7 +17,7 @@ export function scriptNoteAtSelection(editor: Editor): Mark | null {
 }
 
 /**
- * The toolbar's Notes button and ⇧⌘N: open the note under the cursor, or add a
+ * ⇧⌘N: open the note under the cursor, or add a
  * note on the selection (the whole element when nothing is selected) and show
  * it in the Notes panel. On an empty element it just toggles the panel.
  */

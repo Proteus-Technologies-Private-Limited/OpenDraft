@@ -78,6 +78,7 @@ export const ScreenplayImage = Node.create({
       width: { default: null },
       align: { default: 'center' },
       heightLines: { default: 8 },
+      tpCustom: { default: false },
     };
   },
 

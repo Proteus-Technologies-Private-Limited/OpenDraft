@@ -177,6 +177,17 @@
     "resetDefault": "Restaurar padrão"
   },
   "titlePage": {
+    "standardLayout": "Padrão",
+    "addText": "Adicionar texto",
+    "customText": "Texto",
+    "customField": "Campo",
+    "customAlignment": "Alinhamento",
+    "moveToLine": "Mover para a linha",
+    "editLine": "Editar a linha {{line}}",
+    "customExportHelp": "O Fountain mantém o texto nos campos da folha de rosto. O posicionamento personalizado é preservado no OpenDraft, na impressão, em PDF e no Word.",
+    "customOverflow": "O conteúdo ultrapassa a margem inferior. Mova-o para cima ou remova linhas antes de aplicar.",
+    "standardConfirm": "Aplicar o layout padrão a esta folha de rosto? O texto será organizado nos campos padrão.",
+    "concurrentEdit": "A folha de rosto mudou durante a edição. Reabra o editor para ver a versão mais recente.",
     "updateFailed": "Falha ao atualizar a página de rosto",
     "chooseImage": "Escolha um arquivo de imagem",
     "imageAdded": "Imagem adicionada à página de rosto",

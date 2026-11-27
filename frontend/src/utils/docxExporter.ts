@@ -49,7 +49,8 @@ import { getForceBreakIds, jsonStartsOwnPage } from './pageBreaks';
 import { getSpaceBefore, DEFAULT_SPACE_BEFORE } from './elementSpacing';
 import { getLineSpacing } from './lineSpacing';
 import { sanitizeExportFilename } from './exportFilename';
-import { findTitlePageRegion, titlePageAttrsCarryData } from './titlePageRegion';
+import { findTitlePageRegion, titlePageNodeInfo } from './titlePageRegion';
+import { titlePageAlignment } from './customTitlePage';
 import { extractAvBodies } from './avDocument';
 import { buildAvTable, buildAvTotalParagraph, type AvDocxImage } from './avDocxTable';
 import { avRowNodes, avFrameKey } from './avPdfTable';
@@ -357,9 +358,9 @@ function buildTitlePageFlow(
     // the title — which is bold, uppercased and possibly 72pt.
     const field = node.type === 'titlePage' ? ((node.attrs?.field as string) || 'title') : 'blank';
     const isTitle = field === 'title';
-    const align = field === 'draft' ? AlignmentType.LEFT
-      : (field === 'contact' || field === 'copyright') ? AlignmentType.RIGHT
-        : AlignmentType.CENTER;
+    const alignment = titlePageAlignment(field, node.attrs?.tpCustom ? node.attrs.tpAlign : undefined);
+    const align = alignment === 'left' ? AlignmentType.LEFT
+      : alignment === 'right' ? AlignmentType.RIGHT : AlignmentType.CENTER;
     const size = isTitle ? (Number(node.attrs?.tpTitleFontSize) || 12) * 2 : FONT_SIZE_HALFPT;
     const lines = nodeText(node).split('\n');
     const children = lines.map((line, idx) => {
@@ -617,11 +618,7 @@ export async function exportDocx(
   const titleRegionNodes: JSONContent[] = [];
   const docNodes = doc?.content ?? [];
   const region = findTitlePageRegion(
-    docNodes.map((node) => ({
-      type: node.type || 'general',
-      hasText: nodeText(node).trim().length > 0,
-      hasTitleData: titlePageAttrsCarryData(node.attrs as Record<string, unknown> | undefined),
-    })),
+    docNodes.map(node => titlePageNodeInfo(node.type || 'general', nodeText(node), node.attrs)),
   );
   // Excluded by the writer: drop the region outright rather than letting it fall
   // through to the body, which is the path for a region that was never a title

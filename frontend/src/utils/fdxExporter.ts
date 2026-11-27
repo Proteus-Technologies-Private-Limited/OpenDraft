@@ -13,6 +13,7 @@ import { noteBlockText } from './noteContent';
 import type { FootnotePlan } from './footnotes';
 import { DEFAULT_TITLE_PAGE_CREDIT } from './titlePageBlocks';
 import { titlePageAttrsCarryData } from './titlePageRegion';
+import { readCustomTitleFields } from './customTitlePage';
 import {
   REVISION_COLORS, findRevisionColor, revisionMarkFor, type RevisionSettings,
 } from '../editor/revisionColors';
@@ -451,35 +452,32 @@ export function exportFDX(doc: JSONContent, _title: string = 'Untitled', charact
   let tpCopyright = '';
   let tpWgaRegistration = '';
   let tpNotes = '';
-  if (doc.content) {
-    for (const node of doc.content) {
-      if (node.type === 'titlePage'
-          && titlePageAttrsCarryData(node.attrs as Record<string, unknown> | undefined)) {
-        const attrs = node.attrs ?? {};
-        tpTitle = attrs.tpTitle || '';
-        tpCredit = attrs.tpCredit || DEFAULT_TITLE_PAGE_CREDIT;
-        tpWrittenBy = attrs.tpWrittenBy || '';
-        tpBasedOn = attrs.tpBasedOn || '';
-        tpDraft = [attrs.tpDraft, attrs.tpDraftDate].filter(Boolean).join(' - ');
-        tpContact = attrs.tpContact || '';
-        tpCopyright = attrs.tpCopyright || '';
-        tpWgaRegistration = attrs.tpWgaRegistration || '';
-        tpNotes = attrs.tpNotes || '';
-        break;
-      }
-    }
+  const customTitle = readCustomTitleFields(doc.content ?? []);
+  const attrs = customTitle ?? doc.content?.find(node =>
+    node.type === 'titlePage' && titlePageAttrsCarryData(node.attrs),
+  )?.attrs;
+  if (attrs) {
+    tpTitle = attrs.tpTitle || '';
+    tpCredit = attrs.tpCredit || DEFAULT_TITLE_PAGE_CREDIT;
+    tpWrittenBy = attrs.tpWrittenBy || '';
+    tpBasedOn = attrs.tpBasedOn || '';
+    tpDraft = [attrs.tpDraft, attrs.tpDraftDate].filter(Boolean).join(' - ');
+    tpContact = attrs.tpContact || '';
+    tpCopyright = attrs.tpCopyright || '';
+    tpWgaRegistration = attrs.tpWgaRegistration || '';
+    tpNotes = attrs.tpNotes || '';
   }
   if (tpTitle) {
     lines.push(`      <Paragraph Type="General" Alignment="Center" SpaceBefore="288"><Text>${esc(tpTitle)}</Text></Paragraph>`);
   }
-  if (tpWrittenBy) {
+  if (tpWrittenBy || customTitle?.tpCredit) {
     // The credit the writer chose, not a fixed "Written by" — a script credited
     // "Screenplay by" said the wrong thing on every .fdx it was exported to.
     lines.push(`      <Paragraph Type="General" Alignment="Center"><Text>${esc(tpCredit)}</Text></Paragraph>`);
-    lines.push(`      <Paragraph Type="General" Alignment="Center"><Text>${esc(tpWrittenBy)}</Text></Paragraph>`);
-    if (tpBasedOn) {
-      lines.push(`      <Paragraph Type="General" Alignment="Center"><Text>${esc(tpBasedOn)}</Text></Paragraph>`);
-    }
+    if (tpWrittenBy) lines.push(`      <Paragraph Type="General" Alignment="Center"><Text>${esc(tpWrittenBy)}</Text></Paragraph>`);
+  }
+  if (tpBasedOn && (tpWrittenBy || customTitle)) {
+    lines.push(`      <Paragraph Type="General" Alignment="Center"><Text>${esc(tpBasedOn)}</Text></Paragraph>`);
   }
   if (tpDraft) {
     lines.push(`      <Paragraph Type="General"><Text>${esc(tpDraft)}</Text></Paragraph>`);

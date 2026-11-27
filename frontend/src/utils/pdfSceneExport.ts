@@ -16,7 +16,7 @@
  *   the scene before it.
  */
 import type { JSONContent } from '@tiptap/react';
-import { findTitlePageRegion, titlePageAttrsCarryData } from './titlePageRegion';
+import { findTitlePageRegion, titlePageNodeInfo } from './titlePageRegion';
 import { jsonBlockText } from './nodeText';
 
 export interface SceneExportRange {
@@ -84,11 +84,9 @@ function selectedScenesDocument(
   const headings = headingIndices(content);
   if (headings.length === 0) return doc;
 
-  const region = findTitlePageRegion(content.map((node) => ({
-    type: node.type || 'general',
-    hasText: jsonBlockText(node).trim().length > 0,
-    hasTitleData: titlePageAttrsCarryData(node.attrs as Record<string, unknown> | undefined),
-  })));
+  const region = findTitlePageRegion(content.map(node =>
+    titlePageNodeInfo(node.type || 'general', jsonBlockText(node), node.attrs),
+  ));
   const titleNodes = region.length > 0 ? content.slice(0, region.length) : [];
 
   const valid = [...new Set(picked)]

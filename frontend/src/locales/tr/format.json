@@ -172,6 +172,17 @@
     "resetDefault": "Varsayılana sıfırla"
   },
   "titlePage": {
+    "standardLayout": "Standart",
+    "addText": "Metin ekle",
+    "customText": "Metin",
+    "customField": "Alan",
+    "customAlignment": "Hizalama",
+    "moveToLine": "Satıra taşı",
+    "editLine": "{{line}}. satırı düzenle",
+    "customExportHelp": "Fountain metni kapak sayfası alanlarında saklar. Özel konumlar OpenDraft, yazdırma, PDF ve Word çıktılarında korunur.",
+    "customOverflow": "İçerik alt kenar boşluğunu aşıyor. Uygulamadan önce yukarı taşıyın veya satırları kaldırın.",
+    "standardConfirm": "Bu kapak sayfasına standart düzen uygulansın mı? Metniniz standart alanlara göre yerleştirilecek.",
+    "concurrentEdit": "Siz düzenlerken kapak sayfası değişti. Son sürümü görmek için düzenleyiciyi yeniden açın.",
     "updateFailed": "Kapak sayfası güncellenemedi",
     "chooseImage": "Lütfen bir resim dosyası seçin",
     "imageAdded": "Resim kapak sayfasına eklendi",

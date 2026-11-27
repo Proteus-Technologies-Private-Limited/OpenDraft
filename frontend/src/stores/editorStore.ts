@@ -1528,7 +1528,14 @@ export const useEditorStore = create<EditorState>()(skipUnchanged((set, get) => 
   deleteNote: (id) =>
     set((s) => ({ notes: s.notes.filter((n) => n.id !== id) })),
   noteFilter: { elementType: null, contextLabel: null, color: null, noteId: null },
-  setNoteFilter: (filter) => set({ noteFilter: filter }),
+  setNoteFilter: (filter) => set((state) => {
+    const focusScript = filter.noteId || filter.elementType || filter.contextLabel || filter.color;
+    if (focusScript && state.notesActiveTab !== 'script') {
+      saveViewState({ notesActiveTab: 'script' });
+      return { noteFilter: filter, notesActiveTab: 'script' };
+    }
+    return { noteFilter: filter };
+  }),
 
   // General notes
   generalNotes: [],

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { ModalOverlay } from './ModalOverlay';
 import { useTranslation } from 'react-i18next';
 import type { Editor } from '@tiptap/react';
@@ -9,13 +9,11 @@ import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { buildImageAttrs, warnIfImageDegraded } from '../utils/insertImage';
 import { useImageSrc } from '../hooks/useImageSrc';
 import { getPageMetrics } from '../editor/pagination';
-import {
-  findTitlePageRegion,
-  titlePageAttrsCarryData,
-  type TitleNodeInfo,
-} from '../utils/titlePageRegion';
+import { findTitlePageRegion, titlePageAttrsCarryData, titlePageNodeInfo } from '../utils/titlePageRegion';
 import { DEFAULT_TITLE_PAGE_CREDIT } from '../utils/titlePageBlocks';
-import { buildTitlePageBlocks, deriveFields } from '../utils/titlePageDialogBlocks';
+import { buildTitlePageBlocks, customizeTitlePageBlocks, deriveFields, trimCustomTitlePage } from '../utils/titlePageDialogBlocks';
+import { customTitleBlockLines, readCustomTitleFields } from '../utils/customTitlePage';
+import CustomTitlePageEditor from './CustomTitlePageEditor';
 import { showToast } from './Toast';
 import Select from './Select';
 import { confirmAction } from '../utils/confirmAction';
@@ -67,10 +65,12 @@ function findTitlePageNode(editor: Editor): { pos: number; attrs: TitlePageAttrs
 }
 
 /** Read structured attrs, falling back to legacy child-text content if structured attrs are empty. */
-function readTitlePageData(editor: Editor): Omit<TitlePageAttrs, 'field'> {
+function readTitlePageData(editor: Editor, nodes: PMNode[]): Omit<TitlePageAttrs, 'field'> {
   const result = { ...EMPTY_ATTRS };
+  const custom = readCustomTitleFields(nodes.map(node => node.toJSON()));
+  if (custom) return { ...result, ...custom };
   const titleNode = findTitlePageNode(editor);
-  if (titleNode && titleNode.attrs.tpTitle) {
+  if (titleNode && titlePageAttrsCarryData(titleNode.attrs as unknown as Record<string, unknown>)) {
     // Structured data exists — use it
     result.tpTitle = titleNode.attrs.tpTitle || '';
     result.tpTitleFontSize = Number(titleNode.attrs.tpTitleFontSize) || 12;
@@ -110,51 +110,25 @@ function currentLinesPerPage(): number {
   return getPageMetrics(useEditorStore.getState().pageLayout).linesPerPage;
 }
 
-/** How many of the document's leading nodes belong to the title page. */
-function titlePageRegionLength(editor: Editor): number {
-  const doc = editor.state.doc;
-  const infos: TitleNodeInfo[] = [];
-  for (let k = 0; k < doc.childCount; k++) {
-    const child = doc.child(k);
-    infos.push({
-      type: child.type.name,
-      hasText: (child.textContent || '').trim().length > 0,
-      hasTitleData: titlePageAttrsCarryData(child.attrs as Record<string, unknown>),
-    });
-  }
-  return findTitlePageRegion(infos).length;
+function titlePageNodes(editor: Editor): PMNode[] {
+  const nodes = editor.state.doc.children;
+  const region = findTitlePageRegion(nodes.map(node =>
+    titlePageNodeInfo(node.type.name, node.textContent, node.attrs),
+  ));
+  return nodes.slice(0, region.length);
 }
 
 /** Title-page images split by whether they sit above or below the title. */
-function classifyTitleImages(editor: Editor): { imagesAbove: Record<string, unknown>[]; imagesBelow: Record<string, unknown>[] } {
-  const doc = editor.state.doc;
+function classifyTitleImages(nodes: readonly PMNode[]): { imagesAbove: Record<string, unknown>[]; imagesBelow: Record<string, unknown>[] } {
   const imagesAbove: Record<string, unknown>[] = [];
   const imagesBelow: Record<string, unknown>[] = [];
   let sawTitle = false;
-  const end = titlePageRegionLength(editor);
-  for (let k = 0; k < end; k++) {
-    const child = doc.child(k);
+  for (const child of nodes) {
     const t = child.type.name;
     if (t === 'titlePage' && child.attrs.field === 'title') sawTitle = true;
-    if (t === 'screenplayImage') (sawTitle ? imagesBelow : imagesAbove).push(child.attrs as Record<string, unknown>);
+    if (t === 'screenplayImage') (sawTitle ? imagesBelow : imagesAbove).push({ ...child.attrs, tpCustom: false });
   }
   return { imagesAbove, imagesBelow };
-}
-
-/**
- * End position (doc coords) of the leading title-page region.
- *
- * Uses the shared resolver rather than "the leading run of title nodes", which
- * `findTitlePageNode` never agreed with: the dialog would find and prefill from
- * a title page sitting one blank line down, then Apply would replace nothing and
- * insert a *second* one at the top (issue #52).
- */
-function titlePageRegionEnd(editor: Editor): number {
-  const doc = editor.state.doc;
-  const length = titlePageRegionLength(editor);
-  let end = 0;
-  for (let k = 0; k < length; k++) end += doc.child(k).nodeSize;
-  return end;
 }
 
 /**
@@ -166,21 +140,38 @@ function titlePageRegionEnd(editor: Editor): number {
  * accept, so a blank body line takes its place. This mirrors what deleting the
  * title page outright does.
  */
-function replaceTitleRegion(editor: Editor, built: PMNode[]): void {
+function replaceTitleRegion(editor: Editor, current: PMNode[], built: PMNode[]): void {
+  if (current.length === built.length && current.every((node, index) => node.eq(built[index]))) return;
   const tr = editor.state.tr;
-  const end = titlePageRegionEnd(editor);
-  if (end > 0) tr.delete(0, end);
-  for (let i = built.length - 1; i >= 0; i--) tr.insert(0, built[i]);
-  if (tr.doc.content.size === 0) {
+  const end = current.reduce((position, node) => position + node.nodeSize, 0);
+  if (end === tr.doc.content.size && !built.length) {
     const fallback = editor.schema.nodes.action || editor.schema.nodes.general;
-    if (fallback) tr.insert(0, fallback.create());
+    if (fallback) built = [fallback.create()];
   }
-  editor.view.dispatch(tr);
+  editor.view.dispatch(tr.replaceWith(0, end, built));
 }
 
 const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
   const { t } = useTranslation(['format', 'common']);
-  const [data, setData] = useState<Omit<TitlePageAttrs, 'field'>>({ ...EMPTY_ATTRS });
+  const [initial] = useState(() => {
+    const nodes = titlePageNodes(editor);
+    return {
+      nodes,
+      data: readTitlePageData(editor, nodes),
+      images: classifyTitleImages(nodes),
+      custom: nodes.some(node => node.attrs.tpCustom === true),
+    };
+  });
+  const [data, setData] = useState(initial.data);
+  const [images, setImages] = useState(initial.images);
+  const [custom, setCustom] = useState(initial.custom);
+  const [customDraft, setCustomDraft] = useState<PMNode[] | null>(initial.custom ? initial.nodes : null);
+  const [imagePending, setImagePending] = useState(false);
+  const pageLayout = useEditorStore(s => s.pageLayout);
+  const customLines = getPageMetrics({ ...pageLayout, fontSize: 12 }).linesPerPage;
+  const contentWidth = pageLayout.pageWidth - pageLayout.leftMargin - pageLayout.rightMargin;
+  const customBlocks = trimCustomTitlePage(customDraft ?? []);
+  const customOverflow = customBlocks.reduce((total, node) => total + customTitleBlockLines(node, contentWidth), 0) > customLines;
 
   // Whether the title page goes out with print, PDF and Word. Unlike every
   // other control here it takes effect the moment it is ticked, and Cancel does
@@ -192,24 +183,41 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
   const includeTitlePageInOutput = useEditorStore((s) => s.includeTitlePageInOutput);
   const toggleIncludeTitlePageInOutput = useEditorStore((s) => s.toggleIncludeTitlePageInOutput);
 
-  useEffect(() => {
-    setData(readTitlePageData(editor));
-  }, [editor]);
-
   const setField = useCallback((key: keyof Omit<TitlePageAttrs, 'field'>, value: string) => {
     setData((prev) => ({ ...prev, [key]: value }));
   }, []);
 
-  const handleApply = useCallback(() => {
+  const handleApply = async () => {
     try {
-      const { imagesAbove, imagesBelow } = classifyTitleImages(editor);
-      const built = buildTitlePageBlocks(editor, data, imagesAbove, imagesBelow, currentLinesPerPage());
-      replaceTitleRegion(editor, built);
+      if (imagePending || (custom && customOverflow)) return;
+      if (!custom && initial.custom && !(await confirmAction(t('titlePage.standardConfirm')))) return;
+      const current = titlePageNodes(editor);
+      if (current.length !== initial.nodes.length || current.some((node, index) => !node.eq(initial.nodes[index]))) {
+        showToast(t('titlePage.concurrentEdit'), 'error');
+        return;
+      }
+      const built = custom ? customBlocks
+        : buildTitlePageBlocks(editor, data, images.imagesAbove, images.imagesBelow, currentLinesPerPage());
+      replaceTitleRegion(editor, current, built);
       onClose();
     } catch (err) {
       showToast(err instanceof Error ? err.message : t('titlePage.updateFailed'), 'error');
     }
-  }, [editor, data, onClose, t]);
+  };
+
+  function changeLayout(nextCustom: boolean) {
+    if (nextCustom === custom) return;
+    if (nextCustom && !customDraft) {
+      const standard = data === initial.data && images === initial.images && initial.nodes.length
+        ? initial.nodes
+        : buildTitlePageBlocks(editor, data, images.imagesAbove, images.imagesBelow, currentLinesPerPage());
+      setCustomDraft(customizeTitlePageBlocks(standard, editor.schema, data));
+    } else if (!nextCustom && customDraft) {
+      setData({ ...EMPTY_ATTRS, ...readCustomTitleFields(customDraft.map(node => node.toJSON())) });
+      setImages(classifyTitleImages(customDraft));
+    }
+    setCustom(nextCustom);
+  }
 
   // --- Title-page image: upload and insert a screenplayImage node at the chosen
   // position within the title page (free-flow: exporters render it in order). ---
@@ -223,21 +231,21 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
     if (!file) return;
     if (!file.type.startsWith('image/')) { showToast(t('titlePage.chooseImage'), 'error'); return; }
     const placement = imagePosition;
+    setImagePending(true);
     try {
       // Shared with the body-image paths: a project asset when there is a
       // project, the scratch store when there isn't, never bytes in the document.
       const attrs = await buildImageAttrs(file, ['title-page-image']);
       warnIfImageDegraded(attrs);
-      // Add to the chosen group and rebuild the page so it appears in the right place.
-      const g = classifyTitleImages(editor);
-      (placement === 'above' ? g.imagesAbove : g.imagesBelow).push(attrs);
-      const built = buildTitlePageBlocks(editor, data, g.imagesAbove, g.imagesBelow, currentLinesPerPage());
-      replaceTitleRegion(editor, built);
-      showToast(t('titlePage.imageAdded'), 'success');
+      setImages(prev => placement === 'above'
+        ? { ...prev, imagesAbove: [...prev.imagesAbove, attrs] }
+        : { ...prev, imagesBelow: [...prev.imagesBelow, attrs] });
     } catch (err) {
       showToast(t('titlePage.imageFailed', { error: err instanceof Error ? err.message : String(err) }), 'error');
+    } finally {
+      setImagePending(false);
     }
-  }, [editor, imagePosition, data, t]);
+  }, [imagePosition, t]);
 
   const handleSyncFromProject = useCallback(() => {
     const { documentTitle } = useEditorStore.getState();
@@ -259,30 +267,20 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
   })();
   const showField = (id: string): boolean => !activeTpFields || activeTpFields.includes(id);
 
-  // Re-render the preview when the document changes (e.g. an image is added).
-  const [, bumpDocVersion] = useState(0);
-  useEffect(() => {
-    const onUpdate = () => bumpDocVersion((v) => v + 1);
-    editor.on('update', onUpdate);
-    return () => { editor.off('update', onUpdate); };
-  }, [editor]);
-
   // Preview = the classic layout from the LIVE fields + the current images
   // (classified above/below the title), so it matches what Apply produces.
   const { byLine, draftLine, copyrightLine } = deriveFields(data);
-  const { imagesAbove, imagesBelow } = classifyTitleImages(editor);
+  const { imagesAbove, imagesBelow } = images;
   const titlePx = `${Math.max(8, Math.round(data.tpTitleFontSize * 0.85))}px`;
   const bottomRight = [data.tpContact, copyrightLine].filter(Boolean).join('\n');
 
-  // Rebuild the whole title page (classic layout) from the live fields + the
-  // given image groups, so every image operation updates the page immediately.
-  const rebuild = (above: Record<string, unknown>[], below: Record<string, unknown>[]) => {
-    replaceTitleRegion(editor, buildTitlePageBlocks(editor, data, above, below, currentLinesPerPage()));
-  };
   const editImages = (mutate: (above: Record<string, unknown>[], below: Record<string, unknown>[]) => void) => {
-    const g = classifyTitleImages(editor);
-    mutate(g.imagesAbove, g.imagesBelow);
-    rebuild(g.imagesAbove, g.imagesBelow);
+    setImages(prev => {
+      const above = [...prev.imagesAbove];
+      const below = [...prev.imagesBelow];
+      mutate(above, below);
+      return { imagesAbove: above, imagesBelow: below };
+    });
   };
   const removeImg = (above: boolean, idx: number) => editImages((a, b) => { (above ? a : b).splice(idx, 1); });
   const moveImg = (above: boolean, idx: number, target: 'above' | 'below') => editImages((a, b) => {
@@ -297,14 +295,24 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
 
   const handleDeleteTitlePage = useCallback(async () => {
     if (!(await confirmAction(t('titlePage.deleteConfirm')))) return;
-    if (titlePageRegionEnd(editor) > 0) replaceTitleRegion(editor, []);
+    replaceTitleRegion(editor, titlePageNodes(editor), []);
     onClose();
   }, [editor, onClose, t]);
 
   return (
-    <ModalOverlay className="dialog-overlay" onClick={onClose}>
+    <ModalOverlay className="dialog-overlay" onClick={onClose} dialogLabel={t('titlePage.title')}>
       <div className="tp-editor-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="dialog-header">{t('titlePage.title')}</div>
+        <div className="tp-layout-choice">
+          <button type="button" className="props-btn" aria-pressed={!custom} disabled={imagePending}
+            onClick={() => changeLayout(false)}>{t('titlePage.standardLayout')}</button>
+          <button type="button" className="props-btn" aria-pressed={custom} disabled={imagePending}
+            onClick={() => changeLayout(true)}>{t('common:custom')}</button>
+        </div>
+        {custom ? (
+          <CustomTitlePageEditor schema={editor.schema} nodes={customDraft ?? []} onChange={setCustomDraft}
+            layout={pageLayout} linesPerPage={customLines} contentWidth={contentWidth} onUploadChange={setImagePending} />
+        ) : (
         <div className="tp-editor-body">
           <div className="tp-editor-form">
             {showField('tpTitle') && (
@@ -456,7 +464,7 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
                 <option value="above">{t('titlePage.placeTop')}</option>
                 <option value="below">{t('titlePage.placeBottom')}</option>
               </Select>
-              <button className="tp-sync-btn" onClick={handleAddImage} type="button" style={{ marginTop: 0 }}>
+              <button className="tp-sync-btn" onClick={handleAddImage} type="button" disabled={imagePending} style={{ marginTop: 0 }}>
                 {t('titlePage.addImage')}
               </button>
             </div>
@@ -526,6 +534,8 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
             </div>
           </div>
         </div>
+        )}
+        {custom && customOverflow && <p className="tp-custom-overflow" role="status">{t('titlePage.customOverflow')}</p>}
         <div className="tp-output-pref">
           <label className="tp-output-check">
             <input
@@ -544,7 +554,7 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
             {t('titlePage.delete')}
           </button>
           <button onClick={onClose}>{t('common:cancel')}</button>
-          <button className="dialog-primary" onClick={handleApply}>
+          <button className="dialog-primary" onClick={handleApply} disabled={imagePending || (custom && customOverflow)}>
             {t('common:apply')}
           </button>
         </div>

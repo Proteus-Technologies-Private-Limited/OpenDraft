@@ -67,6 +67,7 @@ export interface TitleNodeInfo {
   hasText: boolean;
   /** Whether the node carries structured title-page data in its attributes. */
   hasTitleData: boolean;
+  custom?: boolean;
 }
 
 export interface TitlePageRegion {
@@ -90,6 +91,19 @@ export function titlePageAttrsCarryData(
   });
 }
 
+export function titlePageNodeInfo(
+  type: string,
+  text: string,
+  attrs?: Record<string, unknown>,
+): TitleNodeInfo {
+  return {
+    type,
+    hasText: text.trim().length > 0,
+    hasTitleData: titlePageAttrsCarryData(attrs),
+    custom: TITLE_REGION_TYPES.has(type) && attrs?.tpCustom === true,
+  };
+}
+
 /**
  * Split a document's top-level nodes into title page and body.
  *
@@ -102,6 +116,14 @@ export function findTitlePageRegion(nodes: readonly TitleNodeInfo[]): TitlePageR
 
   for (let i = 0; i < nodes.length; i++) {
     const node = nodes[i];
+    if (node.custom) {
+      // The saved custom page has an explicit boundary, including its images.
+      // A body image near the start of the script must stay outside this page.
+      let end = i + 1;
+      while (nodes[end]?.custom) end++;
+      const isReal = nodes.slice(i, end).some(item => item.hasText || item.type === 'screenplayImage');
+      return { length: end, isReal };
+    }
     if (TITLE_REGION_TYPES.has(node.type)) {
       lastTitleIndex = i;
       continue;
