@@ -116,20 +116,16 @@ export function needsSelectionHandles(): boolean {
   return isTauri() && getOS() === 'ios';
 }
 
-/**
- * Whether this device is one an Apple Pencil can be used with — an iPad.
- *
- * iPhone and iPod run the same OS and report the same way, but no Pencil pairs
- * with them, so the handwriting input is not offered there. iPadOS 13+ sends a
- * desktop-class "Macintosh" user agent, which is why a real Mac has to be told
- * apart by its lack of touch points rather than by its name.
- */
-export function supportsApplePencil(): boolean {
+/** iPadOS can send a desktop-class user agent. Touch distinguishes it from a Mac. */
+export function isIpad(): boolean {
   const ua = navigator.userAgent || '';
   if (/iphone|ipod/i.test(ua)) return false;
   if (/ipad/i.test(ua)) return true;
   return /macintosh/i.test(ua) && navigator.maxTouchPoints > 1;
 }
+
+/** Whether to offer Apple Pencil handwriting input on this device. */
+export const supportsApplePencil = isIpad;
 
 /**
  * Whether this device can show more than one OpenDraft window (issue #63).

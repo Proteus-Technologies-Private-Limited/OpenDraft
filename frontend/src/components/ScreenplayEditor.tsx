@@ -272,7 +272,7 @@ import { useSettingsStore } from '../stores/settingsStore';
 import { useLinkedFileStore, autoSaveAppliesToOpenDocument } from '../stores/linkedFileStore';
 import { startCollabSync, stopCollabSync } from '../services/collabSync';
 import { collabAuthApi, setLogoutCollabTeardown, setLogoutEditorReset, ensureCollabAuthenticated, collabAuthUnavailableMessage } from '../services/collabAuth';
-import { getOS, platformFetch, isTauri, isDesktopTauri, needsSelectionHandles } from '../services/platform';
+import { getOS, isIpad, platformFetch, isTauri, isDesktopTauri, needsSelectionHandles } from '../services/platform';
 import { reportSaveError } from '../stores/saveErrorStore';
 import { offlineCloudStatus, readOfflineCloudMerge, resolveOfflineCloudConflict, subscribeOfflineCloud } from '../services/offlineCloud';
 import { MergeConflictDialog, type MergeOutcome } from './MergeConflictDialog';
@@ -1181,11 +1181,15 @@ const ScreenplayEditor: React.FC = () => {
 
   // ── Touch gestures (must be after editorMainRef) ──
   const isTouch = useIsTouchDevice();
+  const ipad = isIpad();
   useSwipeEdge({
     edge: 'left',
+    // iPadOS can claim swipes from the physical edge, including for Stage Manager.
+    edgeInsetPx: ipad ? 24 : 0,
+    edgeZonePx: ipad ? 40 : 20,
     onSwipe: toggleNavigator,
     enabled: isTouch && !navigatorOpen,
-    maxWidthPx: 1100,
+    maxWidthPx: ipad ? Infinity : 1100,
   });
   useSwipeEdge({
     edge: 'right',
