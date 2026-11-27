@@ -13,7 +13,8 @@ import { getTextLines } from '../utils/wrapText';
 import { fontScaleOf, scaledCpl } from '../utils/fontScale';
 import { DEFAULT_SPACE_BEFORE, buildSpaceBefore, getSpaceBefore, type SpaceBeforeSource } from '../utils/elementSpacing';
 import { lineMultiplierFor, normalizeLineSpacing } from '../utils/lineSpacing';
-import { findTitlePageRegion, titlePageAttrsCarryData } from '../utils/titlePageRegion';
+import { findTitlePageRegion, titlePageNodeInfo } from '../utils/titlePageRegion';
+import { customTitleBlockLines } from '../utils/customTitlePage';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { isNonPrintingType } from '../utils/nonPrinting';
 import { laysItselfOut } from '../utils/pageBreaks';
@@ -595,11 +596,14 @@ function computeBreaksUnlabelled(
     noteIds?: string[];
   }
   const nodes: NodeInfo[] = [];
-  const titleNodes: Array<{ type: string; hasText: boolean; hasTitleData: boolean }> = [];
+  const titleNodes: ReturnType<typeof titlePageNodeInfo>[] = [];
+  const titleWidth = layout.pageWidth - layout.leftMargin - layout.rightMargin;
   let isFirst = true;
   let hasFragments = false;
   doc.forEach((node, offset, index) => {
     const typeName = node.type.name;
+    const customTitle = node.attrs.tpCustom === true
+      && (typeName === 'titlePage' || typeName === 'screenplayImage');
     const elementId = getElementId(node);
     const sb = isFirst ? 0 : (hints.spaceBefore[elementId] ?? 0);
     const lineMul = lineMultiplierFor(hints, typeName, elementId);
@@ -612,7 +616,9 @@ function computeBreaksUnlabelled(
     const nonPrinting = isNonPrintingType(typeName);
     const fixedLines = nonPrinting
       ? 0
-      : typeName === 'screenplayImage'
+      : customTitle
+        ? customTitleBlockLines(node, titleWidth) / scale
+        : typeName === 'screenplayImage'
         ? Math.max(1, Number(node.attrs?.heightLines) || 8)
         : typeName === 'dualDialogue'
           // Two speeches side by side: as deep as the deeper column, not as
@@ -636,10 +642,11 @@ function computeBreaksUnlabelled(
     const split =
       fixedLines === undefined && SPLIT_PARAGRAPH_TYPES.has(typeName) &&
       measuredLines + cueLines > linesPerPage;
+    const titleInfo = titlePageNodeInfo(typeName, rawText, node.attrs);
     const base = {
       typeName,
       elementId,
-      spaceBefore: nonPrinting ? 0 : sb,
+      spaceBefore: nonPrinting || customTitle ? 0 : sb,
       text: markedText,
       offset,
       nodeSize: node.nodeSize,
@@ -647,14 +654,10 @@ function computeBreaksUnlabelled(
       fixedLines: fixedLines ?? measuredLines,
       printedLines: textLines,
       startsNewPage: node.attrs?.startsNewPage === true || startsLockedPage(node.attrs),
-      hasTitleData: titlePageAttrsCarryData(node.attrs),
+      hasTitleData: titleInfo.hasTitleData,
       sourceIndex: index,
     };
-    titleNodes.push({
-      type: typeName,
-      hasText: rawText.trim().length > 0,
-      hasTitleData: base.hasTitleData,
-    });
+    titleNodes.push(titleInfo);
     if (!split) nodes.push(base);
     else {
       hasFragments = true;

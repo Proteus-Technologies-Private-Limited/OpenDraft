@@ -3572,11 +3572,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
               if (s.statisticsOpen) s.setStatisticsOpen(false);
               s.setStoryTimelineOpen(true);
             } },
-            { icon: <FaStickyNote />, ...check(scriptNotesOpen, t('menu:view.notesPanel')), action: () => {
-              const hasSelection = editor && !editor.state.selection.empty;
-              useEditorStore.getState().setNotesActiveTab(hasSelection ? 'script' : 'general');
-              toggleScriptNotes();
-            } },
+            { icon: <FaStickyNote />, ...check(scriptNotesOpen, t('menu:view.notesPanel')), action: toggleScriptNotes },
             { icon: <FaUsers />, ...check(characterProfilesOpen, t('menu:view.characters')), action: toggleCharacterProfiles },
             { icon: <FaTags />, ...check(tagsPanelOpen, t('menu:view.tags')), action: toggleTagsPanel },
             { icon: <FaCompass />, ...check(locationDatabaseOpen, t('menu:view.locations')), action: toggleLocationDatabase },

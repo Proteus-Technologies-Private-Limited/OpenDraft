@@ -177,6 +177,17 @@
     "resetDefault": "Rétablir les valeurs par défaut"
   },
   "titlePage": {
+    "standardLayout": "Mise en page standard",
+    "addText": "Ajouter du texte",
+    "customText": "Texte",
+    "customField": "Champ",
+    "customAlignment": "Alignement",
+    "moveToLine": "Déplacer vers la ligne",
+    "editLine": "Modifier la ligne {{line}}",
+    "customExportHelp": "Fountain conserve le texte dans les champs de la page de titre. Le placement personnalisé est conservé dans OpenDraft, à l’impression, en PDF et dans Word.",
+    "customOverflow": "Le contenu dépasse la marge inférieure. Déplacez-le vers le haut ou supprimez des lignes avant d’appliquer.",
+    "standardConfirm": "Appliquer la mise en page standard à cette page de titre ? Le texte sera disposé selon les champs standard.",
+    "concurrentEdit": "La page de titre a changé pendant la modification. Rouvrez son éditeur pour voir la dernière version.",
     "updateFailed": "Échec de la mise à jour de la page de titre",
     "chooseImage": "Veuillez choisir un fichier image",
     "imageAdded": "Image ajoutée à la page de titre",

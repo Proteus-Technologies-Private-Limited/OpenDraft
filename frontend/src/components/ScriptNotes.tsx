@@ -607,13 +607,6 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
     if (editingGeneralNoteId === pendingDeleteGeneralNoteId) setEditingGeneralNoteId(null);
   }, [deleteGeneralNote, pendingDeleteGeneralNoteId, editingGeneralNoteId]);
 
-  // When external filter opens panel to a specific script note, switch to script tab
-  useEffect(() => {
-    if (noteFilter.noteId || noteFilter.elementType || noteFilter.contextLabel || noteFilter.color) {
-      setActiveTab('script');
-    }
-  }, [noteFilter]);
-
   /** Handle @asset autocomplete inside textarea */
   const handleTextareaChange = useCallback(
     (noteId: string, value: string) => {

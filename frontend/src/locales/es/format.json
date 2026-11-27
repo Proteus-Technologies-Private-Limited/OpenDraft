@@ -177,6 +177,17 @@
     "resetDefault": "Restablecer"
   },
   "titlePage": {
+    "standardLayout": "Estándar",
+    "addText": "Añadir texto",
+    "customText": "Texto",
+    "customField": "Campo",
+    "customAlignment": "Alineación",
+    "moveToLine": "Mover a la línea",
+    "editLine": "Editar línea {{line}}",
+    "customExportHelp": "Fountain conserva el texto en los campos de la portada. La posición personalizada se conserva en OpenDraft, en la impresión, en PDF y en Word.",
+    "customOverflow": "El contenido supera el margen inferior. Muévelo hacia arriba o elimina líneas antes de aplicar.",
+    "standardConfirm": "¿Aplicar el diseño estándar a esta portada? El texto se organizará según los campos estándar.",
+    "concurrentEdit": "La portada cambió mientras la editabas. Vuelve a abrir el editor para ver la versión más reciente.",
     "updateFailed": "No se pudo actualizar la portada",
     "chooseImage": "Elige un archivo de imagen",
     "imageAdded": "Imagen añadida a la portada",

@@ -18,7 +18,8 @@ import {
 import type { WrapRun } from './wrapText';
 import { wrapForDrawing } from './bidi';
 import { sanitizeExportFilename } from './exportFilename';
-import { findTitlePageRegion, titlePageAttrsCarryData } from './titlePageRegion';
+import { findTitlePageRegion, titlePageNodeInfo } from './titlePageRegion';
+import { titlePageAlignment, titlePageTextLines, titlePageTextSize } from './customTitlePage';
 import { extractAvBodies } from './avDocument';
 import { drawAvBody, avRowNodes, avFrameKey } from './avPdfTable';
 import { readColumnConfig } from '../editor/extensions/AvBlock';
@@ -873,7 +874,14 @@ async function renderPDFAtScale(doc: JSONContent, title: string, layout: PageLay
   // of titlePage + image nodes. The title page renders its nodes in DOCUMENT
   // ORDER (free-flow / WYSIWYG), matching the editor and DOCX.
   const nodes: NodeInfo[] = [];
-  interface TitleItem { kind: 'text' | 'image'; field?: string; text?: string; titleSize?: number; font?: string; attrs?: Record<string, unknown>; }
+  interface TitleItem {
+    kind: 'text' | 'image';
+    field?: string;
+    text?: string;
+    titleSize?: number;
+    font?: string;
+    attrs?: Record<string, unknown>;
+  }
   const titleItems: TitleItem[] = [];
 
   // Where the title page ends. Shared with the paginator, the DOCX exporter and
@@ -881,11 +889,7 @@ async function renderPDFAtScale(doc: JSONContent, title: string, layout: PageLay
   // the title (issue #52) — see utils/titlePageRegion.
   const docNodes = doc.content;
   const region = findTitlePageRegion(
-    docNodes.map((node) => ({
-      type: node.type || 'general',
-      hasText: getPlainText(extractRuns(node)).trim().length > 0,
-      hasTitleData: titlePageAttrsCarryData(node.attrs as Record<string, unknown> | undefined),
-    })),
+    docNodes.map(node => titlePageNodeInfo(node.type || 'general', getPlainText(extractRuns(node)), node.attrs)),
   );
   // Excluding the title page has to drop the region outright. It cannot lean on
   // the `!hasTitlePage` path below: that one exists for a region that was never
@@ -918,6 +922,7 @@ async function renderPDFAtScale(doc: JSONContent, title: string, layout: PageLay
           field: typeName === 'titlePage' ? ((node.attrs?.field as string) || 'title') : 'blank',
           text: getPlainText(titleRuns),
           titleSize: Number(node.attrs?.tpTitleFontSize) || 12,
+          attrs: node.attrs,
           // The title page is where a display face earns its keep, so the line
           // is drawn in the font its text carries rather than the document's.
           // One font per line: the page is flattened to plain text here, as it
@@ -1136,21 +1141,25 @@ async function renderPDFAtScale(doc: JSONContent, title: string, layout: PageLay
         y += im.hPt + 6;
       } else {
         const isTitle = it.field === 'title';
-        const align: 'left' | 'center' | 'right' =
-          it.field === 'draft' ? 'left' : (it.field === 'contact' || it.field === 'copyright') ? 'right' : 'center';
-        const lineH = isTitle ? (it.titleSize || 12) : LINE_HEIGHT_PT;
-        pdf.setFontSize(isTitle ? (it.titleSize || 12) : FONT_PT);
-        const x = align === 'left' ? leftX : align === 'right' ? rightX : centerX;
-        const lines = (it.text || '').split('\n');
+        const custom = it.attrs?.tpCustom === true;
+        const align = titlePageAlignment(it.field ?? 'blank', custom ? it.attrs?.tpAlign : undefined);
+        const customSize = titlePageTextSize(it.field ?? 'blank', it.titleSize);
+        const lineH = custom || isTitle ? customSize : LINE_HEIGHT_PT;
+        pdf.setFontSize(custom || isTitle ? customSize : FONT_PT);
+        const centeredX = custom ? (leftX + rightX) / 2 : centerX;
+        const x = align === 'left' ? leftX : align === 'right' ? rightX : centeredX;
+        const value = isTitle ? (it.text || '').toUpperCase() : (it.text || '');
+        const lines = custom
+          ? titlePageTextLines(value, layout.pageWidth - layout.leftMargin - layout.rightMargin, customSize)
+          : value.split('\n');
         for (const line of lines) {
-          const drawnLine = isTitle ? line.toUpperCase() : line;
           // Per line, so a Cyrillic title above a Latin credit each get a face
           // that can write them — and a line that needs two faces is drawn and
           // aligned piece by piece, since jsPDF's own `align` can only measure
           // one. Measured widths, free-flow: the same numbers jsPDF's `align`
           // was reaching for when this drew every line in a single face.
           if (line && y + lineH <= bottom) {
-            const pieces = drawnPieces(drawnLine, it.font, fonts, { freeFlow: true });
+            const pieces = drawnPieces(line, it.font, fonts, { freeFlow: true });
             const w = measurePieces(pdf, pieces, isTitle, false);
             const startX = align === 'left' ? x : align === 'right' ? x - w : x - w / 2;
             drawPieces(pdf, pieces, startX, y + lineH, isTitle, false);

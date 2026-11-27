@@ -172,6 +172,17 @@
     "resetDefault": "Reset Default"
   },
   "titlePage": {
+    "standardLayout": "Standard",
+    "addText": "Add Text",
+    "customText": "Text",
+    "customField": "Field",
+    "customAlignment": "Alignment",
+    "moveToLine": "Move to line",
+    "editLine": "Edit line {{line}}",
+    "customExportHelp": "Fountain keeps the text in title-page fields. Custom placement is saved in OpenDraft, print, PDF, and Word.",
+    "customOverflow": "The content extends past the bottom margin. Move it up or remove lines before applying.",
+    "standardConfirm": "Apply the standard layout to this title page? Your text will be arranged using the standard fields.",
+    "concurrentEdit": "The title page changed while you were editing it. Reopen its editor to see the latest version.",
     "updateFailed": "Failed to update title page",
     "chooseImage": "Please choose an image file",
     "imageAdded": "Image added to title page",

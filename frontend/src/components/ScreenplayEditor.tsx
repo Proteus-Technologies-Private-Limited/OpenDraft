@@ -256,6 +256,7 @@ import { fontStack } from '../utils/fonts';
 import { plotlineIdsOf } from '../utils/plotlines';
 import StoryTimeline from './StoryTimeline';
 import { titlePageRuleId, AV_BLOCK_RULE_ID } from '../stores/formattingTypes';
+import { titlePageStyleField } from '../utils/customTitlePage';
 import ShareDialog from './ShareDialog';
 import CollabLoginDialog from './CollabLoginDialog';
 import JoinCollabDialog from './JoinCollabDialog';
@@ -469,7 +470,7 @@ function resolveActiveElement(ed: Editor): ElementType | null {
     }
     if (ed.isActive('titlePage')) {
       const field = (ed.getAttributes('titlePage')?.field as string) || 'title';
-      return titlePageRuleId(field) as ElementType;
+      return titlePageRuleId(titlePageStyleField(field)) as ElementType;
     }
     // Only the four AV paragraph types need asking about here — the screenplay
     // elements a cell also accepts are in ALL_ELEMENT_TYPES below.
@@ -2216,7 +2217,7 @@ const ScreenplayEditor: React.FC = () => {
               if (blankTypeName === 'titlePage') {
                 // A spacer, not a second title: the split copied the title
                 // node's attrs onto both halves, structured fields and all.
-                tr.setNodeMarkup(prevBlockStart, blankType, { field: 'blank' });
+                tr.setNodeMarkup(prevBlockStart, blankType, { field: 'blank', tpCustom: currentNode.attrs.tpCustom });
               } else if (blankType && tr.doc.nodeAt(prevBlockStart)?.type.name !== blankTypeName) {
                 tr.setNodeMarkup(prevBlockStart, blankType);
               }

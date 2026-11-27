@@ -1,4 +1,5 @@
 import { Node, mergeAttributes } from '@tiptap/core';
+import { titlePageAlignment, titlePageStyleField, titlePageTextSize } from '../../utils/customTitlePage';
 
 export interface TitlePageAttrs {
   field: string;
@@ -27,6 +28,8 @@ export const TitlePage = Node.create({
   addAttributes() {
     return {
       field: { default: 'title' },
+      tpCustom: { default: false },
+      tpAlign: { default: null },
       // Structured fields (stored on the title node with field='title')
       tpTitle: { default: '' },
       tpCredit: { default: '' },
@@ -51,11 +54,15 @@ export const TitlePage = Node.create({
     const size = Number(node.attrs.tpTitleFontSize) || 12;
     const attrs: Record<string, string> = {
       'data-type': 'title-page',
-      class: `screenplay-element title-page title-page-${field}`,
+      class: `screenplay-element title-page title-page-${titlePageStyleField(field)}`,
       'data-field': field,
     };
     // Apply a custom title font size (default 12pt is left to CSS).
     if (field === 'title' && size !== 12) attrs.style = `font-size: ${size}pt`;
+    if (node.attrs.tpCustom) {
+      const fontPt = titlePageTextSize(field, size);
+      attrs.style = `text-align: ${titlePageAlignment(field, node.attrs.tpAlign)}; font-size: ${fontPt}pt; line-height: ${fontPt}pt`;
+    }
     return ['div', mergeAttributes(HTMLAttributes, attrs), 0];
   },
 });

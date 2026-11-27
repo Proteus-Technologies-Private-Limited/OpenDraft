@@ -14,6 +14,7 @@
 import type { Node as PMNode, Mark, Schema } from '@tiptap/pm/model';
 import type { TitlePageAttrs } from '../editor/extensions/TitlePage';
 import { DEFAULT_TITLE_PAGE_CREDIT, hasTitlePageContent } from './titlePageBlocks';
+import { customTitleBlockLines } from './customTitlePage';
 
 export type TpData = Omit<TitlePageAttrs, 'field'>;
 
@@ -30,7 +31,7 @@ export interface TitlePageBuildSource {
 /** Derive the rendered credit lines from the dialog fields.
  *  Keep in step with `deriveTitlePageLines` in utils/titlePageBlocks.ts. */
 export function deriveFields(data: TpData) {
-  const credit = (data.tpCredit || '').trim() || DEFAULT_TITLE_PAGE_CREDIT;
+  const credit = data.tpCredit.trim() || DEFAULT_TITLE_PAGE_CREDIT;
   const byLine = data.tpWrittenBy
     ? [credit, data.tpWrittenBy, data.tpBasedOn].filter(Boolean).join('\n')
     : '';
@@ -130,4 +131,75 @@ export function buildTitlePageBlocks(
     for (const a of imagesBelow) blocks.push(imageType.create(a));
   }
   return blocks;
+}
+
+/** Carry the visible standard page into the custom editor, separating the fields
+ * that the standard layout combines. Hand-edited blocks keep their actual text. */
+export function customizeTitlePageBlocks(
+  nodes: readonly PMNode[],
+  schema: Schema,
+  data: TpData,
+): PMNode[] {
+  const titlePage = schema.nodes.titlePage;
+  const custom: PMNode[] = [];
+  const groups: Record<string, [string, string][]> = {
+    author: [
+      ['credit', data.tpCredit.trim() || (data.tpWrittenBy ? DEFAULT_TITLE_PAGE_CREDIT : '')],
+      ['author', data.tpWrittenBy],
+      ['basedOn', data.tpBasedOn],
+    ],
+    draft: [['draft', data.tpDraft], ['draftDate', data.tpDraftDate]],
+    copyright: [['copyright', data.tpCopyright], ['wga', data.tpWgaRegistration]],
+  };
+
+  for (const node of nodes) {
+    if (node.attrs.tpCustom) {
+      custom.push(node);
+      continue;
+    }
+    if (node.type.name === 'screenplayImage') {
+      custom.push(node.type.create({ ...node.attrs, tpCustom: true }));
+      continue;
+    }
+    const field = node.type === titlePage ? String(node.attrs.field) : 'blank';
+    const fields = groups[field]?.filter(([, value]) => value) ?? [];
+    const separator = field === 'draft' ? ' - ' : '\n';
+    if (fields.length && node.textContent === fields.map(([, value]) => value).join(separator)) {
+      let offset = 0;
+      // The draft and date become separate blocks. Use the preceding blank
+      // line so the rest of the page can keep its position.
+      if (field === 'draft' && fields.length > 1 && custom.at(-1)?.attrs.field === 'blank'
+          && !custom.at(-1)?.textContent) custom.pop();
+      for (const [part, value] of fields) {
+        const end = offset + value.length;
+        custom.push(titlePage.create({ field: part, tpCustom: true }, node.content.cut(offset, end)));
+        offset = end + separator.length;
+      }
+      continue;
+    }
+    custom.push(titlePage.create(
+      { field, tpCustom: true, tpTitleFontSize: node.attrs.tpTitleFontSize ?? 12 },
+      node.content,
+    ));
+  }
+  return custom;
+}
+
+/** Save only the occupied portion of the custom page. Leading and internal
+ * blank blocks are its vertical spacing. */
+export function trimCustomTitlePage(nodes: readonly PMNode[]): PMNode[] {
+  let length = nodes.length;
+  while (length > 0) {
+    const node = nodes[length - 1];
+    if (node.type.name === 'screenplayImage' || node.textContent.trim()) break;
+    length--;
+  }
+  return nodes.slice(0, length);
+}
+
+export function padCustomTitlePage(nodes: readonly PMNode[], schema: Schema, linesPerPage: number, widthIn: number): PMNode[] {
+  const used = nodes.reduce((total, node) => total + customTitleBlockLines(node, widthIn), 0);
+  const blanks = Array.from({ length: Math.max(0, Math.floor(linesPerPage - used)) }, () =>
+    schema.nodes.titlePage.create({ field: 'blank', tpCustom: true }));
+  return [...nodes, ...blanks];
 }

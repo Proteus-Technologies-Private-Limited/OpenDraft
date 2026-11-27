@@ -6,6 +6,7 @@ import { jsonBlockRuns, mergeRuns, singleLine } from './nodeText';
 import { sanitizeExportFilename } from './exportFilename';
 import { clampSectionLevel } from '../editor/extensions/Section';
 import { DEFAULT_TITLE_PAGE_CREDIT } from './titlePageBlocks';
+import { readCustomTitleFields } from './customTitlePage';
 import { blockRevision, fountainRevisionNote } from './revisionExport';
 import type { RevisionSettings } from '../editor/revisionColors';
 import { bookmarkOf, fountainAlternateNotes, fountainBookmarkNote, fountainSequenceNote } from './formatAnnotations';
@@ -343,35 +344,26 @@ export function exportFountain(doc: JSONContent, options: FountainExportOptions 
 
   // Extract title page metadata from titlePage nodes
   const titlePageMeta: Record<string, string> = {};
-  for (const node of doc.content) {
-    if (node.type === 'titlePage' && node.attrs?.field === 'title') {
-      if (node.attrs.tpTitle) titlePageMeta['Title'] = node.attrs.tpTitle;
-      // `Credit:` is the label line above the author, and `Source:` is the
-      // "based on" line below it. This used to write the source as the credit,
-      // prefixed with "Based on" — which read back as the label and printed
-      // where the label goes (issue #87). A credit is written whenever there is
-      // an author, so a file that names one is explicit about it rather than
-      // relying on the reader's own default.
-      if (node.attrs.tpWrittenBy) {
-        titlePageMeta['Credit'] = node.attrs.tpCredit || DEFAULT_TITLE_PAGE_CREDIT;
-        titlePageMeta['Author'] = node.attrs.tpWrittenBy;
-      }
-      if (node.attrs.tpBasedOn) titlePageMeta['Source'] = node.attrs.tpBasedOn;
-      if (node.attrs.tpDraft) titlePageMeta['Draft'] = node.attrs.tpDraft;
-      if (node.attrs.tpDraftDate) titlePageMeta['Draft date'] = node.attrs.tpDraftDate;
-      if (node.attrs.tpContact) titlePageMeta['Contact'] = node.attrs.tpContact;
-      if (node.attrs.tpCopyright) titlePageMeta['Copyright'] = node.attrs.tpCopyright;
-      // `Notes:` is a key the parser has always read and this never wrote, so a
-      // title page's notes survived an import and were dropped by the next save.
-      // The registration has no standard key, but a Fountain title page is open
-      // key/value and a reader that does not know this one ignores it — which
-      // costs nothing and lets OpenDraft read its own file back whole.
-      if (node.attrs.tpNotes) titlePageMeta['Notes'] = node.attrs.tpNotes;
-      if (node.attrs.tpWgaRegistration) {
-        titlePageMeta['WGA registration'] = node.attrs.tpWgaRegistration;
-      }
-      break;
+  const customTitle = readCustomTitleFields(doc.content);
+  const titleFields = customTitle ?? doc.content.find(node =>
+    node.type === 'titlePage' && node.attrs?.field === 'title',
+  )?.attrs;
+  if (titleFields) {
+    if (titleFields.tpTitle) titlePageMeta['Title'] = titleFields.tpTitle;
+    if (titleFields.tpWrittenBy) {
+      titlePageMeta['Credit'] = titleFields.tpCredit || DEFAULT_TITLE_PAGE_CREDIT;
     }
+    if (titleFields.tpWrittenBy) titlePageMeta['Author'] = titleFields.tpWrittenBy;
+    if (titleFields.tpBasedOn && (!customTitle || titleFields.tpWrittenBy)) titlePageMeta['Source'] = titleFields.tpBasedOn;
+    if (titleFields.tpDraft) titlePageMeta['Draft'] = titleFields.tpDraft;
+    if (titleFields.tpDraftDate) titlePageMeta['Draft date'] = titleFields.tpDraftDate;
+    if (titleFields.tpContact) titlePageMeta['Contact'] = titleFields.tpContact;
+    if (titleFields.tpCopyright) titlePageMeta['Copyright'] = titleFields.tpCopyright;
+    const notes = customTitle && !titleFields.tpWrittenBy
+      ? [titleFields.tpCredit, titleFields.tpBasedOn, titleFields.tpNotes].filter(Boolean).join('\n')
+      : titleFields.tpNotes;
+    if (notes) titlePageMeta['Notes'] = notes;
+    if (titleFields.tpWgaRegistration) titlePageMeta['WGA registration'] = titleFields.tpWgaRegistration;
   }
   if (Object.keys(titlePageMeta).length > 0) {
     for (const [key, value] of Object.entries(titlePageMeta)) {
@@ -381,7 +373,10 @@ export function exportFountain(doc: JSONContent, options: FountainExportOptions 
       // nothing converts back, so the address came home with the escape in it.
       const [first, ...rest] = value.split('\n');
       lines.push(`${key}: ${first}`);
-      for (const line of rest) lines.push(`    ${line}`);
+      for (const line of rest) {
+        if (customTitle && !line.trim()) continue;
+        lines.push(`    ${line}`);
+      }
     }
     lines.push('');
   }
