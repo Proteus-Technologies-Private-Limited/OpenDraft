@@ -18,7 +18,9 @@ turns it off. Nothing is cached: the list is read on every request, so a change
 shows on the next page load without restarting the server.
 
 ``GET /api/plugins`` lists the valid plugins; their files are served from
-``/plugins/<id>/…``. A folder that is not a valid plugin is skipped and logged,
+``/plugins/<id>/…``. The manifest can set ``defaultEnabled`` to true. The admin
+console can override that default, with its choice saved in the data directory.
+A folder that is not a valid plugin is skipped and logged,
 never served half-way. The plugin's script runs in the page with the app's own
 rights — install only plugins you trust.
 
@@ -32,15 +34,17 @@ import json
 import logging
 import os
 import re
+import tempfile
 from pathlib import Path
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Response
 
-from app.config import BASE_DIR
+from app.config import BASE_DIR, PROJECTS_DIR_BASE
 
 logger = logging.getLogger("frontend_plugins")
 
 PLUGINS_DIR = Path(os.environ.get("OPENDRAFT_PLUGINS_DIR") or BASE_DIR / "plugins").resolve()
+PLUGIN_DEFAULTS_DIR = PROJECTS_DIR_BASE.parent / "plugin-defaults"
 
 #: The runtime plugin API the frontend offers (frontend/src/plugins/runtimeHost.ts).
 SUPPORTED_API_VERSION = 1
@@ -73,6 +77,36 @@ def _url_for(plugin_id: str, folder: Path, file: Path) -> str:
     return f"/plugins/{plugin_id}/{rel}?v={int(file.stat().st_mtime)}"
 
 
+def _default_enabled(plugin_id: str, manifest: dict) -> bool:
+    try:
+        value = (PLUGIN_DEFAULTS_DIR / plugin_id).read_text(encoding="utf-8")
+        if value in ("true", "false"):
+            return value == "true"
+    except FileNotFoundError:
+        pass
+    except (OSError, UnicodeError) as exc:
+        logger.warning("Could not read the default for plugin %s: %s", plugin_id, exc)
+    return manifest.get("defaultEnabled") is True
+
+
+def set_plugin_default(plugin_id: str, enabled: bool) -> bool:
+    """Save the default for an installed plugin independently of its deployed files."""
+    if not _ID.fullmatch(plugin_id) or not _read_plugin(PLUGINS_DIR / plugin_id):
+        return False
+
+    PLUGIN_DEFAULTS_DIR.mkdir(parents=True, exist_ok=True)
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=PLUGIN_DEFAULTS_DIR, delete=False) as stream:
+            temporary = Path(stream.name)
+            stream.write("true" if enabled else "false")
+        temporary.replace(PLUGIN_DEFAULTS_DIR / plugin_id)
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
+    return True
+
+
 def _read_plugin(folder: Path) -> dict | None:
     manifest_path = folder / "plugin.json"
     if not manifest_path.is_file():
@@ -91,7 +125,7 @@ def _read_plugin(folder: Path) -> dict | None:
         return None
 
     plugin_id = manifest.get("id")
-    if plugin_id != folder.name or not isinstance(plugin_id, str) or not _ID.match(plugin_id):
+    if plugin_id != folder.name or not isinstance(plugin_id, str) or not _ID.fullmatch(plugin_id):
         logger.warning(
             "Skipping plugin folder %s: its id must be the folder's name, in lower-case letters, digits and hyphens",
             folder.name,
@@ -121,6 +155,7 @@ def _read_plugin(folder: Path) -> dict | None:
         "apiVersion": api_version,
         "script": _url_for(plugin_id, folder, script),
         "style": _url_for(plugin_id, folder, style) if style else None,
+        "defaultEnabled": _default_enabled(plugin_id, manifest),
     }
 
 
@@ -149,6 +184,7 @@ router = APIRouter()
 
 
 @router.get("")
-async def get_frontend_plugins() -> list[dict]:
-    """The runtime plugins the web app should load. Public: it lists code, not data."""
+def get_frontend_plugins(response: Response) -> list[dict]:
+    """The runtime plugins and their initial Add-ons settings."""
+    response.headers["Cache-Control"] = "no-store"
     return list_frontend_plugins()

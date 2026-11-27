@@ -3,7 +3,7 @@
  * the writer turns them on, and the choice is remembered on the device.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { PluginRegistry, ENABLED_ADDONS_KEY, type OpenDraftPlugin } from './registry';
+import { ADDON_PREFERENCE_PREFIX, PluginRegistry, ENABLED_ADDONS_KEY, type OpenDraftPlugin } from './registry';
 
 const doc = { type: 'doc', content: [] };
 
@@ -79,7 +79,7 @@ describe('add-ons', () => {
     const first = new PluginRegistry();
     first.register(addOn());
     await first.enableAddOn('assistant');
-    expect(JSON.parse(localStorage.getItem(ENABLED_ADDONS_KEY)!)).toEqual(['assistant']);
+    expect(localStorage.getItem(ADDON_PREFERENCE_PREFIX + 'assistant')).toBe('true');
 
     const onActivate = vi.fn();
     const next = new PluginRegistry();
@@ -88,12 +88,44 @@ describe('add-ons', () => {
     expect(onActivate).toHaveBeenCalledTimes(1);
   });
 
+  it('applies changed server defaults only where the writer has no saved choice', async () => {
+    function open(defaultEnabled: boolean, onActivate = vi.fn()) {
+      const registry = new PluginRegistry();
+      registry.setRuntimeAddOnDefaults(new Map([['assistant', defaultEnabled], ['unchanged', defaultEnabled]]));
+      registry.register(addOn({ optIn: undefined, onActivate }));
+      registry.register({ id: 'unchanged', name: 'Unchanged', version: '1.0.0' });
+      return registry;
+    }
+    const onActivate = vi.fn();
+    const first = open(true, onActivate);
+    expect(onActivate).toHaveBeenCalledOnce();
+    expect(contributions(first)).toEqual(EVERYTHING);
+    await first.disableAddOn('assistant');
+    const second = open(true);
+    expect(second.isAddOnEnabled('assistant')).toBe(false);
+    await second.enableAddOn('assistant');
+    const third = open(false);
+    expect(third.isAddOnEnabled('assistant')).toBe(true);
+    expect(third.isAddOnEnabled('unchanged')).toBe(false);
+  });
+
+  it('keeps legacy enabled add-ons and records an explicit choice to turn them off', async () => {
+    localStorage.setItem(ENABLED_ADDONS_KEY, JSON.stringify(['assistant']));
+    const first = new PluginRegistry();
+    first.register(addOn());
+    expect(first.isAddOnEnabled('assistant')).toBe(true);
+    await first.disableAddOn('assistant');
+    const next = new PluginRegistry();
+    next.register(addOn());
+    expect(next.isAddOnEnabled('assistant')).toBe(false);
+  });
+
   it('stay off when turning on fails, and say why', async () => {
     const registry = new PluginRegistry();
     registry.register(addOn({ onActivate: () => { throw new Error('no server'); } }));
     await expect(registry.enableAddOn('assistant')).rejects.toThrow('AI Assistant could not be turned on: no server');
     expect(registry.isActive('assistant')).toBe(false);
-    expect(localStorage.getItem(ENABLED_ADDONS_KEY)).toBeNull();
+    expect(localStorage.getItem(ADDON_PREFERENCE_PREFIX + 'assistant')).toBeNull();
   });
 
   it('are off even when their own clean-up fails, and pass on the request to forget settings', async () => {
@@ -104,7 +136,7 @@ describe('add-ons', () => {
     await expect(registry.disableAddOn('assistant', { forgetSettings: true })).rejects.toThrow(/is off, but/);
     expect(onDeactivate).toHaveBeenCalledWith({ forgetSettings: true });
     expect(registry.isActive('assistant')).toBe(false);
-    expect(JSON.parse(localStorage.getItem(ENABLED_ADDONS_KEY)!)).toEqual([]);
+    expect(localStorage.getItem(ADDON_PREFERENCE_PREFIX + 'assistant')).toBe('false');
   });
 
   it('start off when the remembered list is unreadable', () => {

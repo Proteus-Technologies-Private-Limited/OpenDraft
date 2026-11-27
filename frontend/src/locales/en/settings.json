@@ -161,7 +161,7 @@
     "forget": "Also delete its saved settings, such as a server address or API key",
     "turnOff": "Turn Off",
     "title": "Add-ons",
-    "description": "Optional features you can choose to use. Each one is off until you turn it on, and nothing it does reaches your scripts — or leaves your device — before then.",
+    "description": "Turn optional features on or off.",
     "settingsButton": "Settings…"
   },
   "dictionaryLibrary": {

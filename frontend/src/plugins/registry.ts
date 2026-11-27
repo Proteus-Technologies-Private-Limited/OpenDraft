@@ -277,12 +277,9 @@ export interface PluginSceneAction {
 
 // ── Add-ons: plugins the writer chooses to turn on ──
 //
-// A plugin marked `optIn` is an add-on. It is registered like any other, but
-// it stays off until the writer turns it on in Settings → Add-ons, and while
-// it is off none of what it registers reaches the app: no menu items, panels,
-// editor extensions, importers, exporters or reports. Anything that sends the
-// writer's words off the device — an AI assistant above all — must be an
-// add-on: OpenDraft never makes that choice for the writer.
+// Plugins marked `optIn` and plugins deployed on the web server are managed in
+// Settings → Add-ons. An off add-on contributes no menu items, panels, editor
+// extensions, importers, exporters or reports.
 
 /** What an add-on's settings screen is given. */
 export interface PluginSettingsProps {
@@ -316,7 +313,7 @@ export interface OpenDraftPlugin {
   /** Translation key for `description`. */
   descriptionKey?: string;
   /**
-   * An add-on: off until the writer turns it on in Settings → Add-ons. Its
+   * An add-on: listed in Settings → Add-ons, off by default when bundled. Its
    * menu items, panels, editor extensions, importers, exporters and reports
    * are withheld while it is off. Editor extensions take effect the next time
    * a script is opened.
@@ -403,10 +400,11 @@ export interface RegisteredGrammarProvider {
 
 // ── Registry implementation ──
 
-/** Where the add-ons the writer turned on are remembered, per device. */
+/** Legacy list of add-ons the writer turned on before defaults were configurable. */
 export const ENABLED_ADDONS_KEY = 'opendraft:addons:enabled';
+export const ADDON_PREFERENCE_PREFIX = 'opendraft:addons:preference:';
 
-function readEnabledAddOns(): Set<string> {
+function readLegacyEnabledAddOns(): Set<string> {
   try {
     const raw = globalThis.localStorage?.getItem(ENABLED_ADDONS_KEY);
     if (!raw) return new Set();
@@ -417,16 +415,23 @@ function readEnabledAddOns(): Set<string> {
     }
     return new Set(parsed.filter((id): id is string => typeof id === 'string'));
   } catch (err) {
-    // Storage blocked (private window) or unreadable: every add-on starts off,
-    // which is the safe side.
-    console.warn('[add-ons] could not read the enabled add-ons; all start off', err);
+    console.warn('[add-ons] could not read the legacy list of enabled add-ons', err);
     return new Set();
   }
 }
 
-function writeEnabledAddOns(ids: Set<string>): void {
+function readAddOnPreference(id: string): boolean | undefined {
   try {
-    globalThis.localStorage?.setItem(ENABLED_ADDONS_KEY, JSON.stringify([...ids]));
+    const value = globalThis.localStorage?.getItem(ADDON_PREFERENCE_PREFIX + id);
+    if (value === 'true' || value === 'false') return value === 'true';
+  } catch (err) {
+    console.warn(`[add-ons] could not read the preference for ${id}`, err);
+  }
+}
+
+function writeAddOnPreference(id: string, enabled: boolean): void {
+  try {
+    globalThis.localStorage?.setItem(ADDON_PREFERENCE_PREFIX + id, String(enabled));
   } catch (err) {
     console.warn('[add-ons] could not remember the enabled add-ons; the choice lasts until the app closes', err);
   }
@@ -435,10 +440,13 @@ function writeEnabledAddOns(ids: Set<string>): void {
 export class PluginRegistry {
   private _plugins: Map<string, OpenDraftPlugin> = new Map();
   private _listeners: Array<() => void> = [];
+  private _revision = 0;
   private _upgradeHandler: (() => void) | null = null;
   private _grammarProviders: Map<string, GrammarProvider> = new Map();
   private _grammarListeners: Array<() => void> = [];
-  private _enabledAddOns: Set<string> | null = null;
+  private _enabledAddOns = new Set<string>();
+  private _legacyEnabledAddOns: Set<string> | null = null;
+  private _runtimeAddOnDefaults: ReadonlyMap<string, boolean> = new Map();
   /** The editor open right now, as reported by the screenplay editor. */
   private _editor: Editor | null = null;
   /** Plugins whose `init` has run (or is running). */
@@ -453,14 +461,9 @@ export class PluginRegistry {
     };
   }
 
-  private get _enabled(): Set<string> {
-    if (!this._enabledAddOns) this._enabledAddOns = readEnabledAddOns();
-    return this._enabledAddOns;
-  }
-
-  /** Plugins whose contributions reach the app: every plain plugin, and add-ons the writer turned on. */
+  /** Plugins whose contributions reach the app. */
   private _active(): OpenDraftPlugin[] {
-    return Array.from(this._plugins.values()).filter((p) => !p.optIn || this._enabled.has(p.id));
+    return Array.from(this._plugins.values()).filter((p) => !p.optIn || this.isAddOnEnabled(p.id));
   }
 
   private async _runActivate(plugin: OpenDraftPlugin): Promise<void> {
@@ -481,13 +484,21 @@ export class PluginRegistry {
     return this._upgradeHandler;
   }
 
+  /** Called before loading deployed plugins, which are all managed as add-ons. */
+  setRuntimeAddOnDefaults(defaults: ReadonlyMap<string, boolean>): void {
+    this._runtimeAddOnDefaults = defaults;
+  }
+
   /** Register a plugin. Replaces any existing plugin with the same id. */
   register(plugin: OpenDraftPlugin): void {
+    const defaultEnabled = this._runtimeAddOnDefaults.get(plugin.id);
+    if (defaultEnabled !== undefined && !plugin.optIn) plugin = { ...plugin, optIn: true };
     this._plugins.set(plugin.id, plugin);
     // A replacement under the same id is a new plugin: its own init runs.
     this._initialised.delete(plugin.id);
-    if (plugin.optIn && this._enabled.has(plugin.id)) {
-      // Turned on in an earlier session: it starts working again now.
+    this._enabledAddOns.delete(plugin.id);
+    if (plugin.optIn && this._startsEnabled(plugin.id, defaultEnabled ?? false)) {
+      this._enabledAddOns.add(plugin.id);
       this._runActivate(plugin).catch((err) => {
         console.error(`[add-ons] ${plugin.id} could not start`, err);
       });
@@ -498,22 +509,29 @@ export class PluginRegistry {
 
   // ── Add-ons ──
 
-  /** Every add-on (opt-in plugin), on or off, sorted by name — for Settings → Add-ons. */
+  private _startsEnabled(id: string, defaultEnabled: boolean): boolean {
+    const preference = readAddOnPreference(id);
+    if (preference !== undefined) return preference;
+    this._legacyEnabledAddOns ??= readLegacyEnabledAddOns();
+    return this._legacyEnabledAddOns.has(id) || defaultEnabled;
+  }
+
+  /** Every add-on, on or off, sorted by name — for Settings → Add-ons. */
   getAddOns(): OpenDraftPlugin[] {
     return Array.from(this._plugins.values())
       .filter((p) => p.optIn)
       .sort((a, b) => a.name.localeCompare(b.name));
   }
 
-  /** Whether the writer has turned this add-on on. */
+  /** Whether the add-on is on. */
   isAddOnEnabled(id: string): boolean {
-    return this._enabled.has(id);
+    return this._enabledAddOns.has(id);
   }
 
   /** Whether a registered plugin's contributions reach the app right now. */
   isActive(id: string): boolean {
     const plugin = this._plugins.get(id);
-    return !!plugin && (!plugin.optIn || this._enabled.has(id));
+    return !!plugin && (!plugin.optIn || this.isAddOnEnabled(id));
   }
 
   /**
@@ -525,17 +543,18 @@ export class PluginRegistry {
     const plugin = this._plugins.get(id);
     if (!plugin) throw new Error(`No add-on called "${id}" is installed.`);
     if (!plugin.optIn) throw new Error(`"${plugin.name}" is part of the app and cannot be turned on or off.`);
-    if (this._enabled.has(id)) return;
-    this._enabled.add(id);
+    if (this.isAddOnEnabled(id)) return;
+    this._enabledAddOns.add(id);
     try {
       await this._runActivate(plugin);
     } catch (err) {
-      this._enabled.delete(id);
+      this._enabledAddOns.delete(id);
       console.error(`[add-ons] ${id} could not be turned on`, err);
       this._notify(plugin);
       throw new Error(`${plugin.name} could not be turned on: ${err instanceof Error ? err.message : String(err)}`);
     }
-    writeEnabledAddOns(this._enabled);
+    if (this._plugins.get(id) !== plugin || !this.isAddOnEnabled(id)) return;
+    writeAddOnPreference(id, true);
     this._notify(plugin);
     await this._initPending();
   }
@@ -547,8 +566,8 @@ export class PluginRegistry {
    */
   async disableAddOn(id: string, ctx: PluginDeactivateContext = { forgetSettings: false }): Promise<void> {
     const plugin = this._plugins.get(id);
-    if (!this._enabled.delete(id)) return;
-    writeEnabledAddOns(this._enabled);
+    if (!this._enabledAddOns.delete(id)) return;
+    writeAddOnPreference(id, false);
     this._notify(plugin);
     if (!plugin?.onDeactivate) return;
     try {
@@ -572,6 +591,7 @@ export class PluginRegistry {
       }
     }
     this._plugins.delete(id);
+    this._enabledAddOns.delete(id);
     this._initialised.delete(id);
     this._notify(plugin);
   }
@@ -723,14 +743,17 @@ export class PluginRegistry {
   }
 
   /** Subscribe to registry changes (plugin added/removed). Returns unsubscribe. */
-  subscribe(listener: () => void): () => void {
+  subscribe = (listener: () => void): (() => void) => {
     this._listeners.push(listener);
     return () => {
       this._listeners = this._listeners.filter((l) => l !== listener);
     };
-  }
+  };
+
+  getRevision = (): number => this._revision;
 
   private _notify(changed?: OpenDraftPlugin): void {
+    this._revision += 1;
     for (const listener of this._listeners) listener();
     // A plugin with grammar providers coming or going (or such an add-on
     // turned on or off) changes the providers too: the editor rescans.

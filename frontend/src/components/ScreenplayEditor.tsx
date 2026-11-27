@@ -61,6 +61,7 @@ import { createPaginationPlugin, getPageMetrics, activeTemplateHints } from '../
 import type { FootnotePageAssignment } from '../editor/pagination';
 import type { EndnotePage } from '../utils/footnotes';
 import { createContdCasePlugin } from '../editor/contdCase';
+import { installMobileMouseSelection } from '../editor/mobileMouseSelection';
 import { ScreenplayImage } from '../editor/extensions/ScreenplayImage';
 import { buildImageAttrs, insertImageNode, warnIfImageDegraded } from '../utils/insertImage';
 import { demoteDataUrlsToScratch, promoteScratchImages } from '../services/promoteScratchAssets';
@@ -271,7 +272,7 @@ import { useSettingsStore } from '../stores/settingsStore';
 import { useLinkedFileStore, autoSaveAppliesToOpenDocument } from '../stores/linkedFileStore';
 import { startCollabSync, stopCollabSync } from '../services/collabSync';
 import { collabAuthApi, setLogoutCollabTeardown, setLogoutEditorReset, ensureCollabAuthenticated, collabAuthUnavailableMessage } from '../services/collabAuth';
-import { platformFetch, isTauri, isDesktopTauri, needsSelectionHandles } from '../services/platform';
+import { getOS, platformFetch, isTauri, isDesktopTauri, needsSelectionHandles } from '../services/platform';
 import { reportSaveError } from '../stores/saveErrorStore';
 import { offlineCloudStatus, readOfflineCloudMerge, resolveOfflineCloudConflict, subscribeOfflineCloud } from '../services/offlineCloud';
 import { MergeConflictDialog, type MergeOutcome } from './MergeConflictDialog';
@@ -2515,6 +2516,14 @@ const ScreenplayEditor: React.FC = () => {
       if (type && type !== useEditorStore.getState().activeElement) setActiveElement(type);
     },
   }, [editorKey]);
+
+  useEffect(() => {
+    if (!editor) return;
+    const os = getOS();
+    if (os === 'ios' || os === 'android' || (isTouch && phoneView)) {
+      return installMobileMouseSelection(editor.view);
+    }
+  }, [editor, isTouch, phoneView]);
 
   // Keep editor ref updated for onSynced callback
   collabEditorRef.current = editor;

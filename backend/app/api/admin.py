@@ -18,7 +18,9 @@ import logging
 
 import jwt
 from fastapi import APIRouter, Header, HTTPException, status
+from pydantic import BaseModel, StrictBool
 
+from app import frontend_plugins
 from app.config import COLLAB_JWT_SECRET
 from app.services import trash_service
 from app.services.admin_storage_service import account_inventory
@@ -29,18 +31,19 @@ router = APIRouter()
 
 ADMIN_TOKEN_TYPE = "admin_inventory"
 ADMIN_RESTORE_TOKEN_TYPE = "admin_restore"
+ADMIN_PLUGIN_TOKEN_TYPE = "admin_plugins"
 ADMIN_TOKEN_AUDIENCE = "opendraft-backend-admin"
 # The collab server issues these for 60 s; refuse anything meant to live longer.
 MAX_TOKEN_LIFETIME_SEC = 120
 
 
-def _verify_admin_token(authorization: str | None, user_id: str, token_type: str = ADMIN_TOKEN_TYPE) -> dict:
+def _verify_admin_token(authorization: str | None, user_id: str | None = None, token_type: str = ADMIN_TOKEN_TYPE) -> dict:
     if not COLLAB_JWT_SECRET:
         logger.error("admin inventory refused: COLLAB_JWT_SECRET is not configured")
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Backend has no shared JWT secret configured")
     if not authorization or not authorization.lower().startswith("bearer "):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Admin token required")
-    token = authorization.split(None, 1)[1].strip()
+    token = authorization[7:].strip()
     try:
         payload = jwt.decode(
             token,
@@ -58,9 +61,33 @@ def _verify_admin_token(authorization: str | None, user_id: str, token_type: str
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid admin token")
     if int(payload["exp"]) - int(payload["iat"]) > MAX_TOKEN_LIFETIME_SEC:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Admin token lifetime too long")
-    if str(payload["sub"]) != user_id:
+    if user_id is not None and str(payload["sub"]) != user_id:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Admin token is for a different account")
     return payload
+
+
+class PluginDefault(BaseModel):
+    defaultEnabled: StrictBool
+
+
+@router.get("/plugins")
+def get_plugins(authorization: str | None = Header(default=None)):
+    _verify_admin_token(authorization, token_type=ADMIN_PLUGIN_TOKEN_TYPE)
+    return frontend_plugins.list_frontend_plugins()
+
+
+@router.post("/plugins/{plugin_id}")
+def set_plugin_default(plugin_id: str, body: PluginDefault, authorization: str | None = Header(default=None)):
+    payload = _verify_admin_token(authorization, token_type=ADMIN_PLUGIN_TOKEN_TYPE)
+    try:
+        updated = frontend_plugins.set_plugin_default(plugin_id, body.defaultEnabled)
+    except OSError:
+        logger.exception("Could not save the default for plugin %s", plugin_id)
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Could not save the plugin default")
+    if not updated:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Plugin is not installed")
+    logger.info("admin %s set plugin %s default to %s", payload.get("admin", "unknown"), plugin_id, body.defaultEnabled)
+    return {"id": plugin_id, "defaultEnabled": body.defaultEnabled}
 
 
 @router.get("/accounts/{user_id}/inventory")

@@ -8662,8 +8662,10 @@ body.pencil-caret-active .page .ProseMirror { caret-color: transparent; }
  * Pointer capture is unaffected — a captured pointer is delivered to its
  * capture target ahead of any hit test — so the handle keeps receiving the
  * move and up events that drive the drag. Both handles are neutralised, not
- * just the one being dragged, because the two ends pass close to each other. */
-.selection-handle.is-dragging { pointer-events: none; }
+ * just the one being dragged, because the two ends pass close to each other.
+ * Mouse selection also needs the text to stay beneath the hit test. */
+.selection-handle.is-dragging,
+.page[data-mouse-selecting] .selection-handle { pointer-events: none; }
 
 /* No system highlight while SelectionHandles is drawing its own, so the script
    never shows two over the same words. The caret has the same arrangement just

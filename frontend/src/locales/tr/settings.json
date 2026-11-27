@@ -161,7 +161,7 @@
     "forget": "Sunucu adresi veya API anahtarı gibi kayıtlı ayarlarını da sil",
     "turnOff": "Kapat",
     "title": "Eklentiler",
-    "description": "Kullanmayı seçebileceğiniz isteğe bağlı özellikler. Her biri siz açana kadar kapalıdır; o zamana kadar yaptığı hiçbir şey senaryolarınıza ulaşmaz — ya da cihazınızdan çıkmaz.",
+    "description": "Kullanmayı seçebileceğiniz isteğe bağlı özellikler.",
     "settingsButton": "Ayarlar…"
   },
   "dictionaryLibrary": {

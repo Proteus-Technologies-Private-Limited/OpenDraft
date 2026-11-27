@@ -165,7 +165,7 @@
     "forget": "Supprimer aussi ses réglages enregistrés, comme une adresse de serveur ou une clé d’API",
     "turnOff": "Désactiver",
     "title": "Modules complémentaires",
-    "description": "Fonctionnalités facultatives que vous pouvez choisir d’utiliser. Chacune est désactivée jusqu’à ce que vous l’activiez, et rien de ce qu’elle fait n’atteint vos scénarios, ni ne quitte votre appareil, avant cela.",
+    "description": "Fonctionnalités facultatives que vous pouvez choisir d’utiliser.",
     "settingsButton": "Réglages…"
   },
   "dictionaryLibrary": {
