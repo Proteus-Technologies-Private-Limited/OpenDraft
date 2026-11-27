@@ -178,12 +178,17 @@ backend/plugins/                 (or OPENDRAFT_PLUGINS_DIR; kept apart from
 
 ```json
 { "id": "od-sidekick", "name": "Sidekick", "version": "0.1.0",
-  "apiVersion": 1, "script": "index.js", "style": "index.css" }
+  "apiVersion": 1, "script": "index.js", "style": "index.css", "defaultEnabled": true }
 ```
 
-- **Install:** copy the folder in. **Remove:** delete it. **Turn off:** rename
+- **Install:** copy the folder in. **Remove:** delete it. **Hide from everyone:** rename
   it with a leading `_` (or `.`). Reload the page; the server needs no
   restart, and core's own build is never touched.
+- Deployed plugins appear in **Settings → Add-ons** when the web app next
+  loads. A manifest without `defaultEnabled` defaults to off. Administrators
+  can override the default under **Admin Console → Add-ons**.
+  A writer's saved choice in that browser takes precedence over the default.
+  Admin defaults are kept in `plugin-defaults/` under `OPENDRAFT_DATA_DIR`.
 - The folder's name must be the plugin's `id` (lower-case letters, digits,
   hyphens). `script` and `style` are paths inside the folder; `style` is
   optional.

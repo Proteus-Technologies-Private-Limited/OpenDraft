@@ -1,11 +1,9 @@
 /**
  * Settings → Add-ons.
  *
- * Optional plugins (`optIn` in plugins/registry) the writer can turn on or
- * off. Each starts off: nothing it registers reaches the app until the writer
- * turns it on here. Turning one on first shows what it does, what leaves the
- * device, and its settings; cancelling leaves it off. Turning one off offers
- * to delete what it stored, such as an API key.
+ * Optional plugins the writer can turn on or off. The activation dialog shows
+ * what the plugin does, what leaves the device, and its settings. Turning a
+ * plugin off offers to delete its stored settings, such as an API key.
  *
  * The section is not shown at all when no add-on is installed.
  */
@@ -26,21 +24,8 @@ const addOnPrivacy = (p: OpenDraftPlugin): string | undefined =>
   p.privacy ? resolvePluginText(p.privacyKey, p.privacy) : undefined;
 
 export function useAddOns(): OpenDraftPlugin[] {
-  // getAddOns() builds a new array each call; cache it per registry revision so
-  // useSyncExternalStore sees a stable snapshot.
-  const cache = useRef<{ rev: number; list: OpenDraftPlugin[] }>({ rev: -1, list: [] });
-  const rev = useRef(0);
-  const subscribe = useCallback((onChange: () => void) => pluginRegistry.subscribe(() => {
-    rev.current += 1;
-    onChange();
-  }), []);
-  const getSnapshot = useCallback(() => {
-    if (cache.current.rev !== rev.current) {
-      cache.current = { rev: rev.current, list: pluginRegistry.getAddOns() };
-    }
-    return cache.current.list;
-  }, []);
-  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  useSyncExternalStore(pluginRegistry.subscribe, pluginRegistry.getRevision, pluginRegistry.getRevision);
+  return pluginRegistry.getAddOns();
 }
 
 // ── Turn on / edit settings ──

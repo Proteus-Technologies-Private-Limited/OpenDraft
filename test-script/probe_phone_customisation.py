@@ -10,7 +10,7 @@ Run against the dev server: venv/bin/python test-script/probe_phone_customisatio
 import os
 import sys
 import unittest
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import expect, sync_playwright
 
 URL = os.environ.get('OPENDRAFT_TEST_URL', 'http://127.0.0.1:5173/')
 OUT = os.path.join(os.path.dirname(__file__), 'output')
@@ -27,8 +27,10 @@ class PhoneLayoutCustomisation(unittest.TestCase):
         cls.browser.close()
         cls.pw.stop()
 
-    def open(self, width, height, mobile):
-        page = self.browser.new_page(viewport={'width': width, 'height': height}, is_mobile=mobile, has_touch=mobile)
+    def open(self, width, height, mobile, user_agent=None):
+        page = self.browser.new_page(
+            viewport={'width': width, 'height': height}, is_mobile=mobile, has_touch=mobile, user_agent=user_agent,
+        )
         self.addCleanup(page.close)
         errors = []
         page.on('pageerror', lambda e: errors.append(str(e)))
@@ -75,6 +77,44 @@ class PhoneLayoutCustomisation(unittest.TestCase):
 
     def switchers_on_bars(self, page):
         return page.locator('.layout-switcher').count()
+
+    def test_mobile_mouse_selects_text_without_native_drag_selection(self):
+        page = self.open(390, 800, True, user_agent=self.pw.devices['Pixel 7']['user_agent'])
+        page.evaluate("testStore.getState().setViewLayout('phone')")
+        expect(page.locator('.page.phone-view')).to_be_visible()
+        page.evaluate("""() => {
+            const editor = document.querySelector('.ProseMirror').editor;
+            editor.commands.insertContent('The quick brown fox jumps over the lazy dog.');
+            // Deliver pointer events to the editor, then prevent the native drag.
+            document.addEventListener('pointerdown', event => {
+                if (event.pointerType === 'mouse' && editor.view.dom.contains(event.target)) {
+                    event.preventDefault();
+                }
+            });
+        }""")
+        paragraph = page.locator('.phone-view .screenplay-element').filter(has_text='The quick brown fox')
+        (start, end) = paragraph.evaluate("""el => [0, 15].map(offset => {
+            const text = document.createTreeWalker(el, NodeFilter.SHOW_TEXT).nextNode();
+            const range = document.createRange();
+            range.setStart(text, offset);
+            range.collapse(true);
+            const rect = range.getBoundingClientRect();
+            return [rect.left + 1, rect.top + rect.height / 2];
+        })""")
+        page.mouse.move(*start)
+        page.mouse.down()
+        page.mouse.move(*end, steps=12)
+        expect(page.locator('.phone-view[data-mouse-selecting]')).to_have_count(1)
+        page.wait_for_function("""() => {
+            const editor = document.querySelector('.ProseMirror').editor;
+            const { from, to } = editor.state.selection;
+            return editor.state.doc.textBetween(from, to) === 'The quick brown'
+                && document.getSelection()?.toString() === 'The quick brown';
+        }""")
+        page.mouse.up()
+        expect(page.locator('.phone-view[data-mouse-selecting]')).to_have_count(0)
+        page.keyboard.press('Backspace')
+        expect(page.locator('.phone-view .ProseMirror')).to_have_text(' fox jumps over the lazy dog.')
 
     def test_phone_hides_panel_layouts(self):
         page = self.open(390, 800, True)

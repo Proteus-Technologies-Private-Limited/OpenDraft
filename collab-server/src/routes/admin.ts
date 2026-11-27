@@ -377,7 +377,13 @@ type BackendResult =
   | { ok: false; error: string; tried: string[]; status?: number; detail?: string };
 
 /** Call the backend's admin API, trying each candidate address in turn. */
-async function callBackend(path: string, token: string, backends: string[], method: 'GET' | 'POST' = 'GET'): Promise<BackendResult> {
+async function callBackend(
+  path: string,
+  token: string,
+  backends: string[],
+  method: 'GET' | 'POST' = 'GET',
+  body?: object,
+): Promise<BackendResult> {
   const tried: string[] = [];
   let lastError = 'no backend URL configured (set BACKEND_URL)';
   for (const base of backends) {
@@ -385,12 +391,16 @@ async function callBackend(path: string, token: string, backends: string[], meth
     try {
       const r = await fetch(`${base}${path}`, {
         method,
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          ...(body && { 'Content-Type': 'application/json' }),
+        },
+        body: body && JSON.stringify(body),
         signal: AbortSignal.timeout(15_000),
       });
       if (r.ok) return { ok: true, data: await r.json(), source: base };
-      const body: any = await r.json().catch(() => ({}));
-      const detail = body?.detail ? (typeof body.detail === 'string' ? body.detail : JSON.stringify(body.detail)) : '';
+      const response: any = await r.json().catch(() => ({}));
+      const detail = response?.detail ? (typeof response.detail === 'string' ? response.detail : JSON.stringify(response.detail)) : '';
       lastError = `${base} answered ${r.status}${detail ? ': ' + detail : ''}`;
       // The backend answered about the request itself (not found, conflict):
       // that is the answer, not a reason to try another address.
@@ -405,6 +415,35 @@ async function callBackend(path: string, token: string, backends: string[], meth
     }
   }
   return { ok: false, error: lastError, tried };
+}
+
+router.get('/api/plugins', (req, res) => managePlugins(req, res));
+router.post('/api/plugins/:id', (req, res) => managePlugins(req, res));
+
+async function managePlugins(req: Request, res: Response): Promise<void> {
+  const admin = req.user!;
+  const pluginId = req.params.id;
+  const updating = req.method === 'POST';
+  const defaultEnabled: unknown = req.body?.defaultEnabled;
+  if (updating && (typeof pluginId !== 'string' || !/^[a-z0-9][a-z0-9-]{0,63}$/.test(pluginId) || typeof defaultEnabled !== 'boolean')) {
+    res.status(400).json({ error: 'A plugin ID and a boolean defaultEnabled value are required' });
+    return;
+  }
+  const token = jwt.sign(
+    { sub: admin.id, type: 'admin_plugins', admin: admin.email },
+    config.jwtSecret,
+    { expiresIn: 60, audience: 'opendraft-backend-admin' },
+  );
+  const result = await callBackend(
+    updating ? `/admin/plugins/${encodeURIComponent(String(pluginId))}` : '/admin/plugins',
+    token, backendCandidates(req.headers.host, req.protocol),
+    updating ? 'POST' : 'GET', updating ? { defaultEnabled } : undefined,
+  );
+  if (!result.ok) {
+    res.status(result.status ?? 502).json({ error: result.detail || result.error });
+    return;
+  }
+  res.json(result.data);
 }
 
 /** Ask the Python backend what an account has stored. The backend keeps the

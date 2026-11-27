@@ -8,7 +8,7 @@ import { loadRuntimePlugins, parsePluginList, type RuntimePluginInfo } from './r
 import { globalNameFor, SHARED_MODULES } from './runtimeHost';
 
 const entry = (id: string, extra: Partial<RuntimePluginInfo> = {}) => ({
-  id, name: id, version: '1.0.0', apiVersion: 1, script: `/plugins/${id}/index.js`, style: null, ...extra,
+  id, name: id, version: '1.0.0', apiVersion: 1, defaultEnabled: false, script: `/plugins/${id}/index.js`, style: null, ...extra,
 });
 
 /** Stand in for the browser loading a plugin's script: the script hands over its function. */
@@ -41,13 +41,15 @@ afterEach(() => {
 });
 
 describe('loadRuntimePlugins', () => {
-  it('starts the plugins the server lists', async () => {
+  it('automatically lists deployed plugins as add-ons and applies each server default', async () => {
     const loaded = await loadRuntimePlugins({
-      fetchList: async () => [entry('rt-one'), entry('rt-two')],
+      fetchList: async () => [entry('rt-one', { defaultEnabled: true }), entry('rt-two')],
       addFiles: scripts({ 'rt-one': registerAs('rt-one'), 'rt-two': registerAs('rt-two') }),
     });
     expect(loaded).toEqual(['rt-one', 'rt-two']);
-    expect(pluginRegistry.getAll().map((p) => p.id)).toEqual(expect.arrayContaining(['rt-one', 'rt-two']));
+    expect(pluginRegistry.getAddOns().map((p) => p.id)).toEqual(['rt-one', 'rt-two']);
+    expect(pluginRegistry.isActive('rt-one')).toBe(true);
+    expect(pluginRegistry.isActive('rt-two')).toBe(false);
   });
 
   it('skips a plugin that throws, and still starts the others', async () => {

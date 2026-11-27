@@ -8,6 +8,7 @@ import json
 import os
 import sys
 import tempfile
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -28,7 +29,9 @@ def plugin(folder: str, manifest: dict | str, files: dict[str, str]) -> None:
         (d / name).write_text(body)
 
 
+import jwt  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
+from app.config import COLLAB_JWT_SECRET  # noqa: E402
 from app.main import app  # noqa: E402
 
 failures: list[str] = []
@@ -47,7 +50,16 @@ plugin("wrong-id", {**good, "id": "something-else"}, {"index.js": ""})
 plugin("too-new", {**good, "id": "too-new", "apiVersion": 99}, {"index.js": ""})
 plugin("escapes", {**good, "id": "escapes", "script": "../good-one/index.js"}, {})
 plugin("not-json", "{nope", {})
-plugin("no-style", {**good, "id": "no-style", "style": "missing.css"}, {"index.js": "/* js */"})
+plugin("no-style", {**good, "id": "no-style", "style": "missing.css", "defaultEnabled": True}, {"index.js": "/* js */"})
+
+
+def admin_headers(token_type: str) -> dict[str, str]:
+    now = datetime.now(timezone.utc)
+    token = jwt.encode({
+        "sub": "plugin-admin", "admin": "admin@example.invalid", "type": token_type,
+        "aud": "opendraft-backend-admin", "iat": now, "exp": now + timedelta(seconds=60),
+    }, COLLAB_JWT_SECRET, algorithm="HS256")
+    return {"Authorization": f"Bearer {token}"}
 
 with TestClient(app) as client:
     res = client.get("/api/plugins")
@@ -58,6 +70,19 @@ with TestClient(app) as client:
     first = (listed or [{}])[0]
     check(first.get("script", "").startswith("/plugins/good-one/index.js?v="), "the script URL is under /plugins/<id>/ with a version stamp")
     check((listed or [{}, {}])[1].get("style") is None, "a missing style sheet is left out, the plugin still listed")
+    check([p["defaultEnabled"] for p in listed] == [False, True], "plugin defaults come from the manifests and default to off")
+
+    admin_url = "/api/admin/plugins"
+    headers = admin_headers("admin_plugins")
+    check(client.get(admin_url, headers=headers).json() == listed, "admins see all currently deployed plugins")
+    check(client.post(f"{admin_url}/good-one", json={"defaultEnabled": True}).status_code == 401, "unauthenticated users cannot change defaults")
+    check(client.post(f"{admin_url}/good-one", headers=admin_headers("admin_inventory"), json={"defaultEnabled": True}).status_code == 401, "account inventory tokens cannot change defaults")
+    check(client.post(f"{admin_url}/missing", headers=headers, json={"defaultEnabled": True}).status_code == 404, "admins can only configure installed plugins")
+    check(client.post(f"{admin_url}/good-one", headers=headers, json={"defaultEnabled": "true"}).status_code == 422, "default settings must be booleans")
+    check(client.post(f"{admin_url}/good-one", headers=headers, json={"defaultEnabled": True}).status_code == 200, "admins can set a plugin default to on")
+    check(client.post(f"{admin_url}/no-style", headers=headers, json={"defaultEnabled": False}).status_code == 200, "admins can set a plugin default to off")
+    check([p["defaultEnabled"] for p in client.get("/api/plugins").json()] == [True, False], "saved admin choices override deployment defaults")
+    check((work / "data" / "plugin-defaults" / "good-one").read_text() == "true", "admin settings are saved outside the deployed plugin files")
 
     js = client.get("/plugins/good-one/index.js")
     check(js.status_code == 200 and js.text == "/* js */", "the plugin's script is served")

@@ -165,7 +165,7 @@
     "forget": "Excluir também as configurações salvas dele, como endereço de servidor ou chave de API",
     "turnOff": "Desativar",
     "title": "Complementos",
-    "description": "Recursos opcionais que você pode escolher usar. Cada um fica desativado até você ativá-lo, e nada do que ele faz chega aos seus roteiros — nem sai do seu dispositivo — antes disso.",
+    "description": "Recursos opcionais que você pode escolher usar.",
     "settingsButton": "Configurações…"
   },
   "dictionaryLibrary": {

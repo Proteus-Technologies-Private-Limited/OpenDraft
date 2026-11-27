@@ -58,6 +58,7 @@ td.nowrap{white-space:nowrap}
 <header><h1>OpenDraft Admin Console</h1><small id="stamp"></small><small id="who"></small><button id="signout">Sign out</button></header>
 <main>
 <div id="v-overview">
+  <a class="back" href="#/plugins">Add-ons</a>
   <div class="grid" id="tiles"></div>
   <section><h2>Resource usage: used vs free</h2><div class="g2" id="usage"></div>
     <div class="wrap" id="comps" style="margin-top:12px"></div><div class="grid" id="internals" style="margin-top:12px"></div></section>
@@ -93,6 +94,13 @@ td.nowrap{white-space:nowrap}
   <a class="back" href="#/users">&larr; Registered users</a>
   <div id="acct"><div class="card empty">Loading account…</div></div>
 </div>
+<div id="v-plugins" hidden>
+  <a class="back" href="#/">&larr; Overview</a>
+  <h2>Add-ons</h2>
+  <p class="sub">Choose the default for each deployed web add-on. Writers can override it in Settings → Add-ons. Changes take effect when they next load OpenDraft.</p>
+  <div class="wrap" id="plugins"></div>
+  <p id="plugins-status" role="status"></p>
+</div>
 </main></div>
 <script>
 (function(){
@@ -116,7 +124,9 @@ function renew(){
 async function api(path,opts){
   opts=opts||{};
   for(var attempt=0;attempt<2;attempt++){
-    var r=await fetch('/admin/api'+path,{method:opts.method||'GET',headers:{Authorization:'Bearer '+(auth&&auth.accessToken)}});
+    var headers={Authorization:'Bearer '+(auth&&auth.accessToken)};
+    if(opts.body)headers['Content-Type']='application/json';
+    var r=await fetch('/admin/api'+path,{method:opts.method||'GET',headers:headers,body:opts.body&&JSON.stringify(opts.body)});
     if(r.status===401&&attempt===0&&auth&&auth.refreshToken){if(await renew())continue}
     if(r.status===401||r.status===403){signout(r.status===403?'This account is not an administrator.':'Session ended. Sign in again.');throw new Error('auth')}
     if(!r.ok){var er=new Error('HTTP '+r.status);try{er.detail=(await r.json()).error}catch(x){}throw er}
@@ -474,12 +484,41 @@ async function lookup(ev){
   catch(e){if(e.message!=='auth')el.innerHTML='<div class="card empty bad">Lookup failed: '+esc(e.detail||e.message)+'</div>'}
 }
 function route(){
-  var h=location.hash;view=h.indexOf('#/account/')===0?'account':h.indexOf('#/users')===0?'users':h.indexOf('#/collab')===0?'collab':'overview';
+  var h=location.hash;view=h.indexOf('#/account/')===0?'account':h.indexOf('#/users')===0?'users':h.indexOf('#/collab')===0?'collab':h==='#/plugins'?'plugins':'overview';
   $('v-overview').hidden=view!=='overview';$('v-users').hidden=view!=='users';$('v-collab').hidden=view!=='collab';$('v-account').hidden=view!=='account';
+  $('v-plugins').hidden=view!=='plugins';
   window.scrollTo(0,0);
   if(view==='account'){var id='';try{id=decodeURIComponent(h.slice('#/account/'.length))}catch(e){}acctId=id;aData=null;aFilter='';aCat='all';aQuery='';$('acct').innerHTML='<div class="card empty">Loading account…</div>';fetchAccount()}
-  else if(view==='users')fetchUsers();else if(data&&view==='collab')renderCollabPage();
+  else if(view==='users')fetchUsers();else if(view==='plugins')fetchPlugins();else if(data&&view==='collab')renderCollabPage();
 }
+async function fetchPlugins(){
+  var el=$('plugins'),status=$('plugins-status');
+  el.innerHTML='';status.textContent='Loading add-ons…';
+  try {
+    var plugins=await api('/plugins');
+    el.innerHTML=table(['Add-on','Version','Default'],plugins.map(function(p){
+      var enabled=p.defaultEnabled===true;
+      return '<tr><td><b>'+esc(p.name)+'</b><div class="sub">'+esc(p.id)+'</div></td><td>'+esc(p.version)+'</td><td>'+
+        '<select aria-label="Default for '+esc(p.name)+'" data-plugin="'+esc(p.id)+'" data-current="'+enabled+'">'+
+        '<option value="true"'+(enabled?' selected':'')+'>Enabled</option>'+
+        '<option value="false"'+(!enabled?' selected':'')+'>Disabled</option></select></td></tr>';
+    }),'No web add-ons are deployed.');
+    status.textContent='';
+  } catch(e){if(e.message!=='auth')status.textContent='Could not load add-ons. '+(e.detail||e.message)}
+}
+$('plugins').addEventListener('change',async function(e){
+  var select=e.target, id=select.dataset.plugin, status=$('plugins-status');
+  if(!id)return;
+  select.disabled=true;status.textContent='';
+  try {
+    var saved=await api('/plugins/'+encodeURIComponent(id),{method:'POST',body:{defaultEnabled:select.value==='true'}});
+    select.value=select.dataset.current=String(saved.defaultEnabled);
+    status.textContent='Default saved.';
+  } catch(e){
+    select.value=select.dataset.current;
+    if(e.message!=='auth')status.textContent='Could not save the default. '+(e.detail||e.message);
+  } finally {select.disabled=false}
+});
 window.addEventListener('hashchange',route);
 async function refresh(){
   try{var r=await Promise.all([api('/dashboard'),api('/history')]);data=r[0];hist=r[1];

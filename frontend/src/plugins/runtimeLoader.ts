@@ -26,6 +26,7 @@ export interface RuntimePluginInfo {
   name: string;
   version: string;
   apiVersion: number;
+  defaultEnabled: boolean;
   /** URL of the script, from the server root. */
   script: string;
   /** URL of the style sheet, or null. */
@@ -67,6 +68,7 @@ export function parsePluginList(raw: unknown): RuntimePluginInfo[] {
       name: typeof p.name === 'string' ? p.name : p.id,
       version: typeof p.version === 'string' ? p.version : '',
       apiVersion: typeof p.apiVersion === 'number' ? p.apiVersion : 0,
+      defaultEnabled: p.defaultEnabled === true,
       script: p.script,
       style: typeof p.style === 'string' && p.style ? p.style : null,
     });
@@ -182,8 +184,6 @@ export async function loadRuntimePlugins(options: LoadOptions = {}): Promise<str
   }
   if (plugins.length === 0) return [];
 
-  installRuntimeHost();
-  installQueue();
   const root = serverRoot();
   const url = (p: string) => (/^https?:\/\//.test(p) ? p : `${root}${p.startsWith('/') ? '' : '/'}${p}`);
 
@@ -199,6 +199,9 @@ export async function loadRuntimePlugins(options: LoadOptions = {}): Promise<str
     }
     return true;
   });
+  pluginRegistry.setRuntimeAddOnDefaults(new Map(usable.map((plugin) => [plugin.id, plugin.defaultEnabled])));
+  installRuntimeHost();
+  installQueue();
 
   if (typeof window !== 'undefined') window.__odLoadingPlugins = true;
   try {

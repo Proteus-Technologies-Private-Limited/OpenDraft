@@ -165,7 +165,7 @@
     "forget": "Eliminar también sus ajustes guardados, como la dirección de un servidor o una clave de API",
     "turnOff": "Desactivar",
     "title": "Complementos",
-    "description": "Funciones opcionales que puedes elegir usar. Cada una está desactivada hasta que la actives, y nada de lo que hace llega a tus guiones, ni sale de tu dispositivo, antes de eso.",
+    "description": "Funciones opcionales que puedes elegir usar.",
     "settingsButton": "Ajustes…"
   },
   "dictionaryLibrary": {

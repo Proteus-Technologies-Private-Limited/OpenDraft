@@ -1,3 +1,4 @@
+import { useSyncExternalStore } from 'react';
 import ExternalSaveReview from './components/ExternalSaveReview';
 import { Routes, Route } from 'react-router-dom';
 import ScreenplayEditor from './components/ScreenplayEditor';
@@ -27,6 +28,7 @@ import './styles/avScript.css';
 import './styles/tableRead.css';
 
 function App() {
+  useSyncExternalStore(pluginRegistry.subscribe, pluginRegistry.getRevision, pluginRegistry.getRevision);
   const pluginRoutes = pluginRegistry.getRoutes();
 
   // Plugins (e.g. Pro) can swap built-in route components without
