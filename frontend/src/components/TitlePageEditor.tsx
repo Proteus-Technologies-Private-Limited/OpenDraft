@@ -300,7 +300,7 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
   }, [editor, onClose, t]);
 
   return (
-    <ModalOverlay className="dialog-overlay" onClick={onClose} dialogLabel={t('titlePage.title')}>
+    <ModalOverlay className="dialog-overlay tp-editor-overlay" onClick={onClose} dialogLabel={t('titlePage.title')}>
       <div className={custom ? 'tp-editor-dialog tp-editor-dialog--custom' : 'tp-editor-dialog'} onClick={(e) => e.stopPropagation()}>
         <div className="dialog-header">{t('titlePage.title')}</div>
         <div className="tp-layout-choice">

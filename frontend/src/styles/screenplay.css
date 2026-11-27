@@ -2893,13 +2893,16 @@ body {
   .tp-editor-form { grid-template-columns: 1fr; }
   .tp-custom-editor {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-areas: "controls" "sheet";
+    grid-template-areas: "sheet" "controls";
   }
   .tp-custom-controls {
+    position: static;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    background: var(--fd-dropdown-bg); z-index: 1; padding-bottom: 6px;
   }
   .tp-custom-controls .tp-output-help { grid-column: 1 / -1; }
+  .tp-editor-dialog--custom .tp-output-pref .tp-output-help { display: none; }
+  .tp-editor-dialog .dialog-actions { gap: 6px; padding-inline: 12px; }
+  .tp-editor-dialog .dialog-actions button { padding-inline: 8px; }
   .tp-preview-page { max-width: 240px; }
   .tp-output-pref { align-items: stretch; }
   .tp-output-check, .tp-output-help { max-width: none; }
@@ -3299,6 +3302,8 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: var(--p
   padding: 5vh calc(16px + env(safe-area-inset-right, 0px)) 16px calc(16px + env(safe-area-inset-left, 0px));
   overflow-y: auto;
 }
+/* Title-page editing must sit above the overlay panels on narrow screens. */
+.tp-editor-overlay { z-index: 3500; }
 .dialog-box {
   background: var(--fd-dropdown-bg); border: 1px solid var(--fd-border);
   border-radius: 8px; box-shadow: 0 8px 32px rgba(0,0,0,.6);
