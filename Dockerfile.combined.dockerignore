@@ -11,6 +11,7 @@ src-tauri/*
 venv/
 
 # Node dependencies (rebuilt in container)
+build-plugins/*/node_modules
 frontend/node_modules
 collab-server/node_modules
 collab-server/dist

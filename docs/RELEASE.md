@@ -35,6 +35,29 @@ only matters somewhere, or to keep a build out of Apple and Google review.
   did not skip that platform, so it does not wait on stores for a build never
   submitted.
 
+### Add-ons built into every platform
+
+Every release build compiles in the **Sidekick** add-on from
+[OD-Sidekick](https://github.com/Proteus-Technologies-Private-Limited/OD-Sidekick).
+That covers the three dmgs, the Mac App Store, Windows, Linux, Android, iOS,
+the iOS launch check and the web app in the Docker image.
+
+- The `plan` job pins one OD-Sidekick commit (its `main`, unless the manual
+  re-run's `sidekick_ref` input names a branch, tag or commit) and writes it to
+  the run summary. Every platform builds that same commit.
+- Each build job checks it out into `build-plugins/OD-Sidekick`, and the
+  workflow-level `OPENDRAFT_PLUGINS` points the frontend build at its
+  `src/register.ts` (`frontend/vite.plugins.ts`). The Docker build gets the
+  same path as a build argument; `Dockerfile.combined` copies `build-plugins/`
+  into its frontend stage.
+- If the entry module is missing, the build fails instead of shipping without
+  Sidekick.
+- A manual re-run without `sidekick_ref` builds OD-Sidekick's `main` as it is
+  then. To rebuild exactly what a tag first shipped, pass the commit from the
+  original run's summary.
+- To ship a Sidekick change, merge it to OD-Sidekick's `main` before tagging.
+  Nothing in this repo needs to change.
+
 **Before running**, manually update the "What's New" content (step 3 below) since that requires writing the changelog for the new version. The script refuses to start without it, because the GitHub release page is written from it.
 
 **Before running, launch the phone and tablet builds.** Look at what landed

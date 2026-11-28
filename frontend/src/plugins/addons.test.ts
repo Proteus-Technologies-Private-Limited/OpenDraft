@@ -223,6 +223,35 @@ describe('add-ons', () => {
     expect(registry.isAddOnSuggested('local-keyed')).toBe(true);
   });
 
+  it('follow their own default, under the same rule, unless the writer or an administrator chose', async () => {
+    const onActivate = vi.fn();
+    const local = (overrides: Partial<OpenDraftPlugin> = {}) =>
+      addOn({ id: 'local', privacy: 'Makes no network requests.', staysOnDevice: true, defaultEnabled: true, onActivate, ...overrides });
+
+    const first = new PluginRegistry();
+    first.register(local());
+    // A bundled default may not switch on one that sends text away; it is suggested.
+    first.register(addOn({ defaultEnabled: true }));
+    await Promise.resolve();
+    expect(first.isAddOnEnabled('local')).toBe(true);
+    expect(onActivate).toHaveBeenCalledTimes(1);
+    expect(first.isAddOnEnabled('assistant')).toBe(false);
+    expect(first.isAddOnSuggested('assistant')).toBe(true);
+
+    // The writer turns it off: that choice outlives the default.
+    await first.disableAddOn('local');
+    const next = new PluginRegistry();
+    next.register(local());
+    expect(next.isAddOnEnabled('local')).toBe(false);
+
+    // An administrator's default overrides the add-on's own.
+    localStorage.clear();
+    const managed = new PluginRegistry();
+    managed.setRuntimeAddOnDefaults(new Map([['local', false]]));
+    managed.register(local());
+    expect(managed.isAddOnEnabled('local')).toBe(false);
+  });
+
   it('keep a deployed plain plugin on when neither the admin nor its manifest set a default', () => {
     const registry = new PluginRegistry();
     registry.setRuntimeAddOnDefaults(new Map<string, boolean | null>([['plain', null], ['own-opt-in', null], ['admin-off', false]]));

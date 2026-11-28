@@ -22,6 +22,11 @@ COPY frontend/ ./
 COPY collab-server/src/ /collab-server/src/
 # The app version comes from tauri.conf.json (services/appVersion.ts).
 COPY src-tauri/tauri.conf.json /src-tauri/tauri.conf.json
+# Add-ons release CI checks out into build-plugins/ (see its README). They are
+# compiled in only when OPENDRAFT_PLUGINS names them, relative to /frontend,
+# e.g. ../build-plugins/OD-Sidekick/src/register.ts. Empty builds none.
+COPY build-plugins/ /build-plugins/
+ARG OPENDRAFT_PLUGINS=""
 RUN npm run build
 
 # ── Stage 2: build the collab server (TS → JS) ──
