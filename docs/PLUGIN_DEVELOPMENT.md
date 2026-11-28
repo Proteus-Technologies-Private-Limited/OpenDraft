@@ -425,9 +425,9 @@ route; its hooks are forwarded to core. A new host is simpler calling core's
   default of its own (`defaultEnabled: true` on the plugin, which applies when
   the writer has made no choice and no administrator or manifest default is
   set). Set `staysOnDevice` only when nothing it handles leaves the device.
-  Sidekick is the example: `optIn`, `defaultEnabled`, a privacy statement
-  saying it makes no network requests, and `staysOnDevice`. So it is on until
-  the writer turns it off in Settings → Add-ons.
+  Sidekick, which every release builds in, sets neither: it is `optIn` with a
+  privacy statement (it makes no network requests), so it stays off until the
+  writer turns it on in Settings → Add-ons, like the other add-ons.
 - **Translations.** `label`/`name` is the English default. To translate, call
   `addPluginResources('<plugin-id>', { en: {...}, es: {...} })` from
   `frontend/src/i18n` and set `labelKey: '<plugin-id>:menu.export'`. Resolve
