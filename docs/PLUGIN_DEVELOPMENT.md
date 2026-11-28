@@ -328,6 +328,12 @@ code is compiled in, never downloaded, which App Store guideline 2.5.2
 requires. OD-Sidekick's `vite.config.ts` and `scripts/build-app.sh` are the
 worked example.
 
+Official releases build OD-Sidekick in this way on every platform. Release CI
+checks it out into `build-plugins/` and sets `OPENDRAFT_PLUGINS`
+(`docs/RELEASE.md`, "Add-ons built into every platform"). A change to a core
+module Sidekick imports through `@core/…` therefore reaches the release
+build. Check it against OD-Sidekick before tagging.
+
 For unit tests outside core, resolve package imports the same way in the test
 runner (OD-Sidekick's `core.config.ts`) and use core's `src/test/setup.ts` as a
 setup file.
@@ -416,8 +422,12 @@ route; its hooks are forwarded to core. A new host is simpler calling core's
   OpenDraft never makes that choice for the writer, and neither does a default:
   an add-on with `settings`, or with `privacy` but not `staysOnDevice: true`,
   is never started by a manifest's or an administrator's default, or by a
-  default of its own. Set `staysOnDevice` only when nothing it handles leaves
-  the device.
+  default of its own (`defaultEnabled: true` on the plugin, which applies when
+  the writer has made no choice and no administrator or manifest default is
+  set). Set `staysOnDevice` only when nothing it handles leaves the device.
+  Sidekick is the example: `optIn`, `defaultEnabled`, a privacy statement
+  saying it makes no network requests, and `staysOnDevice`. So it is on until
+  the writer turns it off in Settings → Add-ons.
 - **Translations.** `label`/`name` is the English default. To translate, call
   `addPluginResources('<plugin-id>', { en: {...}, es: {...} })` from
   `frontend/src/i18n` and set `labelKey: '<plugin-id>:menu.export'`. Resolve

@@ -322,12 +322,19 @@ export interface OpenDraftPlugin {
   /** Translation key for `description`. */
   descriptionKey?: string;
   /**
-   * An add-on: listed in Settings → Add-ons, off by default when bundled. Its
-   * menu items, panels, editor extensions, importers, exporters and reports
-   * are withheld while it is off. Editor extensions take effect the next time
-   * a script is opened.
+   * An add-on: listed in Settings → Add-ons, off by default unless
+   * `defaultEnabled` says otherwise. Its menu items, panels, editor
+   * extensions, importers, exporters and reports are withheld while it is
+   * off. Editor extensions take effect the next time a script is opened.
    */
   optIn?: boolean;
+  /**
+   * The add-on's own default when the writer has made no choice and no
+   * administrator or deployment default applies. It turns the add-on on only
+   * if it may start without asking (no `settings`, and either no `privacy`
+   * statement or `staysOnDevice`); otherwise it is shown as Recommended.
+   */
+  defaultEnabled?: boolean;
   /**
    * Plain statement of what leaves the device and where it goes, shown before
    * the writer turns the add-on on. Expected for any add-on that uses the
@@ -584,7 +591,7 @@ export class PluginRegistry {
     // A replacement under the same id is a new plugin: its own init runs.
     this._initialised.delete(plugin.id);
     this._enabledAddOns.delete(plugin.id);
-    if (plugin.optIn && this._startsEnabled(plugin.id, runtimeDefault ?? false)) {
+    if (plugin.optIn && this._startsEnabled(plugin.id, runtimeDefault ?? plugin.defaultEnabled ?? false)) {
       void this._startAddOn(plugin);
     }
     this._notify(plugin);

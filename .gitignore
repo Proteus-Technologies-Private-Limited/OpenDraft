@@ -3,6 +3,9 @@ node_modules/
 venv/
 
 # Build output
+# Add-ons release CI checks out (build-plugins/README.md)
+/build-plugins/*
+!/build-plugins/README.md
 frontend/dist/
 collab-server/dist/
 *.tsbuildinfo

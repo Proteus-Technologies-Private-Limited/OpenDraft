@@ -25,6 +25,11 @@ on:
         required: false
         default: ''
         type: string
+      sidekick_ref:
+        description: 'OD-Sidekick branch, tag or commit to build in. Empty builds its main branch as it is now, which may be newer than the one the tag first shipped with.'
+        required: false
+        default: ''
+        type: string
 
 permissions:
   contents: write
@@ -38,6 +43,13 @@ env:
   # github.ref_name, which on a manual run is the branch the workflow was
   # dispatched from, not the tag.
   RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+  # Add-ons compiled into every platform's build (frontend/vite.plugins.ts).
+  # The plan job pins one OD-Sidekick commit, every job that builds the
+  # frontend checks that commit out into build-plugins/, and OPENDRAFT_PLUGINS
+  # (relative to frontend/) names its entry module. A build that cannot find
+  # the entry fails instead of shipping without the add-on.
+  SIDEKICK_REPOSITORY: Proteus-Technologies-Private-Limited/OD-Sidekick
+  OPENDRAFT_PLUGINS: ../build-plugins/OD-Sidekick/src/register.ts
 
 jobs:
   # ── Which platforms this release builds ─────────────────────────────────
@@ -65,7 +77,36 @@ jobs:
       windows: ${{ steps.plan.outputs.windows }}
       linux: ${{ steps.plan.outputs.linux }}
       stores: ${{ steps.plan.outputs.stores }}
+      sidekick_sha: ${{ steps.sidekick.outputs.sha }}
     steps:
+      # One commit for the whole release, so every platform ships the same
+      # Sidekick even if its main branch moves while the jobs run.
+      - name: Pin the Sidekick commit
+        id: sidekick
+        env:
+          SIDEKICK_REF: ${{ inputs.sidekick_ref || 'main' }}
+        run: |
+          set -euo pipefail
+          URL="https://github.com/${SIDEKICK_REPOSITORY}.git"
+          if [[ "$SIDEKICK_REF" =~ ^[0-9a-f]{40}$ ]]; then
+            SHA="$SIDEKICK_REF"
+          else
+            # A branch, or a tag: an annotated tag's own object is not a
+            # commit, so its peeled "^{}" line wins over the plain one.
+            SHA=$(git ls-remote "$URL" "refs/heads/${SIDEKICK_REF}" "refs/tags/${SIDEKICK_REF}" \
+              | awk -v ref="$SIDEKICK_REF" '
+                  $2 == "refs/heads/" ref        { branch = $1 }
+                  $2 == "refs/tags/" ref "^{}"   { peeled = $1 }
+                  $2 == "refs/tags/" ref         { tag = $1 }
+                  END { print branch ? branch : (peeled ? peeled : tag) }')
+          fi
+          if [ -z "$SHA" ]; then
+            echo "::error::OD-Sidekick has no branch, tag or commit '${SIDEKICK_REF}'"
+            exit 1
+          fi
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          echo "Building in OD-Sidekick ${SIDEKICK_REF} at ${SHA}" | tee -a "$GITHUB_STEP_SUMMARY"
+
       - name: Read the platforms to leave out
         id: plan
         env:
@@ -137,6 +178,14 @@ jobs:
           # A manual re-run is dispatched from a branch, so the tag has to
           # be checked out explicitly or we would build the wrong commit.
           ref: ${{ env.RELEASE_TAG }}
+
+      - name: Check out the Sidekick add-on
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ env.SIDEKICK_REPOSITORY }}
+          ref: ${{ needs.plan.outputs.sidekick_sha }}
+          path: build-plugins/OD-Sidekick
+          persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v5
@@ -376,6 +425,14 @@ jobs:
           # A manual re-run is dispatched from a branch, so the tag has to
           # be checked out explicitly or we would build the wrong commit.
           ref: ${{ env.RELEASE_TAG }}
+
+      - name: Check out the Sidekick add-on
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ env.SIDEKICK_REPOSITORY }}
+          ref: ${{ needs.plan.outputs.sidekick_sha }}
+          path: build-plugins/OD-Sidekick
+          persist-credentials: false
 
       - name: Setup JDK 17
         uses: actions/setup-java@v5
@@ -942,6 +999,14 @@ jobs:
           # be checked out explicitly or we would build the wrong commit.
           ref: ${{ env.RELEASE_TAG }}
 
+      - name: Check out the Sidekick add-on
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ env.SIDEKICK_REPOSITORY }}
+          ref: ${{ needs.plan.outputs.sidekick_sha }}
+          path: build-plugins/OD-Sidekick
+          persist-credentials: false
+
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
@@ -1066,6 +1131,14 @@ jobs:
           # A manual re-run is dispatched from a branch, so the tag has to
           # be checked out explicitly or we would build the wrong commit.
           ref: ${{ env.RELEASE_TAG }}
+
+      - name: Check out the Sidekick add-on
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ env.SIDEKICK_REPOSITORY }}
+          ref: ${{ needs.plan.outputs.sidekick_sha }}
+          path: build-plugins/OD-Sidekick
+          persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v5
@@ -1209,6 +1282,14 @@ jobs:
           # A manual re-run is dispatched from a branch, so the tag has to
           # be checked out explicitly or we would build the wrong commit.
           ref: ${{ env.RELEASE_TAG }}
+
+      - name: Check out the Sidekick add-on
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ env.SIDEKICK_REPOSITORY }}
+          ref: ${{ needs.plan.outputs.sidekick_sha }}
+          path: build-plugins/OD-Sidekick
+          persist-credentials: false
 
       - name: Select Xcode 27.2
         run: |
@@ -1593,6 +1674,15 @@ jobs:
         uses: actions/checkout@v5
         with:
           ref: ${{ env.RELEASE_TAG }}
+
+      - name: Check out the Sidekick add-on
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ env.SIDEKICK_REPOSITORY }}
+          ref: ${{ needs.plan.outputs.sidekick_sha }}
+          path: build-plugins/OD-Sidekick
+          persist-credentials: false
+
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -1647,6 +1737,14 @@ jobs:
           # A manual re-run is dispatched from a branch, so the tag has to
           # be checked out explicitly or we would build the wrong commit.
           ref: ${{ env.RELEASE_TAG }}
+
+      - name: Check out the Sidekick add-on
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ env.SIDEKICK_REPOSITORY }}
+          ref: ${{ needs.plan.outputs.sidekick_sha }}
+          path: build-plugins/OD-Sidekick
+          persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v5
@@ -1840,6 +1938,7 @@ jobs:
   # Builds Dockerfile.combined for linux/amd64 + linux/arm64 and pushes to
   # ghcr.io/<owner>/opendraft-combined with tags X.Y.Z, X.Y, latest, sha-<short>.
   build-docker:
+    needs: plan
     runs-on: ubuntu-latest
     name: Build & Push Combined Docker Image
 
@@ -1849,6 +1948,14 @@ jobs:
           # A manual re-run is dispatched from a branch, so the tag has to
           # be checked out explicitly or we would build the wrong commit.
           ref: ${{ env.RELEASE_TAG }}
+
+      - name: Check out the Sidekick add-on
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ env.SIDEKICK_REPOSITORY }}
+          ref: ${{ needs.plan.outputs.sidekick_sha }}
+          path: build-plugins/OD-Sidekick
+          persist-credentials: false
 
       - name: Set up QEMU (for arm64 cross-build)
         uses: docker/setup-qemu-action@v3
@@ -1879,6 +1986,8 @@ jobs:
         with:
           context: .
           file: Dockerfile.combined
+          build-args: |
+            OPENDRAFT_PLUGINS=${{ env.OPENDRAFT_PLUGINS }}
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
