@@ -1,16 +1,5 @@
-Put any panel in its own window, and keep writing your cloud scripts without a connection.
+Sidekick is now built in. Turn it on in Settings > Add-ons to keep to-dos, ideas and cut passages with your screenplay, and put an excerpt back when you need it.
 
-PANELS IN THEIR OWN WINDOWS
-Pop out any panel, such as the Navigator, Notes, Character Profiles or Scene Details, into its own window and put it on another display. It is the same live panel, several can share one window as tabs, and each opens where you last left it.
+Design custom title pages with text, fields and images. Sync whole projects, including treatments, locations and assets, and review merged screenplay edits when changes overlap.
 
-CLOUD SCRIPTS OFFLINE
-A cloud screenplay you have opened once now opens without a connection. Your changes are saved on your Mac and upload when you are back online. If someone changed the script elsewhere in the meantime, nothing is overwritten: you choose which version to keep.
-
-SYNC A PROJECT FROM THIS MAC
-Turn on Sync with OpenDraft Cloud for a project on this Mac, and its screenplays reach your other devices with the same account. Nothing is lost if a screenplay was changed in both places.
-
-WINDOWS OPEN WHERE YOU LEFT THEM
-OpenDraft remembers the window's size, display and full-screen state.
-
-ALSO IMPROVED
-Arranging your workspace by keyboard is safer, a repeated error is shown only once, and switching accounts is smoother.
+The Notes button now opens and closes the panel. Script recovery and returning to your account after sign-in expires are also improved.

@@ -1099,6 +1099,7 @@ class Accessibility(unittest.TestCase):
 
     def test_plugin_tabs_selection_resize_and_removed_focus(self):
         self.page.evaluate("""() => {
+            testRegistry.unregister('od-sidekick');
             for (const id of ['panel-one','panel-two']) testRegistry.register({id,name:id,version:'1',
                 panels:[{id,slot:'right-sidebar',label:id,component:()=>null}]});
         }""")
@@ -1130,6 +1131,7 @@ class Accessibility(unittest.TestCase):
 
     def test_plugin_removal_from_content_and_editor_never_opens_neighbor(self):
         self.page.evaluate("""() => {
+            testRegistry.unregister('od-sidekick');
             for (const id of ['panel-one','panel-two','panel-three']) testRegistry.register({id,name:id,version:'1',
                 panels:[{id,slot:'right-sidebar',label:id,component:()=>null}]});
         }""")

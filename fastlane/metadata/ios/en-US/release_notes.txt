@@ -1,13 +1,5 @@
-Keep writing your cloud scripts without a connection, and share a project on this device with your other devices.
+Sidekick is now built in. Turn it on in Settings > Add-ons to keep to-dos, ideas and cut passages with your screenplay, and put an excerpt back when you need it.
 
-CLOUD SCRIPTS OFFLINE
-A cloud screenplay you have opened once now opens without a connection. Your changes are saved on the device and upload when you are back online. If someone changed the script elsewhere in the meantime, nothing is overwritten: you choose which version to keep.
+Design custom title pages with text, fields and images. Sync whole projects, including treatments, locations and assets, and review merged screenplay edits when changes overlap.
 
-SYNC A PROJECT FROM THIS DEVICE
-Turn on Sync with OpenDraft Cloud for a project on this device, and its screenplays reach your other devices with the same account. If a screenplay was changed in both places, you pick the one to keep and the other is saved as a copy, so nothing is lost.
-
-FOLDABLES HELD LIKE A LAPTOP
-Half open with the crease across the screen, your toolbar sits in two rows beside the crease and keeps your choices.
-
-ALSO IMPROVED
-Asking before you delete something works again, arranging your workspace by keyboard is safer, an iPad shows as an iPad in your list of devices, and switching accounts is smoother.
+The Notes button now opens and closes the panel. Selection with a mouse or trackpad, script recovery and returning to your account after sign-in expires are also improved.

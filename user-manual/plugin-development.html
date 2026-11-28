@@ -59,6 +59,7 @@
     <div class="sidebar-section-title">Characters &amp; Notes</div>
     <a href="characters.html" class="sidebar-link">Character Profiles</a>
     <a href="script-notes.html" class="sidebar-link">Script Notes</a>
+    <a href="sidekick.html" class="sidebar-link">Sidekick</a>
   </div>
   <div class="sidebar-section">
     <div class="sidebar-section-title">Analysis</div>
@@ -109,7 +110,7 @@
     <div class="callout callout-info">
       <span class="callout-icon">&#8505;&#65039;</span>
       <div class="callout-content">
-        <p><strong>For writers:</strong> add-ons are optional features you switch on in <strong>Tools &gt; System Settings &gt; Add-ons</strong>. Each one is off until you turn it on, tells you what (if anything) leaves your device before you do, and asks for its settings. Turning one off removes everything it added and can delete what it stored, such as an API key. The rest of this page is for developers.</p>
+        <p><strong>For writers:</strong> add-ons are optional features you switch on in <strong>Tools &gt; System Settings &gt; Add-ons</strong>. Each one, including <a href="sidekick.html">Sidekick</a>, is off until you turn it on. The activation dialog describes what leaves your device and shows any settings. Turning one off removes everything it added and can delete what it stored, such as an API key. The rest of this page is for developers.</p>
       </div>
     </div>
 
@@ -117,7 +118,7 @@
     <p>Every feature that is not part of the core editor reaches OpenDraft through one place: the plugin registry in <code>frontend/src/plugins/registry.ts</code>. A plugin is a plain object that lists what it adds &mdash; menu items, panels, editor extensions, file formats, reports, grammar checks. The app asks the registry for those contributions wherever it draws a menu, a sidebar or the editor.</p>
     <ul>
       <li><strong>Plugins</strong> are always on. OpenDraft-Pro's features are plugins.</li>
-      <li><strong>Add-ons</strong> are plugins marked <code>optIn: true</code>. The registry withholds everything an add-on registers until the writer turns it on.</li>
+      <li><strong>Add-ons</strong> are plugins marked <code>optIn: true</code>. The registry makes its contributions available while it is on.</li>
     </ul>
     <p>Never wire a feature into <code>ScreenplayEditor.tsx</code>, <code>Toolbar.tsx</code> or <code>MenuBar.tsx</code> directly. Anything wired in directly cannot be turned off, cannot be replaced by Pro, and becomes clutter for writers who do not use it.</p>
 
@@ -147,7 +148,8 @@
       <thead><tr><th>Field</th><th>Purpose</th></tr></thead>
       <tbody>
         <tr><td><code>id</code>, <code>name</code>, <code>version</code></td><td>Required. <code>id</code> is stable: the writer's on/off choice is remembered by it.</td></tr>
-        <tr><td><code>optIn</code></td><td><code>true</code> makes the plugin an add-on: off until the writer turns it on.</td></tr>
+        <tr><td><code>optIn</code></td><td><code>true</code> lists the plugin in Settings &gt; Add-ons.</td></tr>
+        <tr><td><code>defaultEnabled</code></td><td>Set to <code>true</code> to start a bundled add-on on. The writer’s saved setting takes priority.</td></tr>
         <tr><td><code>description</code></td><td>One or two sentences shown in Settings &gt; Add-ons.</td></tr>
         <tr><td><code>privacy</code></td><td>What leaves the device and where it goes. Shown before the writer turns the add-on on.</td></tr>
         <tr><td><code>settings</code></td><td>A React component shown when the add-on is turned on and from its <strong>Settings&hellip;</strong> button.</td></tr>
@@ -542,7 +544,7 @@ export const CORE_ADDONS: readonly OpenDraftPlugin[] = [
 
   </div>
   <footer class="footer">
-    OpenDraft User Manual &middot; v2.16.1 &middot; Made by Proteus Technologies
+    OpenDraft User Manual &middot; v2.17.0 &middot; Made by Proteus Technologies
   </footer>
 </main>
 

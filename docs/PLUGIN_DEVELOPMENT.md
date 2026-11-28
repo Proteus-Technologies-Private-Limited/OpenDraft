@@ -62,7 +62,7 @@ Every field except `id`, `name` and `version` is optional.
 | `sceneActions` | Buttons in Scene Details, per scene or per shot, with an optional preview | `PluginSceneAction`, `PluginSceneBrief` |
 | `grammarProviders` | Extra writing suggestions next to the built-in rules | `GrammarProvider` → `GrammarIssue[]` |
 | `init`, `destroy` | Start-up work once a script is open; `destroy` undoes it (plugin removed or replaced, add-on turned off) | `PluginContext` |
-| `optIn`, `privacy`, `settings`, `onActivate`, `onDeactivate` | Makes the plugin an add-on the writer turns on in Settings → Add-ons | `PluginSettingsProps`, `PluginDeactivateContext` |
+| `optIn`, `defaultEnabled`, `privacy`, `settings`, `onActivate`, `onDeactivate` | Makes the plugin an add-on the writer turns on in Settings → Add-ons. `defaultEnabled` is its own default, applied only under the rule in section 5; a saved choice takes priority | `PluginSettingsProps`, `PluginDeactivateContext` |
 | `nameKey`, `descriptionKey`, `labelKey`… | Translated text (see section 5) | — |
 
 Other registry calls:
