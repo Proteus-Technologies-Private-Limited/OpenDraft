@@ -37,7 +37,8 @@ only matters somewhere, or to keep a build out of Apple and Google review.
 
 ### Add-ons built into every platform
 
-Every release build compiles in the **Sidekick** add-on from
+Every release build compiles in the **Sidekick** add-on, off until each writer
+turns it on in Settings → Add-ons, from
 [OD-Sidekick](https://github.com/Proteus-Technologies-Private-Limited/OD-Sidekick).
 That covers the three dmgs, the Mac App Store, Windows, Linux, Android, iOS,
 the iOS launch check and the web app in the Docker image.
