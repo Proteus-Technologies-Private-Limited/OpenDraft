@@ -26,8 +26,8 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../services/api';
-import { authedFetch } from '../services/authedFetch';
 import { isTauri } from '../services/platform';
+import { fetchPictureObjectUrl } from '../utils/imageAsset';
 import { getScratchObjectUrl, getScratchUrlSync } from '../services/scratchAssets';
 
 export interface ImageSrcAttrs {
@@ -101,19 +101,20 @@ export function useImageSrc(attrs: ImageSrcAttrs): ImageSrcResult {
         }
 
         if (assetId && projectId) {
-          const res = await authedFetch(api.getAssetUrl(projectId, assetId, filename || undefined));
-          if (!res.ok) { if (!cancelled) setFailed(true); return; }
-          const blob = await res.blob();
-          const url = URL.createObjectURL(blob);
-          revoke = () => URL.revokeObjectURL(url);
-          if (cancelled) { revoke(); return; }
-          setAsyncUrl(url);
+          // The shared picture route: it asks for the long transfer budget on
+          // the desktop and mobile apps, and logs why a picture failed.
+          const got = await fetchPictureObjectUrl(api.getAssetUrl(projectId, assetId, filename || undefined), 'image');
+          if (!got) { if (!cancelled) setFailed(true); return; }
+          revoke = got.revoke;
+          if (cancelled) { got.revoke(); return; }
+          setAsyncUrl(got.url);
           return;
         }
 
         if (!cancelled) setFailed(true);
       } catch (err) {
-        console.warn('[image] could not resolve an image:', err);
+        console.warn(`[image] could not load picture ${assetId ?? scratchId ?? '(none)'}:`,
+          err instanceof Error ? err.message : err);
         if (!cancelled) setFailed(true);
       }
     })();

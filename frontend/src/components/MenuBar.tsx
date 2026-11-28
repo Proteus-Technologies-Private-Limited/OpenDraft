@@ -725,7 +725,18 @@ const MenuBar: React.FC<MenuBarProps> = ({
       // The user's real copy now holds this text, so there is nothing left to
       // recover. Cleared here too, not only by the snapshot hook, so the copy is
       // gone at once rather than on the hook's next pass.
-      clearRecoverySnapshot();
+      //
+      // Only while the document still IS what was saved. A slow save leaves
+      // the writer typing; the snapshot hook may already have stored those
+      // newer words, and clearing now would delete the one copy of them.
+      let unchangedSinceSave = false;
+      try {
+        const now = buildSaveContent();
+        unchangedSinceSave = !!content && !!now && JSON.stringify(now) === JSON.stringify(content);
+      } catch (err) {
+        console.warn('[save] could not compare the document with what was saved; keeping the recovery copy:', err);
+      }
+      if (unchangedSinceSave) clearRecoverySnapshot();
     } catch (err) {
       console.error('Save failed:', err);
       const msg = err instanceof Error ? err.message : String(err);
@@ -4394,7 +4405,10 @@ const MenuBar: React.FC<MenuBarProps> = ({
             onPointerMove={handleFabPointerMove}
             onPointerUp={handleFabPointerUp}
             onClick={handleFabClick}
-            onMouseDown={(e) => e.nativeEvent.stopImmediatePropagation()}
+            onMouseDown={(e) => {
+              keepEditorSelection(e);
+              e.nativeEvent.stopImmediatePropagation();
+            }}
             title={t('menu:fab.title')}
           >
             <FaBars />
@@ -4591,10 +4605,10 @@ const MenuBar: React.FC<MenuBarProps> = ({
               {/* i18n-ignore-start: release notes stay English in phase 1 */}
               <div className="about-subsection-title">v2.17.0</div>
               <ul className="about-list">
-                <li><strong>Sidekick</strong> &mdash; Open <em>Tools &rarr; Sidekick &rarr; Show Sidekick</em> to keep to-dos, ideas and cut passages with the screenplay. Choose a task type to file selected text or add a standalone idea. Find the original passage, restore a cut, or export a task list. Sidekick is on by default and can be switched off in <em>System Settings &rarr; Add-ons</em>.</li>
+                <li><strong>Sidekick</strong> &mdash; Open <em>Tools &rarr; Sidekick &rarr; Show Sidekick</em> to keep to-dos, ideas and cut passages with the screenplay. Choose a task type to file selected text or add a standalone idea. Find the original passage, restore a cut, or export a task list. Turn it on in <em>System Settings &rarr; Add-ons</em>.</li>
                 <li><strong>Custom Title Pages</strong> &mdash; In the Title Page editor, choose <em>Custom</em> to arrange your own text blocks, fields and images. The custom page travels with the screenplay and appears in PDF and Word output.</li>
                 <li><strong>Whole-Project Cloud Sync</strong> &mdash; Sync device projects with their screenplays, treatments, project details, locations and assets. Edits to different lines can merge automatically. Use <em>Review and merge</em> to compare copies and choose what to keep when edits overlap.</li>
-                <li><strong>Notes and Trackpad Selection</strong> &mdash; The Notes toolbar button opens or closes the panel. To attach a note to selected text, choose <em>Add Script Note</em> from the screenplay context menu. You can drag to select screenplay text with a mouse or trackpad in the mobile editor.</li>
+                <li><strong>Notes and Trackpad Selection</strong> &mdash; The Notes toolbar button opens or closes the panel. To attach a note to selected text, choose <em>Add Script Note</em> in the Notes panel or the screenplay context menu; the Tags panel has a matching <em>Create Tag</em> button. You can drag to select screenplay text with a mouse or trackpad in the mobile editor.</li>
                 <li><strong>Saving and Sign-In</strong> &mdash; A script you just saved no longer offers crash recovery on reopening. Deleting an open script closes it cleanly. You can stay signed in for up to 90 days between visits. If the session expires, OpenDraft offers your last account.</li>
                 <li><strong>Drag and Drop on Desktop</strong> &mdash; Drop a supported screenplay file into the writing window to import it.</li>
                 <li><strong>Add-ons and Plugin Data</strong> &mdash; Developers can bundle plugins for desktop and mobile or deploy web add-ons on a server. Plugins can keep their data with the screenplay and contribute panels, file formats and reports.</li>

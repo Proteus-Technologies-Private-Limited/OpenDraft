@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
 import ExternalSaveReview from './components/ExternalSaveReview';
 import { Routes, Route } from 'react-router-dom';
 import ScreenplayEditor from './components/ScreenplayEditor';
@@ -19,6 +19,7 @@ import PdfImportPreviewHost from './components/PdfImportPreview';
 import VerifyEmailRoute from './components/VerifyEmailRoute';
 import ResetPasswordRoute from './components/ResetPasswordRoute';
 import { pluginRegistry } from './plugins/registry';
+import { installFileDropGuard } from './utils/fileDropGuard';
 // Registers the core add-ons (off until the writer turns them on). Imported
 // here rather than in main.tsx so OpenDraft-Pro, which reuses this App, gets
 // them too.
@@ -30,6 +31,10 @@ import './styles/tableRead.css';
 function App() {
   useSyncExternalStore(pluginRegistry.subscribe, pluginRegistry.getRevision, pluginRegistry.getRevision);
   const pluginRoutes = pluginRegistry.getRoutes();
+
+  // On every screen, a file dropped outside a drop target must not make the
+  // web view navigate to it (and lose the app). See utils/fileDropGuard.
+  useEffect(() => installFileDropGuard(window), []);
 
   // Plugins (e.g. Pro) can swap built-in route components without
   // forking this file. Each lookup returns the registered override or

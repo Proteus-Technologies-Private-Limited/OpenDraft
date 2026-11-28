@@ -32,7 +32,8 @@ interface SettingsState {
   /**
    * Drop the stored session. Unless `deliberate` (the writer signed out or
    * deleted the account), the account's email is remembered so the sign-in
-   * forms can say the session ended and offer it back.
+   * forms can say the session ended and offer it back — but only while the
+   * writer has "Remember email" on for this device (see signedOutAccount.ts).
    */
   clearCollabAuth: (opts?: { deliberate?: boolean }) => void;
 

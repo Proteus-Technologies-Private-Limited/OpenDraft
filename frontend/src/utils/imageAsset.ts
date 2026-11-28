@@ -1,5 +1,6 @@
 import { api } from '../services/api';
 import { authedFetch } from '../services/authedFetch';
+import { PICTURE_ACCEPT } from '../services/platform';
 import { getScratchObjectUrl } from '../services/scratchAssets';
 
 interface ImageNodeAttrs {
@@ -53,13 +54,33 @@ async function toLoadableUrl(url: string): Promise<{ url: string; revoke: () => 
   if (url.startsWith(SCRATCH_PREFIX)) {
     return getScratchObjectUrl(url.slice(SCRATCH_PREFIX.length));
   }
+  return fetchPictureObjectUrl(url, 'export');
+}
+
+/**
+ * Fetch a picture's bytes over HTTP, with auth, as a blob object URL — the one
+ * route both the editor (`useImageSrc`) and the exporters use for an asset.
+ *
+ * It sends {@link PICTURE_ACCEPT}, which is what gives the desktop and mobile
+ * apps the long transfer budget: without it a few-MB picture on a slow link
+ * gave up at 10 s, and the editor showed a broken picture and the export an
+ * empty slot. Returns null on any failure, after logging why under `context`.
+ */
+export async function fetchPictureObjectUrl(
+  url: string,
+  context: string,
+): Promise<{ url: string; revoke: () => void } | null> {
   try {
-    const res = await authedFetch(url);
-    if (!res.ok) return null;
+    const res = await authedFetch(url, { headers: { Accept: PICTURE_ACCEPT } });
+    if (!res.ok) {
+      console.warn(`[${context}] picture at ${url} could not be loaded: the server answered ${res.status}`);
+      return null;
+    }
     const blob = await res.blob();
     const obj = URL.createObjectURL(blob);
     return { url: obj, revoke: () => URL.revokeObjectURL(obj) };
-  } catch {
+  } catch (err) {
+    console.warn(`[${context}] picture at ${url} could not be loaded:`, err instanceof Error ? err.message : err);
     return null;
   }
 }
@@ -86,7 +107,8 @@ export async function loadImageData(url: string): Promise<{ dataUrl: string; wid
     if (!ctx) return null;
     ctx.drawImage(img, 0, 0);
     return { dataUrl: canvas.toDataURL('image/png'), width: img.naturalWidth, height: img.naturalHeight };
-  } catch {
+  } catch (err) {
+    console.warn(`[export] picture at ${url} could not be decoded:`, err instanceof Error ? err.message : err);
     return null;
   } finally {
     loadable.revoke();

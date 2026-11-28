@@ -42,6 +42,7 @@ import {
 } from '../utils/clipboardCommands';
 import { showToast } from './Toast';
 import { removeScriptNoteMarks } from '../editor/scriptNoteMarks';
+import { pendingTagForRange } from '../utils/annotationSelection';
 import { applyCaseToRange, shouldUpperCase } from '../editor/caseTransform';
 import { TextSelection } from '@tiptap/pm/state';
 import { isAvCellPos } from '../editor/extensions/AvBlock';
@@ -200,7 +201,7 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
     revisionMode, setRevisionMode, revisionColor, setRevisionColor,
     toggleScriptNotes, scriptNotesOpen, addNote, deleteNote, setNoteFilter,
     toggleCharacterProfiles, characterProfilesOpen,
-    deleteTag, tagsPanelOpen, toggleTagsPanel, setPendingTagSelection, setEditingTagId,
+    deleteTag, tagsPanelOpen, toggleTagsPanel, setPendingTagSelection, setTagPanelTarget,
   } = useEditorStore();
 
   // Per-attribute locking for the current element
@@ -621,19 +622,14 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
   // ── Tag handlers ──
   const handleTagAs = () => {
     const { from, to, empty } = savedSelection.current;
-    const selFrom = empty ? $from.start() : from;
-    const selTo = empty ? $from.end() : to;
-    const text = editor.state.doc.textBetween(selFrom, selTo, ' ');
-
-    let sceneId: string | null = null;
-    let sceneIdx = 0;
-    editor.state.doc.nodesBetween(0, selFrom, (node) => {
-      if (node.type.name === 'sceneHeading') { sceneId = `scene-${sceneIdx}`; sceneIdx++; }
-      return true;
+    const range = pendingTagForRange(editor.state.doc, {
+      from: empty ? $from.start() : from,
+      to: empty ? $from.end() : to,
     });
-
-    setPendingTagSelection({ from: selFrom, to: selTo, text: text.slice(0, 80), elementType: currentNodeType, sceneId });
-    if (!tagsPanelOpen) toggleTagsPanel();
+    if (range) {
+      setPendingTagSelection(range);
+      if (!tagsPanelOpen) toggleTagsPanel();
+    }
     onClose();
   };
 
@@ -1093,7 +1089,7 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
         <>
           <div className="ctx-item" onClick={() => {
             if (existingTagInfo) {
-              setEditingTagId(existingTagInfo.tagId);
+              setTagPanelTarget({ id: existingTagInfo.tagId, edit: true });
             }
             if (!tagsPanelOpen) toggleTagsPanel();
             onClose();

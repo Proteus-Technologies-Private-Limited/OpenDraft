@@ -381,7 +381,8 @@
       "Purple": "Violet"
     },
     "colorCount": "{{color}} ({{n}})",
-    "emptyNone": "Aucune note pour l’instant. Sélectionnez du texte dans l’éditeur, faites un clic droit et choisissez « Ajouter une note de scénario ».",
+    "emptyNone": "Aucune note de scénario pour le moment.",
+    "selectText": "Sélectionnez du texte dans le scénario pour ajouter une note.",
     "emptyResolved": "Toutes les notes sont résolues. Cochez « Afficher les résolues » pour les voir.",
     "emptyFilter": "Aucune note ne correspond à ce filtre.",
     "filterByContext": "Filtrer par « {{label}} »",

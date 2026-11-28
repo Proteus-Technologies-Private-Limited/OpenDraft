@@ -61,8 +61,8 @@ Every field except `id`, `name` and `version` is optional.
 | `reports` | A table in Tools → Analytics → Reports, with CSV/PDF export | `PluginReport` → `ReportTable` |
 | `sceneActions` | Buttons in Scene Details, per scene or per shot, with an optional preview | `PluginSceneAction`, `PluginSceneBrief` |
 | `grammarProviders` | Extra writing suggestions next to the built-in rules | `GrammarProvider` → `GrammarIssue[]` |
-| `init`, `destroy` | Start-up work once a script is open; clean-up when the plugin is removed | `PluginContext` |
-| `optIn`, `defaultEnabled`, `privacy`, `settings`, `onActivate`, `onDeactivate` | Lists the plugin in Settings → Add-ons and sets its initial state. A saved user choice takes priority. | `PluginSettingsProps`, `PluginDeactivateContext` |
+| `init`, `destroy` | Start-up work once a script is open; `destroy` undoes it (plugin removed or replaced, add-on turned off) | `PluginContext` |
+| `optIn`, `defaultEnabled`, `privacy`, `settings`, `onActivate`, `onDeactivate` | Makes the plugin an add-on the writer turns on in Settings → Add-ons. `defaultEnabled` is its own default, applied only under the rule in section 5; a saved choice takes priority | `PluginSettingsProps`, `PluginDeactivateContext` |
 | `nameKey`, `descriptionKey`, `labelKey`… | Translated text (see section 5) | — |
 
 Other registry calls:
@@ -92,7 +92,7 @@ then carries it everywhere the script goes:
 | FDX | an `<OpenDraftPluginData>` element after `<Content>`; Final Draft ignores it, OpenDraft reads it back |
 | Fountain | a `/* OpenDraft plugin data … */` boneyard block at the end; never printed |
 | Linked files (.fdx / .fountain saved in place) | the same as FDX / Fountain |
-| Collaboration | synced as one value; the last writer wins |
+| Collaboration | synced per plugin: each plugin's entry is its own value, so two plugins never overwrite each other; only two edits to the same plugin's entry race, and the last writer wins |
 | PDF, DOCX, Fade In / OSF | not carried: these are print or other-app formats |
 
 An entry is kept even while its plugin is off or not installed, so opening a
@@ -110,6 +110,26 @@ again. `ctx.editor` always reads the editor open *now* (null between scripts),
 so keep `ctx` and read `ctx.editor` when you need it — don't keep the editor
 itself. A throw is logged and the other plugins still start. History views are
 read-only and do not count as an open editor.
+
+**The add-on lifecycle.** For an add-on, in order:
+
+1. **Turned on** (by the writer, or at start-up when it was left on):
+   `onActivate` runs. `init` waits for it — it runs only once `onActivate` has
+   *succeeded* (and a script is open). If `onActivate` throws or rejects, the
+   add-on is left off: none of its menus, panels or other contributions show,
+   and `init` does not run. Turned on from Settings → Add-ons, the writer sees
+   the error; at start-up it is logged, and the writer's choice is kept so the
+   next start tries again.
+2. **Turned off**: its contributions are withdrawn at once; then `destroy` runs
+   if its `init` had run (so listeners, timers or editor hooks set up in `init`
+   stop), then `onDeactivate`. A throw from `destroy` is logged.
+3. **Turned on again**: `onActivate`, then `init` again — so whatever `init`
+   sets up, `destroy` must tear down.
+
+`destroy` also runs when a plugin is unregistered, and when a plugin is
+registered under an id already in use: the old plugin's `destroy` runs before
+the new one takes its place (and the new one gets its own `init`). Each call is
+wrapped in `try/catch`.
 
 ### Backend — `backend/app/plugins.py`
 
@@ -181,14 +201,30 @@ backend/plugins/                 (or OPENDRAFT_PLUGINS_DIR; kept apart from
   "apiVersion": 1, "script": "index.js", "style": "index.css", "defaultEnabled": true }
 ```
 
-- **Install:** copy the folder in. **Remove:** delete it. **Hide from everyone:** rename
-  it with a leading `_` (or `.`). Reload the page; the server needs no
-  restart, and core's own build is never touched.
+- **Install:** copy the folder in — or link it: a symbolic link to a build
+  elsewhere (`backend/plugins/od-sidekick -> ../OD-Sidekick/dist`) is a
+  plugin folder like any other, its files confined to the folder it points at.
+  **Remove:** delete it. **Hide from everyone:** rename it with a leading `_`
+  (or `.`). Reload the page; the server needs no restart, and core's own build
+  is never touched.
 - Deployed plugins appear in **Settings → Add-ons** when the web app next
-  loads. A manifest without `defaultEnabled` defaults to off. Administrators
-  can override the default under **Admin Console → Add-ons**.
-  A writer's saved choice in that browser takes precedence over the default.
-  Admin defaults are kept in `plugin-defaults/` under `OPENDRAFT_DATA_DIR`.
+  loads. Whether one starts on is decided, first match wins, by:
+  1. the writer's own saved choice in that browser;
+  2. the administrator's default, set under **Admin Console → Add-ons** (kept in
+     `plugin-defaults/` under `OPENDRAFT_DATA_DIR`);
+  3. the manifest's `defaultEnabled` (`true` or `false`);
+  4. with none of these, the plugin itself: a plain plugin starts **on**, as
+     deployed plugins always did before they became add-ons, and one that sets
+     `optIn: true` starts off.
+
+  **A default never turns on an add-on that has to ask the writer first** — one
+  that has a `settings` screen, or declares `privacy` (or `privacyKey`) without
+  also setting `staysOnDevice: true` (for an add-on whose privacy statement says
+  nothing leaves the device, e.g. "makes no network requests"). Such an
+  add-on stays off until the writer turns it on in Settings → Add-ons, where the
+  dialog shows what leaves the device and asks for its settings; a default of on
+  only marks it as suggested (`pluginRegistry.isAddOnSuggested(id)`). The same
+  holds for add-ons built into the app.
 - The folder's name must be the plugin's `id` (lower-case letters, digits,
   hyphens). `script` and `style` are paths inside the folder; `style` is
   optional.
@@ -198,8 +234,16 @@ backend/plugins/                 (or OPENDRAFT_PLUGINS_DIR; kept apart from
 **How core loads them** (`backend/app/frontend_plugins.py`,
 `frontend/src/plugins/runtimeLoader.ts`): `GET /api/plugins` lists the valid
 folders (anything malformed is logged and skipped) and `/plugins/<id>/…`
-serves their files. Before its first render the web app adds each style sheet
-and script, waiting at most a few seconds in all. **Nothing a plugin does can
+serves their files — only for a plugin that list includes (not a `_` folder or
+one with a missing or broken `plugin.json`), never a hidden file or folder
+(`.git`, `.env`, anything starting with `.`), and never anything resolving
+outside the plugin's folder. Keep what a plugin needs at run time in visible
+files inside its folder. Before its first render the web app adds each style
+sheet and script, waiting at most a few seconds in all. A style sheet whose
+script fails to load, or loads without registering a plugin under its id, is
+removed again. An add-on that is off keeps its sheet on the page but switched
+off (`disabled`), and switched back on with the add-on, so turning it on needs
+no reload; still, scope your selectors to your own elements. **Nothing a plugin does can
 stop the app from starting:** a plugin's script only hands core a function,
 which core runs inside `try/catch`; a plugin that throws, a missing script, a
 slow or old server — each is logged and skipped. A plugin already built into
@@ -252,16 +296,6 @@ at run time. Ship to the apps with a build-time plugin (next section) — the
 same `src/register.ts` serves both. A runtime plugin's script runs with the
 app's full rights: install only plugins you trust.
 
-### Frontend: bundled Sidekick
-
-Sidekick ships from `frontend/src/addons/sidekick/` and registers through
-`CORE_ADDONS`. The source was brought in from OD-Sidekick at
-`03e302cddebc93bc7ee03d72f677a0821a440f12` under its included MIT license.
-It uses the plugin ID `od-sidekick` for compatibility with existing script
-data. A deployed web copy with the same ID is skipped in builds that include
-Sidekick. The writer can turn Sidekick off in Settings → Add-ons. Its tasks
-remain in the script. [Sidekick manual](../user-manual/sidekick.html)
-
 ### Frontend: build-time plugins (desktop, mobile, and web builds)
 
 Core compiles plugins from other folders into its own build when
@@ -293,6 +327,12 @@ and mobile apps** get the plugin exactly like the web app: `tauri build`,
 code is compiled in, never downloaded, which App Store guideline 2.5.2
 requires. OD-Sidekick's `vite.config.ts` and `scripts/build-app.sh` are the
 worked example.
+
+Official releases build OD-Sidekick in this way on every platform. Release CI
+checks it out into `build-plugins/` and sets `OPENDRAFT_PLUGINS`
+(`docs/RELEASE.md`, "Add-ons built into every platform"). A change to a core
+module Sidekick imports through `@core/…` therefore reaches the release
+build. Check it against OD-Sidekick before tagging.
 
 For unit tests outside core, resolve package imports the same way in the test
 runner (OD-Sidekick's `core.config.ts`) and use core's `src/test/setup.ts` as a
@@ -379,6 +419,15 @@ route; its hooks are forwarded to core. A new host is simpler calling core's
   all of its menu items, panels, editor extensions, importers, exporters,
   reports, scene actions and grammar providers. Ask for settings (keys,
   addresses) in its `settings` screen, shown when the writer turns it on.
+  OpenDraft never makes that choice for the writer, and neither does a default:
+  an add-on with `settings`, or with `privacy` but not `staysOnDevice: true`,
+  is never started by a manifest's or an administrator's default, or by a
+  default of its own (`defaultEnabled: true` on the plugin, which applies when
+  the writer has made no choice and no administrator or manifest default is
+  set). Set `staysOnDevice` only when nothing it handles leaves the device.
+  Sidekick, which every release builds in, sets neither: it is `optIn` with a
+  privacy statement (it makes no network requests), so it stays off until the
+  writer turns it on in Settings → Add-ons, like the other add-ons.
 - **Translations.** `label`/`name` is the English default. To translate, call
   `addPluginResources('<plugin-id>', { en: {...}, es: {...} })` from
   `frontend/src/i18n` and set `labelKey: '<plugin-id>:menu.export'`. Resolve

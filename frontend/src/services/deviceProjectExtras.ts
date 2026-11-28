@@ -99,19 +99,41 @@ function parse<T>(raw: string | null | undefined, fallback: T): T {
   }
 }
 
+/** The details to write back to this device: the merge, with any edit made to
+ * the project here while the pass ran merged over it (`read` is the copy the
+ * merge was built from, `now` the project as it is). An edit here wins a clash,
+ * as it would have at the start of the pass. */
+export function detailsToWrite(read: Details, now: Details, merged: Details): Details {
+  return same(now, read) ? merged : mergeDetails(read, now, merged);
+}
+
+/** The project's details are written whole, and neither side's update can be
+ * made conditional on what was read (the project routes take no revision). So
+ * each side is read again just before it is written, and an edit that landed
+ * since is merged in rather than overwritten. */
 async function syncDetails(binding: DeviceBinding, scope: CloudRequestScope, remoteId: string,
-  project: ProjectInfo, baseRaw: string | null): Promise<void> {
-  const cloud = await cloudApi.getProject(remoteId, scope);
+  baseRaw: string | null): Promise<void> {
+  const [project, cloud] = await Promise.all([api.getProject(binding.project_id), cloudApi.getProject(remoteId, scope)]);
   const device = projectDetails(project);
   const remote = projectDetails(cloud);
   const merged = mergeDetails(parse<Details | null>(baseRaw, null), device, remote);
-  const next = unflatten(merged);
-  if (!same(merged, remote)) await cloudApi.updateProject(remoteId, next, scope);
-  if (!same(merged, device)) {
-    // Keep this device's own properties (a linked folder) alongside the synced ones.
-    const own = Object.fromEntries(Object.entries(project.properties ?? {}).filter(([key]) => DEVICE_ONLY.has(key)));
-    await api.updateProject(project.id, { ...next, properties: { ...next.properties, ...own } });
+  if (!same(merged, remote)) {
+    // Changed in the cloud since it was read: leave it, the next pass merges again.
+    if (!same(projectDetails(await cloudApi.getProject(remoteId, scope)), remote)) return;
+    await cloudApi.updateProject(remoteId, unflatten(merged), scope);
   }
+  // Re-read just before writing: the writer may have edited the details here
+  // during the pass, and the write replaces them all.
+  const current = await api.getProject(binding.project_id);
+  const local = detailsToWrite(device, projectDetails(current), merged);
+  if (!same(local, projectDetails(current))) {
+    const next = unflatten(local);
+    // Keep this device's own properties (a linked folder) alongside the synced ones.
+    const own = Object.fromEntries(Object.entries(current.properties ?? {}).filter(([key]) => DEVICE_ONLY.has(key)));
+    await api.updateProject(current.id, { ...next, properties: { ...next.properties, ...own } });
+  }
+  // What the cloud now holds is what both sides last agreed on; an edit made
+  // here during the pass differs from it and goes up on the next one.
   await rememberProjectSyncBases(binding, { details_base: JSON.stringify(merged) });
 }
 
@@ -187,7 +209,7 @@ async function syncAssets(binding: DeviceBinding, scope: CloudRequestScope, remo
 /** One pass over the project's details, locations and assets. Each part fails
  * on its own: a problem with one picture does not hold up the locations. */
 export async function syncProjectExtras(binding: DeviceBinding, scope: CloudRequestScope, remoteId: string,
-  project: ProjectInfo): Promise<'synced' | 'pending'> {
+): Promise<'synced' | 'pending'> {
   const bases = await readProjectSyncBases(binding.project_id);
   let ok = true;
   const part = async (name: string, task: () => Promise<void>) => {
@@ -199,7 +221,7 @@ export async function syncProjectExtras(binding: DeviceBinding, scope: CloudRequ
       console.warn(`[cloud] could not sync the project's ${name}:`, error);
     }
   };
-  await part('details', () => syncDetails(binding, scope, remoteId, project, bases?.details_base ?? null));
+  await part('details', () => syncDetails(binding, scope, remoteId, bases?.details_base ?? null));
   await part('locations', () => syncLocations(binding, scope, remoteId, bases?.locations_base ?? null));
   await part('assets', () => syncAssets(binding, scope, remoteId, bases?.assets_synced ?? null));
   return ok ? 'synced' : 'pending';

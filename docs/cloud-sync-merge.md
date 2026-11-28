@@ -27,9 +27,16 @@ A three-way merge of the **base** (the copy both sides last agreed on), this
 - **Script body**: diff3 over top-level paragraphs, compared whole (text,
   attributes and marks). A region changed on one side only is taken from it;
   the same change on both is taken once; different changes are a conflict.
-  Unlike plain diff3, a region with the same number of paragraphs on all three
-  copies is merged paragraph by paragraph, so a dialogue line edited here and
-  its parenthetical edited there do not clash.
+  Inside a region that changed on both sides, each side is diffed against the
+  base on its own and only changes that truly overlap (the same base
+  paragraphs, or insertions at the same spot) become a conflict, so a dialogue
+  line edited here and its parenthetical edited there do not clash. Paragraphs
+  are never paired by position: equal counts on all three copies say nothing
+  about which paragraph an edit belongs to.
+- **Merge dialog**: the merge is uploaded only onto the cloud revision it was
+  built from. If the cloud (or, for device projects, the device copy) changed
+  while the dialog was open, nothing is written; the dialog rebuilds the merge
+  from the new copies and tells the writer.
 - **Metadata** (`_notes`, `_characterProfiles`, …): per key. Lists of records
   with an `id` merge record by record; lists of words as sets; anything else is
   one value.

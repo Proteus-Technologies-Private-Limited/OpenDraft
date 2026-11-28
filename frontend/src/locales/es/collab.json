@@ -381,7 +381,8 @@
       "Purple": "Morado"
     },
     "colorCount": "{{color}} ({{n}})",
-    "emptyNone": "Aún no hay notas. Selecciona texto en el editor, haz clic derecho y elige «Añadir nota del guion».",
+    "emptyNone": "Aún no hay notas de guion.",
+    "selectText": "Selecciona texto en el guion para añadir una nota.",
     "emptyResolved": "Todas las notas están resueltas. Marca «Mostrar resueltas» para verlas.",
     "emptyFilter": "Ninguna nota coincide con este filtro.",
     "filterByContext": "Filtrar por «{{label}}»",

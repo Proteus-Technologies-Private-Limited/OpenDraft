@@ -21,6 +21,7 @@ export function DeviceProjectSyncControl({ projectId, onSync }: { projectId: str
   const [merge, setMerge] = useState<null | {
     issue: DeviceSyncIssue; title: string;
     base: Record<string, unknown> | null; device: Record<string, unknown>; cloud: Record<string, unknown>;
+    cloudRevision: string;
   }>(null);
   const lastSynced = status?.lastSynced ?? 0;
   useEffect(() => {
@@ -64,7 +65,8 @@ export function DeviceProjectSyncControl({ projectId, onSync }: { projectId: str
     if (!merge) return;
     try {
       await resolveDeviceSyncIssue(projectId, merge.issue.id, outcome.kind,
-        outcome.kind === 'merged' ? outcome.content : undefined);
+        outcome.kind === 'merged' ? outcome.content : undefined,
+        outcome.kind === 'merged' ? outcome.cloudRevision : undefined);
     } catch (failure) {
       console.error('[cloud] could not settle the merge:', failure);
       throw failure instanceof DeviceSyncMessage ? failure : new Error(t('sync.resolveFailed'));
@@ -144,7 +146,7 @@ export function DeviceProjectSyncControl({ projectId, onSync }: { projectId: str
       )}
       {merge && (
         <MergeConflictDialog title={merge.title || merge.issue.title} base={merge.base} device={merge.device}
-          cloud={merge.cloud} onResolve={settleMerge} onClose={() => setMerge(null)} />
+          cloud={merge.cloud} cloudRevision={merge.cloudRevision} onResolve={settleMerge} onClose={() => setMerge(null)} />
       )}
     </div>
   );

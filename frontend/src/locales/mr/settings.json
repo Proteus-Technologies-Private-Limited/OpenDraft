@@ -162,7 +162,9 @@
     "turnOff": "बंद करा",
     "title": "अॅड-ऑन",
     "description": "आपण वापरायचे ठरवू शकता अशा पर्यायी सुविधा.",
-    "settingsButton": "सेटिंग्ज…"
+    "settingsButton": "सेटिंग्ज…",
+    "recommended": "शिफारस केलेले",
+    "recommendedHint": "तुमच्यासाठी शिफारस केलेले. तुम्ही ते चालू करून ते काय करते ते पाहेपर्यंत ते बंद राहील."
   },
   "dictionaryLibrary": {
     "renamePrompt": "शब्दकोशाचे नाव बदला",

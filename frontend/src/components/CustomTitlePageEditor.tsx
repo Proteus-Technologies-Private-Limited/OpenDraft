@@ -4,7 +4,8 @@ import type { Node as PMNode, Schema } from '@tiptap/pm/model';
 import { useImageSrc } from '../hooks/useImageSrc';
 import type { PageLayout } from '../stores/editorStore';
 import { buildImageAttrs, warnIfImageDegraded } from '../utils/insertImage';
-import { customTitleBlockLines, titlePageAlignment, titlePageTextSize, TITLE_PAGE_ALIGNMENTS } from '../utils/customTitlePage';
+import { customTitleBlockLines, moveCustomTitleBlock, replaceBlockText, titlePageAlignment, titlePageTextSize, TITLE_PAGE_ALIGNMENTS } from '../utils/customTitlePage';
+import { measureImageFile } from '../utils/imageLines';
 import { padCustomTitlePage } from '../utils/titlePageDialogBlocks';
 import Select from './Select';
 import { showToast } from './Toast';
@@ -46,9 +47,11 @@ interface Props {
   linesPerPage: number;
   contentWidth: number;
   onUploadChange: (uploading: boolean) => void;
+  /** Width in CSS px of the editor column a new image is sized against. */
+  imageColumnWidth: () => number;
 }
 
-export default function CustomTitlePageEditor({ schema, nodes, onChange, layout, linesPerPage, contentWidth, onUploadChange }: Props) {
+export default function CustomTitlePageEditor({ schema, nodes, onChange, layout, linesPerPage, contentWidth, onUploadChange, imageColumnWidth }: Props) {
   const { t } = useTranslation(['format', 'common']);
   const [selected, setSelected] = useState(() => Math.max(0, nodes.findIndex(node => !isSpacer(node))));
   const [uploading, setUploading] = useState(false);
@@ -102,9 +105,9 @@ export default function CustomTitlePageEditor({ schema, nodes, onChange, layout,
 
   function updateText(index: number, text: string) {
     const updated = [...rows];
-    const node = updated[index];
-    const marks = node.firstChild?.marks;
-    updated[index] = node.type.create(node.attrs, text ? schema.text(text, marks) : null);
+    // Only the edited stretch is rebuilt, so an italic word or a second font
+    // elsewhere on the line survives typing into it.
+    updated[index] = replaceBlockText(updated[index], text, schema);
     updateRows(updated, index);
   }
 
@@ -127,13 +130,17 @@ export default function CustomTitlePageEditor({ schema, nodes, onChange, layout,
     setUploading(true);
     onUploadChange(true);
     try {
-      const attrs = await buildImageAttrs(file, ['title-page-image']);
+      // Its real height, so the page's spacing and the overflow check count the
+      // lines it will actually take rather than the 8-line default.
+      const size = await measureImageFile(file, imageColumnWidth());
+      const attrs = { ...await buildImageAttrs(file, ['title-page-image']), ...size };
       warnIfImageDegraded(attrs);
       const updated = [...rows];
       const target = !item || isSpacer(item) ? selected : selected + 1;
       updated.splice(target, 0, schema.nodes.screenplayImage.create({ ...attrs, tpCustom: true }));
       updateRows(updated, target);
     } catch (err) {
+      console.error('[TitlePage] adding a title-page image failed', err);
       showToast(t('titlePage.imageFailed', { error: err instanceof Error ? err.message : String(err) }), 'error');
     } finally {
       setUploading(false);
@@ -143,15 +150,8 @@ export default function CustomTitlePageEditor({ schema, nodes, onChange, layout,
 
   function moveItem(target: number) {
     if (!item || target === selected) return;
-    const updated = [...rows];
-    if (isSpacer(rows[target]) && customTitleBlockLines(item, contentWidth) === 1) {
-      updated[selected] = updated[target];
-      updated[target] = item;
-    } else {
-      updated.splice(selected, 1);
-      updated.splice(target, 0, item);
-    }
-    updateRows(updated, target);
+    const moved = moveCustomTitleBlock(rows, selected, lineNumbers[target], contentWidth, isSpacer);
+    updateRows(moved.rows, moved.index);
   }
 
   const paperStyle = {

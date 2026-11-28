@@ -36,17 +36,36 @@ The account summary opens with a **Support summary**: last sign-in, failed sign-
 The backend posts each event to `POST <COLLAB_SERVER_URL>/internal/audit` with a 60-second JWT signed with the shared secret (`type: backend_audit`, audience `opendraft-collab-audit`, `sub` = the account). Only the backend actions above are accepted there; a user's own token, a token for the admin audience, or one living over 2 minutes is refused. Sending happens in the background and never fails the writer's request; if the collab server is unreachable the event is written to the backend's log instead. `AUDIT_TO_COLLAB=0` turns it off.
 
 ### Trash and restore
-Deleting a project or script on the server moves it to `users/<id>/.trash/` instead of erasing it. It stays restorable for `TRASH_RETENTION_DAYS` (backend env, 30 by default) and is purged after that (checked at startup and every 6 hours). `0` deletes immediately, as before. The trash is not counted against the free-plan file limit, is not listed as a project, and is removed with the account.
+Deleting a project or script on the server moves it to `users/<id>/.trash/` instead of erasing it. It stays restorable for `TRASH_RETENTION_DAYS` (backend env, 30 by default) and is purged after that (checked at startup and every 6 hours). `0` turns the trash off: new deletions erase immediately, as before, and anything already in the trash from before the switch is purged once at startup. The trash is not counted against the free-plan file limit, is not listed as a project, and is removed with the account.
 
-**Recently deleted** on the account summary lists each item with its deletion and purge dates. **Restore** puts it back where it was: a script needs its project to exist (restore the project first), and nothing is overwritten — if a project with the same id was created again, or the script exists again, the restore is refused with the reason. The collab server signs a one-entry `type: admin_restore` token for this; the inventory token cannot restore.
+**Recently deleted** on the account summary lists each item with its deletion and purge dates. **Restore** puts it back where it was, and nothing is overwritten:
+- A **project** whose id has been taken again in the meantime (the writer made a new project with the same name) comes back beside it, under the next free id `<id>-N` (`night-shift-2`) and named "<name> (restored)". Scripts deleted from it before the project itself was deleted follow it to the new id, so they restore into it; later ones stay with the project that now has the old id. The console tells the admin the new name and id, and the `admin_restore` event records them (`restoredAs`, `restoredName`).
+- A **script** needs its project to exist (restore the project first). If the script exists in the project again, the restore is refused with the reason.
+
+The collab server signs a one-entry `type: admin_restore` token for this; the inventory token cannot restore.
 
 ### Retention
 | Setting | Server | Default | Effect |
 |---|---|---|---|
 | `AUDIT_RETENTION_DAYS` | collab | 365 | `audit_log` rows older than this are deleted daily; `0` keeps everything |
-| `TRASH_RETENTION_DAYS` | backend | 30 | deleted projects/scripts stay restorable this long; `0` disables the trash |
+| `TRASH_RETENTION_DAYS` | backend | 30 | deleted projects/scripts stay restorable this long; `0` disables the trash and purges existing trash entries at startup |
 
 Test: `./test-script/admin_support_activity.sh` (own servers on ports 4198/8198, scratch data; `KEEP=1` leaves them up).
+
+## Add-ons (web plugins)
+`#/plugins` (Overview → Add-ons) lists the web add-ons deployed on the backend (`backend/plugins/<id>/`) and sets each one's default for writers who have not chosen for themselves. Each has three choices:
+
+| Choice | Saved as | Effect |
+|---|---|---|
+| **Enabled** | `true` | on by default |
+| **Disabled** | `false` | off by default |
+| **Add-on's own default** | no saved choice | the add-on's `plugin.json` `defaultEnabled` if it sets one (shown in brackets: on / off), else *none set*: a plain add-on starts on, one that asks the writer first starts off |
+
+Picking **Add-on's own default** clears the admin's choice (the console posts `defaultEnabled: null`; only `true`, `false` and `null` are accepted, anything else is a 400 from the collab server or a 422 from the backend). The admin's choice is saved in the backend's data directory (`plugin-defaults/<id>`), not in the plugin's folder, so redeploying the add-on keeps it. Under each choice the console shows the default now in effect.
+
+A writer's own choice in Settings → Add-ons always wins over any default. A default of **Enabled** never switches on an add-on that sends data off the writer's device (declares `privacy` without `staysOnDevice`) or has settings to fill in: the writer sees it marked **Recommended** and turns it on themselves, after the activation dialog shows what leaves the device. The backend cannot see those declarations (they are in the add-on's script), so the console says this in a note rather than per row.
+
+The collab server signs a 60-second `type: admin_plugins` token for `GET /admin/plugins` and `POST /admin/plugins/<id>` on the backend. Tests: `venv/bin/python test-script/check_frontend_plugins.py` (backend) and `test-script/collab-admin-plugin-defaults.ts` (collab-server validation and the page's rows; run instructions at the top of the file).
 
 ## How the file list is fetched
 Files live in the Python backend, accounts in the collab server. On each account view the collab server signs a 60-second JWT (`type: admin_inventory`, audience `opendraft-backend-admin`, `sub` = that one account) with the shared `JWT_SECRET` and calls `GET <BACKEND_URL>/admin/accounts/<id>/inventory`. The backend accepts nothing else there: ordinary sign-in tokens, tokens for another account, or tokens living over 2 minutes are refused, and the admin token is refused by every other route. `ADMIN_EMAILS` only needs setting on the collab server.

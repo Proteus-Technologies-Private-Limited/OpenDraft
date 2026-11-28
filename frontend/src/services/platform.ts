@@ -116,20 +116,16 @@ export function needsSelectionHandles(): boolean {
   return isTauri() && getOS() === 'ios';
 }
 
-/**
- * Whether this device is one an Apple Pencil can be used with — an iPad.
- *
- * iPhone and iPod run the same OS and report the same way, but no Pencil pairs
- * with them, so the handwriting input is not offered there. iPadOS 13+ sends a
- * desktop-class "Macintosh" user agent, which is why a real Mac has to be told
- * apart by its lack of touch points rather than by its name.
- */
-export function supportsApplePencil(): boolean {
+/** iPadOS can send a desktop-class user agent. Touch distinguishes it from a Mac. */
+export function isIpad(): boolean {
   const ua = navigator.userAgent || '';
   if (/iphone|ipod/i.test(ua)) return false;
   if (/ipad/i.test(ua)) return true;
   return /macintosh/i.test(ua) && navigator.maxTouchPoints > 1;
 }
+
+/** Whether to offer Apple Pencil handwriting input on this device. */
+export const supportsApplePencil = isIpad;
 
 /**
  * Whether this device can show more than one OpenDraft window (issue #63).
@@ -235,6 +231,16 @@ function collectExtraHeaders(headers: HeadersInit | undefined): Record<string, s
 /** Seconds a picture upload or download may take (see http_fetch in lib.rs). */
 const BINARY_TRANSFER_TIMEOUT_SECS = 300;
 
+/**
+ * The `Accept` a picture download sends. On the desktop and mobile apps it is
+ * what earns the request {@link BINARY_TRANSFER_TIMEOUT_SECS} instead of the
+ * usual 10 s — `http_fetch` has no other way to tell a picture from an API
+ * call before the bytes arrive. Every route that fetches image bytes (the
+ * editor's pictures, the exporters', device sync) must send it, or a few-MB
+ * picture over a slow connection fails at 10 s.
+ */
+export const PICTURE_ACCEPT = 'image/*, application/octet-stream';
+
 /** Bytes to base64 in chunks, so a large picture does not overflow the call stack. */
 export function bytesToBase64(bytes: Uint8Array): string {
   let binary = '';
@@ -282,7 +288,8 @@ export async function platformFetch(url: string, options?: RequestInit): Promise
       bodyBase64 = encoded.base64;
       contentType = contentType ?? encoded.contentType ?? undefined;
     }
-    // A picture on its way in or out gets longer than the usual budget.
+    // A picture on its way in or out gets longer than the usual budget
+    // (PICTURE_ACCEPT is how a download says so).
     const accept = pickHeader(options?.headers, 'Accept') ?? '';
     const binaryTransfer = bodyBase64 !== undefined || /octet-stream|image\//i.test(accept);
     const result = await invoke<{ status: number; body: string; encoding?: string; content_type?: string | null }>('http_fetch', {

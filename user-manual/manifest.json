@@ -1,11 +1,11 @@
 {
-  "version": "56578cf6f62ed469",
+  "version": "fff189df6ba2d5f3",
   "pages": [
     {
       "slug": "index.html",
       "title": "Home",
       "section": "Getting Started",
-      "hash": "f6af98fb305df740"
+      "hash": "f33037234f9fe02c"
     },
     {
       "slug": "getting-started.html",
@@ -89,13 +89,13 @@
       "slug": "script-notes.html",
       "title": "Script Notes",
       "section": "Characters & Notes",
-      "hash": "bc9ab18f64bf208f"
+      "hash": "6f65f86177b93cb9"
     },
     {
       "slug": "sidekick.html",
       "title": "Sidekick",
       "section": "Characters & Notes",
-      "hash": "e1335aa968f7bc0f"
+      "hash": "fcfc3492daefafe2"
     },
     {
       "slug": "script-statistics.html",
@@ -113,7 +113,7 @@
       "slug": "tags.html",
       "title": "Tags & Entities",
       "section": "Production",
-      "hash": "5cfd84e68ca22e12"
+      "hash": "595e551dd128768d"
     },
     {
       "slug": "locations.html",
@@ -191,7 +191,7 @@
       "slug": "plugin-development.html",
       "title": "Plugin & Add-on Development",
       "section": "Developers",
-      "hash": "77f30d9ed2aea153"
+      "hash": "8916e2667541137b"
     }
   ]
 }

@@ -162,7 +162,9 @@
     "turnOff": "بند کریں",
     "title": "ایڈ آنز",
     "description": "اختیاری خصوصیات جنہیں آپ استعمال کرنا چاہیں تو چن سکتے ہیں۔",
-    "settingsButton": "ترتیبات…"
+    "settingsButton": "ترتیبات…",
+    "recommended": "تجویز کردہ",
+    "recommendedHint": "آپ کے لیے تجویز کردہ۔ جب تک آپ اسے آن کر کے یہ نہ دیکھ لیں کہ یہ کیا کرتا ہے، یہ بند رہے گا۔"
   },
   "dictionaryLibrary": {
     "renamePrompt": "لغت کا نام بدلیں",

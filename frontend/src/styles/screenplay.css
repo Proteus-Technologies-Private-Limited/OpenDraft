@@ -6139,6 +6139,20 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: var(--p
   border-bottom-color: var(--fd-accent);
 }
 /* ── General notes toolbar ── */
+.annotation-panel-actions {
+  display: flex;
+  flex-shrink: 0;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--fd-border);
+}
+.annotation-panel-actions .dialog-btn { min-height: 36px; }
+.annotation-panel-hint {
+  margin: 0;
+  color: var(--fd-text-muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
 .general-notes-toolbar {
   display: flex;
   align-items: center;
@@ -10297,6 +10311,7 @@ body.selection-bands-active .page .ProseMirror::selection { background: transpar
 .tags-hidden .production-tag-highlight {
   background-color: transparent !important;
   border-bottom: none !important;
+  cursor: inherit;
 }
 /* Pending tag selection prompt in Tags panel */
 .tags-pending {
@@ -15179,8 +15194,10 @@ html.phone .menu-bar.chrome-comfortable .menu-item { min-height: 46px; }
 /* ============ FOCUS MODE (View → Focus Mode) ============ */
 /* Side panels, their resize handles and the status bar step aside; the menus
    are already reduced to the floating button (Hidden mode). The panels stay
-   mounted, so each comes back exactly as it was. */
+   mounted, so each comes back exactly as it was. Plugin bottom panels sit
+   outside .editor-layout, so they are named on their own. */
 .app-container.focus-mode .editor-layout > :not(.editor-center),
+.app-container.focus-mode .plugin-bottom-panels,
 .app-container.focus-mode .status-bar-row { display: none !important; }
 
 /* Typewriter scrolling needs room below the last line to hold it mid-screen. */

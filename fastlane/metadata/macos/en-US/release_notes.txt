@@ -1,4 +1,4 @@
-Sidekick is built in and on by default. Keep to-dos, ideas and cut passages with your screenplay, and put an excerpt back when you need it.
+Sidekick is now built in. Turn it on in Settings > Add-ons to keep to-dos, ideas and cut passages with your screenplay, and put an excerpt back when you need it.
 
 Design custom title pages with text, fields and images. Sync whole projects, including treatments, locations and assets, and review merged screenplay edits when changes overlap.
 

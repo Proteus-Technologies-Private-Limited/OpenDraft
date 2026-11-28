@@ -18,6 +18,7 @@ import type { Editor } from '@tiptap/react';
 
 import { pluginRegistry, resolvePluginText, type PluginPanelEntry } from '../plugins/registry';
 import { PLUGIN_PANEL_CLOSE_EVENT, PLUGIN_PANEL_OPEN_EVENT } from './PluginPanelTabs';
+import { isCloseRequestFor } from '../plugins/panelClose';
 import './PluginBottomPanels.css';
 
 const HEIGHT_KEY = 'opendraft:plugin-bottom-panel:height';
@@ -29,8 +30,8 @@ function maxHeight(): number {
   return Math.max(MIN_HEIGHT, Math.round((globalThis.innerHeight || 800) * 0.6));
 }
 
-function clampHeight(height: number): number {
-  return Math.max(MIN_HEIGHT, Math.min(maxHeight(), Math.round(height)));
+function clampHeight(height: number, limit: number = maxHeight()): number {
+  return Math.max(MIN_HEIGHT, Math.min(limit, Math.round(height)));
 }
 
 function readHeight(): number {
@@ -125,8 +126,37 @@ export const PluginBottomPanels: React.FC<{ editor: Editor | null }> = ({ editor
   const panels = useSlotPanels('bottom-panel', (next) => {
     setActiveId((current) => (current && !next.some((p) => p.id === current) ? null : current));
   });
-  const [height, setHeight] = useState(readHeight);
+  const [height, setHeightState] = useState(readHeight);
+  // The latest height, ahead of the render that shows it: a drag's last
+  // pointermove may not have rendered yet when pointerup saves it.
+  const heightRef = useRef(height);
+  const setHeight = (next: number) => {
+    heightRef.current = next;
+    setHeightState(next);
+  };
+  const [limit, setLimit] = useState(maxHeight);
   const drag = useRef<{ startY: number; startHeight: number } | null>(null);
+
+  // A smaller window lowers the 60% ceiling: the panel, what is announced and
+  // what is remembered all follow it, not just the next mount.
+  useEffect(() => {
+    const onResize = () => {
+      try {
+        const nextLimit = maxHeight();
+        setLimit(nextLimit);
+        const clamped = clampHeight(heightRef.current, nextLimit);
+        if (clamped !== heightRef.current) {
+          heightRef.current = clamped;
+          setHeightState(clamped);
+          writeHeight(clamped);
+        }
+      } catch (err) {
+        console.warn('[plugins] could not fit the bottom panel to the window', err);
+      }
+    };
+    globalThis.addEventListener?.('resize', onResize);
+    return () => globalThis.removeEventListener?.('resize', onResize);
+  }, []);
 
   useEffect(() => {
     const ids = () => pluginRegistry.getPanels('bottom-panel').map((p) => p.id);
@@ -136,12 +166,9 @@ export const PluginBottomPanels: React.FC<{ editor: Editor | null }> = ({ editor
     };
     const close = (e: Event) => {
       const id = (e as CustomEvent<{ panelId?: string }>).detail?.panelId;
-      if (id) {
-        setActiveId((current) => (current === id ? null : current));
-        return;
-      }
       // Without an id, close only when the request comes from inside a bottom panel.
-      if (document.activeElement?.closest('.plugin-bottom-panels__content')) setActiveId(null);
+      if (!isCloseRequestFor('bottom-panel', id, document.activeElement)) return;
+      setActiveId((current) => (!id || current === id ? null : current));
     };
     document.addEventListener(PLUGIN_PANEL_OPEN_EVENT, open);
     document.addEventListener(PLUGIN_PANEL_CLOSE_EVENT, close);
@@ -164,7 +191,7 @@ export const PluginBottomPanels: React.FC<{ editor: Editor | null }> = ({ editor
 
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     e.preventDefault();
-    drag.current = { startY: e.clientY, startHeight: height };
+    drag.current = { startY: e.clientY, startHeight: heightRef.current };
     try {
       e.currentTarget.setPointerCapture(e.pointerId);
     } catch (err) {
@@ -178,7 +205,7 @@ export const PluginBottomPanels: React.FC<{ editor: Editor | null }> = ({ editor
   const onPointerUp = () => {
     if (!drag.current) return;
     drag.current = null;
-    writeHeight(height);
+    writeHeight(heightRef.current);
   };
 
   const choose = (id: string) => setActiveId((current) => (current === id ? null : id));
@@ -198,14 +225,14 @@ export const PluginBottomPanels: React.FC<{ editor: Editor | null }> = ({ editor
             className="plugin-bottom-panels__resize"
             role="separator" aria-orientation="horizontal" tabIndex={0}
             aria-label={t('pluginPanels.resize')}
-            aria-valuenow={height} aria-valuemin={MIN_HEIGHT} aria-valuemax={maxHeight()}
+            aria-valuenow={height} aria-valuemin={MIN_HEIGHT} aria-valuemax={limit}
             style={{ touchAction: 'none' }}
             onPointerDown={onPointerDown} onPointerMove={onPointerMove}
             onPointerUp={onPointerUp} onPointerCancel={onPointerUp}
             onKeyDown={(e) => {
               const next = e.key === 'ArrowUp' ? height + STEP
                 : e.key === 'ArrowDown' ? height - STEP
-                : e.key === 'Home' ? maxHeight()
+                : e.key === 'Home' ? limit
                 : e.key === 'End' ? MIN_HEIGHT : null;
               if (next === null) return;
               e.preventDefault();

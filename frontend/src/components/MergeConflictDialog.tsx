@@ -17,21 +17,27 @@ import ScriptDiffView from './ScriptDiffView';
 import { diffWords } from '../utils/scriptDiff';
 import { jsonBlockText } from '../utils/nodeText';
 import {
-  applyMerge, choicesFor, mergeScripts, recordLabel,
-  type ItemConflict, type MergeChoice, type MergeConflict, type MergeSegment, type ScriptContent, type TextConflict,
+  applyMerge, choicesFor, mergeScripts, outdatedMergeCopies, recordLabel,
+  type ItemConflict, type MergeChoice, type MergeConflict, type MergeCopies, type MergeSegment, type ScriptContent,
+  type TextConflict,
 } from '../utils/scriptMerge';
 
 export type MergeOutcome =
   | { kind: 'device' }
   | { kind: 'cloud' }
-  | { kind: 'merged'; content: ScriptContent };
+  /** `cloudRevision`: the cloud revision the merge was built on, when known. */
+  | { kind: 'merged'; content: ScriptContent; cloudRevision?: string };
 
 interface Props {
   title: string;
   base: ScriptContent | null;
   device: ScriptContent;
   cloud: ScriptContent;
-  /** Throws to keep the dialog open; the message is shown to the writer. */
+  /** The revision `cloud` was read at, handed back with a merge. */
+  cloudRevision?: string;
+  /** Throws to keep the dialog open; the message is shown to the writer. An
+   * error carrying new copies (`withMergeCopies`: a copy changed while the
+   * writer was merging) rebuilds the merge from them. */
   onResolve: (outcome: MergeOutcome) => Promise<void>;
   onClose: () => void;
   /** Hide "keep one whole version" where the caller has its own buttons for it. */
@@ -173,13 +179,20 @@ function AutoList({ segments }: { segments: MergeSegment[] }) {
   );
 }
 
-export function MergeConflictDialog({ title, base, device, cloud, onResolve, onClose, allowWhole = true }: Props) {
+export function MergeConflictDialog({
+  title, base: baseProp, device: deviceProp, cloud: cloudProp, cloudRevision, onResolve, onClose, allowWhole = true,
+}: Props) {
   const { t } = useTranslation('projects');
   const [tab, setTab] = useState<'merge' | 'compare'>('merge');
   const [compare, setCompare] = useState<Compare>('cloudDevice');
   const [choices, setChoices] = useState<Record<string, MergeChoice>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Newer copies to merge, once a save found that one changed meanwhile.
+  const [rebuilt, setRebuilt] = useState<MergeCopies | null>(null);
+  const base = rebuilt ? rebuilt.base : baseProp;
+  const device = rebuilt?.device ?? deviceProp;
+  const cloud = rebuilt ? rebuilt.cloud : cloudProp;
 
   const result = useMemo(() => mergeScripts(base, device, cloud), [base, device, cloud]);
   const merged = useMemo(() => applyMerge(result, choices), [result, choices]);
@@ -196,6 +209,14 @@ export function MergeConflictDialog({ title, base, device, cloud, onResolve, onC
       await onResolve(outcome);
     } catch (failure) {
       console.error('[merge] could not settle the conflict:', failure);
+      const copies = outdatedMergeCopies(failure);
+      if (copies) {
+        // Built again on the newer copies: the earlier choices were about
+        // conflicts that may no longer exist, so they are asked again.
+        setRebuilt({ base: copies.base, device: copies.device ?? device, cloud: copies.cloud, cloudRevision: copies.cloudRevision });
+        setChoices({});
+        setTab('merge');
+      }
       setError(failure instanceof Error && failure.message ? failure.message : t('merge.saveFailed'));
     } finally {
       setBusy(false);
@@ -292,7 +313,9 @@ export function MergeConflictDialog({ title, base, device, cloud, onResolve, onC
           <div className="merge-primary-row">
             {remaining > 0 && <span className="merge-remaining">{t('merge.remaining', { count: remaining })}</span>}
             <button type="button" className="merge-primary" disabled={busy || remaining > 0 || result.identical && !allowWhole}
-              onClick={() => void resolve({ kind: 'merged', content: merged })}>
+              onClick={() => void resolve({
+                kind: 'merged', content: merged, cloudRevision: rebuilt ? rebuilt.cloudRevision : cloudRevision,
+              })}>
               {busy ? t('merge.saving') : t('merge.saveMerged')}
             </button>
           </div>

@@ -42,7 +42,7 @@ A complete list of features in OpenDraft.
 - **Asset Management** -- Attach reference images, research docs, and notes to projects
 - **Location Profiles** -- A record of every place in the story, discovered from scene headings or added by hand, and kept with the project on every platform: what it looks like, named looks (Day, Night, Dressed for the party) with their own images, address, contact, availability, notes, aliases, tags, reference images with a main image shown in the list, and a Scenes tab with the look, setting note and who is there for every scene set there
 - **Scene Details** -- A panel that follows the cursor and shows the scene it is in: synopsis, location and the look it shows, a setting note, every character with the costumes they wear in order (including changes during the scene) and people there without speaking, production tags in the scene, and its shots with the references each needs. Add-ons can add buttons per scene or per shot (`sceneActions`), e.g. to make a clip from those references
-- **Sidekick** -- Track rewrites, collect ideas, and keep cut passages with the screenplay. File a selection into a task type, jump to its source, or put the text back. Included in the standard app and on by default. See the [Sidekick manual](../user-manual/sidekick.html).
+- **Sidekick** -- Track rewrites, collect ideas, and keep cut passages with the screenplay. File a selection into a task type, jump to its source, or put the text back. Built into every release as an add-on; turn it on in Settings → Add-ons. See the [Sidekick manual](../user-manual/sidekick.html).
 - **Script Notes** -- Inline annotations for review and feedback, with threaded replies, resolve and reopen, assigning to a collaborator, and @mentions
 
 ## Version Control
@@ -130,7 +130,7 @@ A complete list of features in OpenDraft.
 
 - **Whole-Project Cloud Sync** -- Sync device projects with scripts, treatments, project details, locations and assets. OpenDraft can merge edits on different lines automatically. For overlaps, review the two copies and edit the merged result. See [cloud sync and merges](cloud-sync-merge.md).
 - **Plugin Architecture** -- Extend OpenDraft with custom plugins: menu items, panels, routes, editor extensions, and importers, exporters and reports that join the built-in File and Analytics menus
-- **Add-ons** -- Manage bundled and deployed add-ons in Settings → Add-ons. Sidekick starts on. AI add-ons require you to turn them on. The activation dialog explains data sharing and shows any settings.
+- **Add-ons** -- Manage bundled and deployed add-ons in Settings → Add-ons. Every add-on, Sidekick included, stays off until you turn it on. The activation dialog explains data sharing and shows any settings.
 - **Open API** -- FastAPI backend with documented endpoints
 
 ### Dictation and screenplay commands
