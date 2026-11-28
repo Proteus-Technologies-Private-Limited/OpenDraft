@@ -381,7 +381,8 @@
       "Purple": "Roxa"
     },
     "colorCount": "{{color}} ({{n}})",
-    "emptyNone": "Ainda não há notas. Selecione um texto no editor, clique com o botão direito e escolha \"Adicionar nota do roteiro\".",
+    "emptyNone": "Ainda não há notas no roteiro.",
+    "selectText": "Selecione um trecho do roteiro para adicionar uma nota.",
     "emptyResolved": "Todas as notas estão resolvidas. Marque \"Mostrar resolvidas\" para vê-las.",
     "emptyFilter": "Nenhuma nota corresponde a este filtro.",
     "filterByContext": "Filtrar por \"{{label}}\"",

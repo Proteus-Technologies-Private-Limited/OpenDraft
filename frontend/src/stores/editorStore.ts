@@ -685,6 +685,11 @@ export interface TagItem {
   createdAt: string;
 }
 
+export interface TagPanelTarget {
+  id: string;
+  edit: boolean;
+}
+
 export const DEFAULT_TAG_CATEGORIES: TagCategory[] = [
   { id: 'cast', name: 'Cast', color: '#e06060', isBuiltIn: true },
   { id: 'extras', name: 'Extras', color: '#c0392b', isBuiltIn: true },
@@ -1108,9 +1113,8 @@ interface EditorState {
   /** When set, the Tags panel shows a "select category" prompt for this selection */
   pendingTagSelection: { from: number; to: number; text: string; elementType: string; sceneId: string | null } | null;
   setPendingTagSelection: (sel: { from: number; to: number; text: string; elementType: string; sceneId: string | null } | null) => void;
-  /** When set, the Tags panel auto-expands this tag for editing */
-  editingTagId: string | null;
-  setEditingTagId: (id: string | null) => void;
+  tagPanelTarget: TagPanelTarget | null;
+  setTagPanelTarget: (target: TagPanelTarget | null) => void;
 
   // The effective zoom bucket can differ from viewLayout in book posture.
   zoomLayout: ViewLayout;
@@ -1929,8 +1933,8 @@ export const useEditorStore = create<EditorState>()(skipUnchanged((set, get) => 
   setProfileFocus: (focus) => set({ profileFocus: focus }),
   pendingTagSelection: null,
   setPendingTagSelection: (sel) => set({ pendingTagSelection: sel }),
-  editingTagId: null,
-  setEditingTagId: (id) => set({ editingTagId: id }),
+  tagPanelTarget: null,
+  setTagPanelTarget: (target) => set({ tagPanelTarget: target }),
 
   zoomLayout: currentZoomLayout(initialViewLayout),
   zoomLevel: savedZoom(_vs, currentZoomLayout(initialViewLayout)),

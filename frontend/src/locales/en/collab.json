@@ -372,7 +372,8 @@
       "Purple": "Purple"
     },
     "colorCount": "{{color}} ({{n}})",
-    "emptyNone": "No notes yet. Select text in the editor, right-click, and choose \"Add Script Note\".",
+    "emptyNone": "No script notes yet.",
+    "selectText": "Select text in the editor to add a note.",
     "emptyResolved": "Every note is resolved. Tick \"Show resolved\" to see them.",
     "emptyFilter": "No notes match this filter.",
     "filterByContext": "Filter by \"{{label}}\"",
