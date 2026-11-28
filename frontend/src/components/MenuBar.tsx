@@ -4269,14 +4269,65 @@ const MenuBar: React.FC<MenuBarProps> = ({
     const handler = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       if (menuRef.current && !menuRef.current.contains(target)) {
-        // Don't close if clicking inside the dropdown portal or a submenu
-        if (target.closest('.menu-dropdown') || target.closest('.menu-fab')) return;
+        // Don't close if clicking inside the dropdown portal or a submenu,
+        // or on the add-on tab strip, which shows only while this menu is
+        // open — closing on mousedown would hide the tab before its click.
+        if (target.closest('.menu-dropdown') || target.closest('.menu-fab')
+          || target.closest('.plugin-panel-tabs')) return;
         setFloatingMenuOpen(false);
       }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [floatingMenuOpen]);
+
+  // Hidden mode puts the add-on tab strip away with the menus, and the
+  // floating menu button brings it back with them (PluginPanelTabs.css).
+  // Flagged on <html> because the strip is drawn by the editor, not here.
+  // A layout effect, so the strip is showing before the one below measures it.
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    try {
+      root.classList.toggle('menu-hidden', toolbarMode === 'hidden');
+      root.classList.toggle('menu-floating-open', toolbarMode === 'hidden' && floatingMenuOpen);
+    } catch (err) {
+      console.warn('[menu] could not flag hidden mode for the add-on strip', err);
+    }
+    return () => { root.classList.remove('menu-hidden', 'menu-floating-open'); };
+  }, [toolbarMode, floatingMenuOpen]);
+
+  // The floating menu stops short of the add-on strip that opened with it.
+  // On a phone the menu runs the width of the screen, and it sat on top of
+  // the strip's tabs. Measured, not assumed to be 36px on the right: the
+  // add-ons can be docked on either side, and the sides swap in RTL.
+  const [addOnStripInset, setAddOnStripInset] = useState({ left: 0, right: 0 });
+  useLayoutEffect(() => {
+    if (toolbarMode !== 'hidden' || !floatingMenuOpen) {
+      setAddOnStripInset(prev => (prev.left || prev.right ? { left: 0, right: 0 } : prev));
+      return;
+    }
+    const measure = () => {
+      try {
+        let left = 0;
+        let right = 0;
+        const viewport = window.innerWidth;
+        document.querySelectorAll('.plugin-panel-tabs__strip').forEach(strip => {
+          const rect = strip.getBoundingClientRect();
+          if (rect.width === 0 || rect.height === 0) return;
+          if (rect.left + rect.width / 2 > viewport / 2) right = Math.max(right, viewport - rect.left);
+          else left = Math.max(left, rect.right);
+        });
+        left = Math.round(left);
+        right = Math.round(right);
+        setAddOnStripInset(prev => (prev.left === left && prev.right === right ? prev : { left, right }));
+      } catch (err) {
+        console.warn('[menu] could not measure the add-on strip', err);
+      }
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [toolbarMode, floatingMenuOpen]);
 
   // The docked bar drops its menu labels, keeping the icons, when they do not
   // fit — the left half of a foldable held like a book is about 420px, which
@@ -4416,17 +4467,22 @@ const MenuBar: React.FC<MenuBarProps> = ({
           {floatingMenuOpen && (() => {
             const fabInBottom = fabY > window.innerHeight * 0.55;
             const fabInRight = fabX > window.innerWidth * 0.5;
-            const mStyle: React.CSSProperties = {};
+            // Read by the stylesheet's viewport-wide sizing (screenplay.css).
+            const mStyle: React.CSSProperties & Record<'--addon-inset-left' | '--addon-inset-right', string> = {
+              '--addon-inset-left': `${addOnStripInset.left}px`,
+              '--addon-inset-right': `${addOnStripInset.right}px`,
+            };
             if (fabInBottom) {
               mStyle.bottom = window.innerHeight - fabY + 8;
             } else {
               mStyle.top = fabY + FAB_SIZE + 8;
             }
             // Kept inside the side safe-area insets, as the button is.
+            // Kept off the add-on strip, too.
             if (fabInRight) {
-              mStyle.right = `max(${window.innerWidth - fabX - FAB_SIZE}px, env(safe-area-inset-right, 0px))`;
+              mStyle.right = `max(${window.innerWidth - fabX - FAB_SIZE}px, env(safe-area-inset-right, 0px), ${addOnStripInset.right + 8}px)`;
             } else {
-              mStyle.left = `max(${fabX}px, env(safe-area-inset-left, 0px))`;
+              mStyle.left = `max(${fabX}px, env(safe-area-inset-left, 0px), ${addOnStripInset.left + 8}px)`;
             }
             return (
               <div className="menu-bar chrome-comfortable menu-bar--floating" style={mStyle} ref={menuRef}>

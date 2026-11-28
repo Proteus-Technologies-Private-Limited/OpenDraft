@@ -115,6 +115,18 @@
   opacity: 1;
 }
 
+/* Menu bar set to Hidden (View → Menu and Toolbar): the tab strip goes with
+   the menus and comes back while the floating menu button's menu is open
+   (MenuBar.tsx flags both on <html>). An open panel keeps its strip, so it
+   can still be switched or closed after the menu is put away. A foldable's
+   dock (.fold-panel-content) is a tab the writer picked, so it stays. */
+html.menu-hidden:not(.menu-floating-open) .plugin-panel-tabs:not(.plugin-panel-tabs--open) {
+  display: none;
+}
+html.menu-hidden:not(.menu-floating-open) .fold-panel-content .plugin-panel-tabs:not(.plugin-panel-tabs--open) {
+  display: flex;
+}
+
 /* Small screens: a plugin panel opens as an overlay from the right, as the
    built-in side panels do (styles/screenplay.css, ≤900px and ≤480px), instead
    of taking its width out of the page. Without this, a 300px plugin panel on a
@@ -122,10 +134,33 @@
    stays where it is; the panel carries an inline width from the desktop
    resize handle, which only `!important` outranks. */
 @media (max-width: 900px) {
-  .plugin-panel-tabs__content {
-    /* Clear of the system status bar. Android under-reports the inset, so it
-       gets the same 28px floor as the built-in panels (screenplay.css). */
+  /* Clear of the system status bar. Android under-reports the inset, so it
+     gets the same 28px floor as the built-in panels (screenplay.css). Set on
+     the wrapper so the panel and its strip share it. */
+  .plugin-panel-tabs {
     --plugin-panel-top: env(safe-area-inset-top, 0px);
+  }
+  html.android .plugin-panel-tabs {
+    --plugin-panel-top: max(env(safe-area-inset-top, 0px), 28px);
+  }
+  /* While a panel is open, its strip joins the overlay and runs the full
+     height of the screen. Left in the editor row it began below the menu bar
+     and toolbar, so their last items — the toolbar's ⋮, the last menu, the
+     status bar's toggle — showed above and below it, tappable but opening
+     nothing visible. The wrapper keeps the strip's 36px in the row so the
+     script does not reflow, and lose its place, under the overlay. */
+  .plugin-panel-tabs--open { min-width: 36px; }
+  .plugin-panel-tabs--open > .plugin-panel-tabs__strip {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    right: 0;
+    z-index: 2900;
+    box-sizing: border-box;
+    padding-top: calc(var(--plugin-panel-top) + 4px);
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 4px);
+  }
+  .plugin-panel-tabs__content {
     position: fixed;
     top: 0;
     bottom: 0;
@@ -139,9 +174,6 @@
     box-shadow: -4px 0 20px rgba(0, 0, 0, 0.4);
     padding-top: var(--plugin-panel-top);
     padding-bottom: env(safe-area-inset-bottom, 0px);
-  }
-  html.android .plugin-panel-tabs__content {
-    --plugin-panel-top: max(env(safe-area-inset-top, 0px), 28px);
   }
   /* The close and pop-out buttons are positioned, so padding does not move
      them; without this they sat in the status bar, out of reach. */
@@ -173,4 +205,10 @@
   z-index: auto;
   padding-top: 0;
   padding-bottom: 0;
+}
+.fold-panel-content .plugin-panel-tabs--open { min-width: 0; }
+.fold-panel-content .plugin-panel-tabs--open > .plugin-panel-tabs__strip {
+  position: static;
+  z-index: auto;
+  padding: 4px 0;
 }

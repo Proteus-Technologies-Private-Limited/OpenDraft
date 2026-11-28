@@ -174,7 +174,7 @@ export const PluginPanelTabs: React.FC<Props> = ({
     // One row — panel, then its tab strip — whatever lays this out: the
     // editor row, a workspace dock (a column, which stacked the strip under a
     // tall panel and off the screen) or a foldable's dock.
-    <div className="plugin-panel-tabs">
+    <div className={'plugin-panel-tabs' + (active ? ' plugin-panel-tabs--open' : '')}>
       {panels.filter(panel => panel.id !== active?.id).map(panel => (
         <div key={panel.id} id={contentId(panel.id)} role="tabpanel" aria-labelledby={tabId(panel.id)} hidden />
       ))}
