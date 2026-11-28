@@ -135,6 +135,31 @@ export const PluginPanelTabs: React.FC<Props> = ({
     };
   }, []);
 
+  // On a small screen the panel is an overlay over the whole page bar the tab
+  // strip, so the end of the menu bar and toolbar still shows above the strip
+  // (PluginPanelTabs.css, ≤900px). Whatever those open — the toolbar's ⋮
+  // menu, a menu — hangs below them and under the overlay, out of sight.
+  // Reaching for them closes the panel, as tapping beside a built-in panel
+  // does, and the tap goes on to open what it was aimed at. Docked panels
+  // (wide windows, a foldable's dock) are not overlays and stay open.
+  const contentRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!activeId) return;
+    const onPointerDown = (event: PointerEvent) => {
+      try {
+        const target = event.target instanceof Element ? event.target : null;
+        if (!target?.closest('.toolbar, .menu-bar')) return;
+        const content = contentRef.current;
+        if (!content || getComputedStyle(content).position !== 'fixed') return;
+        setActiveId(null);
+      } catch (err) {
+        console.warn('[plugins] could not close the add-on panel for the toolbar', err);
+      }
+    };
+    document.addEventListener('pointerdown', onPointerDown, true);
+    return () => document.removeEventListener('pointerdown', onPointerDown, true);
+  }, [activeId]);
+
   useEffect(() => {
     const active = panels.find(p => p.id === activeId);
     onActiveChange?.(active ? { id: active.id, label: resolvePluginText(active.labelKey, active.label), activation } : null);
@@ -155,6 +180,7 @@ export const PluginPanelTabs: React.FC<Props> = ({
       ))}
       {active && (
         <div
+          ref={contentRef}
           className="plugin-panel-tabs__content" data-plugin-panel={active.id}
           id={contentId(active.id)} role="tabpanel" aria-labelledby={tabId(active.id)} tabIndex={0}
           style={{ width, minWidth: width }}

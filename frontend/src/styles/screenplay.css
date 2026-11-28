@@ -15774,6 +15774,16 @@ button.beat-scene-chip:hover { border-color: var(--fd-accent); color: var(--fd-a
 .editor-main::-webkit-scrollbar { display: block; width: 14px; height: 14px; }
 .editor-main::-webkit-scrollbar-thumb { background: var(--fd-text-muted); border: 3px solid var(--fd-bg); border-radius: 7px; }
 .editor-main::-webkit-scrollbar-thumb:hover { background: var(--fd-text); }
+/* …but only where there is a pointer to drag it with. On a touch-only phone
+   or tablet the rule above, coming later than the touch block that hides the
+   bar (search "Scrollbars: hidden on touch"), left a permanent 14px dark
+   track down the right of the script, between the page and the edge or the
+   add-on tab strip. The finger scrolls the page, and the system's own
+   indicator shows while it does. */
+@media (hover: none) and (pointer: coarse) {
+  .editor-main { scrollbar-width: none; scrollbar-gutter: auto; }
+  .editor-main::-webkit-scrollbar { display: none; }
+}
 
 .external-save-review { box-sizing: border-box; max-width: min(36rem, calc(100vw - 2rem - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px))); max-height: calc(100dvh - 2rem); overflow: auto; background: var(--fd-dialog-bg); color: var(--fd-text); border: 1px solid var(--fd-border); border-radius: 8px; padding: 24px; font: inherit; }
 .external-save-review::backdrop { background: rgba(0,0,0,.6); }
