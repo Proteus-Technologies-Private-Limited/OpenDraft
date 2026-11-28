@@ -5,6 +5,7 @@ import { ELEMENT_LABELS, NOTE_COLORS, type ElementType } from '../stores/editorS
 import { elementLabel, elementDescription } from '../editor/elementLabels';
 import { useEditorStore } from '../stores/editorStore';
 import { singleLine } from '../utils/nodeText';
+import { pendingTagForRange } from '../utils/annotationSelection';
 
 // Element types for the picker sheet
 // Fountain's non-printing structural elements. Last in every list — they are
@@ -176,22 +177,13 @@ const MobileAccessoryBar: React.FC<MobileAccessoryBarProps> = ({ editor }) => {
   }, [editor, addNote, setNoteFilter, scriptNotesOpen, toggleScriptNotes]);
 
   const handleTag = useCallback(() => {
-    const { from, to } = editor.state.selection;
-    const $from = editor.state.doc.resolve(from);
-    const hasSelection = from !== to;
-    const selFrom = hasSelection ? from : $from.start();
-    const selTo = hasSelection ? to : $from.end();
-    const text = editor.state.doc.textBetween(selFrom, selTo, ' ');
-    const currentNodeType = $from.parent.type.name as ElementType;
-
-    let sceneId: string | null = null;
-    let sceneIdx = 0;
-    editor.state.doc.nodesBetween(0, selFrom, (node) => {
-      if (node.type.name === 'sceneHeading') { sceneId = `scene-${sceneIdx}`; sceneIdx++; }
-      return true;
+    const { from, to, empty, $from } = editor.state.selection;
+    const range = pendingTagForRange(editor.state.doc, {
+      from: empty ? $from.start() : from,
+      to: empty ? $from.end() : to,
     });
-
-    setPendingTagSelection({ from: selFrom, to: selTo, text: text.slice(0, 80), elementType: currentNodeType, sceneId });
+    if (!range) return;
+    setPendingTagSelection(range);
     if (!tagsPanelOpen) toggleTagsPanel();
   }, [editor, setPendingTagSelection, tagsPanelOpen, toggleTagsPanel]);
 

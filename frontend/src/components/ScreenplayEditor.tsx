@@ -5739,39 +5739,35 @@ const ScreenplayEditor: React.FC = () => {
     setSmartTypeState(s => ({ ...s, visible: false }));
   }, [editor]);
 
-  // --- Click on script note highlight → auto-filter notes panel ---
-  // Only opens the panel when note highlights are visible (notesVisible).
-  // When highlights are off, clicks pass through as normal editing.
+  // Open the panel for the nearest visible annotation when its highlight is tapped.
   useEffect(() => {
     if (!editor) return;
+    const editorEl = editor.view.dom;
     const handleClick = (e: MouseEvent) => {
       const store = useEditorStore.getState();
-      // Only intercept clicks when highlights are visible
-      if (!store.notesVisible) return;
+      if (!store.notesVisible && !store.tagsVisible) return;
+      if (!(e.target instanceof Element)) return;
+      const selection = editorEl.ownerDocument.getSelection();
+      if (selection?.anchorNode && !selection.isCollapsed && editorEl.contains(selection.anchorNode)) return;
+      const selector = [
+        store.notesVisible ? '.script-note-highlight[data-note-id]' : '',
+        store.tagsVisible ? '.production-tag-highlight[data-tag-id]' : '',
+      ].filter(Boolean).join(', ');
+      const highlight = e.target.closest(selector);
+      if (!highlight || !editorEl.contains(highlight)) return;
 
-      const target = e.target as HTMLElement;
-      const noteEl = target.closest('.script-note-highlight') as HTMLElement | null;
-      if (!noteEl) return;
-
-      const noteId = noteEl.getAttribute('data-note-id');
-      if (!noteId) return;
-
-      const note = store.notes.find((n) => n.id === noteId);
-      if (!note) return;
-
-      // Filter to this specific note
-      store.setNoteFilter({
-        elementType: null,
-        contextLabel: null,
-        color: null,
-        noteId: noteId,
-      });
-
-      // Open the notes panel if not already open
-      if (!store.scriptNotesOpen) store.toggleScriptNotes();
+      const noteId = highlight.getAttribute('data-note-id');
+      if (noteId && store.notes.some(note => note.id === noteId)) {
+        store.setNoteFilter({ elementType: null, contextLabel: null, color: null, noteId });
+        if (!store.scriptNotesOpen) store.toggleScriptNotes();
+      }
+      const tagId = highlight.getAttribute('data-tag-id');
+      if (tagId && store.tags.some(tag => tag.id === tagId)) {
+        store.setTagPanelTarget({ id: tagId, edit: false });
+        if (!store.tagsPanelOpen) store.toggleTagsPanel();
+      }
     };
 
-    const editorEl = editor.view.dom;
     editorEl.addEventListener('click', handleClick);
     return () => editorEl.removeEventListener('click', handleClick);
   }, [editor]);

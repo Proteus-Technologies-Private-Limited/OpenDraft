@@ -4405,7 +4405,10 @@ const MenuBar: React.FC<MenuBarProps> = ({
             onPointerMove={handleFabPointerMove}
             onPointerUp={handleFabPointerUp}
             onClick={handleFabClick}
-            onMouseDown={(e) => e.nativeEvent.stopImmediatePropagation()}
+            onMouseDown={(e) => {
+              keepEditorSelection(e);
+              e.nativeEvent.stopImmediatePropagation();
+            }}
             title={t('menu:fab.title')}
           >
             <FaBars />

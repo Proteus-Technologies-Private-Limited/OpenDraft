@@ -44,6 +44,9 @@ import {
 } from '../utils/noteMentions';
 import { elementLabel } from '../editor/elementLabels';
 import { PanelPopoutButton } from './PanelPopout';
+import { useEditorSelector } from '../hooks/useEditorTransactions';
+import { readAnnotationSelection } from '../utils/annotationSelection';
+import { addScriptNoteAtSelection } from '../utils/addScriptNote';
 
 /** Open a URL in the default browser. Uses Tauri invoke on desktop, window.open on web. */
 const openInBrowser = (url: string) => {
@@ -251,7 +254,7 @@ const NoteContentDisplay: React.FC<{
 };
 
 const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
-  const { t } = useTranslation(['collab', 'common']);
+  const { t } = useTranslation(['collab', 'common', 'editor']);
   const {
     notes,
     scriptNotesOpen,
@@ -268,6 +271,7 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
     notesActiveTab: activeTab,
     setNotesActiveTab: setActiveTab,
   } = useEditorStore();
+  const selectedText = useEditorSelector(scriptNotesOpen ? editor : null, readAnnotationSelection, null, 'the note selection');
 
   const { assets } = useAssetStore();
   const { currentProject, currentScriptId } = useProjectStore();
@@ -462,8 +466,8 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
   const getSceneName = useCallback(
     (sceneId: string | null) => {
       if (!sceneId) return null;
-      // A note's sceneId counts scenes from 0 (`scene-0` is the first, see
-      // ScriptContextMenu / Toolbar), while the navigator's scene ids count
+      // A note's sceneId counts scenes from 0 (`scene-0` is the first),
+      // while the navigator's scene ids count
       // from 1 — so look the scene up by position, not by id.
       const index = Number(/^scene-(\d+)$/.exec(sceneId)?.[1]);
       const scene = Number.isInteger(index) ? scenes[index] : undefined;
@@ -709,6 +713,20 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
           &times;
         </button>
       </div>
+
+      {editor && selectedText && (
+        <div className="annotation-panel-actions">
+          <button type="button" className="dialog-btn" onMouseDown={event => event.preventDefault()} onClick={() => {
+            const noteId = addScriptNoteAtSelection(editor, selectedText);
+            if (noteId) setEditingNoteId(noteId);
+          }}>
+            {t('editor:contextMenu.addScriptNote')}
+          </button>
+        </div>
+      )}
+      {editor?.isEditable && !selectedText && (
+        <p className="annotation-panel-actions annotation-panel-hint">{t('notes.selectText')}</p>
+      )}
 
       {/* ── Tab switcher ── */}
       <div className="sn-tabs">

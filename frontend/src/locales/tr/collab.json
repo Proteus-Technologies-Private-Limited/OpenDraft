@@ -372,7 +372,8 @@
       "Purple": "Mor"
     },
     "colorCount": "{{color}} ({{n}})",
-    "emptyNone": "Henüz not yok. Düzenleyicide metni seçin, sağ tıklayın ve “Senaryo notu ekle”yi seçin.",
+    "emptyNone": "Henüz senaryo notu yok.",
+    "selectText": "Not eklemek için senaryodan metin seçin.",
     "emptyResolved": "Tüm notlar çözüldü. Görmek için “Çözülenleri göster”i işaretleyin.",
     "emptyFilter": "Bu süzgeçle eşleşen not yok.",
     "filterByContext": "Süz: “{{label}}”",

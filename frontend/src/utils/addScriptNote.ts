@@ -1,6 +1,7 @@
 import type { Editor } from '@tiptap/core';
 import type { Mark } from '@tiptap/pm/model';
 import { useEditorStore, NOTE_COLORS } from '../stores/editorStore';
+import { annotationText, sceneIdAtAnnotation, type AnnotationSelection } from './annotationSelection';
 import { singleLine } from './nodeText';
 
 /** The note mark under the caret, or null. */
@@ -21,29 +22,41 @@ function scriptNoteAtSelection(editor: Editor): Mark | null {
  * note on the selection (the whole element when nothing is selected) and show
  * it in the Notes panel. On an empty element it just toggles the panel.
  */
-export function addScriptNoteAtSelection(editor: Editor): void {
+export function addScriptNoteAtSelection(editor: Editor, selection?: AnnotationSelection): string | undefined {
+  if (!editor.isEditable) return;
   const { scriptNotesOpen, toggleScriptNotes, addNote, setNoteFilter } = useEditorStore.getState();
+  const { doc } = editor.state;
+  const { $from, from, to, empty } = editor.state.selection;
+  const selFrom = selection?.from ?? (empty ? $from.start() : from);
+  const selTo = selection?.to ?? (empty ? $from.end() : to);
+  const text = annotationText(doc, { from: selFrom, to: selTo });
+  if (selection && (!text.trim() || text !== selection.text)) return;
 
-  const noteMark = scriptNoteAtSelection(editor);
-  if (noteMark) {
-    setNoteFilter({ elementType: null, contextLabel: null, color: null, noteId: noteMark.attrs.noteId as string });
-    if (!scriptNotesOpen) toggleScriptNotes();
-    return;
+  // A panel action can outlive editor focus. Read marks at the saved range
+  // and keep existing note anchors if the selected text overlaps one.
+  const markType = editor.schema.marks.scriptNote;
+  if (!markType) return;
+  let noteMark = selection ? null : scriptNoteAtSelection(editor);
+  if (selection) {
+    doc.nodesBetween(selFrom, selTo, node => {
+      noteMark ??= node.marks.find(mark => mark.type === markType) ?? null;
+    });
   }
-
-  const { from, to, empty } = editor.state.selection;
-  const $from = editor.state.selection.$from;
-  const selFrom = empty ? $from.start() : from;
-  const selTo = empty ? $from.end() : to;
-  const text = editor.state.doc.textBetween(selFrom, selTo, ' ');
+  if (noteMark) {
+    const noteId = noteMark.attrs.noteId as string;
+    setNoteFilter({ elementType: null, contextLabel: null, color: null, noteId });
+    if (!scriptNotesOpen) toggleScriptNotes();
+    return noteId;
+  }
 
   if (!text.trim()) {
     toggleScriptNotes();
     return;
   }
 
-  const currentNodeType = $from.parent.type.name;
-  const nodeText = singleLine($from.parent.textContent);
+  const parent = doc.resolve(Math.max(1, selFrom)).parent;
+  const currentNodeType = parent.type.name;
+  const nodeText = singleLine(parent.textContent);
   let contextLabel = nodeText.slice(0, 60);
   if (currentNodeType === 'character') {
     contextLabel = nodeText.replace(/\s*\([^)]*\)\s*/g, '').trim();
@@ -60,13 +73,6 @@ export function addScriptNoteAtSelection(editor: Editor): void {
     if (charName) contextLabel = charName;
   }
 
-  let sceneId: string | null = null;
-  let sceneIdx = 0;
-  editor.state.doc.nodesBetween(0, selFrom, (node) => {
-    if (node.type.name === 'sceneHeading') { sceneId = `scene-${sceneIdx}`; sceneIdx++; }
-    return true;
-  });
-
   const defaultColor = NOTE_COLORS[0];
   const noteId = addNote({
     content: '',
@@ -74,17 +80,15 @@ export function addScriptNoteAtSelection(editor: Editor): void {
     elementType: currentNodeType,
     contextLabel,
     color: defaultColor.name,
-    sceneId,
+    sceneId: sceneIdAtAnnotation(doc, selFrom),
   });
 
   const { tr } = editor.state;
-  const markType = editor.schema.marks.scriptNote;
-  if (markType) {
-    tr.addMark(selFrom, selTo, markType.create({ noteId, color: defaultColor.hex }));
-    editor.view.dispatch(tr);
-    editor.emit('update', { editor, transaction: tr });
-  }
+  tr.addMark(selFrom, selTo, markType.create({ noteId, color: defaultColor.hex }));
+  editor.view.dispatch(tr);
+  editor.emit('update', { editor, transaction: tr });
 
   setNoteFilter({ elementType: null, contextLabel: null, color: null, noteId });
   if (!scriptNotesOpen) toggleScriptNotes();
+  return noteId;
 }

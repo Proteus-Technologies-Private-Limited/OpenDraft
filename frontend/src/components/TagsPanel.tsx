@@ -3,8 +3,9 @@ import type { Editor } from '@tiptap/react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { panelCloseDelay, useDelayedUnmount, useSwipeDismiss } from '../hooks/useTouch';
-import { useEditorStore } from '../stores/editorStore';
-import { useEditorDoc } from '../hooks/useEditorTransactions';
+import { useEditorStore, type TagPanelTarget } from '../stores/editorStore';
+import { useEditorDoc, useEditorSelector } from '../hooks/useEditorTransactions';
+import { annotationText, pendingTagForRange, readAnnotationSelection } from '../utils/annotationSelection';
 import { PanelPopoutButton } from './PanelPopout';
 
 interface TagsPanelProps {
@@ -67,9 +68,10 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor, style }) => {
     toggleTagsPanel,
     pendingTagSelection,
     setPendingTagSelection,
-    editingTagId,
-    setEditingTagId,
+    tagPanelTarget,
+    setTagPanelTarget,
   } = useEditorStore();
+  const selectedText = useEditorSelector(tagsPanelOpen ? editor : null, readAnnotationSelection, null, 'the tag selection');
 
   const [activeTab, setActiveTab] = useState<'view' | 'manage'>('view');
   const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
@@ -78,6 +80,7 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor, style }) => {
 
   // View-tab: which entity's occurrences are shown
   const [viewExpandedTagId, setViewExpandedTagId] = useState<string | null>(null);
+  const [tagToReveal, setTagToReveal] = useState<TagPanelTarget | null>(null);
 
   // Ref-based handler for the Create button — bypasses React event delegation
   // to work around iOS WebKit swallowing touch events during keyboard dismiss.
@@ -161,38 +164,35 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor, style }) => {
     return map;
   }, [occurrences]);
 
-  // ── Auto-expand when editingTagId is set from context menu ────────────
-
-  // Auto-switch to Manage tab when pending selection or editing tag
+  // Auto-switch to Manage tab when the writer starts creating a tag.
   useEffect(() => {
     if (pendingTagSelection) setActiveTab('manage');
   }, [pendingTagSelection]);
 
-  const lastEditingTagRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!editingTagId || editingTagId === lastEditingTagRef.current) return;
-    lastEditingTagRef.current = editingTagId;
-    const tag = tags.find((t) => t.id === editingTagId);
-    if (!tag) { setEditingTagId(null); return; }
+    if (!tagsPanelOpen || !tagPanelTarget) return;
+    const tag = tags.find(item => item.id === tagPanelTarget.id);
+    setTagPanelTarget(null);
+    if (!tag) return;
 
-    setActiveTab('manage');
+    setPendingTagSelection(null);
+    setActiveTab(tagPanelTarget.edit ? 'manage' : 'view');
     setExpandedCats((prev) => {
       const next = new Set(prev);
       next.add(tag.categoryId);
       return next;
     });
-    setExpandedTagId(editingTagId);
-    setEditingTagId(null);
+    if (tagPanelTarget.edit) setExpandedTagId(tag.id);
+    else setViewExpandedTagId(tag.id);
+    setTagToReveal(tagPanelTarget);
+  }, [tagsPanelOpen, tagPanelTarget, tags, setTagPanelTarget, setPendingTagSelection]);
 
-    setTimeout(() => {
-      const el = tagItemRefs.current.get(editingTagId);
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        const textarea = el.querySelector('.tags-item-notes') as HTMLTextAreaElement | null;
-        if (textarea) textarea.focus();
-      }
-    }, 100);
-  }, [editingTagId, tags, setEditingTagId]);
+  useEffect(() => {
+    if (!tagToReveal) return;
+    const row = tagItemRefs.current.get(tagToReveal.id);
+    row?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    if (tagToReveal.edit) row?.querySelector<HTMLTextAreaElement>('.tags-item-notes')?.focus();
+  }, [tagToReveal]);
 
   // Reset pending category when pending selection changes
   useEffect(() => {
@@ -312,25 +312,28 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor, style }) => {
 
   const handlePickCategory = useCallback((catId: string) => {
     setPendingCategoryId(catId);
-    setNewEntityName(pendingTagSelection?.text || '');
+    setNewEntityName(pendingTagSelection?.text.slice(0, 80) || '');
   }, [pendingTagSelection]);
 
-  /** Apply pending selection to an EXISTING entity */
+  const currentPendingSelection = useCallback(() => {
+    if (!editor?.isEditable || !pendingTagSelection) return null;
+    if (annotationText(editor.state.doc, pendingTagSelection) === pendingTagSelection.text) {
+      return pendingTagSelection;
+    }
+    setPendingTagSelection(null);
+    return null;
+  }, [editor, pendingTagSelection, setPendingTagSelection]);
+
   /** Apply a production tag mark to the pending selection range. */
   const applyTagMark = useCallback(
     (from: number, to: number, tagId: string, categoryId: string, color: string) => {
       if (!editor) return;
       const markType = editor.schema.marks.productionTag;
       if (!markType) return;
-      const docSize = editor.state.doc.content.size;
-      const safeFrom = Math.max(0, Math.min(from, docSize));
-      const safeTo = Math.max(safeFrom, Math.min(to, docSize));
-      if (safeFrom === safeTo) return;
-
       // Use raw dispatch (works without focus), then emit 'update' so
       // React/TipTap re-renders and the useMemo recomputes occurrences.
       const { tr } = editor.state;
-      tr.addMark(safeFrom, safeTo, markType.create({ tagId, categoryId, color }));
+      tr.addMark(from, to, markType.create({ tagId, categoryId, color }));
       editor.view.dispatch(tr);
       // Force TipTap to notify React listeners
       editor.emit('update', { editor, transaction: tr });
@@ -340,8 +343,9 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor, style }) => {
 
   const handleAddToExistingEntity = useCallback(
     (entity: typeof tags[0]) => {
-      if (!editor || !pendingTagSelection) return;
-      const { from, to } = pendingTagSelection;
+      const range = currentPendingSelection();
+      if (!range) return;
+      const { from, to } = range;
       const cat = tagCategories.find((c) => c.id === entity.categoryId);
       const color = cat?.color || '#9370DB';
 
@@ -356,7 +360,7 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor, style }) => {
       setPendingTagSelection(null);
       setPendingCategoryId(null);
     },
-    [editor, pendingTagSelection, tagCategories, setPendingTagSelection, applyTagMark],
+    [currentPendingSelection, tagCategories, setPendingTagSelection, applyTagMark],
   );
 
   /** Create a NEW entity from pending selection */
@@ -364,8 +368,10 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor, style }) => {
   newEntityNameRef.current = newEntityName;
   const handleCreateNewEntity = useCallback(
     (categoryId: string) => {
-      if (!editor || !pendingTagSelection) return;
-      const { from, to, text, elementType, sceneId } = pendingTagSelection;
+      const range = currentPendingSelection();
+      if (!range) return;
+      const { from, to, elementType, sceneId } = range;
+      const text = range.text.slice(0, 80);
       const cat = tagCategories.find((c) => c.id === categoryId);
       const color = cat?.color || '#9370DB';
       const entityName = newEntityNameRef.current.trim() || text;
@@ -375,7 +381,9 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor, style }) => {
       try {
         applyTagMark(from, to, tagId, categoryId, color);
       } catch {
-        // Mark application can fail if the document changed; tag entity is still created
+        deleteTag(tagId);
+        setPendingTagSelection(null);
+        return;
       }
 
       setExpandedCats((prev) => {
@@ -387,7 +395,7 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor, style }) => {
       setPendingTagSelection(null);
       setPendingCategoryId(null);
     },
-    [editor, pendingTagSelection, tagCategories, newEntityName, addTag, setPendingTagSelection, applyTagMark],
+    [currentPendingSelection, tagCategories, addTag, deleteTag, setPendingTagSelection, applyTagMark],
   );
 
   const handleCancelPending = useCallback(() => {
@@ -436,6 +444,12 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor, style }) => {
   const pendingCatEntities = pendingCategoryId
     ? tags.filter((tg) => tg.categoryId === pendingCategoryId)
     : [];
+  const hasNewSelection = selectedText && (
+    !pendingTagSelection
+    || selectedText.from !== pendingTagSelection.from
+    || selectedText.to !== pendingTagSelection.to
+    || selectedText.text !== pendingTagSelection.text
+  );
 
   return (
     <div ref={panelRef} className={`tags-panel ${panelClass}`} style={style}>
@@ -464,6 +478,20 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor, style }) => {
           &times;
         </button>
       </div>
+
+      {editor && selectedText && hasNewSelection && (
+        <div className="annotation-panel-actions">
+          <button type="button" className="dialog-btn" onMouseDown={event => event.preventDefault()} onClick={() => {
+            const pending = pendingTagForRange(editor.state.doc, selectedText);
+            if (pending?.text === selectedText.text) setPendingTagSelection(pending);
+          }}>
+            {t('tags.createTag')}
+          </button>
+        </div>
+      )}
+      {editor?.isEditable && !selectedText && !pendingTagSelection && (
+        <p className="annotation-panel-actions annotation-panel-hint">{t('tags.selectText')}</p>
+      )}
 
       {/* ── Tab bar ──────────────────────────────────────────────────── */}
       <div className="tags-tab-bar">
@@ -520,7 +548,10 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor, style }) => {
                         const entityOccs = occurrencesByTag.get(entity.id) || [];
                         const isViewExpanded = viewExpandedTagId === entity.id;
                         return (
-                          <div key={entity.id} className="tags-item-wrap">
+                          <div key={entity.id} className="tags-item-wrap" ref={el => {
+                            if (el) tagItemRefs.current.set(entity.id, el);
+                            else tagItemRefs.current.delete(entity.id);
+                          }}>
                             <div className="tags-item">
                               <span
                                 className="tags-item-text tags-entity-name"
@@ -736,7 +767,10 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor, style }) => {
                             <div
                               key={entity.id}
                               className={`tags-item-wrap${isEntityExpanded ? ' tags-item-editing' : ''}`}
-                              ref={(el) => { if (el) tagItemRefs.current.set(entity.id, el); }}
+                              ref={el => {
+                                if (el) tagItemRefs.current.set(entity.id, el);
+                                else tagItemRefs.current.delete(entity.id);
+                              }}
                             >
                               <div className="tags-item">
                                 <span

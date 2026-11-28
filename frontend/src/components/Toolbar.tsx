@@ -2,7 +2,6 @@ import { ChoiceLineBack, ChoiceLineClose } from './toolbar/ChoiceLineControls';
 import React, { useEffect, useLayoutEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Editor } from '@tiptap/react';
-import type { Mark } from '@tiptap/pm/model';
 import {
   FaBold,
   FaItalic,
@@ -44,7 +43,6 @@ import {
 import { useEditorStore, useEditorFields } from '../stores/editorStore';
 import { useEditorSelector } from '../hooks/useEditorTransactions';
 import type { ElementType } from '../stores/editorStore';
-import { panelButtonAction } from '../utils/panelButton';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { BUILT_IN_ELEMENT_IDS } from '../stores/formattingTypes';
 import {
@@ -272,8 +270,6 @@ const ControlBar: React.FC<ControlBarProps> = ({ editor, bar, items, hidden, edi
     toggleScriptNotes,
     tagsPanelOpen,
     toggleTagsPanel,
-    setPendingTagSelection,
-    setEditingTagId,
     toolbarMode: savedToolbarMode,
     focusMode,
     toolbarLayout,
@@ -298,8 +294,6 @@ const ControlBar: React.FC<ControlBarProps> = ({ editor, bar, items, hidden, edi
     'toggleScriptNotes',
     'tagsPanelOpen',
     'toggleTagsPanel',
-    'setPendingTagSelection',
-    'setEditingTagId',
     'toolbarMode',
     'focusMode',
     'toolbarLayout',
@@ -813,55 +807,6 @@ const ControlBar: React.FC<ControlBarProps> = ({ editor, bar, items, hidden, edi
     // The layout's labels change widths without changing the item list.
   }, [isTop, hideOrder, toolbarLayout, toolbarMode, foldState.foldable, foldState.size, foldState.fold, docksAvailable, laptopActive]);
 
-  // ── Tags handler (shared between inline and overflow) ──
-  const handleTagsClick = useCallback((e: React.PointerEvent | React.MouseEvent) => {
-    e.preventDefault();
-    if (!editor) { toggleTagsPanel(); return; }
-
-    const markType = editor.schema.marks.productionTag;
-    const $from = editor.state.selection.$from;
-    let tagMark: Mark | null = null;
-    if (markType) {
-      tagMark = $from.marks().find((m) => m.type === markType) ?? null;
-      if (!tagMark) {
-        const node = $from.nodeAfter || $from.nodeBefore;
-        if (node?.marks) tagMark = node.marks.find((m) => m.type === markType) ?? null;
-      }
-    }
-
-    // As with Notes: close on a plain second click, but a selection or a tag
-    // under the caret keeps the add/focus action.
-    if (panelButtonAction(tagsPanelOpen, editor.state.selection.empty, tagMark !== null) === 'close') {
-      toggleTagsPanel();
-      return;
-    }
-
-    if (tagMark) {
-      setEditingTagId(tagMark.attrs.tagId as string);
-      if (!tagsPanelOpen) toggleTagsPanel();
-      return;
-    }
-
-    const { from, to, empty } = editor.state.selection;
-    const selFrom = empty ? $from.start() : from;
-    const selTo = empty ? $from.end() : to;
-    const text = editor.state.doc.textBetween(selFrom, selTo, ' ');
-
-    if (text.trim()) {
-      const currentNodeType = $from.parent.type.name;
-      let sceneId: string | null = null;
-      let sceneIdx = 0;
-      editor.state.doc.nodesBetween(0, selFrom, (node) => {
-        if (node.type.name === 'sceneHeading') { sceneId = `scene-${sceneIdx}`; sceneIdx++; }
-        return true;
-      });
-      setPendingTagSelection({ from: selFrom, to: selTo, text: text.slice(0, 80), elementType: currentNodeType, sceneId });
-      if (!tagsPanelOpen) toggleTagsPanel();
-    } else {
-      toggleTagsPanel();
-    }
-  }, [editor, tagsPanelOpen, toggleTagsPanel, setPendingTagSelection, setEditingTagId]);
-
   // ── One renderer per control. `mode` is the label the writer chose. ──
 
   const closeOverflow = (inOverflow: boolean) => {
@@ -1165,7 +1110,7 @@ const ControlBar: React.FC<ControlBarProps> = ({ editor, bar, items, hidden, edi
         aria-pressed={scriptNotesOpen}
         title={t('toolbar.scriptNotes')}
         aria-label={mode === 'icon' ? t('layout.labels.notes') : undefined}
-        onPointerDown={e => e.preventDefault()}
+        onMouseDown={e => e.preventDefault()}
         onClick={() => { toggleScriptNotes(); closeOverflow(inOverflow); }}
       >
         {face(mode, <FaStickyNote />, t('layout.labels.notes'))}
@@ -1175,8 +1120,8 @@ const ControlBar: React.FC<ControlBarProps> = ({ editor, bar, items, hidden, edi
         aria-pressed={tagsPanelOpen}
         title={t('toolbar.productionTags')}
         aria-label={mode === 'icon' ? t('layout.labels.tags') : undefined}
-        onPointerDown={(e) => { handleTagsClick(e); closeOverflow(inOverflow); }}
-        onClick={e => { if (e.detail === 0) { handleTagsClick(e); closeOverflow(inOverflow); } }}
+        onMouseDown={e => e.preventDefault()}
+        onClick={() => { toggleTagsPanel(); closeOverflow(inOverflow); }}
       >
         {face(mode, <FaTags />, t('layout.labels.tags'))}
       </button>
@@ -1396,6 +1341,7 @@ const ControlBar: React.FC<ControlBarProps> = ({ editor, bar, items, hidden, edi
             className={`toolbar-btn toolbar-overflow-btn${overflowOpen ? ' active' : ''}`}
             title={t('toolbar.moreFormatting')}
             aria-expanded={overflowOpen}
+            onMouseDown={e => e.preventDefault()}
             onClick={e => { overflowKeyboard.current = e.detail === 0; setOverflowLine(toolbarChoiceLine(e.currentTarget)); setOverflowOpen(!overflowOpen); }}
           >
             <FaEllipsisV />
