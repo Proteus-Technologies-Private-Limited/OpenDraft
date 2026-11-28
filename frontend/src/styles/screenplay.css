@@ -11847,9 +11847,10 @@ body.selection-bands-active .page .ProseMirror::selection { background: transpar
   .menu-bar.chrome-comfortable .menu-icon { font-size: 15px; }
   .menu-bar.chrome-comfortable .menu-spacer { flex: 0 0 auto; width: 0; }
 
-  /* Floating menu bar (hidden mode): constrain to viewport, scroll */
+  /* Floating menu bar (hidden mode): constrain to viewport, scroll. The
+     --addon-inset-* keep it off the add-on tab strip (MenuBar.tsx). */
   .menu-bar--floating {
-    max-width: calc(100vw - 28px);
+    max-width: calc(100vw - 28px - var(--addon-inset-left, 0px) - var(--addon-inset-right, 0px));
     flex-wrap: nowrap;
     overflow-x: auto; overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
@@ -12143,11 +12144,12 @@ body.selection-bands-active .page .ProseMirror::selection { background: transpar
   .menu-bar.chrome-comfortable .menu-label { font-size: 13px; }
   .menu-bar.chrome-comfortable .menu-icon { font-size: 14px; }
 
-  /* Floating menu bar (hidden mode): full-width on phone, scroll */
+  /* Floating menu bar (hidden mode): full-width on phone, scroll — less
+     the add-on tab strip it opens with, which it used to cover. */
   .menu-bar--floating {
-    left: 8px !important;
-    right: 8px;
-    max-width: calc(100vw - 16px);
+    left: calc(8px + var(--addon-inset-left, 0px)) !important;
+    right: calc(8px + var(--addon-inset-right, 0px));
+    max-width: calc(100vw - 16px - var(--addon-inset-left, 0px) - var(--addon-inset-right, 0px));
   }
 
   /* Toolbar: compact, scrollable */
@@ -15774,6 +15776,16 @@ button.beat-scene-chip:hover { border-color: var(--fd-accent); color: var(--fd-a
 .editor-main::-webkit-scrollbar { display: block; width: 14px; height: 14px; }
 .editor-main::-webkit-scrollbar-thumb { background: var(--fd-text-muted); border: 3px solid var(--fd-bg); border-radius: 7px; }
 .editor-main::-webkit-scrollbar-thumb:hover { background: var(--fd-text); }
+/* …but only where there is a pointer to drag it with. On a touch-only phone
+   or tablet the rule above, coming later than the touch block that hides the
+   bar (search "Scrollbars: hidden on touch"), left a permanent 14px dark
+   track down the right of the script, between the page and the edge or the
+   add-on tab strip. The finger scrolls the page, and the system's own
+   indicator shows while it does. */
+@media (hover: none) and (pointer: coarse) {
+  .editor-main { scrollbar-width: none; scrollbar-gutter: auto; }
+  .editor-main::-webkit-scrollbar { display: none; }
+}
 
 .external-save-review { box-sizing: border-box; max-width: min(36rem, calc(100vw - 2rem - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px))); max-height: calc(100dvh - 2rem); overflow: auto; background: var(--fd-dialog-bg); color: var(--fd-text); border: 1px solid var(--fd-border); border-radius: 8px; padding: 24px; font: inherit; }
 .external-save-review::backdrop { background: rgba(0,0,0,.6); }
@@ -16255,7 +16267,7 @@ html.fold-book .status-right { flex: 0 0 auto; gap: 10px; white-space: nowrap; }
    foldable that button lives in the side status column, so the bar starts
    beside the column and has to stop at the other edge's inset too. */
 html.foldable .menu-bar--floating {
-  max-width: calc(100vw - 28px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
+  max-width: calc(100vw - 28px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px) - var(--addon-inset-left, 0px) - var(--addon-inset-right, 0px));
 }
 html.foldable { --fold-chrome-top: env(safe-area-inset-top, 0px); }
 html.ios.foldable.wide { --fold-chrome-top: max(env(safe-area-inset-top, 0px), 24px); }
